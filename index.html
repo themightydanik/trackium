@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trackium - Decentralized Cargo Tracking</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="stylesheet" href="./assets/css/styles.css">
+    <script type="text/javascript" src="./mds.js"></script>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="screen active">
+        <div class="loading-container">
+            <div class="trackium-logo">
+                <div class="logo-icon">📦</div>
+                <h1>TRACKIUM</h1>
+                <p class="tagline">Trust the Movement. Secure the World.</p>
+            </div>
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Connecting to Minima Network...</p>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="screen">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo-small">📦</div>
+                <h2>Trackium</h2>
+            </div>
+            <div class="header-right">
+                <button class="icon-btn" onclick="showScreen('settings')" title="Settings">⚙️</button>
+                <button class="icon-btn" onclick="showScreen('help')" title="Help">❓</button>
+            </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-icon">🔗</div>
+                <div class="stat-info">
+                    <span class="stat-value" id="total-devices">0</span>
+                    <span class="stat-label">Active Devices</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🚚</div>
+                <div class="stat-info">
+                    <span class="stat-value" id="active-shipments">0</span>
+                    <span class="stat-label">Active Shipments</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔒</div>
+                <div class="stat-info">
+                    <span class="stat-value" id="locked-devices">0</span>
+                    <span class="stat-label">Locked</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-info">
+                    <span class="stat-value" id="verified-proofs">0</span>
+                    <span class="stat-label">Verified Proofs</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <button class="action-btn primary" onclick="showScreen('add-device')">
+                <span class="btn-icon">➕</span>
+                <span>Add Device</span>
+            </button>
+            <button class="action-btn" onclick="showScreen('devices')">
+                <span class="btn-icon">📱</span>
+                <span>My Devices</span>
+            </button>
+            <button class="action-btn" onclick="showScreen('shipments')">
+                <span class="btn-icon">📦</span>
+                <span>Shipments</span>
+            </button>
+            <button class="action-btn" onclick="showScreen('analytics')">
+                <span class="btn-icon">📊</span>
+                <span>Analytics</span>
+            </button>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="section">
+            <h3 class="section-title">Recent Activity</h3>
+            <div id="recent-activity" class="activity-list"></div>
+        </div>
+    </div>
+
+    <!-- Add Device Screen -->
+    <div id="add-device" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="showScreen('dashboard')">← Back</button>
+            <h2>Add Trackium Device</h2>
+        </div>
+        
+        <div class="form-container">
+            <div class="form-group">
+                <label>Device Type</label>
+                <select id="device-type" class="form-input">
+                    <option value="tracker">Tracker Only</option>
+                    <option value="smartlock">Smart Lock + Tracker</option>
+                    <option value="smartphone">Smartphone (Test Mode)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Device ID / Serial Number</label>
+                <input type="text" id="device-id" class="form-input" placeholder="TRACK-XXXX-XXXX">
+                <button class="secondary-btn" onclick="generateDeviceId()">Generate ID</button>
+            </div>
+
+            <div class="form-group">
+                <label>Device Name</label>
+                <input type="text" id="device-name" class="form-input" placeholder="e.g., Container-EU-01">
+            </div>
+
+            <div class="form-group">
+                <label>Location (Optional)</label>
+                <input type="text" id="device-location" class="form-input" placeholder="e.g., Warehouse A">
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="enable-blockchain-proof">
+                    Enable Blockchain Proof-of-Movement
+                </label>
+            </div>
+
+            <button class="primary-btn full-width" onclick="addDevice()">
+                <span>Register Device</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Devices List Screen -->
+    <div id="devices" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="showScreen('dashboard')">← Back</button>
+            <h2>My Devices</h2>
+            <button class="icon-btn" onclick="refreshDevices()">🔄</button>
+        </div>
+
+        <div class="devices-grid" id="devices-list"></div>
+    </div>
+
+    <!-- Device Detail Screen -->
+    <div id="device-detail" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="showScreen('devices')">← Back</button>
+            <h2 id="device-detail-name">Device Details</h2>
+            <button class="icon-btn" onclick="deleteDevice(currentDeviceId)">🗑️</button>
+        </div>
+
+        <div class="device-detail-container">
+            <!-- Device Info -->
+            <div class="detail-section">
+                <h3>Device Information</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Device ID:</span>
+                        <span class="info-value" id="detail-device-id">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Type:</span>
+                        <span class="info-value" id="detail-device-type">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Status:</span>
+                        <span class="info-value" id="detail-device-status">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Battery:</span>
+                        <span class="info-value" id="detail-device-battery">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">GPS Signal:</span>
+                        <span class="info-value" id="detail-device-gps">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Last Sync:</span>
+                        <span class="info-value" id="detail-device-sync">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Location -->
+            <div class="detail-section">
+                <h3>Current Location</h3>
+                <div id="device-map" class="map-container">
+                    <div class="map-placeholder">
+                        <span class="location-icon">📍</span>
+                        <p id="device-coordinates">Waiting for GPS...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Smart Lock Controls (if applicable) -->
+            <div class="detail-section" id="lock-controls" style="display: none;">
+                <h3>Smart Lock Control</h3>
+                <div class="lock-status" id="lock-status-display">
+                    <div class="lock-icon" id="lock-icon">🔒</div>
+                    <p id="lock-status-text">Locked</p>
+                </div>
+                <div class="lock-actions">
+                    <button class="primary-btn" onclick="generateUnlockQR()">Generate Unlock QR</button>
+                    <button class="secondary-btn" onclick="toggleLock()">Toggle Lock</button>
+                </div>
+            </div>
+
+            <!-- Movement History -->
+            <div class="detail-section">
+                <h3>Movement History</h3>
+                <div id="movement-history" class="history-list"></div>
+            </div>
+
+            <!-- Blockchain Proofs -->
+            <div class="detail-section">
+                <h3>Blockchain Proofs</h3>
+                <button class="secondary-btn" onclick="submitProofOfMovement()">Submit Proof-of-Movement</button>
+                <div id="blockchain-proofs" class="proofs-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shipments Screen -->
+    <div id="shipments" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="showScreen('dashboard')">← Back</button>
+            <h2>Shipments</h2>
+            <button class="primary-btn" onclick="showScreen('create-shipment')">+ New Shipment</button>
+        </div>
+
+        <div class="shipments-grid" id="shipments-list"></div>
+    </div>
+
+    <!-- Create Shipment Screen -->
+    <div id="create-shipment" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="showScreen('shipments')">← Back</button>
+            <h2>Create Shipment</h2>
+        </div>
+
+        <div class="form-container">
+            <div class="form-group">
+                <label>Shipment ID</label>
+                <input type="text" id="shipment-id" class="form-input" placeholder="AUTO-GENERATED">
+            </div>
+
+            <div class="form-group">
+                <label>Select Device</label>
+                <select id="shipment-device" class="form-input"></select>
+            </div>
+
+            <div class="form-group">
+                <label>Cargo Description</label>
+                <textarea id="shipment-cargo" class="form-input" rows="3" placeholder="e.g., Electronics, 50 boxes"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Origin</label>
+                <input type="text" id="shipment-origin" class="form-input" placeholder="Starting location">
+            </div>
+
+            <div class="form-group">
+                <label>Destination</label>
+                <input type="text" id="shipment-destination" class="form-input" placeholder="Final destination">
+            </div>
+
+            <div class="form-group">
+                <label>Expected Delivery</label>
+                <input type="datetime-local" id="shipment-delivery" class="form-input">
+            </div>
+
+            <button class="primary-btn full-width" onclick="createShipment()">
+                <span>Create Shipment</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Analytics Screen -->
+    <div id="analytics" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="showScreen('dashboard')">← Back</button>
+            <h2>Analytics</h2>
+        </div>
+
+        <div class="analytics-container">
+            <div class="chart-section">
+                <h3>Device Activity (Last 7 Days)</h3>
+                <canvas id="activity-chart"></canvas>
+            </div>
+
+            <div class="chart-section">
+                <h3>Proof-of-Movement Timeline</h3>
+                <div id="proof-timeline"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="showScreen('dashboard')">← Back</button>
+            <h2>Settings</h2>
+        </div>
+
+        <div class="settings-container">
+            <div class="setting-group">
+                <h3>Blockchain Settings</h3>
+                <div class="setting-item">
+                    <label>Auto-submit Proof-of-Movement</label>
+                    <input type="checkbox" id="auto-proof" class="toggle">
+                </div>
+                <div class="setting-item">
+                    <label>Proof Frequency (minutes)</label>
+                    <input type="number" id="proof-frequency" class="form-input" value="60" min="5">
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Notifications</h3>
+                <div class="setting-item">
+                    <label>Movement Alerts</label>
+                    <input type="checkbox" id="alert-movement" class="toggle" checked>
+                </div>
+                <div class="setting-item">
+                    <label>Lock Status Changes</label>
+                    <input type="checkbox" id="alert-lock" class="toggle" checked>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Node Information</h3>
+                <div class="info-item">
+                    <span class="info-label">Node Address:</span>
+                    <span class="info-value" id="node-address">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Balance:</span>
+                    <span class="info-value" id="node-balance">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Modal -->
+    <div id="qr-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Unlock QR Code</h3>
+                <button class="close-btn" onclick="closeQRModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="qr-code-container" class="qr-container"></div>
+                <p class="qr-instructions">Scan this QR code to unlock the device</p>
+                <p class="qr-validity">Valid for: <span id="qr-validity">5 minutes</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="./assets/js/database.js"></script>
+    <script src="./assets/js/blockchain.js"></script>
+    <script src="./assets/js/device-manager.js"></script>
+    <script src="./assets/js/gps-simulator.js"></script>
+    <script src="./assets/js/qr-generator.js"></script>
+    <script src="./assets/js/ui.js"></script>
+    <script src="./assets/js/app.js"></script>
+</body>
+</html>
