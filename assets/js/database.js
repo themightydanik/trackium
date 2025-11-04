@@ -1,4 +1,4 @@
-// database.js - SQL Database для Trackium
+// database.js - SQL Database для Trackium (ИСПРАВЛЕНО)
 
 class TrackiumDatabase {
   constructor() {
@@ -10,13 +10,13 @@ class TrackiumDatabase {
     const queries = [
       // Таблица устройств
       `CREATE TABLE IF NOT EXISTS devices (
-        id INTEGER PRIMARY KEY AUTO_INCREMENT,
+        id IDENTITY PRIMARY KEY,
         device_id VARCHAR(256) UNIQUE NOT NULL,
         device_name VARCHAR(128) NOT NULL,
         device_type VARCHAR(32) NOT NULL,
         location VARCHAR(256),
         status VARCHAR(32) DEFAULT 'offline',
-        battery INTEGER DEFAULT 100,
+        battery INT DEFAULT 100,
         gps_signal BOOLEAN DEFAULT FALSE,
         locked BOOLEAN DEFAULT FALSE,
         blockchain_proof BOOLEAN DEFAULT TRUE,
@@ -26,7 +26,7 @@ class TrackiumDatabase {
       
       // Таблица движений GPS
       `CREATE TABLE IF NOT EXISTS movements (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        id IDENTITY PRIMARY KEY,
         device_id VARCHAR(256) NOT NULL,
         latitude DECIMAL(10, 8) NOT NULL,
         longitude DECIMAL(11, 8) NOT NULL,
@@ -40,10 +40,10 @@ class TrackiumDatabase {
       
       // Таблица отправлений
       `CREATE TABLE IF NOT EXISTS shipments (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        id IDENTITY PRIMARY KEY,
         shipment_id VARCHAR(256) UNIQUE NOT NULL,
         device_id VARCHAR(256) NOT NULL,
-        cargo_description TEXT,
+        cargo_description VARCHAR(1024),
         origin VARCHAR(256),
         destination VARCHAR(256),
         status VARCHAR(32) DEFAULT 'in_transit',
@@ -54,7 +54,7 @@ class TrackiumDatabase {
       
       // Таблица блокчейн-подтверждений
       `CREATE TABLE IF NOT EXISTS blockchain_proofs (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        id IDENTITY PRIMARY KEY,
         device_id VARCHAR(256) NOT NULL,
         proof_type VARCHAR(32) NOT NULL,
         proof_hash VARCHAR(256) NOT NULL,
@@ -67,28 +67,34 @@ class TrackiumDatabase {
       
       // Таблица событий
       `CREATE TABLE IF NOT EXISTS events (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        id IDENTITY PRIMARY KEY,
         device_id VARCHAR(256) NOT NULL,
         event_type VARCHAR(64) NOT NULL,
-        event_data TEXT,
+        event_data VARCHAR(2048),
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`,
       
       // Таблица настроек
       `CREATE TABLE IF NOT EXISTS settings (
-        key VARCHAR(128) PRIMARY KEY,
-        value TEXT,
+        setting_key VARCHAR(128) PRIMARY KEY,
+        setting_value VARCHAR(2048),
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     ];
 
     let completed = 0;
-    queries.forEach(query => {
+    const total = queries.length;
+
+    queries.forEach((query, index) => {
       MDS.sql(query, (res) => {
+        if (!res.status) {
+          console.error(`Failed to create table ${index}:`, res.error);
+        }
         completed++;
-        if (completed === queries.length) {
+        
+        if (completed === total) {
           this.initialized = true;
-          console.log("Trackium Database initialized");
+          console.log("✅ Trackium Database initialized successfully");
           if (callback) callback(true);
         }
       });
@@ -97,37 +103,29 @@ class TrackiumDatabase {
 
   // ========== DEVICES ==========
 
-  // Добавить устройство
   addDevice(device, callback) {
     const query = `INSERT INTO devices 
       (device_id, device_name, device_type, location, blockchain_proof, status)
-      VALUES ('${device.deviceId}', '${device.name}', '${device.type}', 
-              '${device.location || ''}', ${device.blockchainProof}, 'online')`;
+      VALUES ('${device.deviceId}', '${this._escape(device.name)}', '${device.type}', 
+              '${this._escape(device.location || '')}', ${device.blockchainProof}, 'online')`;
     
     MDS.sql(query, (res) => {
       if (callback) callback(res.status);
     });
   }
 
-  // Получить все устройства
   getDevices(callback) {
-    const query = `SELECT * FROM devices ORDER BY created_at DESC`;
-    
-    MDS.sql(query, (res) => {
+    MDS.sql(`SELECT * FROM devices ORDER BY created_at DESC`, (res) => {
       callback(res.rows || []);
     });
   }
 
-  // Получить устройство по ID
   getDevice(deviceId, callback) {
-    const query = `SELECT * FROM devices WHERE device_id = '${deviceId}'`;
-    
-    MDS.sql(query, (res) => {
+    MDS.sql(`SELECT * FROM devices WHERE device_id = '${deviceId}'`, (res) => {
       callback(res.rows && res.rows.length > 0 ? res.rows[0] : null);
     });
   }
 
-  // Обновить статус устройства
   updateDeviceStatus(deviceId, status, callback) {
     const query = `UPDATE devices 
       SET status = '${status}', last_sync = CURRENT_TIMESTAMP 
@@ -138,7 +136,6 @@ class TrackiumDatabase {
     });
   }
 
-  // Обновить батарею
   updateDeviceBattery(deviceId, battery, callback) {
     const query = `UPDATE devices 
       SET battery = ${battery}, last_sync = CURRENT_TIMESTAMP 
@@ -149,7 +146,6 @@ class TrackiumDatabase {
     });
   }
 
-  // Обновить GPS сигнал
   updateDeviceGPS(deviceId, hasSignal, callback) {
     const query = `UPDATE devices 
       SET gps_signal = ${hasSignal}, last_sync = CURRENT_TIMESTAMP 
@@ -160,7 +156,6 @@ class TrackiumDatabase {
     });
   }
 
-  // Обновить статус замка
   updateLockStatus(deviceId, locked, callback) {
     const query = `UPDATE devices 
       SET locked = ${locked}, last_sync = CURRENT_TIMESTAMP 
@@ -171,18 +166,14 @@ class TrackiumDatabase {
     });
   }
 
-  // Удалить устройство
   deleteDevice(deviceId, callback) {
-    const query = `DELETE FROM devices WHERE device_id = '${deviceId}'`;
-    
-    MDS.sql(query, (res) => {
+    MDS.sql(`DELETE FROM devices WHERE device_id = '${deviceId}'`, (res) => {
       if (callback) callback(res.status);
     });
   }
 
   // ========== MOVEMENTS ==========
 
-  // Добавить точку движения
   addMovement(movement, callback) {
     const query = `INSERT INTO movements 
       (device_id, latitude, longitude, altitude, speed, accuracy)
@@ -190,23 +181,21 @@ class TrackiumDatabase {
               ${movement.altitude || 0}, ${movement.speed || 0}, ${movement.accuracy || 0})`;
     
     MDS.sql(query, (res) => {
-      if (callback) callback(res.status ? res.lastid : null);
+      if (callback) callback(res.status ? (res.response?.id || true) : null);
     });
   }
 
-  // Получить историю движений
-  getMovementHistory(deviceId, limit = 100, callback) {
+  getMovementHistory(deviceId, limit, callback) {
     const query = `SELECT * FROM movements 
       WHERE device_id = '${deviceId}' 
       ORDER BY timestamp DESC 
-      LIMIT ${limit}`;
+      LIMIT ${limit || 100}`;
     
     MDS.sql(query, (res) => {
       callback(res.rows || []);
     });
   }
 
-  // Получить последнюю позицию
   getLastPosition(deviceId, callback) {
     const query = `SELECT * FROM movements 
       WHERE device_id = '${deviceId}' 
@@ -218,7 +207,6 @@ class TrackiumDatabase {
     });
   }
 
-  // Обновить proof submission
   updateMovementProof(movementId, txid, callback) {
     const query = `UPDATE movements 
       SET proof_submitted = TRUE, proof_txid = '${txid}' 
@@ -231,29 +219,24 @@ class TrackiumDatabase {
 
   // ========== SHIPMENTS ==========
 
-  // Создать отправление
   createShipment(shipment, callback) {
     const query = `INSERT INTO shipments 
       (shipment_id, device_id, cargo_description, origin, destination, expected_delivery)
       VALUES ('${shipment.shipmentId}', '${shipment.deviceId}', 
-              '${shipment.cargo}', '${shipment.origin}', '${shipment.destination}', 
-              '${shipment.expectedDelivery}')`;
+              '${this._escape(shipment.cargo)}', '${this._escape(shipment.origin)}', 
+              '${this._escape(shipment.destination)}', '${shipment.expectedDelivery}')`;
     
     MDS.sql(query, (res) => {
       if (callback) callback(res.status);
     });
   }
 
-  // Получить все отправления
   getShipments(callback) {
-    const query = `SELECT * FROM shipments ORDER BY created_at DESC`;
-    
-    MDS.sql(query, (res) => {
+    MDS.sql(`SELECT * FROM shipments ORDER BY created_at DESC`, (res) => {
       callback(res.rows || []);
     });
   }
 
-  // Получить активные отправления
   getActiveShipments(callback) {
     const query = `SELECT * FROM shipments 
       WHERE status = 'in_transit' 
@@ -264,7 +247,6 @@ class TrackiumDatabase {
     });
   }
 
-  // Обновить статус отправления
   updateShipmentStatus(shipmentId, status, callback) {
     const query = `UPDATE shipments 
       SET status = '${status}' 
@@ -277,7 +259,6 @@ class TrackiumDatabase {
 
   // ========== BLOCKCHAIN PROOFS ==========
 
-  // Добавить blockchain proof
   addBlockchainProof(proof, callback) {
     const query = `INSERT INTO blockchain_proofs 
       (device_id, proof_type, proof_hash, transaction_id, data_hash)
@@ -289,19 +270,17 @@ class TrackiumDatabase {
     });
   }
 
-  // Получить blockchain proofs
-  getBlockchainProofs(deviceId, limit = 50, callback) {
+  getBlockchainProofs(deviceId, limit, callback) {
     const query = `SELECT * FROM blockchain_proofs 
       WHERE device_id = '${deviceId}' 
       ORDER BY timestamp DESC 
-      LIMIT ${limit}`;
+      LIMIT ${limit || 50}`;
     
     MDS.sql(query, (res) => {
       callback(res.rows || []);
     });
   }
 
-  // Обновить верификацию proof
   verifyProof(proofId, blockNumber, callback) {
     const query = `UPDATE blockchain_proofs 
       SET verified = TRUE, block_number = ${blockNumber} 
@@ -314,9 +293,10 @@ class TrackiumDatabase {
 
   // ========== EVENTS ==========
 
-  // Добавить событие
   addEvent(deviceId, eventType, eventData, callback) {
-    const dataStr = typeof eventData === 'object' ? JSON.stringify(eventData) : eventData;
+    const dataStr = typeof eventData === 'object' ? 
+      this._escape(JSON.stringify(eventData)) : this._escape(String(eventData));
+    
     const query = `INSERT INTO events 
       (device_id, event_type, event_data)
       VALUES ('${deviceId}', '${eventType}', '${dataStr}')`;
@@ -326,23 +306,21 @@ class TrackiumDatabase {
     });
   }
 
-  // Получить события
-  getEvents(deviceId, limit = 50, callback) {
+  getEvents(deviceId, limit, callback) {
     const query = `SELECT * FROM events 
       WHERE device_id = '${deviceId}' 
       ORDER BY timestamp DESC 
-      LIMIT ${limit}`;
+      LIMIT ${limit || 50}`;
     
     MDS.sql(query, (res) => {
       callback(res.rows || []);
     });
   }
 
-  // Получить недавнюю активность (все устройства)
-  getRecentActivity(limit = 10, callback) {
+  getRecentActivity(limit, callback) {
     const query = `SELECT * FROM events 
       ORDER BY timestamp DESC 
-      LIMIT ${limit}`;
+      LIMIT ${limit || 10}`;
     
     MDS.sql(query, (res) => {
       callback(res.rows || []);
@@ -351,27 +329,25 @@ class TrackiumDatabase {
 
   // ========== SETTINGS ==========
 
-  // Сохранить настройку
   saveSetting(key, value, callback) {
-    const valueStr = typeof value === 'object' ? JSON.stringify(value) : value;
-    const query = `INSERT OR REPLACE INTO settings (key, value, updated_at) 
-      VALUES ('${key}', '${valueStr}', CURRENT_TIMESTAMP)`;
+    const valueStr = typeof value === 'object' ? 
+      this._escape(JSON.stringify(value)) : this._escape(String(value));
+    
+    const query = `MERGE INTO settings (setting_key, setting_value, updated_at) 
+      KEY(setting_key) VALUES ('${key}', '${valueStr}', CURRENT_TIMESTAMP)`;
     
     MDS.sql(query, (res) => {
       if (callback) callback(res.status);
     });
   }
 
-  // Получить настройку
   getSetting(key, callback) {
-    const query = `SELECT value FROM settings WHERE key = '${key}'`;
-    
-    MDS.sql(query, (res) => {
+    MDS.sql(`SELECT setting_value FROM settings WHERE setting_key = '${key}'`, (res) => {
       if (res.rows && res.rows.length > 0) {
         try {
-          callback(JSON.parse(res.rows[0].value));
+          callback(JSON.parse(res.rows[0].setting_value));
         } catch {
-          callback(res.rows[0].value);
+          callback(res.rows[0].setting_value);
         }
       } else {
         callback(null);
@@ -381,33 +357,45 @@ class TrackiumDatabase {
 
   // ========== STATISTICS ==========
 
-  // Получить статистику
   getStatistics(callback) {
-    const stats = {};
+    const stats = {
+      totalDevices: 0,
+      activeShipments: 0,
+      lockedDevices: 0,
+      verifiedProofs: 0
+    };
     
-    // Total devices
-    MDS.sql("SELECT COUNT(*) as count FROM devices", (res1) => {
-      stats.totalDevices = res1.rows[0].count;
-      
-      // Active shipments
-      MDS.sql("SELECT COUNT(*) as count FROM shipments WHERE status = 'in_transit'", (res2) => {
-        stats.activeShipments = res2.rows[0].count;
-        
-        // Locked devices
-        MDS.sql("SELECT COUNT(*) as count FROM devices WHERE locked = TRUE", (res3) => {
-          stats.lockedDevices = res3.rows[0].count;
-          
-          // Verified proofs
-          MDS.sql("SELECT COUNT(*) as count FROM blockchain_proofs WHERE verified = TRUE", (res4) => {
-            stats.verifiedProofs = res4.rows[0].count;
-            
-            callback(stats);
-          });
-        });
-      });
+    let completed = 0;
+    const checkComplete = () => {
+      completed++;
+      if (completed === 4) callback(stats);
+    };
+    
+    MDS.sql("SELECT COUNT(*) as cnt FROM devices", (res) => {
+      stats.totalDevices = res.rows?.[0]?.cnt || 0;
+      checkComplete();
     });
+    
+    MDS.sql("SELECT COUNT(*) as cnt FROM shipments WHERE status = 'in_transit'", (res) => {
+      stats.activeShipments = res.rows?.[0]?.cnt || 0;
+      checkComplete();
+    });
+    
+    MDS.sql("SELECT COUNT(*) as cnt FROM devices WHERE locked = TRUE", (res) => {
+      stats.lockedDevices = res.rows?.[0]?.cnt || 0;
+      checkComplete();
+    });
+    
+    MDS.sql("SELECT COUNT(*) as cnt FROM blockchain_proofs WHERE verified = TRUE", (res) => {
+      stats.verifiedProofs = res.rows?.[0]?.cnt || 0;
+      checkComplete();
+    });
+  }
+
+  // Helper: Escape SQL strings
+  _escape(str) {
+    return String(str).replace(/'/g, "''");
   }
 }
 
-// Экспорт
 window.TrackiumDatabase = TrackiumDatabase;
