@@ -466,10 +466,30 @@ function simulateTestRoute(deviceId) {
 // Запуск приложения
 window.addEventListener('DOMContentLoaded', initApp);
 
+// Обновить информацию о типе устройства
+function updateDeviceTypeInfo() {
+  const deviceType = document.getElementById('device-type').value;
+  const infoEl = document.getElementById('device-type-info');
+  
+  if (!infoEl) return;
+  
+  const descriptions = {
+    'tracker': '📍 Will use GPS to track cargo/shipment location. Requires GPS access.',
+    'smartlock': '🔒 GPS tracking + remote lock/unlock control via QR codes.',
+    'smartphone': '📱 Use your phone as a tracker. Good for testing or personal monitoring.'
+  };
+  
+  infoEl.textContent = descriptions[deviceType] || '';
+  infoEl.style.color = 'var(--text-secondary)';
+  infoEl.style.fontSize = '13px';
+  infoEl.style.marginTop = '8px';
+}
+
 // Экспорт функций для использования в HTML
 window.showScreen = showScreen;
 window.generateDeviceId = generateDeviceId;
 window.addDevice = addDevice;
+window.updateDeviceTypeInfo = updateDeviceTypeInfo;
 window.refreshDevices = refreshDevices;
 window.showDeviceDetail = showDeviceDetail;
 window.toggleLock = toggleLock;
