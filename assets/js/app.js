@@ -43,12 +43,8 @@ async function onMDSReady() {
     await blockchain.init();
     console.log("Blockchain initialized");
     
-    // Инициализация GPS трекера
-    gpsTracker = new GPSTracker();
-    console.log("GPS Tracker initialized");
-    
-    // Инициализация менеджера устройств
-    deviceManager = new DeviceManager(db, gpsTracker);
+    // Инициализация менеджера устройств (БЕЗ GPS!)
+    deviceManager = new DeviceManager(db);
     console.log("Device Manager initialized");
     
     // Инициализация QR генератора
@@ -145,30 +141,37 @@ async function addDevice() {
     blockchainProof: blockchainProof
   });
   
-  if (device) {
-    ui.showNotification('Device registered successfully!', 'success');
+  if (!device) {
+    ui.showNotification('Failed to register device', 'error');
+    return;
+  }
+
+  ui.showNotification('Device registered successfully!', 'success');
+  
+  // Активация GPS ТОЛЬКО для tracker/smartphone типов
+  if (deviceType === 'tracker' || deviceType === 'smartphone') {
+    ui.showNotification('Activating GPS tracking...', 'info');
     
-    // Если это смартфон - запросить разрешение на GPS
-    if (deviceType === 'smartphone') {
-      const hasPermission = await deviceManager.requestGeolocationPermission();
-      if (hasPermission) {
-        deviceManager.activateDevice(device.deviceId, true);
-        ui.showNotification('GPS tracking activated!', 'success');
-      } else {
-        ui.showNotification('GPS permission denied. Using simulation.', 'warning');
-        deviceManager.activateDevice(device.deviceId, false);
+    const result = await deviceManager.activateDevice(device.deviceId, deviceType);
+    
+    if (result.success) {
+      if (result.type === 'real') {
+        ui.showNotification('✅ Real GPS activated!', 'success');
+      } else if (result.type === 'simulated') {
+        ui.showNotification('⚠️ GPS simulation activated (real GPS not available)', 'warning');
       }
     } else {
-      // Автоматически активировать устройство
-      deviceManager.activateDevice(device.deviceId, false);
+      ui.showNotification('GPS activation failed, device added without tracking', 'warning');
     }
-    
-    // Перейти к списку устройств
-    showScreen('devices');
-    loadDashboard();
   } else {
-    ui.showNotification('Failed to register device', 'error');
+    // Для smartlock просто активируем без GPS
+    await deviceManager.activateDevice(device.deviceId, deviceType);
+    ui.showNotification('Device activated (no GPS tracking)', 'success');
   }
+  
+  // Перейти к списку устройств
+  showScreen('devices');
+  loadDashboard();
 }
 
 // Обновить список устройств
