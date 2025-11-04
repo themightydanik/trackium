@@ -1,11 +1,9 @@
 // device-manager.js - Управление Trackium устройствами
 
 class DeviceManager {
-  constructor(database, gpsTracker) {
+  constructor(database) {
     this.db = database;
-    this.gps = gpsTracker;
     this.activeDevices = new Map(); // deviceId -> { tracker, interval }
-    this.smartphoneMode = false;
   }
 
   // Генерировать уникальный Device ID
@@ -52,61 +50,119 @@ class DeviceManager {
   }
 
   // Активировать устройство (начать трекинг)
-  activateDevice(deviceId, useRealGPS = true) {
+  async activateDevice(deviceId, deviceType) {
     if (this.activeDevices.has(deviceId)) {
       console.log('Device already active:', deviceId);
-      return;
+      return { success: true, message: 'Already active' };
     }
 
-    console.log('Activating device:', deviceId);
+    console.log('Activating device:', deviceId, 'Type:', deviceType);
 
-    // Создать GPS трекер для устройства
-    const deviceGPS = new GPSTracker();
-    
-    // Callback для обновлений GPS
-    const onGPSUpdate = (position) => {
-      console.log('GPS update for device:', deviceId, position);
-      
-      // Сохранить движение в базу
-      this.db.addMovement({
-        deviceId: deviceId,
-        latitude: position.latitude,
-        longitude: position.longitude,
-        altitude: position.altitude,
-        speed: position.speed,
-        accuracy: position.accuracy
-      }, (movementId) => {
-        if (movementId) {
-          console.log('Movement saved:', movementId);
-        }
-      });
-
-      // Обновить статус GPS в устройстве
-      this.db.updateDeviceGPS(deviceId, deviceGPS.hasGoodAccuracy(position.accuracy));
-    };
-
-    // Начать трекинг
-    if (useRealGPS && deviceGPS.isGeolocationSupported()) {
-      deviceGPS.startRealTracking(onGPSUpdate, (error) => {
-        console.error('GPS Error:', error);
-        // Fallback к симуляции
-        deviceGPS.startSimulation(50.4501, 30.5234, onGPSUpdate);
-      });
+    // Только для tracker/smartphone типов пытаемся включить GPS
+    if (deviceType === 'tracker' || deviceType === 'smartphone') {
+      return await this.activateGPSTracking(deviceId);
     } else {
-      // Симуляция GPS
-      deviceGPS.startSimulation(50.4501, 30.5234, onGPSUpdate);
+      // Для других типов (например, для мониторинга устройств) просто активируем
+      this.db.updateDeviceStatus(deviceId, 'online');
+      this.db.addEvent(deviceId, 'device_activated', { type: deviceType });
+      return { success: true, message: 'Device activated (no GPS required)' };
     }
+  }
 
+  // Активировать GPS трекинг
+  async activateGPSTracking(deviceId) {
+    try {
+      // Создать новый GPS трекер для этого устройства
+      const deviceGPS = new GPSTracker();
+      
+      // Проверить поддержку геолокации
+      if (!deviceGPS.isGeolocationSupported()) {
+        console.log('Geolocation not supported, using simulation');
+        return this.activateSimulatedTracking(deviceId);
+      }
+
+      // Попытаться получить разрешение и запустить GPS
+      const gpsStarted = await this.tryStartRealGPS(deviceId, deviceGPS);
+      
+      if (gpsStarted.success) {
+        return gpsStarted;
+      } else {
+        // Fallback к симуляции
+        console.log('Real GPS failed, using simulation');
+        return this.activateSimulatedTracking(deviceId);
+      }
+
+    } catch (error) {
+      console.error('Error activating GPS:', error);
+      return this.activateSimulatedTracking(deviceId);
+    }
+  }
+
+  // Попытаться запустить реальный GPS
+  async tryStartRealGPS(deviceId, deviceGPS) {
+    return new Promise((resolve) => {
+      console.log('Attempting to start real GPS...');
+
+      let gpsStarted = false;
+      let timeoutId;
+
+      const onGPSUpdate = (position) => {
+        if (!gpsStarted) {
+          gpsStarted = true;
+          clearTimeout(timeoutId);
+          
+          console.log('✅ Real GPS working!');
+          this.handleGPSSuccess(deviceId, deviceGPS, onGPSUpdate);
+          
+          resolve({
+            success: true,
+            message: 'Real GPS activated',
+            type: 'real'
+          });
+        }
+
+        // Сохранить движение
+        this.saveMovement(deviceId, position);
+      };
+
+      const onGPSError = (error) => {
+        if (!gpsStarted) {
+          console.error('GPS Error:', error);
+          // Не резолвим сразу, ждем timeout
+        }
+      };
+
+      // Попытаться запустить GPS
+      deviceGPS.startRealTracking(onGPSUpdate, onGPSError);
+
+      // Timeout через 10 секунд если GPS не отвечает
+      timeoutId = setTimeout(() => {
+        if (!gpsStarted) {
+          deviceGPS.stopTracking();
+          resolve({
+            success: false,
+            message: 'GPS timeout - no response',
+            type: 'timeout'
+          });
+        }
+      }, 10000);
+    });
+  }
+
+  // Обработать успешный запуск GPS
+  handleGPSSuccess(deviceId, deviceGPS, onGPSUpdate) {
     // Обновить статус устройства
     this.db.updateDeviceStatus(deviceId, 'online');
+    this.db.updateDeviceGPS(deviceId, true);
 
     // Сохранить активное устройство
     this.activeDevices.set(deviceId, {
       gpsTracker: deviceGPS,
-      startTime: new Date()
+      startTime: new Date(),
+      type: 'real'
     });
 
-    // Симулировать батарею (уменьшается каждые 10 минут)
+    // Симулировать батарею
     const batteryInterval = setInterval(() => {
       this.db.getDevice(deviceId, (device) => {
         if (device) {
@@ -119,12 +175,92 @@ class DeviceManager {
           }
         }
       });
-    }, 10 * 60 * 1000); // 10 минут
+    }, 10 * 60 * 1000);
 
     this.activeDevices.get(deviceId).batteryInterval = batteryInterval;
+    this.db.addEvent(deviceId, 'gps_activated', { type: 'real' });
+  }
 
-    // Добавить событие
-    this.db.addEvent(deviceId, 'device_activated', {});
+  // Активировать симулированное отслеживание
+  activateSimulatedTracking(deviceId) {
+    console.log('Starting GPS simulation for device:', deviceId);
+
+    const deviceGPS = new GPSTracker();
+    
+    const onGPSUpdate = (position) => {
+      this.saveMovement(deviceId, position);
+      this.db.updateDeviceGPS(deviceId, true);
+    };
+
+    // Использовать WiFi/Cell для примерной локации если доступно
+    this.tryGetApproximateLocation((approxLocation) => {
+      const lat = approxLocation?.latitude || 50.4501; // Default: Kyiv
+      const lng = approxLocation?.longitude || 30.5234;
+      
+      deviceGPS.startSimulation(lat, lng, onGPSUpdate);
+      
+      this.db.updateDeviceStatus(deviceId, 'online');
+      
+      this.activeDevices.set(deviceId, {
+        gpsTracker: deviceGPS,
+        startTime: new Date(),
+        type: 'simulated'
+      });
+
+      this.db.addEvent(deviceId, 'gps_activated', { type: 'simulated' });
+    });
+
+    return {
+      success: true,
+      message: 'Simulation activated',
+      type: 'simulated'
+    };
+  }
+
+  // Попытаться получить примерную локацию (WiFi/Cell)
+  tryGetApproximateLocation(callback) {
+    if (!navigator.geolocation) {
+      callback(null);
+      return;
+    }
+
+    // Использовать низкую точность (WiFi/Cell)
+    const options = {
+      enableHighAccuracy: false,
+      timeout: 5000,
+      maximumAge: 60000 // Можно использовать кэш до 1 минуты
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log('Got approximate location from WiFi/Cell');
+        callback({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+      },
+      (error) => {
+        console.log('Could not get approximate location:', error);
+        callback(null);
+      },
+      options
+    );
+  }
+
+  // Сохранить движение
+  saveMovement(deviceId, position) {
+    this.db.addMovement({
+      deviceId: deviceId,
+      latitude: position.latitude,
+      longitude: position.longitude,
+      altitude: position.altitude || 0,
+      speed: position.speed || 0,
+      accuracy: position.accuracy || 0
+    }, (movementId) => {
+      if (movementId) {
+        console.log('Movement saved:', movementId);
+      }
+    });
   }
 
   // Деактивировать устройство
