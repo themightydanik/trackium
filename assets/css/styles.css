@@ -289,6 +289,17 @@ body {
   font-size: 14px;
 }
 
+.device-type-description {
+  margin-top: 8px;
+  padding: 10px;
+  background: rgba(0, 102, 204, 0.1);
+  border-left: 3px solid var(--primary-blue);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
 .form-input, select, textarea {
   width: 100%;
   padding: 12px;
