@@ -104,12 +104,13 @@
         
         <div class="form-container">
             <div class="form-group">
-                <label>Device Type</label>
-                <select id="device-type" class="form-input">
-                    <option value="tracker">Tracker Only</option>
+                <label>Device Type / Role</label>
+                <select id="device-type" class="form-input" onchange="updateDeviceTypeInfo()">
+                    <option value="tracker">GPS Tracker (for cargo)</option>
                     <option value="smartlock">Smart Lock + Tracker</option>
-                    <option value="smartphone">Smartphone (Test Mode)</option>
+                    <option value="smartphone">Smartphone (Test/Monitoring)</option>
                 </select>
+                <p id="device-type-info" class="device-type-description"></p>
             </div>
 
             <div class="form-group">
