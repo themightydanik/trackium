@@ -429,29 +429,24 @@ class DeviceManager {
     return supported;
   }
 
-  // Запросить разрешение на геолокацию
+  // Запросить разрешение на геолокацию (для UI)
   async requestGeolocationPermission() {
     if (!this.checkGeolocationSupport()) {
       return false;
     }
 
     try {
-      const result = await navigator.permissions.query({ name: 'geolocation' });
-      console.log('Geolocation permission:', result.state);
-      
-      if (result.state === 'prompt') {
-        // Запросить разрешение
-        return new Promise((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            () => resolve(true),
-            () => resolve(false)
-          );
-        });
-      }
-
-      return result.state === 'granted';
+      // Попробовать получить позицию (это запросит разрешение)
+      await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          () => resolve(true),
+          () => reject(false),
+          { timeout: 5000 }
+        );
+      });
+      return true;
     } catch (error) {
-      console.error('Permission check error:', error);
+      console.error('Permission denied or error:', error);
       return false;
     }
   }
