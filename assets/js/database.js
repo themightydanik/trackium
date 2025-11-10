@@ -10,7 +10,7 @@ class TrackiumDatabase {
     const queries = [
       // Таблица устройств
       `CREATE TABLE IF NOT EXISTS devices (
-        id IDENTITY PRIMARY KEY,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         device_id VARCHAR(256) UNIQUE NOT NULL,
         device_name VARCHAR(128) NOT NULL,
         device_type VARCHAR(32) NOT NULL,
@@ -26,7 +26,7 @@ class TrackiumDatabase {
       
       // Таблица движений GPS
       `CREATE TABLE IF NOT EXISTS movements (
-        id IDENTITY PRIMARY KEY,
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
         device_id VARCHAR(256) NOT NULL,
         latitude DECIMAL(10, 8) NOT NULL,
         longitude DECIMAL(11, 8) NOT NULL,
@@ -40,7 +40,7 @@ class TrackiumDatabase {
       
       // Таблица отправлений
       `CREATE TABLE IF NOT EXISTS shipments (
-        id IDENTITY PRIMARY KEY,
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
         shipment_id VARCHAR(256) UNIQUE NOT NULL,
         device_id VARCHAR(256) NOT NULL,
         cargo_description VARCHAR(1024),
@@ -54,7 +54,7 @@ class TrackiumDatabase {
       
       // Таблица блокчейн-подтверждений
       `CREATE TABLE IF NOT EXISTS blockchain_proofs (
-        id IDENTITY PRIMARY KEY,
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
         device_id VARCHAR(256) NOT NULL,
         proof_type VARCHAR(32) NOT NULL,
         proof_hash VARCHAR(256) NOT NULL,
@@ -67,7 +67,7 @@ class TrackiumDatabase {
       
       // Таблица событий
       `CREATE TABLE IF NOT EXISTS events (
-        id IDENTITY PRIMARY KEY,
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
         device_id VARCHAR(256) NOT NULL,
         event_type VARCHAR(64) NOT NULL,
         event_data VARCHAR(2048),
