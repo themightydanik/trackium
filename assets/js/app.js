@@ -75,7 +75,27 @@ async function onMDSReady() {
     // 6. Показать главный экран через 1 секунду
     setTimeout(() => {
       console.log("🎉 Trackium ready!");
+      console.log("📺 Switching to dashboard screen...");
+      
+      // Убрать загрузочный экран
+      const loadingScreen = document.getElementById('loading-screen');
+      if (loadingScreen) {
+        loadingScreen.classList.remove('active');
+        console.log("✅ Loading screen removed");
+      }
+      
+      // Показать dashboard
       ui.showScreen('dashboard');
+      
+      // Проверка что всё сработало
+      setTimeout(() => {
+        const dashboardScreen = document.getElementById('dashboard');
+        if (dashboardScreen && dashboardScreen.classList.contains('active')) {
+          console.log("✅ Dashboard is now visible");
+        } else {
+          console.error("❌ Dashboard failed to show!");
+        }
+      }, 100);
     }, 1000);
     
   } catch (error) {
