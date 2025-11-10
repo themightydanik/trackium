@@ -695,42 +695,42 @@ body {
 
 /* Исправление для загрузочного экрана */
 
-/* Экраны должны занимать полный экран и НЕ скроллиться */
+/* КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Управление экранами */
+
+/* Все экраны по умолчанию скрыты */
 .screen {
-  display: none;
-  position: fixed;  /* ВАЖНО: fixed вместо relative */
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100vh;
-  overflow-y: auto;
-  z-index: 1;
-  background: var(--bg-dark);
-}
-
-.screen.active {
-  display: block;
-}
-
-/* Loading screen поверх всех */
-#loading-screen {
-  z-index: 9999;
+  display: none !important;
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100vh;
-  overflow: hidden;  /* НЕ позволяем скролл */
+  overflow-y: auto;
+  background: var(--bg-dark);
+  z-index: 1;
 }
 
-/* Dashboard и остальные экраны под загрузкой */
-#dashboard,
-#add-device,
-#devices,
-#device-detail,
-#shipments,
-#create-shipment,
-#analytics,
-#settings {
-  z-index: 1;
+/* Активный экран показывается поверх всех */
+.screen.active {
+  display: block !important;
+  z-index: 10;
+}
+
+/* Loading screen имеет максимальный приоритет при активности */
+#loading-screen.active {
+  z-index: 9999 !important;
+  overflow: hidden !important;  /* Блокировать скролл */
+}
+
+/* Dashboard и остальные экраны */
+#dashboard.active,
+#add-device.active,
+#devices.active,
+#device-detail.active,
+#shipments.active,
+#create-shipment.active,
+#analytics.active,
+#settings.active {
+  z-index: 10;
+  overflow-y: auto;
 }
