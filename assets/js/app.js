@@ -152,6 +152,7 @@ function generateDeviceId() {
 
 async function addDevice() {
   if (!deviceManager || !db) {
+    console.error('System not ready:', { deviceManager, db });
     ui.showNotification('System not ready', 'error');
     return;
   }
@@ -161,6 +162,10 @@ async function addDevice() {
   const deviceName = document.getElementById('device-name').value;
   const deviceLocation = document.getElementById('device-location').value;
   const blockchainProof = document.getElementById('enable-blockchain-proof').checked;
+  
+  console.log('📝 Adding device:', {
+    deviceType, deviceId, deviceName, deviceLocation, blockchainProof
+  });
   
   if (!deviceId || !deviceName) {
     ui.showNotification('Please fill all required fields', 'error');
@@ -176,17 +181,22 @@ async function addDevice() {
   });
   
   if (!device) {
+    console.error('❌ Failed to register device');
     ui.showNotification('Failed to register device', 'error');
     return;
   }
 
+  console.log('✅ Device registered:', device);
   ui.showNotification('Device registered successfully!', 'success');
   
   // Активация GPS ТОЛЬКО для tracker/smartphone
   if (deviceType === 'tracker' || deviceType === 'smartphone') {
+    console.log('🛰️ Activating GPS for', deviceId);
     ui.showNotification('Activating GPS tracking...', 'info');
     
     const result = await deviceManager.activateDevice(device.deviceId, deviceType);
+    
+    console.log('GPS activation result:', result);
     
     if (result.success) {
       if (result.type === 'real') {
@@ -200,8 +210,12 @@ async function addDevice() {
     ui.showNotification('Device activated', 'success');
   }
   
-  showScreen('devices');
-  loadDashboard();
+  // Задержка для сохранения в БД
+  setTimeout(() => {
+    console.log('🔄 Refreshing devices list...');
+    showScreen('devices');
+    loadDashboard();
+  }, 500);
 }
 
 function refreshDevices() {
@@ -216,6 +230,9 @@ function showDeviceDetail(deviceId) {
   if (!db) return;
   
   currentDeviceId = deviceId;
+  window.currentDeviceId = deviceId; // Глобальная переменная для кнопок
+  
+  console.log('📱 Loading device detail:', deviceId);
   
   db.getDevice(deviceId, (device) => {
     if (!device) {
@@ -223,11 +240,41 @@ function showDeviceDetail(deviceId) {
       return;
     }
     
-    deviceManager.getCurrentPosition(deviceId, (position) => {
+    console.log('📦 Device data:', device);
+    
+    deviceManager.getCurrentPosition(deviceId, async (position) => {
+      console.log('📍 Current position:', position);
+      
+      // Отобразить позицию с названием места
+      if (typeof renderPositionWithLocation === 'function' && position) {
+        await renderPositionWithLocation(position, 'device-coordinates');
+      }
+      
       db.getMovementHistory(deviceId, 50, (movements) => {
+        console.log('📊 Movement history:', movements.length, 'records');
+        
         db.getBlockchainProofs(deviceId, 20, (proofs) => {
+          console.log('⛓️ Blockchain proofs:', proofs.length, 'records');
+          
           ui.renderDeviceDetail(device, position, movements, proofs);
           ui.showScreen('device-detail');
+          
+          // Автообновление позиции каждые 10 секунд
+          if (window.positionUpdateInterval) {
+            clearInterval(window.positionUpdateInterval);
+          }
+          
+          window.positionUpdateInterval = setInterval(() => {
+            if (window.currentDeviceId === deviceId) {
+              deviceManager.getCurrentPosition(deviceId, async (newPos) => {
+                if (newPos && typeof renderPositionWithLocation === 'function') {
+                  await renderPositionWithLocation(newPos, 'device-coordinates');
+                }
+              });
+            } else {
+              clearInterval(window.positionUpdateInterval);
+            }
+          }, 10000);
         });
       });
     });
