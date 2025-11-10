@@ -1,4 +1,4 @@
-// ui.js - UI Management для Trackium
+// ui.js - UI Manager (добавить/заменить метод showScreen)
 
 class UIManager {
   constructor() {
@@ -6,25 +6,43 @@ class UIManager {
     this.currentDeviceId = null;
   }
 
-  // Показать экран
+  // Показать экран - ИСПРАВЛЕННАЯ ВЕРСИЯ
   showScreen(screenId) {
-    document.querySelectorAll('.screen').forEach(screen => {
+    console.log(`📺 Switching screen: ${this.currentScreen} → ${screenId}`);
+    
+    // Убрать active у всех экранов
+    const allScreens = document.querySelectorAll('.screen');
+    allScreens.forEach(screen => {
       screen.classList.remove('active');
     });
-
-    const screen = document.getElementById(screenId);
-    if (screen) {
-      screen.classList.add('active');
+    
+    // Добавить active новому экрану
+    const targetScreen = document.getElementById(screenId);
+    if (targetScreen) {
+      targetScreen.classList.add('active');
       this.currentScreen = screenId;
+      console.log(`✅ Screen switched to: ${screenId}`);
+      
+      // Скроллить вверх
+      targetScreen.scrollTop = 0;
+    } else {
+      console.error(`❌ Screen not found: ${screenId}`);
     }
   }
 
   // Обновить статистику на dashboard
   updateDashboardStats(stats) {
-    document.getElementById('total-devices').textContent = stats.totalDevices || 0;
-    document.getElementById('active-shipments').textContent = stats.activeShipments || 0;
-    document.getElementById('locked-devices').textContent = stats.lockedDevices || 0;
-    document.getElementById('verified-proofs').textContent = stats.verifiedProofs || 0;
+    const elements = {
+      'total-devices': stats.totalDevices || 0,
+      'active-shipments': stats.activeShipments || 0,
+      'locked-devices': stats.lockedDevices || 0,
+      'verified-proofs': stats.verifiedProofs || 0
+    };
+    
+    Object.entries(elements).forEach(([id, value]) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    });
   }
 
   // Отобразить список устройств
@@ -35,7 +53,18 @@ class UIManager {
     container.innerHTML = '';
 
     if (devices.length === 0) {
-      container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-secondary);">No devices yet. Add your first Trackium device!</p>';
+      container.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px;">
+          <div style="font-size: 80px; margin-bottom: 20px;">📦</div>
+          <h3 style="color: var(--text-primary); margin-bottom: 10px;">No devices yet</h3>
+          <p style="color: var(--text-secondary); margin-bottom: 30px;">
+            Add your first Trackium device to start tracking
+          </p>
+          <button class="primary-btn" onclick="showScreen('add-device')">
+            ➕ Add Device
+          </button>
+        </div>
+      `;
       return;
     }
 
@@ -55,9 +84,12 @@ class UIManager {
         </div>
         <div class="device-info">
           <h4>${device.device_name}</h4>
-          <p>ID: ${device.device_id}</p>
-          <p>Battery: ${device.battery}% | GPS: ${device.gps_signal ? '✅' : '❌'}</p>
-          ${device.locked ? '<p style="color: var(--warning-orange);">🔒 Locked</p>' : ''}
+          <p style="font-size: 12px; color: var(--text-secondary);">ID: ${device.device_id}</p>
+          <p style="font-size: 13px; margin-top: 8px;">
+            🔋 ${device.battery}% | 
+            📡 ${device.gps_signal ? '✅ GPS' : '❌ No GPS'}
+          </p>
+          ${device.locked ? '<p style="color: var(--warning-orange); margin-top: 5px;">🔒 Locked</p>' : ''}
         </div>
       `;
 
@@ -76,18 +108,6 @@ class UIManager {
     document.getElementById('detail-device-battery').textContent = device.battery + '%';
     document.getElementById('detail-device-gps').textContent = device.gps_signal ? '✅ Strong' : '❌ Weak';
     document.getElementById('detail-device-sync').textContent = new Date(device.last_sync).toLocaleString();
-
-    // Показать координаты
-    if (position) {
-      const coordsEl = document.getElementById('device-coordinates');
-      coordsEl.innerHTML = `
-        📍 ${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}<br>
-        <small>Accuracy: ${position.accuracy?.toFixed(1) || 'N/A'}m | Speed: ${position.speed?.toFixed(1) || 0} km/h</small><br>
-        <a href="https://www.google.com/maps?q=${position.latitude},${position.longitude}" target="_blank" style="color: var(--primary-blue); text-decoration: none;">
-          🗺️ Open in Google Maps
-        </a>
-      `;
-    }
 
     // Smart Lock контроли
     if (device.device_type === 'smartlock' || device.device_type === 'smartphone') {
@@ -180,7 +200,18 @@ class UIManager {
     container.innerHTML = '';
 
     if (shipments.length === 0) {
-      container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-secondary);">No shipments yet. Create your first shipment!</p>';
+      container.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px;">
+          <div style="font-size: 80px; margin-bottom: 20px;">📦</div>
+          <h3 style="color: var(--text-primary); margin-bottom: 10px;">No shipments yet</h3>
+          <p style="color: var(--text-secondary); margin-bottom: 30px;">
+            Create your first shipment to track cargo
+          </p>
+          <button class="primary-btn" onclick="showScreen('create-shipment')">
+            ➕ Create Shipment
+          </button>
+        </div>
+      `;
       return;
     }
 
@@ -227,7 +258,7 @@ class UIManager {
       
       item.innerHTML = `
         <p>${eventIcon} <strong>${this.getEventTitle(event.event_type)}</strong></p>
-        <p>Device: ${event.device_id}</p>
+        <p style="font-size: 12px; color: var(--text-secondary);">Device: ${event.device_id}</p>
         <p class="activity-time">${new Date(event.timestamp).toLocaleString()}</p>
       `;
 
@@ -282,11 +313,10 @@ class UIManager {
 
   // Показать уведомление
   showNotification(message, type = 'info') {
-    // Можно использовать MDS.notify
+    console.log(`[${type.toUpperCase()}] ${message}`);
     if (typeof MDS !== 'undefined') {
       MDS.notify(message);
     }
-    console.log(`[${type.toUpperCase()}] ${message}`);
   }
 
   // Показать/скрыть модальное окно QR
@@ -322,9 +352,11 @@ class UIManager {
 
   // Обновить информацию о ноде
   updateNodeInfo(address, balance) {
-    document.getElementById('node-address').textContent = address || '-';
-    document.getElementById('node-balance').textContent = balance !== null ? 
-      `${balance} Minima` : '-';
+    const addressEl = document.getElementById('node-address');
+    const balanceEl = document.getElementById('node-balance');
+    
+    if (addressEl) addressEl.textContent = address || '-';
+    if (balanceEl) balanceEl.textContent = balance !== null ? `${balance} Minima` : '-';
   }
 }
 
