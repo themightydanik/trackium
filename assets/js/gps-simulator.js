@@ -1,4 +1,4 @@
-// gps-simulator.js - GPS трекинг для реального устройства и симуляция
+// gps-simulator.js - GPS трекинг (ИСПРАВЛЕННЫЙ - только реальный GPS)
 
 class GPSTracker {
   constructor() {
@@ -7,6 +7,7 @@ class GPSTracker {
     this.watchId = null;
     this.isRealDevice = false;
     this.simulationInterval = null;
+    this.lastUpdateTime = null;
   }
 
   // Проверить поддержку геолокации
@@ -14,31 +15,32 @@ class GPSTracker {
     return 'geolocation' in navigator;
   }
 
-  // Начать отслеживание РЕАЛЬНОЙ геолокации (для Android смартфона)
+  // Начать отслеживание РЕАЛЬНОЙ геолокации
   startRealTracking(onUpdate, onError) {
     if (!this.isGeolocationSupported()) {
-      console.error("Geolocation is not supported");
+      console.error("❌ Geolocation is not supported");
       if (onError) onError(new Error("Geolocation not supported"));
       return false;
     }
 
     const options = {
-      enableHighAccuracy: true,  // Высокая точность (использует GPS)
-      timeout: 10000,            // Таймаут 10 секунд
-      maximumAge: 0              // Не использовать кэшированные данные
+      enableHighAccuracy: true,  // Использовать GPS (не WiFi)
+      timeout: 30000,            // Ждать до 30 секунд
+      maximumAge: 0              // Не использовать кэш
     };
 
-    console.log("Starting REAL GPS tracking...");
+    console.log("🛰️ Starting REAL GPS tracking with high accuracy...");
     this.isRealDevice = true;
     this.watching = true;
 
     // Получить начальную позицию
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        console.log("📍 Initial GPS position acquired");
         this.handlePositionUpdate(position, onUpdate);
       },
       (error) => {
-        console.error("GPS Error:", error);
+        console.error("❌ Initial GPS Error:", this.getErrorMessage(error));
         if (onError) onError(error);
       },
       options
@@ -50,7 +52,7 @@ class GPSTracker {
         this.handlePositionUpdate(position, onUpdate);
       },
       (error) => {
-        console.error("GPS Watch Error:", error);
+        console.error("❌ GPS Watch Error:", this.getErrorMessage(error));
         if (onError) onError(error);
       },
       options
@@ -59,8 +61,31 @@ class GPSTracker {
     return true;
   }
 
+  // Получить понятное сообщение об ошибке
+  getErrorMessage(error) {
+    switch(error.code) {
+      case error.PERMISSION_DENIED:
+        return "User denied GPS permission";
+      case error.POSITION_UNAVAILABLE:
+        return "GPS position unavailable";
+      case error.TIMEOUT:
+        return "GPS request timed out";
+      default:
+        return "Unknown GPS error";
+    }
+  }
+
   // Обработать обновление позиции
   handlePositionUpdate(position, callback) {
+    const now = Date.now();
+    
+    // Защита от слишком частых обновлений (минимум 3 секунды)
+    if (this.lastUpdateTime && (now - this.lastUpdateTime) < 3000) {
+      return;
+    }
+    
+    this.lastUpdateTime = now;
+
     const gpsData = {
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
@@ -73,10 +98,11 @@ class GPSTracker {
 
     this.currentPosition = gpsData;
     
-    console.log("GPS Update:", {
+    console.log("📍 GPS Update:", {
       lat: gpsData.latitude.toFixed(6),
       lng: gpsData.longitude.toFixed(6),
-      accuracy: gpsData.accuracy.toFixed(2) + "m"
+      accuracy: gpsData.accuracy.toFixed(1) + "m",
+      speed: gpsData.speed.toFixed(1) + " m/s"
     });
 
     if (callback) callback(gpsData);
@@ -87,6 +113,7 @@ class GPSTracker {
     if (this.watchId !== null) {
       navigator.geolocation.clearWatch(this.watchId);
       this.watchId = null;
+      console.log("⏹️ GPS tracking stopped");
     }
 
     if (this.simulationInterval) {
@@ -95,7 +122,6 @@ class GPSTracker {
     }
 
     this.watching = false;
-    console.log("GPS tracking stopped");
   }
 
   // Получить текущую позицию (одноразово)
@@ -107,7 +133,7 @@ class GPSTracker {
 
     const options = {
       enableHighAccuracy: true,
-      timeout: 10000,
+      timeout: 30000,
       maximumAge: 0
     };
 
@@ -116,22 +142,22 @@ class GPSTracker {
         this.handlePositionUpdate(position, callback);
       },
       (error) => {
-        console.error("Get Position Error:", error);
+        console.error("❌ Get Position Error:", this.getErrorMessage(error));
         if (onError) onError(error);
       },
       options
     );
   }
 
-  // ========== СИМУЛЯЦИЯ (для тестирования без GPS) ==========
+  // ========== СИМУЛЯЦИЯ (только для тестирования) ==========
 
   // Начать симуляцию движения
   startSimulation(startLat, startLng, onUpdate) {
-    console.log("Starting GPS SIMULATION...");
+    console.log("🎮 Starting GPS SIMULATION (test mode)...");
     this.isRealDevice = false;
     this.watching = true;
 
-    // Начальная позиция (по умолчанию - Киев)
+    // По умолчанию Киев
     let latitude = startLat || 50.4501;
     let longitude = startLng || 30.5234;
 
@@ -144,6 +170,12 @@ class GPSTracker {
       heading: 0,
       timestamp: new Date()
     };
+
+    console.log("📍 Simulated starting position:", {
+      lat: latitude.toFixed(6),
+      lng: longitude.toFixed(6),
+      location: "Kyiv, Ukraine"
+    });
 
     if (onUpdate) onUpdate(this.currentPosition);
 
@@ -161,12 +193,12 @@ class GPSTracker {
         longitude: longitude,
         altitude: 180 + Math.random() * 10,
         accuracy: 5 + Math.random() * 10,
-        speed: Math.random() * 20, // 0-20 km/h
+        speed: Math.random() * 5, // 0-5 m/s
         heading: Math.random() * 360,
         timestamp: new Date()
       };
 
-      console.log("Simulated GPS:", {
+      console.log("🎮 Simulated GPS:", {
         lat: latitude.toFixed(6),
         lng: longitude.toFixed(6)
       });
@@ -177,7 +209,7 @@ class GPSTracker {
 
   // Симулировать маршрут между двумя точками
   simulateRoute(startLat, startLng, endLat, endLng, durationMinutes, onUpdate) {
-    console.log("Simulating route...");
+    console.log("🎮 Simulating route...");
     this.isRealDevice = false;
     this.watching = true;
 
@@ -205,7 +237,6 @@ class GPSTracker {
       currentStep++;
       
       if (currentStep >= steps) {
-        // Маршрут завершен
         latitude = endLat;
         longitude = endLng;
         this.stopTracking();
@@ -224,7 +255,7 @@ class GPSTracker {
         timestamp: new Date()
       };
 
-      console.log(`Route progress: ${currentStep}/${steps}`);
+      console.log(`🎮 Route progress: ${currentStep}/${steps}`);
       if (onUpdate) onUpdate(this.currentPosition);
     }, 10000);
   }
@@ -270,14 +301,34 @@ class GPSTracker {
     return `${Math.abs(lat).toFixed(6)}° ${latDir}, ${Math.abs(lng).toFixed(6)}° ${lngDir}`;
   }
 
-  // Получить ссылку на карту (Google Maps)
+  // Получить название локации через Geocoding (примерно)
+  async getLocationName(lat, lng) {
+    try {
+      // Используем бесплатный Nominatim API от OpenStreetMap
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data && data.display_name) {
+        return data.display_name;
+      }
+      
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    } catch (error) {
+      console.error("Failed to get location name:", error);
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+  }
+
+  // Получить ссылку на карту
   getMapLink(lat, lng) {
     return `https://www.google.com/maps?q=${lat},${lng}`;
   }
 
   // Проверить достаточную точность GPS
   hasGoodAccuracy(accuracy) {
-    return accuracy <= 50; // Точность <= 50 метров считается хорошей
+    return accuracy <= 50; // Точность <= 50 метров
   }
 
   // Получить статус GPS
@@ -286,10 +337,11 @@ class GPSTracker {
       isTracking: this.watching,
       isRealDevice: this.isRealDevice,
       hasPosition: this.currentPosition !== null,
-      currentPosition: this.currentPosition
+      currentPosition: this.currentPosition,
+      accuracy: this.currentPosition?.accuracy || null,
+      lastUpdate: this.lastUpdateTime ? new Date(this.lastUpdateTime) : null
     };
   }
 }
 
-// Экспорт
 window.GPSTracker = GPSTracker;
