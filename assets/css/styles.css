@@ -692,3 +692,45 @@ body {
     flex-direction: column;
   }
 }
+
+/* Исправление для загрузочного экрана */
+
+/* Экраны должны занимать полный экран и НЕ скроллиться */
+.screen {
+  display: none;
+  position: fixed;  /* ВАЖНО: fixed вместо relative */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 1;
+  background: var(--bg-dark);
+}
+
+.screen.active {
+  display: block;
+}
+
+/* Loading screen поверх всех */
+#loading-screen {
+  z-index: 9999;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;  /* НЕ позволяем скролл */
+}
+
+/* Dashboard и остальные экраны под загрузкой */
+#dashboard,
+#add-device,
+#devices,
+#device-detail,
+#shipments,
+#create-shipment,
+#analytics,
+#settings {
+  z-index: 1;
+}
