@@ -388,32 +388,47 @@ function closeQRModal() {
   ui.closeQRModal();
 }
 
-function deleteDevice(deviceId) {
-  if (!deviceId || !deviceManager) return;
+// Подтверждение удаления устройства
+window.confirmDeleteDevice = function(deviceId, deviceName) {
+  console.log('🗑️ Delete request for:', { deviceId, deviceName });
   
-  if (!confirm('Are you sure you want to delete this device?')) {
+  if (!deviceId || deviceId === 'undefined') {
+    console.error('❌ Invalid device ID for deletion');
+    ui.showNotification('Invalid device ID', 'error');
     return;
   }
   
-  deviceManager.removeDevice(deviceId, (success) => {
-    if (success) {
-      ui.showNotification('Device deleted', 'success');
-      showScreen('devices');
-      loadDashboard();
-    } else {
-      ui.showNotification('Failed to delete device', 'error');
-    }
-  });
-}
-
-// Подтверждение удаления устройства
-window.confirmDeleteDevice = function(deviceId, deviceName) {
   if (!confirm(`⚠️ Delete device "${deviceName}"?\n\nThis will permanently remove:\n- Device data\n- Movement history\n- Blockchain proofs\n\nThis cannot be undone!`)) {
     return;
   }
   
   deleteDevice(deviceId);
 };
+
+function deleteDevice(deviceId) {
+  if (!deviceId || !deviceManager) {
+    console.error('❌ Cannot delete: missing deviceId or deviceManager');
+    return;
+  }
+  
+  console.log('🗑️ Deleting device:', deviceId);
+  
+  deviceManager.removeDevice(deviceId, (success) => {
+    if (success) {
+      ui.showNotification('Device deleted', 'success');
+      console.log('✅ Device deleted successfully');
+      
+      // Обновить список устройств через 500ms
+      setTimeout(() => {
+        refreshDevices();
+        loadDashboard();
+      }, 500);
+    } else {
+      ui.showNotification('Failed to delete device', 'error');
+      console.error('❌ Device deletion failed');
+    }
+  });
+}
 
 // ========== PROOF OF MOVEMENT ==========
 
