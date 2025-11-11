@@ -73,20 +73,37 @@ class UIManager {
       card.className = 'device-card';
       
       const statusClass = device.status === 'online' ? 'status-online' : 'status-offline';
-      const deviceIcon = device.device_type === 'smartlock' ? '🔒' : 
-                        device.device_type === 'smartphone' ? '📱' : '📦';
+      
+      // Иконки по типу транспорта
+      const transportIcons = {
+        'ground': '🚚',
+        'sea': '🚢',
+        'air': '✈️'
+      };
+      const transportIcon = transportIcons[device.transport_type || device.transportType] || '📦';
+      
+      // Иконка типа устройства
+      const deviceTypeIcon = device.device_type === 'smartlock' || device.deviceType === 'smartlock' ? '🔒' : 
+                            device.device_type === 'smartphone' || device.deviceType === 'smartphone' ? '📱' : '📡';
+
+      const deviceId = device.device_id || device.deviceId;
+      const deviceName = device.device_name || device.deviceName || 'Unnamed Device';
+      const category = device.category || 'Uncategorized';
 
       card.innerHTML = `
         <div class="device-header">
-          <div class="device-icon">${deviceIcon}</div>
+          <div class="device-icon">${transportIcon}</div>
           <div class="device-status ${statusClass}">${device.status}</div>
         </div>
-        <div class="device-info" onclick="showDeviceDetail('${device.device_id || device.deviceId}')">
-          <h4>${device.device_name || device.deviceName || 'Unnamed Device'}</h4>
-          <p style="font-size: 12px; color: var(--text-secondary);">ID: ${device.device_id || device.deviceId || 'Unknown'}</p>
+        <div class="device-info" onclick="showDeviceDetail('${deviceId}')">
+          <h4>${deviceName}</h4>
+          <p style="font-size: 11px; color: var(--primary-blue); margin: 3px 0;">
+            ${deviceTypeIcon} ${category}
+          </p>
+          <p style="font-size: 12px; color: var(--text-secondary);">ID: ${deviceId}</p>
           <p style="font-size: 13px; margin-top: 8px;">
             🔋 ${device.battery || 100}% | 
-            📡 ${(device.gps_signal || device.gpsSignal) ? '✅ GPS' : '❌ No GPS'}
+            📡 ${device.signal_strength || device.signalStrength || 'Unknown'}
           </p>
           ${device.locked ? '<p style="color: var(--warning-orange); margin-top: 5px;">🔒 Locked</p>' : ''}
         </div>
@@ -94,13 +111,13 @@ class UIManager {
           <button 
             class="secondary-btn" 
             style="flex: 1; padding: 8px; font-size: 12px;"
-            onclick="event.stopPropagation(); showDeviceDetail('${device.device_id || device.deviceId}')">
+            onclick="event.stopPropagation(); showDeviceDetail('${deviceId}')">
             👁️ View
           </button>
           <button 
             class="secondary-btn" 
             style="flex: 1; padding: 8px; font-size: 12px; background: var(--danger-red);"
-            onclick="event.stopPropagation(); confirmDeleteDevice('${device.device_id || device.deviceId}', '${device.device_name || device.deviceName || 'this device'}')">
+            onclick="event.stopPropagation(); confirmDeleteDevice('${deviceId}', '${deviceName}')">
             🗑️ Delete
           </button>
         </div>
