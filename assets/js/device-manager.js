@@ -1,4 +1,4 @@
-// device-manager.js - ИСПРАВЛЕННЫЙ менеджер устройств
+// device-manager.js - NB-IoT + WiFi/Cell версия
 
 class DeviceManager {
   constructor(database) {
@@ -19,18 +19,27 @@ class DeviceManager {
         deviceId: deviceData.deviceId || this.generateDeviceId(),
         name: deviceData.name,
         type: deviceData.type,
+        transportType: deviceData.transportType || 'ground',
+        category: deviceData.category || '',
         location: deviceData.location || '',
         blockchainProof: deviceData.blockchainProof || false
       };
 
+      console.log('📝 Registering device:', device);
+
       await new Promise((resolve) => {
         this.db.addDevice(device, (success) => {
           if (success) {
-            console.log('Device registered:', device.deviceId);
+            console.log('✅ Device registered:', device.deviceId);
             this.db.addEvent(
               device.deviceId,
               'device_registered',
-              { name: device.name, type: device.type }
+              { 
+                name: device.name, 
+                type: device.type,
+                transportType: device.transportType,
+                category: device.category
+              }
             );
           }
           resolve(success);
@@ -39,7 +48,7 @@ class DeviceManager {
 
       return device;
     } catch (error) {
-      console.error('Error registering device:', error);
+      console.error('❌ Error registering device:', error);
       return null;
     }
   }
@@ -50,121 +59,93 @@ class DeviceManager {
       return { success: true, message: 'Already active' };
     }
 
-    console.log('Activating device:', deviceId, 'Type:', deviceType);
+    console.log('🔌 Activating device:', deviceId, 'Type:', deviceType);
 
-    if (deviceType === 'tracker' || deviceType === 'smartphone') {
-      return await this.activateGPSTracking(deviceId);
-    } else {
-      this.db.updateDeviceStatus(deviceId, 'online');
-      this.db.addEvent(deviceId, 'device_activated', { type: deviceType });
-      return { success: true, message: 'Device activated (no GPS required)' };
-    }
+    // Все типы используют location tracking
+    return await this.activateLocationTracking(deviceId, deviceType);
   }
 
-  async activateGPSTracking(deviceId) {
+  async activateLocationTracking(deviceId, deviceType) {
     try {
-      const deviceGPS = new GPSTracker();
+      const locationTracker = new LocationTracker();
       
-      if (!deviceGPS.isGeolocationSupported()) {
-        console.log('❌ Geolocation not supported, using simulation');
-        return this.activateSimulatedTracking(deviceId);
-      }
+      console.log('📡 Starting location tracking...');
+      
+      const trackingStarted = await new Promise((resolve) => {
+        let hasUpdate = false;
+        const timeout = setTimeout(() => {
+          if (!hasUpdate) {
+            resolve(false);
+          }
+        }, 15000);
 
-      console.log('🛰️ Requesting GPS permission...');
-      
-      // Попробовать реальный GPS с увеличенным timeout
-      const gpsStarted = await this.tryStartRealGPS(deviceId, deviceGPS);
-      
-      if (gpsStarted.success) {
-        return gpsStarted;
+        const onUpdate = (position) => {
+          if (!hasUpdate) {
+            hasUpdate = true;
+            clearTimeout(timeout);
+            
+            console.log('✅ Location tracking active');
+            this.handleLocationSuccess(deviceId, locationTracker, onUpdate, deviceType);
+            
+            resolve(true);
+          }
+          
+          this.saveMovement(deviceId, position);
+        };
+
+        const onError = (error) => {
+          console.error('Location error:', error);
+          if (!hasUpdate) {
+            clearTimeout(timeout);
+            resolve(false);
+          }
+        };
+
+        locationTracker.startTracking(deviceType, onUpdate, onError);
+      });
+
+      if (trackingStarted) {
+        return {
+          success: true,
+          message: deviceType === 'smartphone' ? 'WiFi/Cell tracking active' : 'NB-IoT tracking active',
+          type: deviceType === 'smartphone' ? 'wifi' : 'nbiot'
+        };
       } else {
-        console.log('⚠️ Real GPS failed, using simulation');
-        return this.activateSimulatedTracking(deviceId);
+        throw new Error('Location tracking timeout');
       }
 
     } catch (error) {
-      console.error('Error activating GPS:', error);
-      return this.activateSimulatedTracking(deviceId);
+      console.error('❌ Failed to activate location tracking:', error);
+      return {
+        success: false,
+        message: error.message,
+        type: 'failed'
+      };
     }
   }
 
-  async tryStartRealGPS(deviceId, deviceGPS) {
-    return new Promise((resolve) => {
-      console.log('🛰️ Attempting to start real GPS...');
-
-      let gpsStarted = false;
-      let timeoutId;
-      let errorCount = 0;
-
-      const onGPSUpdate = (position) => {
-        if (!gpsStarted) {
-          gpsStarted = true;
-          clearTimeout(timeoutId);
-          
-          console.log('✅ Real GPS working!');
-          this.handleGPSSuccess(deviceId, deviceGPS, onGPSUpdate);
-          
-          resolve({
-            success: true,
-            message: 'Real GPS activated',
-            type: 'real'
-          });
-        }
-
-        this.saveMovement(deviceId, position);
-      };
-
-      const onGPSError = (error) => {
-        errorCount++;
-        console.error(`GPS Error #${errorCount}:`, error);
-        
-        // Если ошибка PERMISSION_DENIED - сразу fallback
-        if (error.code === 1) { // PERMISSION_DENIED
-          if (!gpsStarted) {
-            clearTimeout(timeoutId);
-            deviceGPS.stopTracking();
-            resolve({
-              success: false,
-              message: 'GPS permission denied',
-              type: 'permission_denied'
-            });
-          }
-        }
-      };
-
-      deviceGPS.startRealTracking(onGPSUpdate, onGPSError);
-
-      // Timeout 20 секунд (увеличено с 10)
-      timeoutId = setTimeout(() => {
-        if (!gpsStarted) {
-          deviceGPS.stopTracking();
-          console.log('⏱️ GPS timeout - no response in 20 seconds');
-          resolve({
-            success: false,
-            message: 'GPS timeout',
-            type: 'timeout'
-          });
-        }
-      }, 20000);
-    });
-  }
-
-  handleGPSSuccess(deviceId, deviceGPS, onGPSUpdate) {
+  handleLocationSuccess(deviceId, locationTracker, onUpdate, deviceType) {
     this.db.updateDeviceStatus(deviceId, 'online');
-    this.db.updateDeviceGPS(deviceId, true);
+    
+    // Определить силу сигнала
+    const signalStrength = deviceType === 'smartphone' ? 'WiFi/Cell' : 'NB-IoT';
+    this.db.updateDeviceSignal(deviceId, signalStrength);
 
     this.activeDevices.set(deviceId, {
-      gpsTracker: deviceGPS,
+      locationTracker: locationTracker,
       startTime: new Date(),
-      type: 'real',
+      type: deviceType,
       batteryLevel: 100
     });
 
     // Симулировать разряд батареи
-    const batteryInterval = setInterval(() => {
+    // NB-IoT: 1% каждые 30 минут (экономичнее)
+    // WiFi/Cell: 1% каждые 15 минут
+    const batteryInterval = deviceType === 'smartphone' ? 15 : 30;
+    
+    const batteryTimer = setInterval(() => {
       const deviceData = this.activeDevices.get(deviceId);
       if (deviceData) {
-        // Разряжаем на 1% каждые 10 минут
         const newBattery = Math.max(0, deviceData.batteryLevel - 1);
         deviceData.batteryLevel = newBattery;
         
@@ -172,103 +153,25 @@ class DeviceManager {
         
         if (newBattery <= 20 && newBattery % 5 === 0) {
           console.log(`⚠️ Low battery: ${newBattery}%`);
+          this.db.addEvent(deviceId, 'low_battery', { battery: newBattery });
         }
         
         if (newBattery === 0) {
-          console.log('🔋 Battery depleted, deactivating device');
+          console.log('🔋 Battery depleted');
           this.deactivateDevice(deviceId);
-          clearInterval(batteryInterval);
+          clearInterval(batteryTimer);
         }
       } else {
-        clearInterval(batteryInterval);
+        clearInterval(batteryTimer);
       }
-    }, 10 * 60 * 1000); // Каждые 10 минут
+    }, batteryInterval * 60 * 1000);
 
-    this.activeDevices.get(deviceId).batteryInterval = batteryInterval;
-    this.db.addEvent(deviceId, 'gps_activated', { type: 'real' });
-  }
-
-  activateSimulatedTracking(deviceId) {
-    console.log('🎮 Starting GPS simulation for device:', deviceId);
-
-    const deviceGPS = new GPSTracker();
+    this.activeDevices.get(deviceId).batteryTimer = batteryTimer;
     
-    const onGPSUpdate = (position) => {
-      this.saveMovement(deviceId, position);
-      this.db.updateDeviceGPS(deviceId, true);
-    };
-
-    // Попробовать получить примерную локацию
-    this.tryGetApproximateLocation((approxLocation) => {
-      const lat = approxLocation?.latitude || 50.4501; // Default: Kyiv
-      const lng = approxLocation?.longitude || 30.5234;
-      
-      console.log('📍 Starting simulation at:', lat, lng);
-      deviceGPS.startSimulation(lat, lng, onGPSUpdate);
-      
-      this.db.updateDeviceStatus(deviceId, 'online');
-      
-      this.activeDevices.set(deviceId, {
-        gpsTracker: deviceGPS,
-        startTime: new Date(),
-        type: 'simulated',
-        batteryLevel: 100
-      });
-
-      // Симулировать разряд батареи
-      const batteryInterval = setInterval(() => {
-        const deviceData = this.activeDevices.get(deviceId);
-        if (deviceData) {
-          const newBattery = Math.max(0, deviceData.batteryLevel - 1);
-          deviceData.batteryLevel = newBattery;
-          this.db.updateDeviceBattery(deviceId, newBattery);
-          
-          if (newBattery === 0) {
-            this.deactivateDevice(deviceId);
-            clearInterval(batteryInterval);
-          }
-        } else {
-          clearInterval(batteryInterval);
-        }
-      }, 10 * 60 * 1000);
-
-      this.activeDevices.get(deviceId).batteryInterval = batteryInterval;
-      this.db.addEvent(deviceId, 'gps_activated', { type: 'simulated' });
+    this.db.addEvent(deviceId, 'location_activated', { 
+      type: deviceType,
+      signalStrength: signalStrength
     });
-
-    return {
-      success: true,
-      message: 'Simulation activated',
-      type: 'simulated'
-    };
-  }
-
-  tryGetApproximateLocation(callback) {
-    if (!navigator.geolocation) {
-      callback(null);
-      return;
-    }
-
-    const options = {
-      enableHighAccuracy: false,
-      timeout: 5000,
-      maximumAge: 60000
-    };
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        console.log('📍 Got approximate location from WiFi/Cell');
-        callback({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude
-        });
-      },
-      (error) => {
-        console.log('Could not get approximate location:', error);
-        callback(null);
-      },
-      options
-    );
   }
 
   saveMovement(deviceId, position) {
@@ -281,7 +184,7 @@ class DeviceManager {
       accuracy: position.accuracy || 0
     }, (movementId) => {
       if (movementId) {
-        console.log('Movement saved:', movementId);
+        console.log('📍 Movement saved:', movementId);
       }
     });
   }
@@ -290,21 +193,19 @@ class DeviceManager {
     const activeDevice = this.activeDevices.get(deviceId);
     
     if (activeDevice) {
-      // Остановить GPS
-      if (activeDevice.gpsTracker) {
-        activeDevice.gpsTracker.stopTracking();
+      if (activeDevice.locationTracker) {
+        activeDevice.locationTracker.stopTracking();
       }
       
-      // Остановить battery timer
-      if (activeDevice.batteryInterval) {
-        clearInterval(activeDevice.batteryInterval);
+      if (activeDevice.batteryTimer) {
+        clearInterval(activeDevice.batteryTimer);
       }
       
       this.activeDevices.delete(deviceId);
       this.db.updateDeviceStatus(deviceId, 'offline');
       this.db.addEvent(deviceId, 'device_deactivated', {});
       
-      console.log('Device deactivated:', deviceId);
+      console.log('⏹️ Device deactivated:', deviceId);
     }
   }
 
@@ -320,7 +221,7 @@ class DeviceManager {
       this.db.updateLockStatus(deviceId, newLockState, (success) => {
         if (success) {
           this.db.addEvent(deviceId, newLockState ? 'device_locked' : 'device_unlocked', {});
-          console.log(`Device ${deviceId} ${newLockState ? 'locked' : 'unlocked'}`);
+          console.log(`🔒 Device ${deviceId} ${newLockState ? 'locked' : 'unlocked'}`);
         }
         if (callback) callback(success);
       });
@@ -330,15 +231,11 @@ class DeviceManager {
   removeDevice(deviceId, callback) {
     console.log('🗑️ Removing device:', deviceId);
     
-    // Деактивировать если активно
     this.deactivateDevice(deviceId);
     
-    // Удалить из базы
     this.db.deleteDevice(deviceId, (success) => {
       if (success) {
-        console.log('✅ Device removed from database:', deviceId);
-      } else {
-        console.error('❌ Failed to remove device from database');
+        console.log('✅ Device removed:', deviceId);
       }
       if (callback) callback(success);
     });
@@ -347,8 +244,30 @@ class DeviceManager {
   getCurrentPosition(deviceId, callback) {
     const activeDevice = this.activeDevices.get(deviceId);
     
-    if (activeDevice && activeDevice.gpsTracker && activeDevice.gpsTracker.currentPosition) {
-      callback(activeDevice.gpsTracker.currentPosition);
+    if (activeDevice && activeDevice.locationTracker && activeDevice.locationTracker.currentPosition) {
+      callback(activeDevice.locationTracker.currentPosition);
+    } else {
+      this.db.getLastPosition(deviceId, callback);
+    }
+  }
+
+  // Обновить позицию устройства (по запросу)
+  refreshDeviceLocation(deviceId, callback) {
+    const activeDevice = this.activeDevices.get(deviceId);
+    
+    if (activeDevice && activeDevice.locationTracker) {
+      console.log('🔄 Refreshing location for:', deviceId);
+      
+      activeDevice.locationTracker.getCurrentPosition(
+        (position) => {
+          this.saveMovement(deviceId, position);
+          if (callback) callback(position);
+        },
+        (error) => {
+          console.error('Failed to refresh location:', error);
+          if (callback) callback(null);
+        }
+      );
     } else {
       this.db.getLastPosition(deviceId, callback);
     }
@@ -363,7 +282,7 @@ class DeviceManager {
 
         if (isActive) {
           const activeDevice = this.activeDevices.get(deviceId);
-          currentPosition = activeDevice.gpsTracker?.currentPosition || null;
+          currentPosition = activeDevice.locationTracker?.currentPosition || null;
         }
 
         return {
@@ -381,31 +300,16 @@ class DeviceManager {
     return Array.from(this.activeDevices.keys());
   }
 
-  checkGeolocationSupport() {
-    const supported = 'geolocation' in navigator;
-    console.log('Geolocation supported:', supported);
-    return supported;
+  // Получить устройства по категории
+  getDevicesByCategory(category, callback) {
+    this.db.getDevicesByCategory(category, callback);
   }
 
-  async requestGeolocationPermission() {
-    if (!this.checkGeolocationSupport()) {
-      return false;
-    }
-
-    try {
-      await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          () => resolve(true),
-          () => reject(false),
-          { timeout: 5000 }
-        );
-      });
-      return true;
-    } catch (error) {
-      console.error('Permission denied or error:', error);
-      return false;
-    }
+  // Получить все категории
+  getAllCategories(callback) {
+    this.db.getAllCategories(callback);
   }
 }
 
 window.DeviceManager = DeviceManager;
+console.log('✅ device-manager.js (NB-IoT) loaded');
