@@ -71,8 +71,7 @@ class UIManager {
     devices.forEach(device => {
       const card = document.createElement('div');
       card.className = 'device-card';
-      card.onclick = () => showDeviceDetail(device.device_id);
-
+      
       const statusClass = device.status === 'online' ? 'status-online' : 'status-offline';
       const deviceIcon = device.device_type === 'smartlock' ? '🔒' : 
                         device.device_type === 'smartphone' ? '📱' : '📦';
@@ -82,14 +81,28 @@ class UIManager {
           <div class="device-icon">${deviceIcon}</div>
           <div class="device-status ${statusClass}">${device.status}</div>
         </div>
-        <div class="device-info">
-          <h4>${device.device_name}</h4>
-          <p style="font-size: 12px; color: var(--text-secondary);">ID: ${device.device_id}</p>
+        <div class="device-info" onclick="showDeviceDetail('${device.device_id || device.deviceId}')">
+          <h4>${device.device_name || device.deviceName || 'Unnamed Device'}</h4>
+          <p style="font-size: 12px; color: var(--text-secondary);">ID: ${device.device_id || device.deviceId || 'Unknown'}</p>
           <p style="font-size: 13px; margin-top: 8px;">
-            🔋 ${device.battery}% | 
-            📡 ${device.gps_signal ? '✅ GPS' : '❌ No GPS'}
+            🔋 ${device.battery || 100}% | 
+            📡 ${(device.gps_signal || device.gpsSignal) ? '✅ GPS' : '❌ No GPS'}
           </p>
           ${device.locked ? '<p style="color: var(--warning-orange); margin-top: 5px;">🔒 Locked</p>' : ''}
+        </div>
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
+          <button 
+            class="secondary-btn" 
+            style="flex: 1; padding: 8px; font-size: 12px;"
+            onclick="event.stopPropagation(); showDeviceDetail('${device.device_id || device.deviceId}')">
+            👁️ View
+          </button>
+          <button 
+            class="secondary-btn" 
+            style="flex: 1; padding: 8px; font-size: 12px; background: var(--danger-red);"
+            onclick="event.stopPropagation(); confirmDeleteDevice('${device.device_id || device.deviceId}', '${device.device_name || device.deviceName || 'this device'}')">
+            🗑️ Delete
+          </button>
         </div>
       `;
 
@@ -99,31 +112,48 @@ class UIManager {
 
   // Отобразить детали устройства
   renderDeviceDetail(device, position, movements, proofs) {
-    this.currentDeviceId = device.device_id;
+    this.currentDeviceId = device.device_id || device.deviceId;
 
-    document.getElementById('device-detail-name').textContent = device.device_name;
-    document.getElementById('detail-device-id').textContent = device.device_id;
-    document.getElementById('detail-device-type').textContent = device.device_type.toUpperCase();
-    document.getElementById('detail-device-status').textContent = device.status.toUpperCase();
-    document.getElementById('detail-device-battery').textContent = device.battery + '%';
-    document.getElementById('detail-device-gps').textContent = device.gps_signal ? '✅ Strong' : '❌ Weak';
-    document.getElementById('detail-device-sync').textContent = new Date(device.last_sync).toLocaleString();
+    const updateEl = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    };
+
+    updateEl('device-detail-name', device.device_name || device.deviceName || 'Unknown Device');
+    updateEl('detail-device-id', device.device_id || device.deviceId || 'Unknown');
+    updateEl('detail-device-type', (device.device_type || device.deviceType || 'unknown').toUpperCase());
+    updateEl('detail-device-status', (device.status || 'offline').toUpperCase());
+    updateEl('detail-device-battery', `${device.battery || 0}%`);
+    updateEl('detail-device-gps', (device.gps_signal || device.gpsSignal) ? '✅ Strong' : '❌ Weak');
+    
+    try {
+      const syncDate = new Date(device.last_sync || device.lastSync || Date.now());
+      updateEl('detail-device-sync', isNaN(syncDate.getTime()) ? 'Never' : syncDate.toLocaleString());
+    } catch (e) {
+      updateEl('detail-device-sync', 'Unknown');
+    }
 
     // Smart Lock контроли
-    if (device.device_type === 'smartlock' || device.device_type === 'smartphone') {
-      document.getElementById('lock-controls').style.display = 'block';
+    const deviceType = device.device_type || device.deviceType;
+    if (deviceType === 'smartlock' || deviceType === 'smartphone') {
+      const lockControls = document.getElementById('lock-controls');
+      if (lockControls) lockControls.style.display = 'block';
+      
       const lockIcon = document.getElementById('lock-icon');
       const lockText = document.getElementById('lock-status-text');
       
-      if (device.locked) {
-        lockIcon.textContent = '🔒';
-        lockText.textContent = 'Locked';
-      } else {
-        lockIcon.textContent = '🔓';
-        lockText.textContent = 'Unlocked';
+      if (lockIcon && lockText) {
+        if (device.locked) {
+          lockIcon.textContent = '🔒';
+          lockText.textContent = 'Locked';
+        } else {
+          lockIcon.textContent = '🔓';
+          lockText.textContent = 'Unlocked';
+        }
       }
     } else {
-      document.getElementById('lock-controls').style.display = 'none';
+      const lockControls = document.getElementById('lock-controls');
+      if (lockControls) lockControls.style.display = 'none';
     }
 
     // История движений
@@ -255,11 +285,26 @@ class UIManager {
       item.className = 'activity-item';
 
       const eventIcon = this.getEventIcon(event.event_type);
+      const deviceId = event.device_id || 'Unknown';
+      const eventType = event.event_type || 'unknown_event';
+      
+      // Безопасная обработка даты
+      let timeString = 'Unknown time';
+      try {
+        if (event.timestamp) {
+          const date = new Date(event.timestamp);
+          if (!isNaN(date.getTime())) {
+            timeString = date.toLocaleString();
+          }
+        }
+      } catch (e) {
+        console.error('Invalid timestamp:', event.timestamp);
+      }
       
       item.innerHTML = `
-        <p>${eventIcon} <strong>${this.getEventTitle(event.event_type)}</strong></p>
-        <p style="font-size: 12px; color: var(--text-secondary);">Device: ${event.device_id}</p>
-        <p class="activity-time">${new Date(event.timestamp).toLocaleString()}</p>
+        <p>${eventIcon} <strong>${this.getEventTitle(eventType)}</strong></p>
+        <p style="font-size: 12px; color: var(--text-secondary);">Device: ${deviceId}</p>
+        <p class="activity-time">${timeString}</p>
       `;
 
       container.appendChild(item);
