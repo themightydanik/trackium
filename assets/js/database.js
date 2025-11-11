@@ -116,13 +116,39 @@ class TrackiumDatabase {
 
   getDevices(callback) {
     MDS.sql(`SELECT * FROM devices ORDER BY created_at DESC`, (res) => {
-      callback(res.rows || []);
+      // Преобразовать snake_case в camelCase для JavaScript
+      const devices = (res.rows || []).map(device => ({
+        ...device,
+        deviceId: device.device_id,
+        deviceName: device.device_name,
+        deviceType: device.device_type,
+        gpsSignal: device.gps_signal,
+        blockchainProof: device.blockchain_proof,
+        createdAt: device.created_at,
+        lastSync: device.last_sync
+      }));
+      callback(devices);
     });
   }
 
   getDevice(deviceId, callback) {
     MDS.sql(`SELECT * FROM devices WHERE device_id = '${deviceId}'`, (res) => {
-      callback(res.rows && res.rows.length > 0 ? res.rows[0] : null);
+      if (res.rows && res.rows.length > 0) {
+        const device = res.rows[0];
+        // Преобразовать snake_case в camelCase
+        callback({
+          ...device,
+          deviceId: device.device_id,
+          deviceName: device.device_name,
+          deviceType: device.device_type,
+          gpsSignal: device.gps_signal,
+          blockchainProof: device.blockchain_proof,
+          createdAt: device.created_at,
+          lastSync: device.last_sync
+        });
+      } else {
+        callback(null);
+      }
     });
   }
 
