@@ -406,6 +406,15 @@ function deleteDevice(deviceId) {
   });
 }
 
+// Подтверждение удаления устройства
+window.confirmDeleteDevice = function(deviceId, deviceName) {
+  if (!confirm(`⚠️ Delete device "${deviceName}"?\n\nThis will permanently remove:\n- Device data\n- Movement history\n- Blockchain proofs\n\nThis cannot be undone!`)) {
+    return;
+  }
+  
+  deleteDevice(deviceId);
+};
+
 // ========== PROOF OF MOVEMENT ==========
 
 async function submitProofOfMovement() {
