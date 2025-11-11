@@ -379,5 +379,92 @@
     <script src="./assets/js/qr-generator.js"></script>
     <script src="./assets/js/ui.js"></script>
     <script src="./assets/js/app.js"></script>
+
+    <!-- GPS Help Modal - добавить перед закрывающим </body> -->
+<div id="gps-help-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>📍 GPS Setup Guide</h3>
+      <button class="close-btn" onclick="closeGPSHelpModal()">✕</button>
+    </div>
+    <div class="modal-body" style="text-align: left;">
+      <h4 style="color: var(--primary-blue); margin: 20px 0 10px;">🌍 For Web Browsers:</h4>
+      <ol style="line-height: 1.8;">
+        <li>Click the <strong>🔒 lock icon</strong> in address bar</li>
+        <li>Find <strong>"Location"</strong> permission</li>
+        <li>Set to <strong>"Allow"</strong></li>
+        <li>Refresh the page</li>
+      </ol>
+
+      <h4 style="color: var(--primary-blue); margin: 20px 0 10px;">📱 For Android Devices:</h4>
+      <ol style="line-height: 1.8;">
+        <li><strong>Enable GPS:</strong>
+          <ul style="margin-left: 20px; margin-top: 5px;">
+            <li>Settings → Location → Turn ON</li>
+            <li>Set to <strong>"High Accuracy"</strong> mode</li>
+          </ul>
+        </li>
+        <li><strong>Browser Permissions:</strong>
+          <ul style="margin-left: 20px; margin-top: 5px;">
+            <li>Settings → Apps → [Browser] → Permissions</li>
+            <li>Location → <strong>"Allow all the time"</strong></li>
+          </ul>
+        </li>
+        <li><strong>Important:</strong>
+          <ul style="margin-left: 20px; margin-top: 5px;">
+            <li>Go outside or near a window for better signal</li>
+            <li>Wait 30-60 seconds for GPS to initialize</li>
+            <li>Keep app in foreground</li>
+          </ul>
+        </li>
+      </ol>
+
+      <h4 style="color: var(--primary-blue); margin: 20px 0 10px;">🍎 For iOS Devices:</h4>
+      <ol style="line-height: 1.8;">
+        <li>Settings → Privacy → Location Services → ON</li>
+        <li>Find your browser (Safari/Chrome)</li>
+        <li>Set to <strong>"While Using the App"</strong></li>
+        <li>Enable <strong>"Precise Location"</strong></li>
+      </ol>
+
+      <h4 style="color: var(--primary-blue); margin: 20px 0 10px;">💻 For Desktop/Laptop:</h4>
+      <p style="padding: 15px; background: rgba(255, 140, 0, 0.1); border-left: 3px solid var(--warning-orange); border-radius: 4px; margin: 10px 0;">
+        ⚠️ <strong>Note:</strong> Desktop computers typically don't have GPS hardware. 
+        They use WiFi/IP-based location which is less accurate (100m-1km precision).
+      </p>
+      <p style="margin-top: 10px;">
+        For best results with Trackium, use:
+      </p>
+      <ul style="line-height: 1.8; margin-left: 20px;">
+        <li>📱 Smartphone with GPS</li>
+        <li>📦 Dedicated Trackium hardware device</li>
+        <li>🚗 Tablet with GPS (e.g., iPad Cellular)</li>
+      </ul>
+
+      <div style="margin-top: 20px; padding: 15px; background: rgba(0, 168, 107, 0.1); border-left: 3px solid var(--success-green); border-radius: 4px;">
+        <strong>✅ Test Your GPS:</strong>
+        <p style="margin-top: 5px;">
+          After enabling permissions, add a device and check if you see real coordinates 
+          (not simulated Kyiv location: 50.45°, 30.52°)
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showGPSHelpModal() {
+  const modal = document.getElementById('gps-help-modal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeGPSHelpModal() {
+  const modal = document.getElementById('gps-help-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+window.showGPSHelpModal = showGPSHelpModal;
+window.closeGPSHelpModal = closeGPSHelpModal;
+</script>
 </body>
 </html>
