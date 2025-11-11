@@ -509,6 +509,15 @@ function updateDeviceTypeInfo() {
   infoEl.textContent = descriptions[deviceType] || '';
 }
 
+// Подтверждение удаления устройства
+window.confirmDeleteDevice = function(deviceId, deviceName) {
+  if (!confirm(`⚠️ Delete device "${deviceName}"?\n\nThis will permanently remove:\n- Device data\n- Movement history\n- Blockchain proofs\n\nThis cannot be undone!`)) {
+    return;
+  }
+  
+  deleteDevice(deviceId);
+};
+
 // Event listeners для настроек
 document.addEventListener('DOMContentLoaded', () => {
   const autoProofToggle = document.getElementById('auto-proof');
