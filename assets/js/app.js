@@ -128,6 +128,11 @@ function loadDashboard() {
     ui.renderRecentActivity(events);
   });
   
+  // Загрузить категории в фильтр
+  if (typeof loadCategoryFilter === 'function') {
+    loadCategoryFilter();
+  }
+  
   // Обновить информацию о ноде
   updateBlockchainInfo();
   
@@ -181,10 +186,12 @@ async function addDevice() {
   const deviceId = document.getElementById('device-id').value;
   const deviceName = document.getElementById('device-name').value;
   const deviceLocation = document.getElementById('device-location').value;
+  const transportType = document.getElementById('transport-type').value;
+  const category = document.getElementById('device-category').value;
   const blockchainProof = document.getElementById('enable-blockchain-proof').checked;
   
   console.log('📝 Adding device:', {
-    deviceType, deviceId, deviceName, deviceLocation, blockchainProof
+    deviceType, deviceId, deviceName, deviceLocation, transportType, category, blockchainProof
   });
   
   if (!deviceId || !deviceName) {
@@ -196,6 +203,8 @@ async function addDevice() {
     deviceId: deviceId,
     name: deviceName,
     type: deviceType,
+    transportType: transportType,
+    category: category,
     location: deviceLocation,
     blockchainProof: blockchainProof
   });
@@ -209,28 +218,21 @@ async function addDevice() {
   console.log('✅ Device registered:', device);
   ui.showNotification('Device registered successfully!', 'success');
   
-  // Активация GPS ТОЛЬКО для tracker/smartphone
-  if (deviceType === 'tracker' || deviceType === 'smartphone') {
-    console.log('🛰️ Activating GPS for', deviceId);
-    ui.showNotification('Activating GPS tracking...', 'info');
-    
-    const result = await deviceManager.activateDevice(device.deviceId, deviceType);
-    
-    console.log('GPS activation result:', result);
-    
-    if (result.success) {
-      if (result.type === 'real') {
-        ui.showNotification('✅ Real GPS activated!', 'success');
-      } else if (result.type === 'simulated') {
-        ui.showNotification('⚠️ GPS simulation activated', 'warning');
-      }
-    }
+  // Активировать location tracking
+  console.log('📡 Activating location tracking for', deviceId);
+  ui.showNotification('Activating location tracking...', 'info');
+  
+  const result = await deviceManager.activateDevice(device.deviceId, deviceType);
+  
+  console.log('Location tracking result:', result);
+  
+  if (result.success) {
+    const trackingType = result.type === 'wifi' ? 'WiFi/Cell' : 'NB-IoT';
+    ui.showNotification(`✅ ${trackingType} tracking activated!`, 'success');
   } else {
-    await deviceManager.activateDevice(device.deviceId, deviceType);
-    ui.showNotification('Device activated', 'success');
+    ui.showNotification('⚠️ Location tracking failed', 'warning');
   }
   
-  // Задержка для сохранения в БД
   setTimeout(() => {
     console.log('🔄 Refreshing devices list...');
     showScreen('devices');
@@ -388,7 +390,51 @@ function closeQRModal() {
   ui.closeQRModal();
 }
 
-// Подтверждение удаления устройства
+// Обновить локацию устройства (кнопка Refresh)
+window.refreshDeviceLocation = function() {
+  if (!currentDeviceId || !deviceManager) {
+    console.error('Cannot refresh: no device selected');
+    return;
+  }
+  
+  console.log('🔄 Refreshing location for:', currentDeviceId);
+  ui.showNotification('Updating location...', 'info');
+  
+  // Показать загрузку
+  const coordsEl = document.getElementById('device-coordinates');
+  if (coordsEl) {
+    coordsEl.innerHTML = `
+      <div style="text-align: center; padding: 20px;">
+        <div class="loading-spinner" style="width: 40px; height: 40px; margin: 0 auto;"></div>
+        <p style="margin-top: 10px; color: var(--text-secondary);">Getting current location...</p>
+      </div>
+    `;
+  }
+  
+  deviceManager.refreshDeviceLocation(currentDeviceId, async (position) => {
+    if (position) {
+      console.log('📍 Location updated:', position);
+      
+      if (typeof renderPositionWithLocation === 'function') {
+        await renderPositionWithLocation(position, 'device-coordinates');
+      }
+      
+      ui.showNotification('Location updated!', 'success');
+    } else {
+      console.error('❌ Failed to get location');
+      ui.showNotification('Failed to update location', 'error');
+      
+      if (coordsEl) {
+        coordsEl.innerHTML = `
+          <div style="text-align: center; padding: 20px;">
+            <span style="font-size: 48px;">❌</span>
+            <p style="margin: 10px 0;">Failed to get location</p>
+          </div>
+        `;
+      }
+    }
+  });
+};
 window.confirmDeleteDevice = function(deviceId, deviceName) {
   console.log('🗑️ Delete request for:', { deviceId, deviceName });
   
