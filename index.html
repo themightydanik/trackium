@@ -26,130 +26,262 @@
     </div>
 
     <!-- Main Dashboard -->
-    <div id="dashboard" class="screen">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="header-left">
-                <div class="logo-small">📦</div>
-                <h2>Trackium</h2>
-            </div>
-            <div class="header-right">
-                <button class="icon-btn" onclick="showScreen('settings')" title="Settings">⚙️</button>
-                <button class="icon-btn" onclick="showScreen('help')" title="Help">❓</button>
-            </div>
-        </header>
-
-        <!-- Stats Cards -->
-        <div class="stats-container">
-            <div class="stat-card">
-                <div class="stat-icon">🔗</div>
-                <div class="stat-info">
-                    <span class="stat-value" id="total-devices">0</span>
-                    <span class="stat-label">Active Devices</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">🚚</div>
-                <div class="stat-info">
-                    <span class="stat-value" id="active-shipments">0</span>
-                    <span class="stat-label">Active Shipments</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">🔒</div>
-                <div class="stat-info">
-                    <span class="stat-value" id="locked-devices">0</span>
-                    <span class="stat-label">Locked</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">✅</div>
-                <div class="stat-info">
-                    <span class="stat-value" id="verified-proofs">0</span>
-                    <span class="stat-label">Verified Proofs</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="quick-actions">
-            <button class="action-btn primary" onclick="showScreen('add-device')">
-                <span class="btn-icon">➕</span>
-                <span>Add Device</span>
-            </button>
-            <button class="action-btn" onclick="showScreen('devices')">
-                <span class="btn-icon">📱</span>
-                <span>My Devices</span>
-            </button>
-            <button class="action-btn" onclick="showScreen('shipments')">
-                <span class="btn-icon">📦</span>
-                <span>Shipments</span>
-            </button>
-            <button class="action-btn" onclick="showScreen('analytics')">
-                <span class="btn-icon">📊</span>
-                <span>Analytics</span>
-            </button>
-        </div>
-
-        <!-- Recent Activity -->
-        <div class="section">
-            <h3 class="section-title">Recent Activity</h3>
-            <div id="recent-activity" class="activity-list"></div>
-        </div>
+<div id="dashboard" class="screen">
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-small">📦</div>
+      <h2>Trackium</h2>
     </div>
+    <div class="header-right">
+      <button class="icon-btn" onclick="showScreen('settings')" title="Settings">⚙️</button>
+      <button class="icon-btn" onclick="showScreen('help')" title="Help">❓</button>
+    </div>
+  </header>
 
-    <!-- Add Device Screen -->
-    <div id="add-device" class="screen">
-        <div class="screen-header">
-            <button class="back-btn" onclick="showScreen('dashboard')">← Back</button>
-            <h2>Add Trackium Device</h2>
-        </div>
-        
-        <div class="form-container">
-            <div class="form-group">
-                <label>Device Type / Role</label>
-                <select id="device-type" class="form-input" onchange="updateDeviceTypeInfo()">
-                    <option value="tracker">GPS Tracker (for cargo)</option>
-                    <option value="smartlock">Smart Lock + Tracker</option>
-                    <option value="smartphone">Smartphone (Test/Monitoring)</option>
-                </select>
-                <p id="device-type-info" class="device-type-description"></p>
-            </div>
+  <!-- Stats Cards -->
+  <div class="stats-container">
+    <div class="stat-card">
+      <div class="stat-icon">🔗</div>
+      <div class="stat-info">
+        <span class="stat-value" id="total-devices">0</span>
+        <span class="stat-label">Active Devices</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🚚</div>
+      <div class="stat-info">
+        <span class="stat-value" id="active-shipments">0</span>
+        <span class="stat-label">Active Shipments</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🔒</div>
+      <div class="stat-info">
+        <span class="stat-value" id="locked-devices">0</span>
+        <span class="stat-label">Locked</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-info">
+        <span class="stat-value" id="verified-proofs">0</span>
+        <span class="stat-label">Verified Proofs</span>
+      </div>
+    </div>
+  </div>
 
-            <div class="form-group">
-                <label>Device ID / Serial Number</label>
-                <input type="text" id="device-id" class="form-input" placeholder="TRACK-XXXX-XXXX">
-                <button class="secondary-btn" onclick="generateDeviceId()">Generate ID</button>
-            </div>
-
-            <div class="form-group">
-                <label>Device Name</label>
-                <input type="text" id="device-name" class="form-input" placeholder="e.g., Container-EU-01">
-            </div>
-
-            <div class="form-group">
-                <label>Location (Optional)</label>
-                <input type="text" id="device-location" class="form-input" placeholder="e.g., Warehouse A">
-            </div>
-
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" id="enable-blockchain-proof">
-                    Enable Blockchain Proof-of-Movement
-                </label>
-            </div>
-
-              <div style="margin: 20px 0; text-align: center;">
-    <button type="button" class="secondary-btn" onclick="showGPSHelpModal()">
-      ❓ GPS Not Working? Click Here
+  <!-- Quick Actions -->
+  <div class="quick-actions">
+    <button class="action-btn primary" onclick="showScreen('add-device')">
+      <span class="btn-icon">➕</span>
+      <span>Add Device</span>
     </button>
-              </div>
+    <button class="action-btn" onclick="showScreen('devices')">
+      <span class="btn-icon">📱</span>
+      <span>My Devices</span>
+    </button>
+    <button class="action-btn" onclick="showScreen('shipments')">
+      <span class="btn-icon">📦</span>
+      <span>Shipments</span>
+    </button>
+    <button class="action-btn" onclick="showScreen('analytics')">
+      <span class="btn-icon">📊</span>
+      <span>Analytics</span>
+    </button>
+  </div>
 
-            <button class="primary-btn full-width" onclick="addDevice()">
-                <span>Register Device</span>
-            </button>
-        </div>
+  <!-- Recent Activity -->
+  <div class="section">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <h3 class="section-title">Recent Activity</h3>
+      
+      <!-- Category Filter -->
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <label style="font-size: 14px; color: var(--text-secondary);">Filter:</label>
+        <select id="activity-category-filter" 
+                class="form-input" 
+                style="width: 200px; padding: 8px;"
+                onchange="filterRecentActivity()">
+          <option value="all">All Categories</option>
+        </select>
+      </div>
     </div>
+    
+    <div id="recent-activity" class="activity-list"></div>
+  </div>
+</div>
+
+<script>
+// Загрузить категории в фильтр
+function loadCategoryFilter() {
+  if (!window.deviceManager) return;
+  
+  window.deviceManager.getAllCategories((categories) => {
+    const select = document.getElementById('activity-category-filter');
+    if (!select) return;
+    
+    // Очистить кроме "All"
+    select.innerHTML = '<option value="all">All Categories</option>';
+    
+    // Добавить категории
+    categories.forEach(category => {
+      if (category) {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        select.appendChild(option);
+      }
+    });
+  });
+}
+
+// Фильтровать активность по категории
+function filterRecentActivity() {
+  const selectedCategory = document.getElementById('activity-category-filter').value;
+  console.log('Filtering by category:', selectedCategory);
+  
+  if (!window.db) return;
+  
+  if (selectedCategory === 'all') {
+    // Показать все
+    window.db.getRecentActivity(10, (events) => {
+      window.ui.renderRecentActivity(events);
+    });
+  } else {
+    // Показать только выбранную категорию
+    window.db.getDevicesByCategory(selectedCategory, (devices) => {
+      const deviceIds = devices.map(d => d.device_id || d.deviceId);
+      
+      // Получить события только для этих устройств
+      const query = `SELECT * FROM events 
+                     WHERE device_id IN ('${deviceIds.join("','")}')
+                     ORDER BY timestamp DESC 
+                     LIMIT 10`;
+      
+      window.db.sql(query, (res) => {
+        window.ui.renderRecentActivity(res.rows || []);
+      });
+    });
+  }
+}
+
+window.loadCategoryFilter = loadCategoryFilter;
+window.filterRecentActivity = filterRecentActivity;
+</script>
+
+<!-- Add Device Screen - ОБНОВЛЕННАЯ ВЕРСИЯ -->
+<div id="add-device" class="screen">
+  <div class="screen-header">
+    <button class="back-btn" onclick="showScreen('dashboard')">← Back</button>
+    <h2>Add Trackium Device</h2>
+  </div>
+  
+  <div class="form-container">
+    <!-- Device Type -->
+    <div class="form-group">
+      <label>Device Type / Role</label>
+      <select id="device-type" class="form-input" onchange="updateDeviceTypeInfo()">
+        <option value="tracker">📦 Tracker (NB-IoT)</option>
+        <option value="smartlock">🔒 Smart Lock + Tracker</option>
+        <option value="smartphone">📱 Smartphone (WiFi/Cell)</option>
+      </select>
+      <p id="device-type-info" class="device-type-description"></p>
+    </div>
+
+    <!-- Transport Type - НОВОЕ -->
+    <div class="form-group">
+      <label>Transport Type</label>
+      <select id="transport-type" class="form-input">
+        <option value="ground">🚚 Ground (Truck/Car/Train)</option>
+        <option value="sea">🚢 Sea (Ship/Boat)</option>
+        <option value="air">✈️ Air (Plane/Drone)</option>
+      </select>
+    </div>
+
+    <!-- Category - НОВОЕ -->
+    <div class="form-group">
+      <label>Category <span style="color: var(--text-secondary);">(optional)</span></label>
+      <input 
+        type="text" 
+        id="device-category" 
+        class="form-input" 
+        placeholder="e.g., Electronics, Food, Medical"
+        list="category-suggestions">
+      <datalist id="category-suggestions">
+        <option value="Electronics">
+        <option value="Food & Beverages">
+        <option value="Medical Supplies">
+        <option value="Automotive Parts">
+        <option value="Textiles">
+        <option value="Industrial Equipment">
+        <option value="Pharmaceuticals">
+        <option value="Personal Items">
+      </datalist>
+    </div>
+
+    <!-- Device ID -->
+    <div class="form-group">
+      <label>Device ID / Serial Number</label>
+      <input type="text" id="device-id" class="form-input" placeholder="TRACK-XXXX-XXXX">
+      <button class="secondary-btn" onclick="generateDeviceId()">Generate ID</button>
+    </div>
+
+    <!-- Device Name -->
+    <div class="form-group">
+      <label>Device Name</label>
+      <input type="text" id="device-name" class="form-input" placeholder="e.g., Container-EU-01">
+    </div>
+
+    <!-- Location -->
+    <div class="form-group">
+      <label>Initial Location <span style="color: var(--text-secondary);">(optional)</span></label>
+      <input type="text" id="device-location" class="form-input" placeholder="e.g., Warehouse A, Kyiv">
+    </div>
+
+    <!-- Blockchain Proof -->
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="enable-blockchain-proof" checked>
+        Enable Blockchain Proof-of-Movement
+      </label>
+    </div>
+
+    <!-- Help Button -->
+    <div style="margin: 20px 0; text-align: center;">
+      <button type="button" class="secondary-btn" onclick="showLocationHelpModal()">
+        ❓ Location Tracking Not Working?
+      </button>
+    </div>
+    
+    <!-- Submit Button -->
+    <button class="primary-btn full-width" onclick="addDevice()">
+      <span>Register Device</span>
+    </button>
+  </div>
+</div>
+
+<script>
+function updateDeviceTypeInfo() {
+  const deviceType = document.getElementById('device-type').value;
+  const infoEl = document.getElementById('device-type-info');
+  
+  if (!infoEl) return;
+  
+  const descriptions = {
+    'tracker': '📡 Uses NB-IoT for location tracking. Low power consumption, works indoors.',
+    'smartlock': '🔒 NB-IoT tracking + remote lock/unlock via QR codes.',
+    'smartphone': '📶 Uses WiFi/Cell for location. Good for testing or personal monitoring.'
+  };
+  
+  infoEl.textContent = descriptions[deviceType] || '';
+}
+
+// Initialize on load
+if (document.getElementById('device-type')) {
+  updateDeviceTypeInfo();
+}
+</script>
 
     <!-- Devices List Screen -->
     <div id="devices" class="screen">
