@@ -14,10 +14,12 @@ class TrackiumDatabase {
         device_id VARCHAR(256) UNIQUE NOT NULL,
         device_name VARCHAR(128) NOT NULL,
         device_type VARCHAR(32) NOT NULL,
+        transport_type VARCHAR(32) DEFAULT 'ground',
+        category VARCHAR(64),
         location VARCHAR(256),
         status VARCHAR(32) DEFAULT 'offline',
         battery INT DEFAULT 100,
-        gps_signal BOOLEAN DEFAULT FALSE,
+        signal_strength VARCHAR(32),
         locked BOOLEAN DEFAULT FALSE,
         blockchain_proof BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -116,13 +118,13 @@ class TrackiumDatabase {
 
   getDevices(callback) {
     MDS.sql(`SELECT * FROM devices ORDER BY created_at DESC`, (res) => {
-      // Преобразовать snake_case в camelCase для JavaScript
       const devices = (res.rows || []).map(device => ({
         ...device,
         deviceId: device.device_id,
         deviceName: device.device_name,
         deviceType: device.device_type,
-        gpsSignal: device.gps_signal,
+        transportType: device.transport_type,
+        signalStrength: device.signal_strength,
         blockchainProof: device.blockchain_proof,
         createdAt: device.created_at,
         lastSync: device.last_sync
@@ -135,13 +137,13 @@ class TrackiumDatabase {
     MDS.sql(`SELECT * FROM devices WHERE device_id = '${deviceId}'`, (res) => {
       if (res.rows && res.rows.length > 0) {
         const device = res.rows[0];
-        // Преобразовать snake_case в camelCase
         callback({
           ...device,
           deviceId: device.device_id,
           deviceName: device.device_name,
           deviceType: device.device_type,
-          gpsSignal: device.gps_signal,
+          transportType: device.transport_type,
+          signalStrength: device.signal_strength,
           blockchainProof: device.blockchain_proof,
           createdAt: device.created_at,
           lastSync: device.last_sync
@@ -159,6 +161,46 @@ class TrackiumDatabase {
     
     MDS.sql(query, (res) => {
       if (callback) callback(res.status);
+    });
+  }
+
+  // Обновить сигнал
+  updateDeviceSignal(deviceId, strength, callback) {
+    const query = `UPDATE devices 
+      SET signal_strength = '${strength}', last_sync = CURRENT_TIMESTAMP 
+      WHERE device_id = '${deviceId}'`;
+    
+    MDS.sql(query, (res) => {
+      if (callback) callback(res.status);
+    });
+  }
+
+  // Получить устройства по категории
+  getDevicesByCategory(category, callback) {
+    const query = category === 'all' ? 
+      `SELECT * FROM devices ORDER BY created_at DESC` :
+      `SELECT * FROM devices WHERE category = '${this._escape(category)}' ORDER BY created_at DESC`;
+    
+    MDS.sql(query, (res) => {
+      const devices = (res.rows || []).map(device => ({
+        ...device,
+        deviceId: device.device_id,
+        deviceName: device.device_name,
+        deviceType: device.device_type,
+        transportType: device.transport_type,
+        signalStrength: device.signal_strength
+      }));
+      callback(devices);
+    });
+  }
+
+  // Получить все категории
+  getAllCategories(callback) {
+    const query = `SELECT DISTINCT category FROM devices WHERE category IS NOT NULL AND category != ''`;
+    
+    MDS.sql(query, (res) => {
+      const categories = (res.rows || []).map(row => row.category);
+      callback(categories);
     });
   }
 
