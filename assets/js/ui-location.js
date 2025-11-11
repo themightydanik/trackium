@@ -182,7 +182,7 @@ async function renderPositionWithLocation(position, elementId) {
           🗺️ Open in Maps
         </a>
         
-        <button onclick="refreshCurrentLocation('${window.currentDeviceId || ''}')" 
+        <button onclick="refreshDeviceLocation()" 
                 class="secondary-btn"
                 style="
                   display: inline-flex;
@@ -200,7 +200,7 @@ async function renderPositionWithLocation(position, elementId) {
                 "
                 onmouseover="this.style.background='#008f5d'"
                 onmouseout="this.style.background='var(--success-green)'">
-          🔄 Refresh
+          🔄 Refresh Location
         </button>
       </div>
       
