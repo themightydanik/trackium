@@ -247,27 +247,71 @@ function refreshDevices() {
 }
 
 function showDeviceDetail(deviceId) {
-  if (!db) return;
+  if (!db) {
+    console.error('❌ Database not ready');
+    return;
+  }
+  
+  if (!deviceId || deviceId === 'undefined') {
+    console.error('❌ Invalid device ID:', deviceId);
+    ui.showNotification('Invalid device ID', 'error');
+    return;
+  }
   
   currentDeviceId = deviceId;
-  window.currentDeviceId = deviceId; // Глобальная переменная для кнопок
+  window.currentDeviceId = deviceId;
   
   console.log('📱 Loading device detail:', deviceId);
   
   db.getDevice(deviceId, (device) => {
     if (!device) {
+      console.error('❌ Device not found:', deviceId);
       ui.showNotification('Device not found', 'error');
       return;
     }
     
     console.log('📦 Device data:', device);
     
+    // Обновить название экрана
+    const nameEl = document.getElementById('device-detail-name');
+    if (nameEl) {
+      nameEl.textContent = device.deviceName || device.device_name || 'Unknown Device';
+    }
+    
+    // Обновить базовую информацию
+    const updateField = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value || '-';
+    };
+    
+    updateField('detail-device-id', device.deviceId || device.device_id);
+    updateField('detail-device-type', (device.deviceType || device.device_type || 'unknown').toUpperCase());
+    updateField('detail-device-status', (device.status || 'offline').toUpperCase());
+    updateField('detail-device-battery', `${device.battery || 0}%`);
+    updateField('detail-device-gps', (device.gpsSignal || device.gps_signal) ? '✅ Strong' : '❌ Weak');
+    
+    try {
+      const syncDate = new Date(device.lastSync || device.last_sync);
+      updateField('detail-device-sync', isNaN(syncDate.getTime()) ? 'Never' : syncDate.toLocaleString());
+    } catch (e) {
+      updateField('detail-device-sync', 'Unknown');
+    }
+    
     deviceManager.getCurrentPosition(deviceId, async (position) => {
       console.log('📍 Current position:', position);
       
-      // Отобразить позицию с названием места
-      if (typeof renderPositionWithLocation === 'function' && position) {
+      if (position && typeof renderPositionWithLocation === 'function') {
         await renderPositionWithLocation(position, 'device-coordinates');
+      } else {
+        const coordsEl = document.getElementById('device-coordinates');
+        if (coordsEl) {
+          coordsEl.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+              <span style="font-size: 48px;">📍</span>
+              <p style="margin: 10px 0;">No GPS data available</p>
+            </div>
+          `;
+        }
       }
       
       db.getMovementHistory(deviceId, 50, (movements) => {
@@ -508,15 +552,6 @@ function updateDeviceTypeInfo() {
   
   infoEl.textContent = descriptions[deviceType] || '';
 }
-
-// Подтверждение удаления устройства
-window.confirmDeleteDevice = function(deviceId, deviceName) {
-  if (!confirm(`⚠️ Delete device "${deviceName}"?\n\nThis will permanently remove:\n- Device data\n- Movement history\n- Blockchain proofs\n\nThis cannot be undone!`)) {
-    return;
-  }
-  
-  deleteDevice(deviceId);
-};
 
 // Event listeners для настроек
 document.addEventListener('DOMContentLoaded', () => {
