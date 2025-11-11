@@ -33,15 +33,24 @@ class GPSTracker {
     this.isRealDevice = true;
     this.watching = true;
 
+    // Флаг успеха
+    let gpsSuccess = false;
+
     // Получить начальную позицию
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        gpsSuccess = true;
         console.log("📍 Initial GPS position acquired");
         this.handlePositionUpdate(position, onUpdate);
       },
       (error) => {
         console.error("❌ Initial GPS Error:", this.getErrorMessage(error));
-        if (onError) onError(error);
+        console.error("Error code:", error.code, "Error message:", error.message);
+        
+        // НЕ вызываем onError сразу, даём watchPosition второй шанс
+        if (!gpsSuccess) {
+          console.log("⏳ Waiting for watchPosition...");
+        }
       },
       options
     );
@@ -49,14 +58,32 @@ class GPSTracker {
     // Начать постоянное отслеживание
     this.watchId = navigator.geolocation.watchPosition(
       (position) => {
+        if (!gpsSuccess) {
+          gpsSuccess = true;
+          console.log("✅ GPS acquired via watchPosition");
+        }
         this.handlePositionUpdate(position, onUpdate);
       },
       (error) => {
         console.error("❌ GPS Watch Error:", this.getErrorMessage(error));
-        if (onError) onError(error);
+        
+        // Только если НЕ получили ни одной позиции - вызвать onError
+        if (!gpsSuccess && onError) {
+          onError(error);
+        }
       },
       options
     );
+
+    // Дать GPS 15 секунд на инициализацию
+    setTimeout(() => {
+      if (!gpsSuccess) {
+        console.error("❌ GPS timeout - no position after 15 seconds");
+        if (onError) {
+          onError(new Error("GPS timeout"));
+        }
+      }
+    }, 15000);
 
     return true;
   }
