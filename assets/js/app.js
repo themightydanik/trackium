@@ -1,4 +1,4 @@
-// app.js - Главное приложение Trackium (ИСПРАВЛЕНО)
+// app.js - ПОЛНАЯ ВЕРСИЯ со всеми функциями
 
 let db;
 let blockchain;
@@ -30,12 +30,12 @@ function initApp() {
   });
 }
 
-// MDS готов - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// MDS готов
 async function onMDSReady() {
   try {
     console.log("⏳ Starting initialization sequence...");
     
-    // 1. Инициализация базы данных
+    // 1. Database
     db = new TrackiumDatabase();
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("Database timeout")), 10000);
@@ -51,43 +51,34 @@ async function onMDSReady() {
       });
     });
     
-    // 2. Инициализация blockchain
+    // 2. Blockchain
     blockchain = new TrackiumBlockchain(db);
     const blockchainReady = await blockchain.init();
     if (!blockchainReady) {
-      console.warn("⚠️  Blockchain init failed, continuing anyway");
+      console.warn("⚠️  Blockchain init failed");
     } else {
       console.log("✅ Blockchain initialized");
     }
     
-    // 3. Инициализация менеджера устройств
+    // 3. Device Manager (без location tracker)
     deviceManager = new DeviceManager(db);
     console.log("✅ Device Manager initialized");
     
-    // 4. Инициализация QR генератора
+    // 4. QR Generator
     qrGenerator = new QRGenerator();
     console.log("✅ QR Generator initialized");
     
-    // 5. Загрузить dashboard
+    // 5. Load dashboard
     console.log("📊 Loading dashboard...");
     loadDashboard();
     
-    // 6. Показать главный экран через 1 секунду
+    // 6. Показать dashboard
     setTimeout(() => {
       console.log("🎉 Trackium ready!");
-      console.log("📺 Switching to dashboard screen...");
-      
-      // Убрать загрузочный экран
       const loadingScreen = document.getElementById('loading-screen');
-      if (loadingScreen) {
-        loadingScreen.classList.remove('active');
-        console.log("✅ Loading screen removed");
-      }
-      
-      // Показать dashboard
+      if (loadingScreen) loadingScreen.classList.remove('active');
       ui.showScreen('dashboard');
       
-      // Проверка что всё сработало
       setTimeout(() => {
         const dashboardScreen = document.getElementById('dashboard');
         if (dashboardScreen && dashboardScreen.classList.contains('active')) {
@@ -103,9 +94,7 @@ async function onMDSReady() {
     document.querySelector('.loading-text').textContent = 'Error: ' + error.message;
     document.querySelector('.loading-text').style.color = 'var(--danger-red)';
     
-    // Показать dashboard даже при ошибке через 3 секунды
     setTimeout(() => {
-      console.log("⚠️  Showing dashboard despite errors");
       ui.showScreen('dashboard');
     }, 3000);
   }
@@ -113,39 +102,102 @@ async function onMDSReady() {
 
 // Загрузить dashboard
 function loadDashboard() {
-  if (!db || !db.initialized) {
-    console.warn("Database not ready for loadDashboard");
-    return;
-  }
+  if (!db || !db.initialized) return;
   
-  // Загрузить статистику
   db.getStatistics((stats) => {
     ui.updateDashboardStats(stats);
   });
   
-  // Загрузить недавнюю активность
   db.getRecentActivity(10, (events) => {
     ui.renderRecentActivity(events);
   });
   
-  // Загрузить категории в фильтр
   if (typeof loadCategoryFilter === 'function') {
     loadCategoryFilter();
   }
   
-  // Обновить информацию о ноде
   updateBlockchainInfo();
-  
-  // Загрузить настройки
   loadSettings();
+  
+  // Запустить проверку location service
+  startLocationServicePolling();
 }
 
-// Обновить информацию блокчейна
+// Обновить blockchain info
 function updateBlockchainInfo() {
   if (!blockchain) return;
-  
   const info = blockchain.getBlockchainInfo();
   ui.updateNodeInfo(info.nodeAddress, info.balance);
+}
+
+// ========== LOCATION SERVICE INTEGRATION ==========
+
+/**
+ * Начать polling для получения данных от Location Service
+ */
+function startLocationServicePolling() {
+  console.log('📡 Starting location service polling...');
+  
+  setInterval(() => {
+    pollLocationUpdates();
+  }, 10000); // Каждые 10 секунд
+}
+
+/**
+ * Получить обновления локации из keypair storage
+ */
+function pollLocationUpdates() {
+  MDS.keypair.get('pending_location_updates', (res) => {
+    if (res && res.value) {
+      try {
+        const updates = JSON.parse(res.value);
+        
+        if (Array.isArray(updates) && updates.length > 0) {
+          console.log(`📍 Received ${updates.length} location updates`);
+          
+          updates.forEach(update => {
+            processLocationUpdate(update);
+          });
+          
+          // Очистить
+          MDS.keypair.set('pending_location_updates', '[]');
+        }
+      } catch (err) {
+        console.error('Failed to parse location updates:', err);
+      }
+    }
+  });
+}
+
+/**
+ * Обработать location update
+ */
+function processLocationUpdate(update) {
+  const { deviceId, latitude, longitude, accuracy, source } = update;
+  
+  console.log(`📍 Location update for ${deviceId}:`, latitude, longitude);
+  
+  // Сохранить в БД
+  db.addMovement({
+    deviceId: deviceId,
+    latitude: latitude,
+    longitude: longitude,
+    altitude: update.altitude || 0,
+    speed: update.speed || 0,
+    accuracy: accuracy
+  }, (movementId) => {
+    if (movementId) {
+      console.log('✅ Movement saved:', movementId);
+      
+      // Обновить статус устройства
+      db.updateDeviceStatus(deviceId, 'online');
+      
+      // Обновить UI если это текущее устройство
+      if (currentDeviceId === deviceId) {
+        refreshDeviceDetail();
+      }
+    }
+  });
 }
 
 // ========== DEVICE MANAGEMENT ==========
@@ -177,7 +229,6 @@ function generateDeviceId() {
 
 async function addDevice() {
   if (!deviceManager || !db) {
-    console.error('System not ready:', { deviceManager, db });
     ui.showNotification('System not ready', 'error');
     return;
   }
@@ -189,10 +240,6 @@ async function addDevice() {
   const transportType = document.getElementById('transport-type').value;
   const category = document.getElementById('device-category').value;
   const blockchainProof = document.getElementById('enable-blockchain-proof').checked;
-  
-  console.log('📝 Adding device:', {
-    deviceType, deviceId, deviceName, deviceLocation, transportType, category, blockchainProof
-  });
   
   if (!deviceId || !deviceName) {
     ui.showNotification('Please fill all required fields', 'error');
@@ -210,31 +257,21 @@ async function addDevice() {
   });
   
   if (!device) {
-    console.error('❌ Failed to register device');
     ui.showNotification('Failed to register device', 'error');
     return;
   }
 
-  console.log('✅ Device registered:', device);
-  ui.showNotification('Device registered successfully!', 'success');
+  ui.showNotification(`Device registered! Device ID: ${device.deviceId}`, 'success');
   
-  // Активировать location tracking
-  console.log('📡 Activating location tracking for', deviceId);
-  ui.showNotification('Activating location tracking...', 'info');
-  
-  const result = await deviceManager.activateDevice(device.deviceId, deviceType);
-  
-  console.log('Location tracking result:', result);
-  
-  if (result.success) {
-    const trackingType = result.type === 'wifi' ? 'WiFi/Cell' : 'NB-IoT';
-    ui.showNotification(`✅ ${trackingType} tracking activated!`, 'success');
-  } else {
-    ui.showNotification('⚠️ Location tracking failed', 'warning');
-  }
-  
+  // Показать инструкцию
   setTimeout(() => {
-    console.log('🔄 Refreshing devices list...');
+    alert(`✅ Device registered successfully!\n\n` +
+          `Device ID: ${device.deviceId}\n\n` +
+          `Next step:\n` +
+          `1. Download and run Location Service\n` +
+          `2. Enter this Device ID in the service\n` +
+          `3. Location tracking will start automatically`);
+    
     showScreen('devices');
     loadDashboard();
   }, 500);
@@ -249,13 +286,7 @@ function refreshDevices() {
 }
 
 function showDeviceDetail(deviceId) {
-  if (!db) {
-    console.error('❌ Database not ready');
-    return;
-  }
-  
-  if (!deviceId || deviceId === 'undefined') {
-    console.error('❌ Invalid device ID:', deviceId);
+  if (!db || !deviceId || deviceId === 'undefined') {
     ui.showNotification('Invalid device ID', 'error');
     return;
   }
@@ -263,80 +294,30 @@ function showDeviceDetail(deviceId) {
   currentDeviceId = deviceId;
   window.currentDeviceId = deviceId;
   
-  console.log('📱 Loading device detail:', deviceId);
-  
   db.getDevice(deviceId, (device) => {
     if (!device) {
-      console.error('❌ Device not found:', deviceId);
       ui.showNotification('Device not found', 'error');
       return;
     }
     
-    console.log('📦 Device data:', device);
-    
-    // Обновить название экрана
-    const nameEl = document.getElementById('device-detail-name');
-    if (nameEl) {
-      nameEl.textContent = device.deviceName || device.device_name || 'Unknown Device';
-    }
-    
-    // Обновить базовую информацию
-    const updateField = (id, value) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = value || '-';
-    };
-    
-    updateField('detail-device-id', device.deviceId || device.device_id);
-    updateField('detail-device-type', (device.deviceType || device.device_type || 'unknown').toUpperCase());
-    updateField('detail-device-status', (device.status || 'offline').toUpperCase());
-    updateField('detail-device-battery', `${device.battery || 0}%`);
-    updateField('detail-device-gps', (device.gpsSignal || device.gps_signal) ? '✅ Strong' : '❌ Weak');
-    
-    try {
-      const syncDate = new Date(device.lastSync || device.last_sync);
-      updateField('detail-device-sync', isNaN(syncDate.getTime()) ? 'Never' : syncDate.toLocaleString());
-    } catch (e) {
-      updateField('detail-device-sync', 'Unknown');
-    }
-    
-    deviceManager.getCurrentPosition(deviceId, async (position) => {
-      console.log('📍 Current position:', position);
-      
+    db.getLastPosition(deviceId, async (position) => {
       if (position && typeof renderPositionWithLocation === 'function') {
         await renderPositionWithLocation(position, 'device-coordinates');
-      } else {
-        const coordsEl = document.getElementById('device-coordinates');
-        if (coordsEl) {
-          coordsEl.innerHTML = `
-            <div style="text-align: center; padding: 20px;">
-              <span style="font-size: 48px;">📍</span>
-              <p style="margin: 10px 0;">No GPS data available</p>
-            </div>
-          `;
-        }
       }
       
       db.getMovementHistory(deviceId, 50, (movements) => {
-        console.log('📊 Movement history:', movements.length, 'records');
-        
         db.getBlockchainProofs(deviceId, 20, (proofs) => {
-          console.log('⛓️ Blockchain proofs:', proofs.length, 'records');
-          
           ui.renderDeviceDetail(device, position, movements, proofs);
           ui.showScreen('device-detail');
           
-          // Автообновление позиции каждые 10 секунд
+          // Auto-refresh position
           if (window.positionUpdateInterval) {
             clearInterval(window.positionUpdateInterval);
           }
           
           window.positionUpdateInterval = setInterval(() => {
             if (window.currentDeviceId === deviceId) {
-              deviceManager.getCurrentPosition(deviceId, async (newPos) => {
-                if (newPos && typeof renderPositionWithLocation === 'function') {
-                  await renderPositionWithLocation(newPos, 'device-coordinates');
-                }
-              });
+              refreshDevicePosition(deviceId);
             } else {
               clearInterval(window.positionUpdateInterval);
             }
@@ -345,6 +326,20 @@ function showDeviceDetail(deviceId) {
       });
     });
   });
+}
+
+function refreshDevicePosition(deviceId) {
+  db.getLastPosition(deviceId, async (position) => {
+    if (position && typeof renderPositionWithLocation === 'function') {
+      await renderPositionWithLocation(position, 'device-coordinates');
+    }
+  });
+}
+
+function refreshDeviceDetail() {
+  if (currentDeviceId) {
+    showDeviceDetail(currentDeviceId);
+  }
 }
 
 function toggleLock() {
@@ -376,7 +371,9 @@ function generateUnlockQR() {
     timeLeft--;
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
-    validityEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    if (validityEl) {
+      validityEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
     
     if (timeLeft <= 0) {
       clearInterval(timer);
@@ -390,91 +387,47 @@ function closeQRModal() {
   ui.closeQRModal();
 }
 
-// Обновить локацию устройства (кнопка Refresh)
 window.refreshDeviceLocation = function() {
-  if (!currentDeviceId || !deviceManager) {
-    console.error('Cannot refresh: no device selected');
-    return;
-  }
+  if (!currentDeviceId || !db) return;
   
   console.log('🔄 Refreshing location for:', currentDeviceId);
-  ui.showNotification('Updating location...', 'info');
+  ui.showNotification('Checking for new location data...', 'info');
   
-  // Показать загрузку
   const coordsEl = document.getElementById('device-coordinates');
   if (coordsEl) {
     coordsEl.innerHTML = `
       <div style="text-align: center; padding: 20px;">
         <div class="loading-spinner" style="width: 40px; height: 40px; margin: 0 auto;"></div>
-        <p style="margin-top: 10px; color: var(--text-secondary);">Getting current location...</p>
+        <p style="margin-top: 10px; color: var(--text-secondary);">Updating location...</p>
       </div>
     `;
   }
   
-  deviceManager.refreshDeviceLocation(currentDeviceId, async (position) => {
-    if (position) {
-      console.log('📍 Location updated:', position);
-      
-      if (typeof renderPositionWithLocation === 'function') {
-        await renderPositionWithLocation(position, 'device-coordinates');
-      }
-      
-      ui.showNotification('Location updated!', 'success');
-    } else {
-      console.error('❌ Failed to get location');
-      ui.showNotification('Failed to update location', 'error');
-      
-      if (coordsEl) {
-        coordsEl.innerHTML = `
-          <div style="text-align: center; padding: 20px;">
-            <span style="font-size: 48px;">❌</span>
-            <p style="margin: 10px 0;">Failed to get location</p>
-          </div>
-        `;
-      }
-    }
-  });
-};
-window.confirmDeleteDevice = function(deviceId, deviceName) {
-  console.log('🗑️ Delete request for:', { deviceId, deviceName });
-  
-  if (!deviceId || deviceId === 'undefined') {
-    console.error('❌ Invalid device ID for deletion');
-    ui.showNotification('Invalid device ID', 'error');
-    return;
-  }
-  
-  if (!confirm(`⚠️ Delete device "${deviceName}"?\n\nThis will permanently remove:\n- Device data\n- Movement history\n- Blockchain proofs\n\nThis cannot be undone!`)) {
-    return;
-  }
-  
-  deleteDevice(deviceId);
+  setTimeout(() => {
+    refreshDevicePosition(currentDeviceId);
+  }, 1000);
 };
 
 function deleteDevice(deviceId) {
-  if (!deviceId || !deviceManager) {
-    console.error('❌ Cannot delete: missing deviceId or deviceManager');
-    return;
-  }
-  
-  console.log('🗑️ Deleting device:', deviceId);
+  if (!deviceId || !deviceManager) return;
   
   deviceManager.removeDevice(deviceId, (success) => {
     if (success) {
       ui.showNotification('Device deleted', 'success');
-      console.log('✅ Device deleted successfully');
-      
-      // Обновить список устройств через 500ms
       setTimeout(() => {
         refreshDevices();
         loadDashboard();
       }, 500);
     } else {
       ui.showNotification('Failed to delete device', 'error');
-      console.error('❌ Device deletion failed');
     }
   });
 }
+
+window.confirmDeleteDevice = function(deviceId, deviceName) {
+  if (!confirm(`Delete device "${deviceName}"?\n\nThis cannot be undone!`)) return;
+  deleteDevice(deviceId);
+};
 
 // ========== PROOF OF MOVEMENT ==========
 
@@ -565,25 +518,29 @@ function loadSettings() {
   
   db.getSetting('auto_proof', (value) => {
     if (value !== null) {
-      document.getElementById('auto-proof').checked = value;
+      const el = document.getElementById('auto-proof');
+      if (el) el.checked = value;
     }
   });
   
   db.getSetting('proof_frequency', (value) => {
     if (value !== null) {
-      document.getElementById('proof-frequency').value = value;
+      const el = document.getElementById('proof-frequency');
+      if (el) el.value = value;
     }
   });
   
   db.getSetting('alert_movement', (value) => {
     if (value !== null) {
-      document.getElementById('alert-movement').checked = value;
+      const el = document.getElementById('alert-movement');
+      if (el) el.checked = value;
     }
   });
   
   db.getSetting('alert_lock', (value) => {
     if (value !== null) {
-      document.getElementById('alert-lock').checked = value;
+      const el = document.getElementById('alert-lock');
+      if (el) el.checked = value;
     }
   });
 }
@@ -591,15 +548,15 @@ function loadSettings() {
 function saveSettings() {
   if (!db) return;
   
-  const autoProof = document.getElementById('auto-proof').checked;
-  const proofFrequency = document.getElementById('proof-frequency').value;
-  const alertMovement = document.getElementById('alert-movement').checked;
-  const alertLock = document.getElementById('alert-lock').checked;
+  const autoProof = document.getElementById('auto-proof')?.checked;
+  const proofFrequency = document.getElementById('proof-frequency')?.value;
+  const alertMovement = document.getElementById('alert-movement')?.checked;
+  const alertLock = document.getElementById('alert-lock')?.checked;
   
-  db.saveSetting('auto_proof', autoProof);
-  db.saveSetting('proof_frequency', proofFrequency);
-  db.saveSetting('alert_movement', alertMovement);
-  db.saveSetting('alert_lock', alertLock);
+  if (autoProof !== undefined) db.saveSetting('auto_proof', autoProof);
+  if (proofFrequency) db.saveSetting('proof_frequency', proofFrequency);
+  if (alertMovement !== undefined) db.saveSetting('alert_movement', alertMovement);
+  if (alertLock !== undefined) db.saveSetting('alert_lock', alertLock);
   
   ui.showNotification('Settings saved', 'success');
 }
@@ -609,13 +566,13 @@ function loadAnalytics() {
 }
 
 function updateDeviceTypeInfo() {
-  const deviceType = document.getElementById('device-type').value;
+  const deviceType = document.getElementById('device-type')?.value;
   const infoEl = document.getElementById('device-type-info');
   
   if (!infoEl) return;
   
   const descriptions = {
-    'tracker': '📍 GPS tracker for cargo. Requires GPS access.',
+    'tracker': '📍 GPS tracker for cargo. Requires Location Service.',
     'smartlock': '🔒 GPS tracking + remote lock/unlock via QR codes.',
     'smartphone': '📱 Use your phone as a tracker for testing.'
   };
@@ -636,7 +593,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (alertLockToggle) alertLockToggle.addEventListener('change', saveSettings);
 });
 
-// Экспорт функций
+// ========== EXPORTS ==========
+
 window.showScreen = showScreen;
 window.generateDeviceId = generateDeviceId;
 window.addDevice = addDevice;
@@ -650,5 +608,4 @@ window.deleteDevice = deleteDevice;
 window.submitProofOfMovement = submitProofOfMovement;
 window.createShipment = createShipment;
 
-// Запуск приложения
 window.addEventListener('DOMContentLoaded', initApp);
