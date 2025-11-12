@@ -1,4 +1,4 @@
-// device-manager.js - NB-IoT + WiFi/Cell версия
+// device-manager.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
 
 class DeviceManager {
   constructor(database) {
@@ -27,10 +27,17 @@ class DeviceManager {
 
       console.log('📝 Registering device:', device);
 
+      // ИСПРАВЛЕНИЕ: Добавить в базу с правильными полями
       await new Promise((resolve) => {
-        this.db.addDevice(device, (success) => {
-          if (success) {
-            console.log('✅ Device registered:', device.deviceId);
+        const query = `INSERT INTO devices 
+          (device_id, device_name, device_type, transport_type, category, location, blockchain_proof, status)
+          VALUES ('${device.deviceId}', '${this.db._escape(device.name)}', '${device.type}', 
+                  '${device.transportType}', '${this.db._escape(device.category)}',
+                  '${this.db._escape(device.location)}', ${device.blockchainProof}, 'offline')`;
+        
+        this.db.sql(query, (res) => {
+          if (res.status) {
+            console.log('✅ Device registered in DB:', device.deviceId);
             this.db.addEvent(
               device.deviceId,
               'device_registered',
@@ -41,8 +48,10 @@ class DeviceManager {
                 category: device.category
               }
             );
+          } else {
+            console.error('❌ Failed to register device in DB:', res.error);
           }
-          resolve(success);
+          resolve(res.status);
         });
       });
 
@@ -60,8 +69,6 @@ class DeviceManager {
     }
 
     console.log('🔌 Activating device:', deviceId, 'Type:', deviceType);
-
-    // Все типы используют location tracking
     return await this.activateLocationTracking(deviceId, deviceType);
   }
 
@@ -71,20 +78,20 @@ class DeviceManager {
       
       console.log('📡 Starting location tracking...');
       
+      // ИСПРАВЛЕНИЕ: Увеличить timeout и улучшить обработку
       const trackingStarted = await new Promise((resolve) => {
         let hasUpdate = false;
-        const timeout = setTimeout(() => {
-          if (!hasUpdate) {
-            resolve(false);
-          }
-        }, 15000);
+        let timeoutId = null;
+        
+        // 30 секунд вместо 15
+        const TIMEOUT = 30000;
 
         const onUpdate = (position) => {
           if (!hasUpdate) {
             hasUpdate = true;
-            clearTimeout(timeout);
+            if (timeoutId) clearTimeout(timeoutId);
             
-            console.log('✅ Location tracking active');
+            console.log('✅ First location received:', position);
             this.handleLocationSuccess(deviceId, locationTracker, onUpdate, deviceType);
             
             resolve(true);
@@ -94,14 +101,30 @@ class DeviceManager {
         };
 
         const onError = (error) => {
-          console.error('Location error:', error);
+          console.error('Location error:', error.message);
+          
+          // Не прерываем сразу - возможно следующая попытка сработает
           if (!hasUpdate) {
-            clearTimeout(timeout);
-            resolve(false);
+            console.log('⏳ Waiting for location...');
           }
         };
 
-        locationTracker.startTracking(deviceType, onUpdate, onError);
+        // Запустить отслеживание
+        const started = locationTracker.startTracking(deviceType, onUpdate, onError);
+        
+        if (!started) {
+          resolve(false);
+          return;
+        }
+
+        // Установить timeout
+        timeoutId = setTimeout(() => {
+          if (!hasUpdate) {
+            console.error('❌ Location timeout after', TIMEOUT / 1000, 'seconds');
+            locationTracker.stopTracking();
+            resolve(false);
+          }
+        }, TIMEOUT);
       });
 
       if (trackingStarted) {
@@ -111,11 +134,15 @@ class DeviceManager {
           type: deviceType === 'smartphone' ? 'wifi' : 'nbiot'
         };
       } else {
-        throw new Error('Location tracking timeout');
+        throw new Error('Location tracking timeout - GPS may be disabled');
       }
 
     } catch (error) {
       console.error('❌ Failed to activate location tracking:', error);
+      
+      // Все равно пометить устройство как online (offline tracking)
+      this.db.updateDeviceStatus(deviceId, 'online');
+      
       return {
         success: false,
         message: error.message,
@@ -127,7 +154,6 @@ class DeviceManager {
   handleLocationSuccess(deviceId, locationTracker, onUpdate, deviceType) {
     this.db.updateDeviceStatus(deviceId, 'online');
     
-    // Определить силу сигнала
     const signalStrength = deviceType === 'smartphone' ? 'WiFi/Cell' : 'NB-IoT';
     this.db.updateDeviceSignal(deviceId, signalStrength);
 
@@ -138,9 +164,7 @@ class DeviceManager {
       batteryLevel: 100
     });
 
-    // Симулировать разряд батареи
-    // NB-IoT: 1% каждые 30 минут (экономичнее)
-    // WiFi/Cell: 1% каждые 15 минут
+    // Симуляция разряда батареи
     const batteryInterval = deviceType === 'smartphone' ? 15 : 30;
     
     const batteryTimer = setInterval(() => {
@@ -251,7 +275,6 @@ class DeviceManager {
     }
   }
 
-  // Обновить позицию устройства (по запросу)
   refreshDeviceLocation(deviceId, callback) {
     const activeDevice = this.activeDevices.get(deviceId);
     
@@ -300,16 +323,14 @@ class DeviceManager {
     return Array.from(this.activeDevices.keys());
   }
 
-  // Получить устройства по категории
   getDevicesByCategory(category, callback) {
     this.db.getDevicesByCategory(category, callback);
   }
 
-  // Получить все категории
   getAllCategories(callback) {
     this.db.getAllCategories(callback);
   }
 }
 
 window.DeviceManager = DeviceManager;
-console.log('✅ device-manager.js (NB-IoT) loaded');
+console.log('✅ device-manager.js (FIXED) loaded');
