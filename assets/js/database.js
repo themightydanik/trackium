@@ -5,7 +5,8 @@ class TrackiumDatabase {
     this.initialized = false;
   }
 
-    sql(query, callback) {
+    // Обёртка для вызова SQL-запросов
+  sql(query, callback) {
     MDS.sql(query, callback);
   }
 
