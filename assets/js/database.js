@@ -5,6 +5,10 @@ class TrackiumDatabase {
     this.initialized = false;
   }
 
+    sql(query, callback) {
+    MDS.sql(query, callback);
+  }
+
   // Инициализация базы данных
   init(callback) {
     const queries = [
