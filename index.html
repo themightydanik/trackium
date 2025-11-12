@@ -171,6 +171,7 @@ window.filterRecentActivity = filterRecentActivity;
 </script>
 
 <!-- Add Device Screen - ОБНОВЛЕННАЯ ВЕРСИЯ -->
+<!-- Add Device Screen - UPDATED VERSION -->
 <div id="add-device" class="screen">
   <div class="screen-header">
     <button class="back-btn" onclick="showScreen('dashboard')">← Back</button>
@@ -178,18 +179,49 @@ window.filterRecentActivity = filterRecentActivity;
   </div>
   
   <div class="form-container">
+    
+    <!-- Location Tracking Setup Block -->
+    <div style="margin-bottom: 30px; padding: 20px; background: rgba(255, 140, 0, 0.1); border-left: 4px solid var(--warning-orange); border-radius: 8px;">
+      <h3 style="color: var(--warning-orange); margin-bottom: 10px;">📍 Location Tracking Required</h3>
+      <p style="margin-bottom: 15px; line-height: 1.6;">
+        Trackium requires a location service to track device movement. During testing phase, 
+        you need to install a companion service on your device.
+      </p>
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">
+        ℹ️ <strong>Note:</strong> In production, Trackium hardware devices will have this service built-in.
+      </p>
+      
+      <button class="primary-btn" onclick="showLocationServiceModal()" style="width: 100%; margin-bottom: 10px;">
+        📥 Download Location Service
+      </button>
+      
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button class="secondary-btn" onclick="checkLocationServiceStatus()" style="flex: 1;">
+          🔄 Check Status
+        </button>
+        <button class="secondary-btn" onclick="testLocationAPI()" style="flex: 1;">
+          🧪 Test Connection
+        </button>
+      </div>
+      
+      <div id="location-service-status" style="margin-top: 15px; padding: 10px; background: var(--bg-light); border-radius: 6px; display: none;">
+        <p style="font-size: 13px; margin: 0;"><strong>Status:</strong> <span id="service-status-text">Unknown</span></p>
+        <p style="font-size: 13px; margin: 5px 0 0;"><strong>Last Update:</strong> <span id="service-last-update">Never</span></p>
+      </div>
+    </div>
+
     <!-- Device Type -->
     <div class="form-group">
       <label>Device Type / Role</label>
       <select id="device-type" class="form-input" onchange="updateDeviceTypeInfo()">
         <option value="tracker">📦 Tracker (NB-IoT)</option>
         <option value="smartlock">🔒 Smart Lock + Tracker</option>
-        <option value="smartphone">📱 Smartphone (WiFi/Cell)</option>
+        <option value="smartphone">📱 Smartphone (Testing)</option>
       </select>
       <p id="device-type-info" class="device-type-description"></p>
     </div>
 
-    <!-- Transport Type - НОВОЕ -->
+    <!-- Transport Type -->
     <div class="form-group">
       <label>Transport Type</label>
       <select id="transport-type" class="form-input">
@@ -199,7 +231,7 @@ window.filterRecentActivity = filterRecentActivity;
       </select>
     </div>
 
-    <!-- Category - НОВОЕ -->
+    <!-- Category -->
     <div class="form-group">
       <label>Category <span style="color: var(--text-secondary);">(optional)</span></label>
       <input 
@@ -223,8 +255,10 @@ window.filterRecentActivity = filterRecentActivity;
     <!-- Device ID -->
     <div class="form-group">
       <label>Device ID / Serial Number</label>
-      <input type="text" id="device-id" class="form-input" placeholder="TRACK-XXXX-XXXX">
-      <button class="secondary-btn" onclick="generateDeviceId()">Generate ID</button>
+      <input type="text" id="device-id" class="form-input" placeholder="TRACK-XXXX-XXXX" readonly>
+      <button class="secondary-btn" onclick="generateDeviceId()" style="margin-top: 8px;">
+        🔄 Generate ID
+      </button>
     </div>
 
     <!-- Device Name -->
@@ -246,13 +280,6 @@ window.filterRecentActivity = filterRecentActivity;
         Enable Blockchain Proof-of-Movement
       </label>
     </div>
-
-    <!-- Help Button -->
-    <div style="margin: 20px 0; text-align: center;">
-      <button type="button" class="secondary-btn" onclick="showLocationHelpModal()">
-        ❓ Location Tracking Not Working?
-      </button>
-    </div>
     
     <!-- Submit Button -->
     <button class="primary-btn full-width" onclick="addDevice()">
@@ -261,25 +288,366 @@ window.filterRecentActivity = filterRecentActivity;
   </div>
 </div>
 
-<script>
-function updateDeviceTypeInfo() {
-  const deviceType = document.getElementById('device-type').value;
-  const infoEl = document.getElementById('device-type-info');
-  
-  if (!infoEl) return;
-  
-  const descriptions = {
-    'tracker': '📡 Uses NB-IoT for location tracking. Low power consumption, works indoors.',
-    'smartlock': '🔒 NB-IoT tracking + remote lock/unlock via QR codes.',
-    'smartphone': '📶 Uses WiFi/Cell for location. Good for testing or personal monitoring.'
-  };
-  
-  infoEl.textContent = descriptions[deviceType] || '';
+<!-- Location Service Download Modal -->
+<div id="location-service-modal" class="modal">
+  <div class="modal-content" style="max-width: 700px;">
+    <div class="modal-header">
+      <h3>📥 Download Location Service</h3>
+      <button class="close-btn" onclick="closeLocationServiceModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      
+      <!-- Platform Selection -->
+      <div style="margin-bottom: 30px;">
+        <h4 style="color: var(--primary-blue); margin-bottom: 15px;">Select Your Platform:</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+          <button class="platform-btn" onclick="selectPlatform('macos')" data-platform="macos">
+            <span style="font-size: 48px;">🍎</span>
+            <p>macOS</p>
+          </button>
+          <button class="platform-btn" onclick="selectPlatform('windows')" data-platform="windows">
+            <span style="font-size: 48px;">🪟</span>
+            <p>Windows</p>
+          </button>
+          <button class="platform-btn" onclick="selectPlatform('linux')" data-platform="linux">
+            <span style="font-size: 48px;">🐧</span>
+            <p>Linux</p>
+          </button>
+          <button class="platform-btn" onclick="selectPlatform('android')" data-platform="android">
+            <span style="font-size: 48px;">🤖</span>
+            <p>Android</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- macOS Instructions -->
+      <div id="instructions-macos" class="platform-instructions" style="display: none;">
+        <h4>🍎 macOS Installation</h4>
+        <div class="accordion">
+          <button class="accordion-btn" onclick="toggleAccordion(this)">
+            Step 1: Download Service →
+          </button>
+          <div class="accordion-content">
+            <button class="primary-btn" onclick="downloadLocationService('macos')" style="margin: 15px 0;">
+              📥 Download trackium-location-service-macos.zip
+            </button>
+            <p style="font-size: 13px; color: var(--text-secondary);">
+              Version 1.0.0 | Size: ~5MB | Requires: Node.js 16+
+            </p>
+          </div>
+
+          <button class="accordion-btn" onclick="toggleAccordion(this)">
+            Step 2: Install Node.js (if needed) →
+          </button>
+          <div class="accordion-content">
+            <p>Check if Node.js is installed:</p>
+            <pre style="background: var(--bg-dark); padding: 10px; border-radius: 4px; overflow-x: auto;">node --version</pre>
+            <p>If not installed, download from: <a href="https://nodejs.org" target="_blank" style="color: var(--primary-blue);">nodejs.org</a></p>
+          </div>
+
+          <button class="accordion-btn" onclick="toggleAccordion(this)">
+            Step 3: Run Service →
+          </button>
+          <div class="accordion-content">
+            <p>1. Extract the ZIP file</p>
+            <p>2. Open Terminal in the extracted folder</p>
+            <p>3. Run:</p>
+            <pre style="background: var(--bg-dark); padding: 10px; border-radius: 4px; overflow-x: auto;">npm install
+node trackium-location.js</pre>
+            <p style="color: var(--success-green); margin-top: 10px;">✅ Service will start automatically and connect to your MiniDapp</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Windows Instructions -->
+      <div id="instructions-windows" class="platform-instructions" style="display: none;">
+        <h4>🪟 Windows Installation</h4>
+        <div class="accordion">
+          <button class="accordion-btn" onclick="toggleAccordion(this)">
+            Step 1: Download Service →
+          </button>
+          <div class="accordion-content">
+            <button class="primary-btn" onclick="downloadLocationService('windows')" style="margin: 15px 0;">
+              📥 Download trackium-location-service-windows.zip
+            </button>
+            <p style="font-size: 13px; color: var(--text-secondary);">
+              Version 1.0.0 | Size: ~5MB | Requires: Node.js 16+
+            </p>
+          </div>
+
+          <button class="accordion-btn" onclick="toggleAccordion(this)">
+            Step 2: Install Node.js (if needed) →
+          </button>
+          <div class="accordion-content">
+            <p>Check if Node.js is installed (open CMD):</p>
+            <pre style="background: var(--bg-dark); padding: 10px; border-radius: 4px; overflow-x: auto;">node --version</pre>
+            <p>If not installed, download from: <a href="https://nodejs.org" target="_blank" style="color: var(--primary-blue);">nodejs.org</a></p>
+          </div>
+
+          <button class="accordion-btn" onclick="toggleAccordion(this)">
+            Step 3: Run Service →
+          </button>
+          <div class="accordion-content">
+            <p>1. Extract the ZIP file</p>
+            <p>2. Open Command Prompt in the extracted folder</p>
+            <p>3. Run:</p>
+            <pre style="background: var(--bg-dark); padding: 10px; border-radius: 4px; overflow-x: auto;">npm install
+node trackium-location.js</pre>
+            <p style="color: var(--success-green); margin-top: 10px;">✅ Service will start automatically</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Linux Instructions -->
+      <div id="instructions-linux" class="platform-instructions" style="display: none;">
+        <h4>🐧 Linux Installation</h4>
+        <div class="accordion">
+          <button class="accordion-btn" onclick="toggleAccordion(this)">
+            Step 1: Download Service →
+          </button>
+          <div class="accordion-content">
+            <button class="primary-btn" onclick="downloadLocationService('linux')" style="margin: 15px 0;">
+              📥 Download trackium-location-service-linux.tar.gz
+            </button>
+          </div>
+
+          <button class="accordion-btn" onclick="toggleAccordion(this)">
+            Step 2: Install & Run →
+          </button>
+          <div class="accordion-content">
+            <pre style="background: var(--bg-dark); padding: 10px; border-radius: 4px; overflow-x: auto;">tar -xzf trackium-location-service-linux.tar.gz
+cd trackium-location-service
+npm install
+node trackium-location.js</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Android Instructions -->
+      <div id="instructions-android" class="platform-instructions" style="display: none;">
+        <h4>🤖 Android Companion App</h4>
+        <p style="margin-bottom: 20px;">
+          Download and install the Trackium Companion app to enable background location tracking.
+        </p>
+        <button class="primary-btn" onclick="downloadAndroidApp()" style="width: 100%; margin-bottom: 15px;">
+          📥 Download Trackium Companion APK
+        </button>
+        <div class="accordion">
+          <button class="accordion-btn" onclick="toggleAccordion(this)">
+            Installation Steps →
+          </button>
+          <div class="accordion-content">
+            <ol style="line-height: 1.8;">
+              <li>Download the APK file</li>
+              <li>Enable "Install from Unknown Sources" in Settings</li>
+              <li>Open the APK and install</li>
+              <li>Grant Location permissions when prompted</li>
+              <li>Enter your Device ID from Trackium MiniDapp</li>
+              <li>App will run in background automatically</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<style>
+.platform-btn {
+  background: var(--bg-medium);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
 }
 
-// Initialize on load
-if (document.getElementById('device-type')) {
-  updateDeviceTypeInfo();
+.platform-btn:hover {
+  border-color: var(--primary-blue);
+  transform: translateY(-2px);
+}
+
+.platform-btn.selected {
+  border-color: var(--primary-blue);
+  background: rgba(0, 102, 204, 0.1);
+}
+
+.platform-btn p {
+  margin-top: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.accordion {
+  margin-top: 20px;
+}
+
+.accordion-btn {
+  width: 100%;
+  background: var(--bg-light);
+  border: none;
+  padding: 15px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  margin-bottom: 5px;
+  transition: all 0.3s;
+  color: var(--text-primary);
+}
+
+.accordion-btn:hover {
+  background: var(--bg-medium);
+}
+
+.accordion-content {
+  display: none;
+  padding: 15px;
+  background: var(--bg-dark);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.accordion-content.active {
+  display: block;
+}
+
+.platform-instructions {
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<script>
+function showLocationServiceModal() {
+  document.getElementById('location-service-modal').classList.add('active');
+}
+
+function closeLocationServiceModal() {
+  document.getElementById('location-service-modal').classList.remove('active');
+}
+
+function selectPlatform(platform) {
+  // Highlight selected platform
+  document.querySelectorAll('.platform-btn').forEach(btn => {
+    btn.classList.remove('selected');
+  });
+  document.querySelector(`[data-platform="${platform}"]`).classList.add('selected');
+  
+  // Hide all instructions
+  document.querySelectorAll('.platform-instructions').forEach(inst => {
+    inst.style.display = 'none';
+  });
+  
+  // Show selected platform instructions
+  document.getElementById(`instructions-${platform}`).style.display = 'block';
+}
+
+function toggleAccordion(button) {
+  const content = button.nextElementSibling;
+  const isActive = content.classList.contains('active');
+  
+  // Close all accordions
+  document.querySelectorAll('.accordion-content').forEach(c => {
+    c.classList.remove('active');
+  });
+  
+  // Open clicked accordion
+  if (!isActive) {
+    content.classList.add('active');
+  }
+}
+
+function downloadLocationService(platform) {
+  console.log('Downloading location service for:', platform);
+  
+  // В продакшене здесь будет реальная ссылка на GitHub releases
+  const downloadLinks = {
+    macos: '/downloads/trackium-location-service-macos.zip',
+    windows: '/downloads/trackium-location-service-windows.zip',
+    linux: '/downloads/trackium-location-service-linux.tar.gz'
+  };
+  
+  // Simulate download (в реальности будет fetch/download)
+  alert(`Download started for ${platform}!\n\nNote: In production, this will download from GitHub releases.`);
+  
+  // Show next steps
+  if (window.ui) {
+    window.ui.showNotification(`Download started for ${platform}`, 'success');
+  }
+}
+
+function downloadAndroidApp() {
+  console.log('Downloading Android companion app');
+  alert('Android app download started!\n\nNote: In production, this will download the APK.');
+  
+  if (window.ui) {
+    window.ui.showNotification('Android app download started', 'success');
+  }
+}
+
+function checkLocationServiceStatus() {
+  console.log('Checking location service status...');
+  
+  // Проверить через API
+  fetch('http://127.0.0.1:9003/api/location/status')
+    .then(res => res.json())
+    .then(data => {
+      const statusDiv = document.getElementById('location-service-status');
+      const statusText = document.getElementById('service-status-text');
+      const lastUpdate = document.getElementById('service-last-update');
+      
+      statusDiv.style.display = 'block';
+      
+      if (data.active) {
+        statusText.textContent = '✅ Active';
+        statusText.style.color = 'var(--success-green)';
+        lastUpdate.textContent = new Date(data.lastUpdate).toLocaleString();
+      } else {
+        statusText.textContent = '❌ Not Running';
+        statusText.style.color = 'var(--danger-red)';
+        lastUpdate.textContent = 'Never';
+      }
+    })
+    .catch(err => {
+      console.error('Failed to check status:', err);
+      
+      const statusDiv = document.getElementById('location-service-status');
+      const statusText = document.getElementById('service-status-text');
+      
+      statusDiv.style.display = 'block';
+      statusText.textContent = '❌ Service Not Found';
+      statusText.style.color = 'var(--danger-red)';
+    });
+}
+
+function testLocationAPI() {
+  console.log('Testing location API...');
+  
+  if (window.ui) {
+    window.ui.showNotification('Testing location service...', 'info');
+  }
+  
+  fetch('http://127.0.0.1:9003/api/location/test')
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        alert(`✅ Location Service Working!\n\nLat: ${data.latitude}\nLng: ${data.longitude}\nAccuracy: ${data.accuracy}m`);
+      } else {
+        alert('❌ Location service returned an error');
+      }
+    })
+    .catch(err => {
+      alert('❌ Cannot connect to location service\n\nMake sure the service is running.');
+    });
 }
 </script>
 
