@@ -89,8 +89,81 @@ class TrackiumDatabase {
       )`
     ];
 
+    const lifeModeTables = [
+  // Таблица пользователей Life режима
+  `CREATE TABLE IF NOT EXISTS life_users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(128) NOT NULL,
+    level INT DEFAULT 1,
+    experience INT DEFAULT 0,
+    avatar VARCHAR(64) DEFAULT 'default',
+    avatar_color VARCHAR(16) DEFAULT '#0066CC',
+    total_goals INT DEFAULT 0,
+    completed_goals INT DEFAULT 0,
+    current_streak INT DEFAULT 0,
+    longest_streak INT DEFAULT 0,
+    total_rewards DECIMAL(20, 8) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  
+  // Таблица целей
+  `CREATE TABLE IF NOT EXISTS life_goals (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    title VARCHAR(256) NOT NULL,
+    description VARCHAR(1024),
+    target_lat DECIMAL(10, 8) NOT NULL,
+    target_lng DECIMAL(11, 8) NOT NULL,
+    target_radius INT DEFAULT 100,
+    reward_amount DECIMAL(20, 8) NOT NULL,
+    category VARCHAR(64) DEFAULT 'general',
+    repeat_type VARCHAR(32) DEFAULT 'once',
+    status VARCHAR(32) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  
+  // Таблица выполнений целей
+  `CREATE TABLE IF NOT EXISTS life_completions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    goal_id BIGINT NOT NULL,
+    completed_lat DECIMAL(10, 8) NOT NULL,
+    completed_lng DECIMAL(11, 8) NOT NULL,
+    reward_earned DECIMAL(20, 8) NOT NULL,
+    experience_earned INT DEFAULT 0,
+    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  
+  // Таблица достижений (NFTs)
+  `CREATE TABLE IF NOT EXISTS life_achievements (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type VARCHAR(64) NOT NULL,
+    level INT,
+    token_id VARCHAR(256),
+    metadata VARCHAR(2048),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`
+];
+
+    lifeModeTables.forEach((query, index) => {
+  MDS.sql(query, (res) => {
+    if (!res.status) {
+      console.error(`Failed to create life table ${index}:`, res.error);
+    }
+    completed++;
+    
+    if (completed === total) {
+      this.initialized = true;
+      console.log("✅ Trackium Database initialized (including Life Mode)");
+      if (callback) callback(true);
+    }
+  });
+});
+
     let completed = 0;
-    const total = queries.length;
+    const total = queries.length + lifeModeTables.length;
 
     queries.forEach((query, index) => {
       MDS.sql(query, (res) => {
