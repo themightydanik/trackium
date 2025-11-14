@@ -12,6 +12,2212 @@
     <script src="./assets/js/device-registry.js"></script>
 </head>
 <body>
+
+<!-- Mode Selector (показывать после загрузки) -->
+<div id="mode-selector" class="screen">
+  <div class="mode-selector-container">
+    <div class="logo-large">
+      <span style="font-size: 80px;">📦</span>
+      <h1>TRACKIUM</h1>
+      <p class="tagline">Choose Your Adventure</p>
+    </div>
+    
+    <div class="mode-cards">
+      <!-- Cargo Mode -->
+      <div class="mode-card" onclick="selectMode('cargo')">
+        <div class="mode-icon">🚚</div>
+        <h2>Trackium Cargo</h2>
+        <p>Professional logistics tracking with blockchain proof-of-movement</p>
+        <ul class="mode-features">
+          <li>📦 Device Management</li>
+          <li>🔒 Smart Lock Control</li>
+          <li>⛓️ Blockchain Proofs</li>
+          <li>📊 Shipment Analytics</li>
+        </ul>
+        <button class="mode-select-btn primary">Enter Cargo Mode</button>
+      </div>
+      
+      <!-- Life Mode -->
+      <div class="mode-card" onclick="selectMode('life')">
+        <div class="mode-icon">🎯</div>
+        <h2>Trackium Life</h2>
+        <p>Gamified personal goals with location-based rewards</p>
+        <ul class="mode-features">
+          <li>🎮 Level Up System</li>
+          <li>🏆 Location Goals</li>
+          <li>💰 Earn Rewards</li>
+          <li>🎖️ Collect NFTs</li>
+        </ul>
+        <button class="mode-select-btn primary">Enter Life Mode</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== TRACKIUM LIFE SCREENS ========== -->
+
+<!-- Life Dashboard -->
+<div id="life-dashboard" class="screen">
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-small">🎯</div>
+      <h2>Trackium Life</h2>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" onclick="showScreen('life-profile')">👤</button>
+      <button class="icon-btn" onclick="showScreen('life-achievements')">🏆</button>
+      <button class="icon-btn" onclick="switchMode()">🔄</button>
+    </div>
+  </header>
+
+  <div class="life-content">
+    <!-- User Profile Card -->
+    <div class="life-profile-card">
+      <div class="avatar-container">
+        <div class="avatar-display" id="life-avatar">
+          <span id="avatar-emoji">🧑</span>
+        </div>
+        <button class="avatar-edit-btn" onclick="showAvatarCustomizer()">✏️</button>
+      </div>
+      
+      <div class="profile-info">
+        <h3 id="life-username">Loading...</h3>
+        <div class="level-badge">
+          <span class="level-icon">⭐</span>
+          <span>Level <span id="life-level">1</span></span>
+        </div>
+      </div>
+      
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-content">
+            <span class="stat-value" id="life-total-goals">0</span>
+            <span class="stat-label">Total Goals</span>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon">✅</div>
+          <div class="stat-content">
+            <span class="stat-value" id="life-completed-goals">0</span>
+            <span class="stat-label">Completed</span>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-content">
+            <span class="stat-value" id="life-current-streak">0</span>
+            <span class="stat-label">Day Streak</span>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon">💰</div>
+          <div class="stat-content">
+            <span class="stat-value" id="life-total-rewards">0</span>
+            <span class="stat-label">Minima Earned</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Experience Progress -->
+    <div class="experience-card">
+      <div class="exp-header">
+        <span>Experience</span>
+        <span><span id="current-exp">0</span> / <span id="exp-for-next-level">150</span> XP</span>
+      </div>
+      <div class="exp-progress-bar">
+        <div class="exp-progress-fill" id="exp-progress" style="width: 0%"></div>
+      </div>
+      <p class="exp-hint">Complete goals to gain experience and level up!</p>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="life-actions">
+      <button class="action-btn primary" onclick="showScreen('life-create-goal')">
+        <span class="btn-icon">➕</span>
+        <span>Create New Goal</span>
+      </button>
+      <button class="action-btn" onclick="showScreen('life-goals')">
+        <span class="btn-icon">📋</span>
+        <span>My Goals</span>
+      </button>
+      <button class="action-btn" onclick="showScreen('life-map')">
+        <span class="btn-icon">🗺️</span>
+        <span>Goals Map</span>
+      </button>
+    </div>
+
+    <!-- Active Goals -->
+    <div class="section">
+      <h3 class="section-title">Active Goals</h3>
+      <div id="life-active-goals" class="goals-grid"></div>
+    </div>
+
+    <!-- Recent Completions -->
+    <div class="section">
+      <h3 class="section-title">Recent Achievements</h3>
+      <div id="life-recent-completions" class="completions-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Create Goal Screen -->
+<div id="life-create-goal" class="screen">
+  <div class="screen-header">
+    <button class="back-btn" onclick="showScreen('life-dashboard')">← Back</button>
+    <h2>Create New Goal</h2>
+  </div>
+  
+  <div class="form-container">
+    <div class="form-group">
+      <label>Goal Title *</label>
+      <input type="text" id="goal-title" class="form-input" placeholder="e.g., Morning Gym Session">
+    </div>
+
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="goal-description" class="form-input" rows="3" placeholder="Optional description..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Category *</label>
+      <select id="goal-category" class="form-input">
+        <option value="fitness">🏋️ Fitness</option>
+        <option value="education">📚 Education</option>
+        <option value="work">💼 Work</option>
+        <option value="social">👥 Social</option>
+        <option value="hobby">🎨 Hobby</option>
+        <option value="health">❤️ Health</option>
+        <option value="general">📍 General</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Repeat Type *</label>
+      <select id="goal-repeat" class="form-input">
+        <option value="once">Once (Single achievement)</option>
+        <option value="daily">Daily (Can complete once per day)</option>
+        <option value="weekly">Weekly (Once per week)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Target Location *</label>
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="secondary-btn" onclick="useCurrentLocation()">
+          📍 Use Current Location
+        </button>
+        <button type="button" class="secondary-btn" onclick="selectLocationOnMap()">
+          🗺️ Select on Map
+        </button>
+      </div>
+      <div id="selected-location" style="margin-top: 10px; padding: 10px; background: var(--bg-light); border-radius: 6px; display: none;">
+        <p style="margin: 0; font-size: 13px;"><strong>Selected:</strong></p>
+        <p style="margin: 5px 0 0; font-size: 13px;" id="location-display">No location selected</p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Check-in Radius (meters)</label>
+      <input type="number" id="goal-radius" class="form-input" value="100" min="10" max="1000">
+      <p style="font-size: 13px; color: var(--text-secondary); margin-top: 5px;">
+        How close you need to be to complete this goal
+      </p>
+    </div>
+
+    <div class="form-group">
+      <label>Estimated Distance from Home</label>
+      <input type="number" id="goal-distance" class="form-input" placeholder="meters" readonly>
+      <p style="font-size: 13px; color: var(--text-secondary); margin-top: 5px;">
+        💡 Further goals earn higher rewards!
+      </p>
+    </div>
+
+    <div class="reward-preview" style="padding: 15px; background: rgba(0, 168, 107, 0.1); border-left: 3px solid var(--success-green); border-radius: 6px; margin: 20px 0;">
+      <p style="margin: 0; font-weight: 600;">💰 Estimated Reward</p>
+      <p style="margin: 10px 0 0; font-size: 24px; font-weight: bold; color: var(--success-green);">
+        <span id="reward-preview">10</span> Minima
+      </p>
+      <p style="margin: 5px 0 0; font-size: 13px; color: var(--text-secondary);">
+        + <span id="exp-preview">100</span> XP
+      </p>
+    </div>
+
+    <button class="primary-btn full-width" onclick="createLifeGoal()">
+      <span>Create Goal</span>
+    </button>
+  </div>
+</div>
+
+<!-- My Goals Screen -->
+<div id="life-goals" class="screen">
+  <div class="screen-header">
+    <button class="back-btn" onclick="showScreen('life-dashboard')">← Back</button>
+    <h2>My Goals</h2>
+    <div style="display: flex; gap: 10px;">
+      <select id="goals-filter" class="form-input" style="width: 150px;" onchange="filterGoals()">
+        <option value="all">All Goals</option>
+        <option value="active">Active</option>
+        <option value="completed">Completed</option>
+      </select>
+      <select id="goals-category-filter" class="form-input" style="width: 150px;" onchange="filterGoals()">
+        <option value="all">All Categories</option>
+        <option value="fitness">Fitness</option>
+        <option value="education">Education</option>
+        <option value="work">Work</option>
+        <option value="social">Social</option>
+        <option value="hobby">Hobby</option>
+        <option value="health">Health</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="goals-list" id="all-goals-list"></div>
+</div>
+
+<!-- Goal Detail Screen -->
+<div id="life-goal-detail" class="screen">
+  <div class="screen-header">
+    <button class="back-btn" onclick="showScreen('life-goals')">← Back</button>
+    <h2 id="goal-detail-title">Goal Details</h2>
+    <button class="icon-btn" onclick="deleteLifeGoal(currentGoalId)">🗑️</button>
+  </div>
+
+  <div class="goal-detail-container">
+    <div class="detail-section">
+      <div class="goal-detail-header">
+        <div class="goal-category-badge" id="goal-detail-category">📍 General</div>
+        <div class="goal-status-badge" id="goal-detail-status">Active</div>
+      </div>
+      
+      <p id="goal-detail-description" style="margin: 15px 0; line-height: 1.6;">No description</p>
+      
+      <div class="goal-stats-grid">
+        <div class="goal-stat">
+          <span class="goal-stat-label">Reward</span>
+          <span class="goal-stat-value" id="goal-detail-reward">10 Minima</span>
+        </div>
+        <div class="goal-stat">
+          <span class="goal-stat-label">Radius</span>
+          <span class="goal-stat-value" id="goal-detail-radius">100m</span>
+        </div>
+        <div class="goal-stat">
+          <span class="goal-stat-label">Repeat</span>
+          <span class="goal-stat-value" id="goal-detail-repeat">Once</span>
+        </div>
+        <div class="goal-stat">
+          <span class="goal-stat-label">Times Completed</span>
+          <span class="goal-stat-value" id="goal-detail-completions">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Target Location</h3>
+      <div id="goal-map-container" class="map-container">
+        <div class="map-placeholder">
+          <span class="location-icon">📍</span>
+          <p id="goal-coordinates">Loading...</p>
+        </div>
+      </div>
+      <button class="secondary-btn full-width" onclick="openInMaps(currentGoalLat, currentGoalLng)">
+        🗺️ Open in Maps
+      </button>
+    </div>
+
+    <div class="detail-section">
+      <h3>Check In</h3>
+      <div id="checkin-status" style="text-align: center; padding: 20px;">
+        <p style="margin-bottom: 15px;">Click the button when you arrive at the location</p>
+        <button class="primary-btn" onclick="checkInAtGoal()" style="font-size: 18px; padding: 20px 40px;">
+          📍 I'm Here - Check In
+        </button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Completion History</h3>
+      <div id="goal-completion-history"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Goals Map Screen -->
+<div id="life-map" class="screen">
+  <div class="screen-header">
+    <button class="back-btn" onclick="showScreen('life-dashboard')">← Back</button>
+    <h2>Goals Map</h2>
+  </div>
+
+  <div class="map-view">
+    <div class="map-filters">
+      <button class="map-filter-btn active" data-filter="all" onclick="filterMapGoals('all')">All</button>
+      <button class="map-filter-btn" data-filter="active" onclick="filterMapGoals('active')">Active</button>
+      <button class="map-filter-btn" data-filter="completed" onclick="filterMapGoals('completed')">Completed</button>
+    </div>
+    
+    <div id="goals-map-display" class="goals-map">
+      <!-- Здесь будет интерактивная карта с маркерами -->
+      <div style="padding: 40px; text-align: center;">
+        <p style="font-size: 48px; margin-bottom: 20px;">🗺️</p>
+        <p>Interactive map with goal markers</p>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-top: 10px;">
+          Shows all your goals on a map with current location
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Screen -->
+<div id="life-profile" class="screen">
+  <div class="screen-header">
+    <button class="back-btn" onclick="showScreen('life-dashboard')">← Back</button>
+    <h2>Profile</h2>
+    <button class="icon-btn" onclick="editProfile()">✏️</button>
+  </div>
+
+  <div class="profile-container">
+    <!-- Avatar Section -->
+    <div class="section">
+      <h3>Avatar</h3>
+      <div class="avatar-customizer">
+        <div class="avatar-preview-large" id="profile-avatar-preview">
+          <span id="profile-avatar-emoji" style="font-size: 80px;">🧑</span>
+        </div>
+        <button class="secondary-btn" onclick="showAvatarCustomizer()">Customize Avatar</button>
+      </div>
+    </div>
+
+    <!-- Profile Info -->
+    <div class="section">
+      <h3>Profile Information</h3>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="profile-username" class="form-input" placeholder="Your username">
+      </div>
+      <button class="primary-btn" onclick="saveProfile()">Save Changes</button>
+    </div>
+
+    <!-- Statistics -->
+    <div class="section">
+      <h3>Your Statistics</h3>
+      <div class="stats-detailed">
+        <div class="stat-detail-item">
+          <span class="stat-detail-label">Total Goals Created</span>
+          <span class="stat-detail-value" id="profile-total-goals">0</span>
+        </div>
+        <div class="stat-detail-item">
+          <span class="stat-detail-label">Goals Completed</span>
+          <span class="stat-detail-value" id="profile-completed-goals">0</span>
+        </div>
+        <div class="stat-detail-item">
+          <span class="stat-detail-label">Success Rate</span>
+          <span class="stat-detail-value" id="profile-success-rate">0%</span>
+        </div>
+        <div class="stat-detail-item">
+          <span class="stat-detail-label">Current Streak</span>
+          <span class="stat-detail-value" id="profile-current-streak">0 days</span>
+        </div>
+        <div class="stat-detail-item">
+          <span class="stat-detail-label">Longest Streak</span>
+          <span class="stat-detail-value" id="profile-longest-streak">0 days</span>
+        </div>
+        <div class="stat-detail-item">
+          <span class="stat-detail-label">Total Rewards Earned</span>
+          <span class="stat-detail-value" id="profile-total-rewards">0 Minima</span>
+        </div>
+        <div class="stat-detail-item">
+          <span class="stat-detail-label">Total Experience</span>
+          <span class="stat-detail-value" id="profile-total-exp">0 XP</span>
+        </div>
+        <div class="stat-detail-item">
+          <span class="stat-detail-label">Member Since</span>
+          <span class="stat-detail-value" id="profile-member-since">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Goals by Category -->
+    <div class="section">
+      <h3>Goals by Category</h3>
+      <div id="profile-category-stats" class="category-stats"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Achievements Screen -->
+<div id="life-achievements" class="screen">
+  <div class="screen-header">
+    <button class="back-btn" onclick="showScreen('life-dashboard')">← Back</button>
+    <h2>Achievements & NFTs</h2>
+  </div>
+
+  <div class="achievements-container">
+    <!-- Level NFTs -->
+    <div class="section">
+      <h3>Level Achievement NFTs</h3>
+      <div id="level-nfts-grid" class="nfts-grid"></div>
+    </div>
+
+    <!-- Milestone Achievements -->
+    <div class="section">
+      <h3>Milestone Achievements</h3>
+      <div id="milestones-grid" class="achievements-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Avatar Customizer Modal -->
+<div id="avatar-customizer-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Customize Your Avatar</h3>
+      <button class="close-btn" onclick="closeAvatarCustomizer()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="avatar-options">
+        <h4>Choose Avatar</h4>
+        <div class="avatar-emoji-grid">
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🧑')">🧑</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('👨')">👨</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('👩')">👩</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🧔')">🧔</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('👴')">👴</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('👵')">👵</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🧑‍🎓')">🧑‍🎓</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('👨‍💼')">👨‍💼</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('👩‍💼')">👩‍💼</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('👨‍🔧')">👨‍🔧</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('👩‍🔧')">👩‍🔧</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🦸')">🦸</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🦸‍♂️')">🦸‍♂️</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🦸‍♀️')">🦸‍♀️</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🧙')">🧙</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🧚')">🧚</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🧛')">🧛</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🧜')">🧜</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🧝')">🧝</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🤖')">🤖</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('👽')">👽</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🐱')">🐱</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🐶')">🐶</button>
+          <button class="avatar-emoji-btn" onclick="selectAvatar('🐼')">🐼</button>
+        </div>
+        
+        <h4 style="margin-top: 20px;">Background Color</h4>
+        <div class="color-picker-grid">
+          <button class="color-btn" style="background: #0066CC;" onclick="selectColor('#0066CC')"></button>
+          <button class="color-btn" style="background: #00A86B;" onclick="selectColor('#00A86B')"></button>
+          <button class="color-btn" style="background: #FF8C00;" onclick="selectColor('#FF8C00')"></button>
+          <button class="color-btn" style="background: #DC143C;" onclick="selectColor('#DC143C')"></button>
+          <button class="color-btn" style="background: #9C27B0;" onclick="selectColor('#9C27B0')"></button>
+          <button class="color-btn" style="background: #2196F3;" onclick="selectColor('#2196F3')"></button>
+          <button class="color-btn" style="background: #4CAF50;" onclick="selectColor('#4CAF50')"></button>
+          <button class="color-btn" style="background: #FF9800;" onclick="selectColor('#FF9800')"></button>
+          <button class="color-btn" style="background: #E91E63;" onclick="selectColor('#E91E63')"></button>
+          <button class="color-btn" style="background: #00BCD4;" onclick="selectColor('#00BCD4')"></button>
+          <button class="color-btn" style="background: #8BC34A;" onclick="selectColor('#8BC34A')"></button>
+          <button class="color-btn" style="background: #FFC107;" onclick="selectColor('#FFC107')"></button>
+        </div>
+
+        <div class="avatar-preview-container" style="margin-top: 30px; text-align: center;">
+          <h4>Preview</h4>
+          <div class="avatar-display" id="avatar-customizer-preview" style="margin: 20px auto;">
+            <span id="customizer-avatar-emoji">🧑</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="primary-btn full-width" onclick="saveAvatarCustomization()">
+        Save Avatar
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Mode Selector Styles */
+.mode-selector-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.logo-large {
+  margin-bottom: 60px;
+}
+
+.logo-large h1 {
+  font-size: 56px;
+  font-weight: 700;
+  color: var(--primary-blue);
+  margin: 20px 0 10px;
+}
+
+.mode-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.mode-card {
+  background: var(--bg-medium);
+  border: 3px solid var(--border-color);
+  border-radius: 20px;
+  padding: 40px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: left;
+}
+
+.mode-card:hover {
+  border-color: var(--primary-blue);
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 102, 204, 0.3);
+}
+
+.mode-icon {
+  font-size: 80px;
+  margin-bottom: 20px;
+}
+
+.mode-card h2 {
+  font-size: 32px;
+  margin-bottom: 15px;
+}
+
+.mode-card p {
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.mode-features {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+
+.mode-features li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 15px;
+}
+
+.mode-select-btn {
+  margin-top: 20px;
+  width: 100%;
+  padding: 15px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Life Mode Specific Styles */
+.life-content {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.life-profile-card {
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+  border-radius: 20px;
+  padding: 30px;
+  margin-bottom: 20px;
+  color: white;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  align-items: center;
+}
+
+.avatar-container {
+  position: relative;
+}
+
+.avatar-display {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+}
+
+.avatar-edit-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--success-green);
+  border: 2px solid white;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.profile-info h3 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.stats-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.stat-item {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 15px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stat-icon {
+  font-size: 32px;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.stat-label {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Experience Card */
+.experience-card {
+  background: var(--bg-medium);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.exp-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.exp-progress-bar {
+  width: 100%;
+  height: 20px;
+  background: var(--bg-light);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.exp-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--success-green), var(--primary-blue));
+  transition: width 0.5s ease;
+}
+
+.exp-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Goals Grid */
+.goals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.goal-card {
+  background: var(--bg-medium);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.goal-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--primary-blue);
+}
+
+.goal-card.completed::before {
+  background: var(--success-green);
+}
+
+.goal-card:hover {
+  border-color: var(--primary-blue);
+  transform: translateY(-4px);
+}
+
+.goal-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.goal-category-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  background: rgba(0, 102, 204, 0.2);
+  color: var(--primary-blue);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.goal-status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.goal-status-badge.active {
+  background: rgba(0, 168, 107, 0.2);
+  color: var(--success-green);
+}
+
+.goal-status-badge.completed {
+  background: rgba(100, 100, 100, 0.2);
+  color: #aaa;
+}
+
+.goal-card h4 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.goal-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
+.goal-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-color);
+  font-size: 13px;
+}
+
+.goal-reward {
+  color: var(--success-green);
+  font-weight: 600;
+}
+
+/* Completions List */
+.completions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.completion-item {
+  background: var(--bg-medium);
+  border: 2px solid var(--border-color);
+  border-left: 4px solid var(--success-green);
+  border-radius: 12px;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 20px;
+  align-items: center;
+}
+
+.completion-icon {
+  font-size: 48px;
+}
+
+.completion-info h4 {
+  margin-bottom: 5px;
+}
+
+.completion-info p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 3px 0;
+}
+
+.completion-rewards {
+  text-align: right;
+}
+
+.completion-rewards p {
+  font-size: 14px;
+  margin: 3px 0;
+}
+
+.completion-rewards .reward-amount {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--success-green);
+}
+
+/* Goal Detail */
+.goal-detail-container {
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.goal-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.goal-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.goal-stat {
+  background: var(--bg-light);
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.goal-stat-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.goal-stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-blue);
+}
+
+/* Map View */
+.map-view {
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+
+.map-filters {
+  display: flex;
+  gap: 10px;
+  padding: 15px;
+  background: var(--bg-medium);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.map-filter-btn {
+  padding: 10px 20px;
+  background: transparent;
+  border: 2px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.map-filter-btn.active,
+.map-filter-btn:hover {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+  color: white;
+}
+
+.goals-map {
+  flex: 1;
+  background: var(--bg-medium);
+  position: relative;
+}
+
+/* Profile */
+.profile-container {
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.avatar-customizer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.avatar-preview-large {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: var(--primary-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid var(--border-color);
+}
+
+.stats-detailed {
+  display: grid;
+  gap: 15px;
+}
+
+.stat-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background: var(--bg-light);
+  border-radius: 8px;
+}
+
+.stat-detail-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.stat-detail-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-blue);
+}
+
+.category-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.category-stat-card {
+  background: var(--bg-light);
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.category-stat-card .category-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+
+.category-stat-card h4 {
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.category-stat-card .stat-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 5px 0;
+  font-size: 13px;
+}
+
+/* Achievements */
+.achievements-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.nfts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.nft-card {
+  background: var(--bg-medium);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.nft-card:hover {
+  border-color: var(--primary-blue);
+  transform: translateY(-4px);
+}
+
+.nft-card.locked {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+
+.nft-icon {
+  font-size: 64px;
+  margin-bottom: 15px;
+  display: block;
+}
+
+.nft-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.nft-rarity {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  display: inline-block;
+  margin-top: 10px;
+}
+
+.nft-rarity.common {
+  background: rgba(150, 150, 150, 0.2);
+  color: #aaa;
+}
+
+.nft-rarity.uncommon {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4CAF50;
+}
+
+.nft-rarity.rare {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196F3;
+}
+
+.nft-rarity.epic {
+  background: rgba(156, 39, 176, 0.2);
+  color: #9C27B0;
+}
+
+.nft-rarity.legendary {
+  background: rgba(255, 152, 0, 0.2);
+  color: #FF9800;
+}
+
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.achievement-card {
+  background: var(--bg-medium);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.achievement-card.unlocked {
+  border-color: var(--success-green);
+}
+
+.achievement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.achievement-icon {
+  font-size: 48px;
+}
+
+.achievement-status {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.achievement-status.unlocked {
+  background: rgba(0, 168, 107, 0.2);
+  color: var(--success-green);
+}
+
+.achievement-status.locked {
+  background: rgba(100, 100, 100, 0.2);
+  color: #aaa;
+}
+
+.achievement-card h4 {
+  margin-bottom: 10px;
+}
+
+.achievement-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 15px;
+}
+
+.achievement-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-light);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.achievement-progress-fill {
+  height: 100%;
+  background: var(--success-green);
+  transition: width 0.3s;
+}
+
+/* Avatar Customizer Modal */
+.avatar-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.avatar-emoji-btn {
+  width: 60px;
+  height: 60px;
+  border: 2px solid var(--border-color);
+  background: var(--bg-light);
+  border-radius: 12px;
+  font-size: 32px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.avatar-emoji-btn:hover,
+.avatar-emoji-btn.selected {
+  border-color: var(--primary-blue);
+  background: rgba(0, 102, 204, 0.2);
+  transform: scale(1.1);
+}
+
+.color-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.color-btn {
+  width: 50px;
+  height: 50px;
+  border: 3px solid var(--border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.color-btn:hover,
+.color-btn.selected {
+  border-color: white;
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .mode-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .life-profile-card {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  
+  .avatar-container {
+    margin: 0 auto;
+  }
+  
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .goals-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .goal-detail-container,
+  .profile-container,
+  .achievements-container {
+    padding: 15px;
+  }
+}
+
+/* Animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.goal-card,
+.completion-item,
+.nft-card,
+.achievement-card {
+  animation: slideInUp 0.3s ease;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.level-badge {
+  animation: pulse 2s infinite;
+}
+</style>
+
+<script>
+// Global variables for Life Mode
+let lifeSystem = null;
+let currentGoalId = null;
+let currentGoalLat = null;
+let currentGoalLng = null;
+let selectedAvatarEmoji = '🧑';
+let selectedAvatarColor = '#0066CC';
+let homeLocation = { lat: null, lng: null };
+let currentLocation = { lat: null, lng: null };
+
+// Mode Selection
+function selectMode(mode) {
+  console.log('📍 Selecting mode:', mode);
+  
+  // Save mode preference
+  localStorage.setItem('trackium_mode', mode);
+  
+  if (mode === 'cargo') {
+    showScreen('dashboard');
+  } else {
+    initLifeMode();
+  }
+}
+
+function switchMode() {
+  const currentMode = localStorage.getItem('trackium_mode');
+  
+  if (confirm(`Switch to ${currentMode === 'cargo' ? 'Life' : 'Cargo'} mode?`)) {
+    if (currentMode === 'cargo') {
+      selectMode('life');
+    } else {
+      selectMode('cargo');
+    }
+  }
+}
+
+// Initialize Life Mode
+async function initLifeMode() {
+  console.log('🎮 Initializing Trackium Life...');
+  
+  if (!window.TrackiumLife) {
+    console.error('TrackiumLife class not loaded');
+    return;
+  }
+  
+  lifeSystem = new TrackiumLife(db, blockchain);
+  
+  // Load user profile
+  await lifeSystem.initUserProfile((user) => {
+    console.log('👤 User profile loaded:', user);
+    
+    // Update UI
+    updateLifeUI(user);
+    
+    // Load active goals
+    loadActiveGoals();
+    
+    // Load recent completions
+    loadRecentCompletions();
+    
+    // Show life dashboard
+    showScreen('life-dashboard');
+  });
+}
+
+// Update Life UI with user data
+function updateLifeUI(user) {
+  // Profile Card
+  document.getElementById('life-username').textContent = user.username;
+  document.getElementById('life-level').textContent = user.level;
+  document.getElementById('life-total-goals').textContent = user.total_goals;
+  document.getElementById('life-completed-goals').textContent = user.completed_goals;
+  document.getElementById('life-current-streak').textContent = user.current_streak;
+  document.getElementById('life-total-rewards').textContent = user.total_rewards.toFixed(2);
+  
+  // Avatar
+  selectedAvatarEmoji = user.avatar || '🧑';
+  selectedAvatarColor = user.avatar_color || '#0066CC';
+  updateAvatarDisplay();
+  
+  // Experience Progress
+  const currentExp = user.experience;
+  const expForNext = lifeSystem.getExpForLevel(user.level + 1);
+  const progress = (currentExp / expForNext) * 100;
+  
+  document.getElementById('current-exp').textContent = currentExp;
+  document.getElementById('exp-for-next-level').textContent = expForNext;
+  document.getElementById('exp-progress').style.width = progress + '%';
+}
+
+// Update Avatar Display
+function updateAvatarDisplay() {
+  const avatars = document.querySelectorAll('#life-avatar, #profile-avatar-preview, #avatar-customizer-preview');
+  
+  avatars.forEach(avatar => {
+    if (avatar) {
+      avatar.style.background = selectedAvatarColor;
+      const emoji = avatar.querySelector('span');
+      if (emoji) emoji.textContent = selectedAvatarEmoji;
+    }
+  });
+}
+
+// Load Active Goals
+function loadActiveGoals() {
+  lifeSystem.getActiveGoals((goals) => {
+    const container = document.getElementById('life-active-goals');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (goals.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
+          <div style="font-size: 80px; margin-bottom: 20px;">🎯</div>
+          <h3 style="margin-bottom: 10px;">No Active Goals</h3>
+          <p style="color: var(--text-secondary); margin-bottom: 20px;">Create your first goal to start earning rewards!</p>
+          <button class="primary-btn" onclick="showScreen('life-create-goal')">Create Goal</button>
+        </div>
+      `;
+      return;
+    }
+    
+    goals.forEach(goal => {
+      const card = createGoalCard(goal);
+      container.appendChild(card);
+    });
+  });
+}
+
+// Create Goal Card Element
+function createGoalCard(goal) {
+  const card = document.createElement('div');
+  card.className = 'goal-card';
+  card.onclick = () => showGoalDetail(goal.id);
+  
+  const categoryIcons = {
+    fitness: '🏋️',
+    education: '📚',
+    work: '💼',
+    social: '👥',
+    hobby: '🎨',
+    health: '❤️',
+    general: '📍'
+  };
+  
+  card.innerHTML = `
+    <div class="goal-card-header">
+      <div class="goal-category-badge">
+        ${categoryIcons[goal.category] || '📍'} ${goal.category}
+      </div>
+      <div class="goal-status-badge ${goal.status}">
+        ${goal.status === 'active' ? '✓ Active' : '✓ Completed'}
+      </div>
+    </div>
+    <h4>${goal.title}</h4>
+    <p>${goal.description || 'No description'}</p>
+    <div class="goal-info-row">
+      <span>📍 Within ${goal.target_radius}m</span>
+      <span class="goal-reward">💰 ${goal.reward_amount} Minima</span>
+    </div>
+    <div class="goal-info-row">
+      <span>🔄 ${goal.repeat_type}</span>
+      <span>${goal.times_completed || 0} completions</span>
+    </div>
+  `;
+  
+  return card;
+}
+
+// Load Recent Completions
+function loadRecentCompletions() {
+  lifeSystem.getUserStatistics((stats) => {
+    const container = document.getElementById('life-recent-completions');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (stats.recentCompletions.length === 0) {
+      container.innerHTML = `
+        <p style="text-align: center; color: var(--text-secondary); padding: 40px;">
+          No completions yet. Complete goals to see them here!
+        </p>
+      `;
+      return;
+    }
+    
+    stats.recentCompletions.slice(0, 5).forEach(completion => {
+      const item = document.createElement('div');
+      item.className = 'completion-item';
+      
+      const categoryIcons = {
+        fitness: '🏋️',
+        education: '📚',
+        work: '💼',
+        social: '👥',
+        hobby: '🎨',
+        health: '❤️',
+        general: '📍'
+      };
+      
+      const date = new Date(completion.completed_at);
+      
+      item.innerHTML = `
+        <div class="completion-icon">${categoryIcons[completion.category] || '✅'}</div>
+        <div class="completion-info">
+          <h4>${completion.title}</h4>
+          <p>${date.toLocaleDateString()} at ${date.toLocaleTimeString()}</p>
+          <p>📍 ${completion.completed_lat.toFixed(6)}, ${completion.completed_lng.toFixed(6)}</p>
+        </div>
+        <div class="completion-rewards">
+          <p class="reward-amount">+${completion.reward_earned} Minima</p>
+          <p style="color: var(--primary-blue);">+${completion.experience_earned || 0} XP</p>
+        </div>
+      `;
+      
+      container.appendChild(item);
+    });
+  });
+}
+
+// Use Current Location
+async function useCurrentLocation() {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser');
+    return;
+  }
+  
+  ui.showNotification('Getting current location...', 'info');
+  
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      
+      currentLocation = { lat, lng };
+      
+      // Show selected location
+      const locationDisplay = document.getElementById('location-display');
+      const selectedLocation = document.getElementById('selected-location');
+      
+      if (locationDisplay && selectedLocation) {
+        const locationName = await getLocationNameFromCoords(lat, lng);
+        locationDisplay.textContent = `${locationName} (${lat.toFixed(6)}, ${lng.toFixed(6)})`;
+        selectedLocation.style.display = 'block';
+      }
+      
+      // Calculate distance from home if set
+      if (homeLocation.lat && homeLocation.lng) {
+        const distance = lifeSystem.calculateDistance(
+          homeLocation.lat, homeLocation.lng,
+          lat, lng
+        );
+        document.getElementById('goal-distance').value = distance;
+        updateRewardPreview();
+      }
+      
+      ui.showNotification('Location selected!', 'success');
+    },
+    (error) => {
+      console.error('Geolocation error:', error);
+      ui.showNotification('Failed to get location', 'error');
+    }
+  );
+}
+
+// Select Location on Map (simplified)
+function selectLocationOnMap() {
+  alert('Map selection coming soon! Use "Current Location" for now.');
+}
+
+// Update Reward Preview
+function updateRewardPreview() {
+  const category = document.getElementById('goal-category').value;
+  const distance = parseInt(document.getElementById('goal-distance').value) || 0;
+  
+  const goalData = {
+    category: category,
+    distanceFromHome: distance
+  };
+  
+  const reward = lifeSystem.calculateReward(goalData);
+  const exp = reward * 10;
+  
+  document.getElementById('reward-preview').textContent = reward;
+  document.getElementById('exp-preview').textContent = exp;
+}
+
+// Create Life Goal
+async function createLifeGoal() {
+  const title = document.getElementById('goal-title').value;
+  const description = document.getElementById('goal-description').value;
+  const category = document.getElementById('goal-category').value;
+  const repeatType = document.getElementById('goal-repeat').value;
+  const radius = parseInt(document.getElementById('goal-radius').value);
+  const distance = parseInt(document.getElementById('goal-distance').value) || 0;
+  
+  if (!title) {
+    ui.showNotification('Please enter goal title', 'error');
+    return;
+  }
+  
+  if (!currentLocation.lat || !currentLocation.lng) {
+    ui.showNotification('Please select target location', 'error');
+    return;
+  }
+  
+  const goalData = {
+    title: title,
+    description: description,
+    latitude: currentLocation.lat,
+    longitude: currentLocation.lng,
+    radius: radius,
+    category: category,
+    repeatType: repeatType,
+    distanceFromHome: distance
+  };
+  
+  lifeSystem.createGoal(goalData, (goal) => {
+    if (goal) {
+      ui.showNotification('Goal created successfully!', 'success');
+      
+      // Reset form
+      document.getElementById('goal-title').value = '';
+      document.getElementById('goal-description').value = '';
+      document.getElementById('selected-location').style.display = 'none';
+      currentLocation = { lat: null, lng: null };
+      
+      // Reload dashboard
+      initLifeMode();
+    } else {
+      ui.showNotification('Failed to create goal', 'error');
+    }
+  });
+}
+
+// Show Goal Detail
+function showGoalDetail(goalId) {
+  currentGoalId = goalId;
+  
+  db.sql(`SELECT * FROM life_goals WHERE id = ${goalId}`, async (res) => {
+    if (!res.rows || res.rows.length === 0) {
+      ui.showNotification('Goal not found', 'error');
+      return;
+    }
+    
+    const goal = res.rows[0];
+    currentGoalLat = goal.target_lat;
+    currentGoalLng = goal.target_lng;
+    
+    // Update UI
+    document.getElementById('goal-detail-title').textContent = goal.title;
+    document.getElementById('goal-detail-description').textContent = goal.description || 'No description';
+    document.getElementById('goal-detail-category').textContent = `${getCategoryIcon(goal.category)} ${goal.category}`;
+    document.getElementById('goal-detail-status').textContent = goal.status;
+    document.getElementById('goal-detail-reward').textContent = `${goal.reward_amount} Minima`;
+    document.getElementById('goal-detail-radius').textContent = `${goal.target_radius}m`;
+    document.getElementById('goal-detail-repeat').textContent = goal.repeat_type;
+    
+    // Get completion count
+    db.sql(`SELECT COUNT(*) as count FROM life_completions WHERE goal_id = ${goalId}`, (res2) => {
+      const count = res2.rows?.[0]?.count || 0;
+      document.getElementById('goal-detail-completions').textContent = count;
+    });
+    
+    // Show coordinates
+    const locationName = await getLocationNameFromCoords(goal.target_lat, goal.target_lng);
+    document.getElementById('goal-coordinates').textContent = `${locationName}\n${goal.target_lat.toFixed(6)}, ${goal.target_lng.toFixed(6)}`;
+    
+    // Load completion history
+    loadGoalCompletionHistory(goalId);
+    
+    showScreen('life-goal-detail');
+  });
+}
+
+function getCategoryIcon(category) {
+  const icons = {
+    fitness: '🏋️',
+    education: '📚',
+    work: '💼',
+    social: '👥',
+    hobby: '🎨',
+    health: '❤️',
+    general: '📍'
+  };
+  return icons[category] || '📍';
+}
+
+// Load Goal Completion History
+function loadGoalCompletionHistory(goalId) {
+  db.sql(`SELECT * FROM life_completions WHERE goal_id = ${goalId} ORDER BY completed_at DESC`, (res) => {
+    const container = document.getElementById('goal-completion-history');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (!res.rows || res.rows.length === 0) {
+      container.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No completions yet</p>';
+      return;
+    }
+    
+    res.rows.forEach(completion => {
+      const date = new Date(completion.completed_at);
+      const item = document.createElement('div');
+      item.style.cssText = 'padding: 15px; background: var(--bg-light); border-radius: 8px; margin-bottom: 10px;';
+      
+      item.innerHTML = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+          <strong>${date.toLocaleDateString()} ${date.toLocaleTimeString()}</strong>
+          <span style="color: var(--success-green); font-weight: 600;">+${completion.reward_earned} Minima</span>
+        </div>
+        <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">
+          📍 ${completion.completed_lat.toFixed(6)}, ${completion.completed_lng.toFixed(6)}
+        </p>
+      `;
+      
+      container.appendChild(item);
+    });
+  });
+}
+
+// Check In at Goal
+async function checkInAtGoal() {
+  if (!currentGoalId) {
+    ui.showNotification('No goal selected', 'error');
+    return;
+  }
+  
+  // Get current location
+  if (!navigator.geolocation) {
+    ui.showNotification('Geolocation not supported', 'error');
+    return;
+  }
+  
+  ui.showNotification('Getting your location...', 'info');
+  
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      
+      console.log('📍 Current position:', lat, lng);
+      console.log('🎯 Target position:', currentGoalLat, currentGoalLng);
+      
+      // Check goal completion
+      lifeSystem.checkGoalCompletion(currentGoalId, lat, lng, (result) => {
+        if (result.success) {
+          // Success!
+          showCompletionModal(result);
+        } else {
+          // Failed
+          if (result.reason === 'Too far from target') {
+            ui.showNotification(
+              `You're ${result.distance}m away. Need to be within ${result.required}m`,
+              'warning'
+            );
+          } else {
+            ui.showNotification(result.reason, 'warning');
+          }
+        }
+      });
+    },
+    (error) => {
+      console.error('Geolocation error:', error);
+      ui.showNotification('Failed to get your location', 'error');
+    }
+  );
+}
+
+// Show Completion Modal
+function showCompletionModal(result) {
+  const modal = document.createElement('div');
+  modal.className = 'modal active';
+  modal.style.zIndex = '10000';
+  
+  const levelUpHTML = result.levelUp ? `
+    <div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #FFD700, #FFA500); border-radius: 12px; text-align: center;">
+      <p style="font-size: 48px; margin: 0;">🎉</p>
+      <h3 style="margin: 10px 0; color: #000;">LEVEL UP!</h3>
+      <p style="margin: 0; font-size: 24px; font-weight: bold; color: #000;">Level ${result.newLevel}</p>
+      <p style="margin: 10px 0 0; font-size: 14px; color: #000;">You've earned a Level ${result.newLevel} NFT!</p>
+    </div>
+  ` : '';
+  
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3>🎯 Goal Completed!</h3>
+      </div>
+      <div class="modal-body" style="text-align: center;">
+        <div style="font-size: 80px; margin: 20px 0;">✅</div>
+        <h2 style="margin-bottom: 10px;">Congratulations!</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 30px;">You've successfully completed this goal</p>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 30px 0;">
+          <div style="padding: 20px; background: rgba(0, 168, 107, 0.1); border-radius: 12px;">
+            <p style="font-size: 14px; color: var(--text-secondary); margin: 0 0 5px;">Reward</p>
+            <p style="font-size: 28px; font-weight: bold; color: var(--success-green); margin: 0;">
+              ${result.reward} Minima
+            </p>
+          </div>
+          <div style="padding: 20px; background: rgba(0, 102, 204, 0.1); border-radius: 12px;">
+            <p style="font-size: 14px; color: var(--text-secondary); margin: 0 0 5px;">Experience</p>
+            <p style="font-size: 28px; font-weight: bold; color: var(--primary-blue); margin: 0;">
+              +${result.experience} XP
+            </p>
+          </div>
+        </div>
+        
+        ${levelUpHTML}
+        
+        <button class="primary-btn full-width" onclick="closeCompletionModal()">
+          Awesome!
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Reload data
+  setTimeout(() => {
+    initLifeMode();
+  }, 500);
+}
+
+function closeCompletionModal() {
+  const modals = document.querySelectorAll('.modal');
+  modals.forEach(modal => {
+    if (modal.querySelector('.modal-header h3')?.textContent.includes('Goal Completed')) {
+      modal.remove();
+    }
+  });
+  
+  showScreen('life-dashboard');
+}
+
+// Open in Maps
+function openInMaps(lat, lng) {
+  const url = `https://www.google.com/maps?q=${lat},${lng}`;
+  window.open(url, '_blank');
+}
+
+// Delete Life Goal
+function deleteLifeGoal(goalId) {
+  if (!goalId || !confirm('Delete this goal? This cannot be undone.')) return;
+  
+  db.sql(`DELETE FROM life_goals WHERE id = ${goalId}`, (res) => {
+    if (res.status) {
+      ui.showNotification('Goal deleted', 'success');
+      showScreen('life-goals');
+      loadActiveGoals();
+    } else {
+      ui.showNotification('Failed to delete goal', 'error');
+    }
+  });
+}
+
+// Filter Goals
+function filterGoals() {
+  const statusFilter = document.getElementById('goals-filter')?.value || 'all';
+  const categoryFilter = document.getElementById('goals-category-filter')?.value || 'all';
+  
+  let query = 'SELECT * FROM life_goals WHERE 1=1';
+  
+  if (statusFilter !== 'all') {
+    query += ` AND status = '${statusFilter}'`;
+  }
+  
+  if (categoryFilter !== 'all') {
+    query += ` AND category = '${categoryFilter}'`;
+  }
+  
+  query += ' ORDER BY created_at DESC';
+  
+  db.sql(query, (res) => {
+    const container = document.getElementById('all-goals-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (!res.rows || res.rows.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 60px;">
+          <p style="color: var(--text-secondary);">No goals match your filters</p>
+        </div>
+      `;
+      return;
+    }
+    
+    res.rows.forEach(goal => {
+      const card = createGoalCard(goal);
+      container.appendChild(card);
+    });
+  });
+}
+
+// Avatar Customizer
+function showAvatarCustomizer() {
+  document.getElementById('avatar-customizer-modal').classList.add('active');
+  
+  // Set current avatar
+  document.getElementById('customizer-avatar-emoji').textContent = selectedAvatarEmoji;
+  document.getElementById('avatar-customizer-preview').style.background = selectedAvatarColor;
+}
+
+function closeAvatarCustomizer() {
+  document.getElementById('avatar-customizer-modal').classList.remove('active');
+}
+
+function selectAvatar(emoji) {
+  selectedAvatarEmoji = emoji;
+  
+  // Update preview
+  document.getElementById('customizer-avatar-emoji').textContent = emoji;
+  
+  // Highlight selected
+  document.querySelectorAll('.avatar-emoji-btn').forEach(btn => {
+    btn.classList.remove('selected');
+    if (btn.textContent === emoji) {
+      btn.classList.add('selected');
+    }
+  });
+}
+
+function selectColor(color) {
+  selectedAvatarColor = color;
+  
+  // Update preview
+  document.getElementById('avatar-customizer-preview').style.background = color;
+  
+  // Highlight selected
+  document.querySelectorAll('.color-btn').forEach(btn => {
+    btn.classList.remove('selected');
+    if (btn.style.background === color) {
+      btn.classList.add('selected');
+    }
+  });
+}
+
+function saveAvatarCustomization() {
+  if (!lifeSystem || !lifeSystem.currentUser) return;
+  
+  lifeSystem.updateUserProfile({
+    avatar: selectedAvatarEmoji,
+    avatar_color: selectedAvatarColor
+  }, (success) => {
+    if (success) {
+      updateAvatarDisplay();
+      ui.showNotification('Avatar updated!', 'success');
+      closeAvatarCustomizer();
+    } else {
+      ui.showNotification('Failed to update avatar', 'error');
+    }
+  });
+}
+
+// Edit Profile
+function editProfile() {
+  const usernameInput = document.getElementById('profile-username');
+  if (usernameInput) {
+    usernameInput.readOnly = false;
+    usernameInput.focus();
+  }
+}
+
+function saveProfile() {
+  const username = document.getElementById('profile-username')?.value;
+  
+  if (!username || username.trim() === '') {
+    ui.showNotification('Please enter a username', 'error');
+    return;
+  }
+  
+  lifeSystem.updateUserProfile({ username: username }, (success) => {
+    if (success) {
+      ui.showNotification('Profile updated!', 'success');
+      document.getElementById('life-username').textContent = username;
+      document.getElementById('profile-username').readOnly = true;
+    } else {
+      ui.showNotification('Failed to update profile', 'error');
+    }
+  });
+}
+
+// Load Profile Data
+function loadProfileData() {
+  if (!lifeSystem || !lifeSystem.currentUser) return;
+  
+  const user = lifeSystem.currentUser;
+  
+  // Basic info
+  document.getElementById('profile-username').value = user.username;
+  document.getElementById('profile-total-goals').textContent = user.total_goals;
+  document.getElementById('profile-completed-goals').textContent = user.completed_goals;
+  
+  const successRate = user.total_goals > 0 ? 
+    ((user.completed_goals / user.total_goals) * 100).toFixed(1) : 0;
+  document.getElementById('profile-success-rate').textContent = successRate + '%';
+  
+  document.getElementById('profile-current-streak').textContent = user.current_streak + ' days';
+  document.getElementById('profile-longest-streak').textContent = user.longest_streak + ' days';
+  document.getElementById('profile-total-rewards').textContent = user.total_rewards + ' Minima';
+  
+  const totalExp = user.experience + (lifeSystem.getExpForLevel(user.level) * (user.level - 1));
+  document.getElementById('profile-total-exp').textContent = totalExp + ' XP';
+  
+  const memberDate = new Date(user.created_at);
+  document.getElementById('profile-member-since').textContent = memberDate.toLocaleDateString();
+  
+  // Load category stats
+  lifeSystem.getUserStatistics((stats) => {
+    const container = document.getElementById('profile-category-stats');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    Object.keys(stats.goalsByCategory).forEach(category => {
+      const data = stats.goalsByCategory[category];
+      const icon = getCategoryIcon(category);
+      
+      const card = document.createElement('div');
+      card.className = 'category-stat-card';
+      
+      card.innerHTML = `
+        <div class="category-icon">${icon}</div>
+        <h4>${category}</h4>
+        <div class="stat-row">
+          <span>Completed:</span>
+          <strong>${data.count}</strong>
+        </div>
+        <div class="stat-row">
+          <span>Rewards:</span>
+          <strong>${data.totalRewards} Minima</strong>
+        </div>
+      `;
+      
+      container.appendChild(card);
+    });
+  });
+}
+
+// Load Achievements
+function loadAchievements() {
+  if (!lifeSystem || !lifeSystem.currentUser) return;
+  
+  const user = lifeSystem.currentUser;
+  
+  // Load Level NFTs
+  db.sql(`SELECT * FROM life_achievements WHERE user_id = ${user.id} AND type = 'level_up' ORDER BY level ASC`, (res) => {
+    const container = document.getElementById('level-nfts-grid');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // Show achieved levels
+    const earnedLevels = (res.rows || []).map(a => a.level);
+    
+    // Show up to level 10 or current level + 3
+    const maxLevel = Math.max(10, user.level + 3);
+    
+    for (let i = 1; i <= maxLevel; i++) {
+      const earned = earnedLevels.includes(i);
+      const rarity = lifeSystem.getLevelRarity(i);
+      
+      const card = document.createElement('div');
+      card.className = `nft-card ${!earned ? 'locked' : ''}`;
+      
+      card.innerHTML = `
+        <span class="nft-icon">${earned ? '🎖️' : '🔒'}</span>
+        <div class="nft-title">Level ${i}</div>
+        <div class="nft-rarity ${rarity.toLowerCase()}">${rarity}</div>
+        ${!earned && i <= user.level ? '<p style="font-size: 12px; margin-top: 10px; color: var(--text-secondary);">Reach level ' + i + ' to unlock</p>' : ''}
+      `;
+      
+      container.appendChild(card);
+    }
+  });
+  
+  // Load Milestone Achievements
+  const milestones = [
+    { id: 'first_goal', title: 'First Steps', desc: 'Complete your first goal', icon: '🎯', requirement: 1 },
+    { id: 'goals_10', title: 'Rising Star', desc: 'Complete 10 goals', icon: '⭐', requirement: 10 },
+    { id: 'goals_50', title: 'Dedicated', desc: 'Complete 50 goals', icon: '🌟', requirement: 50 },
+    { id: 'goals_100', title: 'Legendary', desc: 'Complete 100 goals', icon: '👑', requirement: 100 },
+    { id: 'streak_7', title: 'Week Warrior', desc: 'Maintain a 7-day streak', icon: '🔥', requirement: 7, streakType: true },
+    { id: 'streak_30', title: 'Monthly Master', desc: 'Maintain a 30-day streak', icon: '🏆', requirement: 30, streakType: true },
+    { id: 'rewards_100', title: 'Wealthy', desc: 'Earn 100 Minima', icon: '💰', requirement: 100, rewardType: true },
+    { id: 'rewards_1000', title: 'Rich', desc: 'Earn 1000 Minima', icon: '💎', requirement: 1000, rewardType: true }
+  ];
+  
+  const container = document.getElementById('milestones-grid');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  milestones.forEach(milestone => {
+    let progress = 0;
+    let unlocked = false;
+    
+    if (milestone.streakType) {
+      progress = user.longest_streak;
+      unlocked = progress >= milestone.requirement;
+    } else if (milestone.rewardType) {
+      progress = user.total_rewards;
+      unlocked = progress >= milestone.requirement;
+    } else {
+      progress = user.completed_goals;
+      unlocked = progress >= milestone.requirement;
+    }
+    
+    const progressPercent = Math.min(100, (progress / milestone.requirement) * 100);
+    
+    const card = document.createElement('div');
+    card.className = 'achievement-card';
+    if (unlocked) card.classList.add('unlocked');
+    
+    card.innerHTML = `
+      <div class="achievement-header">
+        <span class="achievement-icon">${milestone.icon}</span>
+        <span class="achievement-status ${unlocked ? 'unlocked' : 'locked'}">
+          ${unlocked ? '✓ Unlocked' : '🔒 Locked'}
+        </span>
+      </div>
+      <h4>${milestone.title}</h4>
+      <p>${milestone.desc}</p>
+      <div style="font-size: 13px; margin-top: 10px;">
+        Progress: ${progress} / ${milestone.requirement}
+      </div>
+      <div class="achievement-progress">
+        <div class="achievement-progress-fill" style="width: ${progressPercent}%"></div>
+      </div>
+    `;
+    
+    container.appendChild(card);
+  });
+}
+
+// Filter Map Goals
+function filterMapGoals(filter) {
+  // Update active button
+  document.querySelectorAll('.map-filter-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.filter === filter) {
+      btn.classList.add('active');
+    }
+  });
+  
+  // TODO: Implement map filtering
+  console.log('Filtering map goals:', filter);
+}
+
+// Initialize on screen show
+const originalShowScreen = window.showScreen;
+window.showScreen = function(screenId) {
+  originalShowScreen(screenId);
+  
+  // Life Mode specific initializations
+  if (screenId === 'life-profile') {
+    loadProfileData();
+  } else if (screenId === 'life-achievements') {
+    loadAchievements();
+  } else if (screenId === 'life-goals') {
+    filterGoals();
+  }
+};
+
+// Check mode on app init
+document.addEventListener('DOMContentLoaded', function() {
+  const savedMode = localStorage.getItem('trackium_mode');
+  
+  if (!savedMode) {
+    // First time - show mode selector
+    setTimeout(() => {
+      const loadingScreen = document.getElementById('loading-screen');
+      if (loadingScreen) loadingScreen.classList.remove('active');
+      showScreen('mode-selector');
+    }, 2000);
+  } else if (savedMode === 'life') {
+    // Load life mode directly
+    setTimeout(() => {
+      const loadingScreen = document.getElementById('loading-screen');
+      if (loadingScreen) loadingScreen.classList.remove('active');
+      initLifeMode();
+    }, 2000);
+  }
+  
+  // Listen for category change to update reward
+  const categorySelect = document.getElementById('goal-category');
+  if (categorySelect) {
+    categorySelect.addEventListener('change', updateRewardPreview);
+  }
+});
+
+console.log('✅ Trackium Life UI loaded');
+</script>
+    
     <!-- Loading Screen -->
     <div id="loading-screen" class="screen active">
         <div class="loading-container">
