@@ -1,4 +1,4 @@
-// service.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// service.js - ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ
 
 MDS.load('./assets/js/database.js');
 
@@ -9,9 +9,7 @@ let locationServiceStatus = {
   connectedDevices: new Set()
 };
 
-// Simple HTTP server через MDS
-const PORT = 9003;
-
+// Инициализация MDS
 MDS.init(function(msg) {
   
   if (msg.event === "inited") {
@@ -19,32 +17,77 @@ MDS.init(function(msg) {
     
     // Инициализировать базу данных
     db = new TrackiumDatabase();
-    db.init(() => {
-      MDS.log("Database initialized in background service");
+    db.init((success) => {
+      if (success) {
+        MDS.log("✅ Database initialized in background service");
+        
+        // Запустить polling для location updates
+        startLocationPolling();
+        
+        // Инициализировать статус сервиса
+        initServiceStatus();
+      } else {
+        MDS.log("❌ Database initialization failed");
+      }
     });
-    
-    // Запустить polling для location updates
-    startLocationPolling();
   }
   
+  // Новый блок
   if (msg.event === "NEWBLOCK") {
     MDS.log("New block detected: " + msg.data.txpow.header.block);
   }
   
+  // Обновление баланса
   if (msg.event === "NEWBALANCE") {
     MDS.log("Balance updated");
   }
   
+  // Таймер каждый час
   if (msg.event === "MDS_TIMER_1HOUR") {
     MDS.log("Hourly maintenance");
     performMaintenance();
   }
   
+  // Таймер каждые 10 секунд
+  if (msg.event === "MDS_TIMER_10SECONDS") {
+    checkForLocationUpdates();
+  }
+  
+  // Shutdown
   if (msg.event === "MDS_SHUTDOWN") {
     MDS.log("Trackium Service shutting down");
+    updateServiceStatus(false);
   }
   
 });
+
+// ========== SERVICE STATUS ==========
+
+/**
+ * Инициализировать статус сервиса
+ */
+function initServiceStatus() {
+  updateServiceStatus(true);
+  MDS.log("📡 Location service status initialized");
+}
+
+/**
+ * Обновить статус сервиса
+ */
+function updateServiceStatus(active) {
+  const status = {
+    active: active,
+    lastUpdate: new Date().toISOString(),
+    connectedDevices: Array.from(locationServiceStatus.connectedDevices),
+    timestamp: Date.now()
+  };
+  
+  MDS.keypair.set('location_service_status', JSON.stringify(status), (res) => {
+    if (res && res.status) {
+      MDS.log("✅ Service status updated");
+    }
+  });
+}
 
 // ========== LOCATION POLLING ==========
 
@@ -52,18 +95,14 @@ MDS.init(function(msg) {
  * Polling для получения location updates из keypair storage
  */
 function startLocationPolling() {
-  MDS.log("📡 Starting location polling...");
-  
-  setInterval(() => {
-    checkForLocationUpdates();
-  }, 10000); // Каждые 10 секунд
+  MDS.log("📡 Starting location polling (via MDS_TIMER_10SECONDS)");
 }
 
 /**
  * Проверить наличие новых данных локации
  */
 function checkForLocationUpdates() {
-  if (!db) return;
+  if (!db || !db.initialized) return;
   
   // Получить ожидающие обновления из keypair
   MDS.keypair.get('pending_location_updates', (res) => {
@@ -74,13 +113,19 @@ function checkForLocationUpdates() {
         if (Array.isArray(updates) && updates.length > 0) {
           MDS.log(`📍 Processing ${updates.length} location updates`);
           
-          updates.forEach(update => {
-            processLocationUpdate(update);
-          });
+          let processed = 0;
           
-          // Очистить обработанные
-          MDS.keypair.set('pending_location_updates', '[]', () => {
-            MDS.log("✅ Updates processed and cleared");
+          updates.forEach(update => {
+            processLocationUpdate(update, (success) => {
+              if (success) processed++;
+              
+              // Если все обработаны - очистить
+              if (processed === updates.length) {
+                MDS.keypair.set('pending_location_updates', '[]', () => {
+                  MDS.log(`✅ ${processed} updates processed and cleared`);
+                });
+              }
+            });
           });
         }
       } catch (err) {
@@ -93,10 +138,10 @@ function checkForLocationUpdates() {
 /**
  * Обработать обновление локации
  */
-function processLocationUpdate(update) {
+function processLocationUpdate(update, callback) {
   const { deviceId, latitude, longitude, accuracy, timestamp, source } = update;
   
-  MDS.log(`📍 Location update for ${deviceId}: ${latitude}, ${longitude}`);
+  MDS.log(`📍 Location update for ${deviceId}: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
   
   // Сохранить в movements
   const query = `INSERT INTO movements 
@@ -104,25 +149,47 @@ function processLocationUpdate(update) {
     VALUES ('${deviceId}', ${latitude}, ${longitude}, 
             ${update.altitude || 0}, ${update.speed || 0}, ${accuracy || 0})`;
   
-  db.sql(query, (res) => {
+  MDS.sql(query, (res) => {
     if (res.status) {
       MDS.log(`✅ Movement saved for ${deviceId}`);
       
       // Обновить статус устройства
-      db.sql(`UPDATE devices 
+      MDS.sql(`UPDATE devices 
         SET status = 'online', last_sync = CURRENT_TIMESTAMP 
         WHERE device_id = '${deviceId}'`, () => {});
       
+      // Обновить signal strength
+      const signalStrength = source === 'bigdatacloud' ? 'WiFi/Cell (High)' :
+                            source === 'ip-api' ? 'IP-based (Medium)' : 
+                            'WiFi/Cell';
+      
+      MDS.sql(`UPDATE devices 
+        SET signal_strength = '${signalStrength}' 
+        WHERE device_id = '${deviceId}'`, () => {});
+      
       // Добавить событие
-      db.sql(`INSERT INTO events 
+      const eventData = JSON.stringify({
+        source: source,
+        accuracy: accuracy,
+        latitude: latitude,
+        longitude: longitude
+      }).replace(/'/g, "''");
+      
+      MDS.sql(`INSERT INTO events 
         (device_id, event_type, event_data)
-        VALUES ('${deviceId}', 'location_update', 
-                '{"source":"${source}","accuracy":${accuracy}}')`, () => {});
+        VALUES ('${deviceId}', 'location_update', '${eventData}')`, () => {});
       
       // Обновить статус сервиса
       locationServiceStatus.active = true;
       locationServiceStatus.lastUpdate = new Date().toISOString();
       locationServiceStatus.connectedDevices.add(deviceId);
+      
+      updateServiceStatus(true);
+      
+      if (callback) callback(true);
+    } else {
+      MDS.log(`❌ Failed to save movement: ${res.error}`);
+      if (callback) callback(false);
     }
   });
 }
@@ -137,11 +204,39 @@ function performMaintenance() {
   // Удалить старые события (старше 30 дней)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   
-  db.sql(`DELETE FROM events WHERE timestamp < '${thirtyDaysAgo}'`, (res) => {
+  MDS.sql(`DELETE FROM events WHERE timestamp < '${thirtyDaysAgo}'`, (res) => {
     if (res.status) {
       MDS.log("Cleaned up old events");
     }
   });
+  
+  // Обновить статус offline для устройств без обновлений > 10 минут
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  
+  MDS.sql(`UPDATE devices 
+    SET status = 'offline' 
+    WHERE last_sync < '${tenMinutesAgo}' AND status = 'online'`, (res) => {
+    if (res.status) {
+      MDS.log("Updated offline devices");
+    }
+  });
+}
+
+// ========== API HANDLERS ==========
+
+/**
+ * Получить статус Location Service
+ */
+function getLocationServiceStatus(callback) {
+  const status = {
+    active: locationServiceStatus.active,
+    lastUpdate: locationServiceStatus.lastUpdate,
+    connectedDevices: Array.from(locationServiceStatus.connectedDevices),
+    timestamp: new Date().toISOString()
+  };
+  
+  callback(status);
 }
 
 MDS.log("📡 Trackium Service Ready");
+MDS.log("Listening for location updates via keypair...");
