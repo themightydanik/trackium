@@ -30,32 +30,6 @@ function initApp() {
   });
 }
 
-async function checkLocationServiceStatus() {
-  try {
-    const response = await fetch('http://127.0.0.1:9003/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        command: 'keypair action:get key:location_service_status'
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.status && data.response && data.response.value) {
-      const status = JSON.parse(data.response.value);
-      console.log('📡 Location Service Status:', status);
-      return status;
-    }
-    
-    return { active: false };
-    
-  } catch (error) {
-    console.error('Failed to check location service:', error);
-    return { active: false };
-  }
-}
-
 // MDS готов
 async function onMDSReady() {
   try {
@@ -149,11 +123,6 @@ function loadDashboard() {
   // Запустить проверку location service
   startLocationServicePolling();
 
-    checkLocationServiceStatus().then(status => {
-    if (status.active) {
-      ui.showNotification('Location Service Active', 'success');
-    }
-  });
 }
 
 // Обновить blockchain info
@@ -625,6 +594,77 @@ document.addEventListener('DOMContentLoaded', () => {
   if (alertMovementToggle) alertMovementToggle.addEventListener('change', saveSettings);
   if (alertLockToggle) alertLockToggle.addEventListener('change', saveSettings);
 });
+
+// ========== LOCATION SERVICE STATUS ==========
+
+/**
+ * Проверить статус Location Service
+ */
+async function checkLocationServiceStatus() {
+  try {
+    const response = await fetch(MDS.mainhost + 'cmd?uid=' + MDS.minidappuid, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: encodeURIComponent('keypair action:get key:location_service_status')
+    });
+    
+    const data = await response.json();
+    
+    if (data.status && data.response && data.response.value) {
+      const status = JSON.parse(data.response.value);
+      console.log('📡 Location Service Status:', status);
+      
+      // Update UI
+      if (status.active) {
+        ui.showNotification('Location Service Active ✅', 'success');
+      }
+      
+      return status;
+    }
+    
+    return { active: false };
+    
+  } catch (error) {
+    console.error('Failed to check location service:', error);
+    return { active: false };
+  }
+}
+
+/**
+ * Test Location API
+ */
+async function testLocationAPI() {
+  ui.showNotification('Testing location service...', 'info');
+  
+  const status = await checkLocationServiceStatus();
+  
+  if (status.active) {
+    ui.showNotification(
+      `Location Service Active!\nLast update: ${new Date(status.lastUpdate).toLocaleString()}\nDevices: ${status.connectedDevices.length}`,
+      'success'
+    );
+  } else {
+    ui.showNotification(
+      'Location Service not running. Make sure trackium-location.js is started.',
+      'warning'
+    );
+  }
+}
+
+// Export functions
+window.checkLocationServiceStatus = checkLocationServiceStatus;
+window.testLocationAPI = testLocationAPI;
+
+// Check status on dashboard load
+const originalLoadDashboard = window.loadDashboard || loadDashboard;
+window.loadDashboard = function() {
+  if (originalLoadDashboard) originalLoadDashboard();
+  
+  // Check location service status
+  setTimeout(() => {
+    checkLocationServiceStatus();
+  }, 1000);
+};
 
 // ========== EXPORTS ==========
 
