@@ -30,6 +30,32 @@ function initApp() {
   });
 }
 
+async function checkLocationServiceStatus() {
+  try {
+    const response = await fetch('http://127.0.0.1:9003/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        command: 'keypair action:get key:location_service_status'
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.status && data.response && data.response.value) {
+      const status = JSON.parse(data.response.value);
+      console.log('📡 Location Service Status:', status);
+      return status;
+    }
+    
+    return { active: false };
+    
+  } catch (error) {
+    console.error('Failed to check location service:', error);
+    return { active: false };
+  }
+}
+
 // MDS готов
 async function onMDSReady() {
   try {
@@ -71,6 +97,7 @@ async function onMDSReady() {
     // 5. Load dashboard
     console.log("📊 Loading dashboard...");
     loadDashboard();
+
     
     // 6. Показать dashboard
     setTimeout(() => {
@@ -121,6 +148,12 @@ function loadDashboard() {
   
   // Запустить проверку location service
   startLocationServicePolling();
+
+    checkLocationServiceStatus().then(status => {
+    if (status.active) {
+      ui.showNotification('Location Service Active', 'success');
+    }
+  });
 }
 
 // Обновить blockchain info
