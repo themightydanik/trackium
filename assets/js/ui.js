@@ -143,57 +143,67 @@ devices.forEach(device => {
 }
 
   // Отобразить детали устройства
-  renderDeviceDetail(device, position, movements, proofs) {
-    this.currentDeviceId = device.device_id || device.deviceId;
+renderDeviceDetail(device, position, movements, proofs) {
+  // Нормализовать данные устройства с поддержкой UPPERCASE
+  this.currentDeviceId = device.device_id || device.DEVICE_ID || device.deviceId;
 
-    const updateEl = (id, value) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = value;
-    };
+  const updateEl = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
 
-    updateEl('device-detail-name', device.device_name || device.deviceName || 'Unknown Device');
-    updateEl('detail-device-id', device.device_id || device.deviceId || 'Unknown');
-    updateEl('detail-device-type', (device.device_type || device.deviceType || 'unknown').toUpperCase());
-    updateEl('detail-device-status', (device.status || 'offline').toUpperCase());
-    updateEl('detail-device-battery', `${device.battery || 0}%`);
-    updateEl('detail-device-gps', (device.gps_signal || device.gpsSignal) ? '✅ Strong' : '❌ Weak');
-    
-    try {
-      const syncDate = new Date(device.last_sync || device.lastSync || Date.now());
-      updateEl('detail-device-sync', isNaN(syncDate.getTime()) ? 'Never' : syncDate.toLocaleString());
-    } catch (e) {
-      updateEl('detail-device-sync', 'Unknown');
-    }
+  // Извлечь данные с поддержкой всех вариантов
+  const deviceName = device.device_name || device.DEVICE_NAME || device.deviceName || 'Unknown Device';
+  const deviceId = device.device_id || device.DEVICE_ID || device.deviceId || 'Unknown';
+  const deviceType = device.device_type || device.DEVICE_TYPE || device.deviceType || 'unknown';
+  const status = device.status || device.STATUS || 'offline';
+  const battery = device.battery || device.BATTERY || 0;
+  const gpsSignal = device.gps_signal || device.GPS_SIGNAL || device.gpsSignal;
+  const lastSync = device.last_sync || device.LAST_SYNC || device.lastSync;
+  const locked = device.locked || device.LOCKED;
 
-    // Smart Lock контроли
-    const deviceType = device.device_type || device.deviceType;
-    if (deviceType === 'smartlock' || deviceType === 'smartphone') {
-      const lockControls = document.getElementById('lock-controls');
-      if (lockControls) lockControls.style.display = 'block';
-      
-      const lockIcon = document.getElementById('lock-icon');
-      const lockText = document.getElementById('lock-status-text');
-      
-      if (lockIcon && lockText) {
-        if (device.locked) {
-          lockIcon.textContent = '🔒';
-          lockText.textContent = 'Locked';
-        } else {
-          lockIcon.textContent = '🔓';
-          lockText.textContent = 'Unlocked';
-        }
-      }
-    } else {
-      const lockControls = document.getElementById('lock-controls');
-      if (lockControls) lockControls.style.display = 'none';
-    }
-
-    // История движений
-    this.renderMovementHistory(movements);
-
-    // Blockchain proofs
-    this.renderBlockchainProofs(proofs);
+  updateEl('device-detail-name', deviceName);
+  updateEl('detail-device-id', deviceId);
+  updateEl('detail-device-type', deviceType.toUpperCase());
+  updateEl('detail-device-status', status.toUpperCase());
+  updateEl('detail-device-battery', `${battery}%`);
+  updateEl('detail-device-gps', gpsSignal ? '✅ Strong' : '❌ Weak');
+  
+  try {
+    const syncDate = new Date(lastSync || Date.now());
+    updateEl('detail-device-sync', isNaN(syncDate.getTime()) ? 'Never' : syncDate.toLocaleString());
+  } catch (e) {
+    updateEl('detail-device-sync', 'Unknown');
   }
+
+  // Smart Lock контроли
+  if (deviceType === 'smartlock' || deviceType === 'smartphone') {
+    const lockControls = document.getElementById('lock-controls');
+    if (lockControls) lockControls.style.display = 'block';
+    
+    const lockIcon = document.getElementById('lock-icon');
+    const lockText = document.getElementById('lock-status-text');
+    
+    if (lockIcon && lockText) {
+      if (locked) {
+        lockIcon.textContent = '🔒';
+        lockText.textContent = 'Locked';
+      } else {
+        lockIcon.textContent = '🔓';
+        lockText.textContent = 'Unlocked';
+      }
+    }
+  } else {
+    const lockControls = document.getElementById('lock-controls');
+    if (lockControls) lockControls.style.display = 'none';
+  }
+
+  // История движений
+  this.renderMovementHistory(movements);
+
+  // Blockchain proofs
+  this.renderBlockchainProofs(proofs);
+}
 
   // Отобразить историю движений
   renderMovementHistory(movements) {
