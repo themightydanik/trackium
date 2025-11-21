@@ -69,13 +69,8 @@ renderDevicesList(devices) {
   }
   
   devices.forEach(device => {
-    const card = document.createElement('div');
-    card.className = 'device-card';
-    
-    const statusClass = device.status === 'online' ? 'status-online' : 'status-offline';
-    
-    // ИСПРАВЛЕНИЕ: Правильно читать данные
-    const deviceId = device.device_id || device.deviceId;
+    // ИСПРАВЛЕНИЕ: Нормализовать данные устройства
+    const deviceId = device.device_id || device.deviceId || '';
     const deviceName = device.device_name || device.deviceName || 'Unnamed Device';
     const deviceType = device.device_type || device.deviceType || 'tracker';
     const transportType = device.transport_type || device.transportType || 'ground';
@@ -83,12 +78,20 @@ renderDevicesList(devices) {
     const battery = device.battery || 100;
     const signalStrength = device.signal_strength || device.signalStrength || 'Unknown';
     const locked = device.locked || false;
+    const status = device.status || 'offline';
     
-    // Проверка валидности
-    if (!deviceId || deviceId === 'undefined') {
-      console.error('Invalid device data:', device);
+    // Проверка валидности device ID
+    if (!deviceId || deviceId === '' || deviceId === 'undefined') {
+      console.error('❌ Invalid device ID, skipping:', device);
       return;
     }
+    
+    console.log('✅ Rendering device:', deviceId, deviceName);
+    
+    const card = document.createElement('div');
+    card.className = 'device-card';
+    
+    const statusClass = status === 'online' ? 'status-online' : 'status-offline';
     
     // Иконки
     const transportIcons = {
@@ -104,7 +107,7 @@ renderDevicesList(devices) {
     card.innerHTML = `
       <div class="device-header">
         <div class="device-icon">${transportIcon}</div>
-        <div class="device-status ${statusClass}">${device.status}</div>
+        <div class="device-status ${statusClass}">${status}</div>
       </div>
       <div class="device-info" onclick="showDeviceDetail('${deviceId}')">
         <h4>${deviceName}</h4>
