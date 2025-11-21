@@ -305,28 +305,29 @@ _escape(str) {
     }
   }
 
-  getDevicesStatus(callback) {
-    this.db.getDevices((devices) => {
-      const devicesWithStatus = devices.map(device => {
-        const deviceId = device.device_id || device.deviceId;
-        const isActive = this.activeDevices.has(deviceId);
-        let currentPosition = null;
+getDevicesStatus(callback) {
+  this.db.getDevices((devices) => {
+    const devicesWithStatus = devices.map(device => {
+      // Поддержка обоих форматов (UPPERCASE и lowercase)
+      const deviceId = device.device_id || device.DEVICE_ID || device.deviceId;
+      const isActive = this.activeDevices.has(deviceId);
+      let currentPosition = null;
 
-        if (isActive) {
-          const activeDevice = this.activeDevices.get(deviceId);
-          currentPosition = activeDevice.locationTracker?.currentPosition || null;
-        }
+      if (isActive) {
+        const activeDevice = this.activeDevices.get(deviceId);
+        currentPosition = activeDevice.locationTracker?.currentPosition || null;
+      }
 
-        return {
-          ...device,
-          isActive: isActive,
-          currentPosition: currentPosition
-        };
-      });
-
-      callback(devicesWithStatus);
+      return {
+        ...device,
+        isActive: isActive,
+        currentPosition: currentPosition
+      };
     });
-  }
+
+    callback(devicesWithStatus);
+  });
+}
 
   getActiveDevices() {
     return Array.from(this.activeDevices.keys());
