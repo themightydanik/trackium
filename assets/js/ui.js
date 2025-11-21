@@ -68,25 +68,27 @@ renderDevicesList(devices) {
     return;
   }
   
-  devices.forEach(device => {
-    // ИСПРАВЛЕНИЕ: Нормализовать данные устройства
-    const deviceId = device.device_id || device.deviceId || '';
-    const deviceName = device.device_name || device.deviceName || 'Unnamed Device';
-    const deviceType = device.device_type || device.deviceType || 'tracker';
-    const transportType = device.transport_type || device.transportType || 'ground';
-    const category = device.category || 'Uncategorized';
-    const battery = device.battery || 100;
-    const signalStrength = device.signal_strength || device.signalStrength || 'Unknown';
-    const locked = device.locked || false;
-    const status = device.status || 'offline';
-    
-    // Проверка валидности device ID
-    if (!deviceId || deviceId === '' || deviceId === 'undefined') {
-      console.error('❌ Invalid device ID, skipping:', device);
-      return;
-    }
-    
-    console.log('✅ Rendering device:', deviceId, deviceName);
+devices.forEach(device => {
+  // ИСПРАВЛЕНИЕ: Поддержка UPPERCASE и lowercase
+  const deviceId = device.device_id || device.DEVICE_ID || device.deviceId || '';
+  const deviceName = device.device_name || device.DEVICE_NAME || device.deviceName || 'Unnamed Device';
+  const deviceType = device.device_type || device.DEVICE_TYPE || device.deviceType || 'tracker';
+  const transportType = device.transport_type || device.TRANSPORT_TYPE || device.transportType || 'ground';
+  const category = device.category || device.CATEGORY || 'Uncategorized';
+  const battery = device.battery || device.BATTERY || 100;
+  const signalStrength = device.signal_strength || device.SIGNAL_STRENGTH || device.signalStrength || 'Unknown';
+  const locked = (device.locked || device.LOCKED || 'false') === 'true' || (device.locked || device.LOCKED) === true;
+  const status = device.status || device.STATUS || 'offline';
+  
+  // Проверка валидности device ID
+  if (!deviceId || deviceId === '' || deviceId === 'undefined') {
+    console.error('❌ Invalid device ID, skipping:', device);
+    return;
+  }
+  
+  console.log('✅ Rendering device:', deviceId, deviceName);
+  
+  // ... остальной код карточки устройства
     
     const card = document.createElement('div');
     card.className = 'device-card';
