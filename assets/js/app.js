@@ -109,7 +109,8 @@ function loadDashboard() {
     ui.updateDashboardStats(stats);
   });
   
-  db.getRecentActivity(10, (events) => {
+  // ИСПРАВЛЕНИЕ: Использовать метод с JOIN
+  db.getRecentActivityWithDetails(10, (events) => {
     ui.renderRecentActivity(events);
   });
   
@@ -122,7 +123,6 @@ function loadDashboard() {
   
   // Запустить проверку location service
   startLocationServicePolling();
-
 }
 
 // Обновить blockchain info
