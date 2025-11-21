@@ -243,10 +243,26 @@ async function addDevice() {
   const category = document.getElementById('device-category').value;
   const blockchainProof = document.getElementById('enable-blockchain-proof').checked;
   
+  // ВАЛИДАЦИЯ
   if (!deviceId || !deviceName) {
-    ui.showNotification('Please fill all required fields', 'error');
+    ui.showNotification('Please fill Device ID and Name', 'error');
     return;
   }
+  
+  if (!deviceId.match(/^TRACK-[A-Z0-9]+-[A-Z0-9]+$/)) {
+    ui.showNotification('Invalid Device ID format. Use: TRACK-XXX-YYY', 'error');
+    return;
+  }
+  
+  console.log('📝 Adding device with data:', {
+    deviceId,
+    deviceName,
+    deviceType,
+    transportType,
+    category,
+    deviceLocation,
+    blockchainProof
+  });
   
   const device = await deviceManager.registerDevice({
     deviceId: deviceId,
@@ -268,9 +284,11 @@ async function addDevice() {
   // Показать инструкцию
   setTimeout(() => {
     alert(`✅ Device registered successfully!\n\n` +
-          `Device ID: ${device.deviceId}\n\n` +
+          `Device ID: ${device.deviceId}\n` +
+          `Name: ${device.name}\n` +
+          `Type: ${device.type}\n\n` +
           `Next step:\n` +
-          `1. Download and run Location Service\n` +
+          `1. Download and run Trackium Location Service\n` +
           `2. Enter this Device ID in the service\n` +
           `3. Location tracking will start automatically`);
     
