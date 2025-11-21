@@ -734,3 +734,9 @@ body {
   z-index: 10;
   overflow-y: auto;
 }
+
+.mode-card-small:hover {
+  border-color: var(--primary-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 102, 204, 0.3);
+}
