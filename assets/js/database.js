@@ -147,6 +147,28 @@ class TrackiumDatabase {
   )`
 ];
 
+    // Получить недавнюю активность с правильными данными
+getRecentActivityWithDetails(limit, callback) {
+  const query = `
+    SELECT 
+      e.id,
+      e.device_id,
+      e.event_type,
+      e.event_data,
+      e.timestamp,
+      d.device_name,
+      d.category
+    FROM events e
+    LEFT JOIN devices d ON e.device_id = d.device_id
+    ORDER BY e.timestamp DESC
+    LIMIT ${limit || 10}
+  `;
+  
+  this.sql(query, (res) => {
+    callback(res.rows || []);
+  });
+}
+
     lifeModeTables.forEach((query, index) => {
   MDS.sql(query, (res) => {
     if (!res.status) {
