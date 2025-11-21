@@ -328,7 +328,7 @@ renderRecentActivity(events) {
     
     const eventIcon = this.getEventIcon(event.event_type);
     
-    // ИСПРАВЛЕНИЕ: Использовать данные из JOIN
+    // ИСПРАВЛЕНИЕ: Данные уже нормализованы в getRecentActivityWithDetails
     const deviceName = event.device_name || 'Unknown Device';
     const deviceId = event.device_id || 'Unknown';
     const category = event.category || 'Uncategorized';
