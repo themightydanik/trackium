@@ -147,27 +147,7 @@ class TrackiumDatabase {
   )`
 ];
 
-    // Получить недавнюю активность с правильными данными
-getRecentActivityWithDetails(limit, callback) {
-  const query = `
-    SELECT 
-      e.id,
-      e.device_id,
-      e.event_type,
-      e.event_data,
-      e.timestamp,
-      d.device_name,
-      d.category
-    FROM events e
-    LEFT JOIN devices d ON e.device_id = d.device_id
-    ORDER BY e.timestamp DESC
-    LIMIT ${limit || 10}
-  `;
-  
-  this.sql(query, (res) => {
-    callback(res.rows || []);
-  });
-}
+
 
     lifeModeTables.forEach((query, index) => {
   MDS.sql(query, (res) => {
@@ -202,6 +182,46 @@ getRecentActivityWithDetails(limit, callback) {
       });
     });
   }
+
+  // В метод init(), после создания таблиц добавить:
+
+// Создать индексы
+const indexes = [
+  `CREATE INDEX IF NOT EXISTS idx_devices_id ON devices(device_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_movements_device ON movements(device_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_events_device ON events(device_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)`
+];
+
+indexes.forEach(indexQuery => {
+  MDS.sql(indexQuery, (res) => {
+    if (!res.status) {
+      console.warn('Failed to create index:', res.error);
+    }
+  });
+});
+
+      // Получить недавнюю активность с правильными данными
+getRecentActivityWithDetails(limit, callback) {
+  const query = `
+    SELECT 
+      e.id,
+      e.device_id,
+      e.event_type,
+      e.event_data,
+      e.timestamp,
+      d.device_name,
+      d.category
+    FROM events e
+    LEFT JOIN devices d ON e.device_id = d.device_id
+    ORDER BY e.timestamp DESC
+    LIMIT ${limit || 10}
+  `;
+  
+  this.sql(query, (res) => {
+    callback(res.rows || []);
+  });
+}
 
   // ========== DEVICES ==========
 
