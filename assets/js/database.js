@@ -205,7 +205,6 @@ createIndexes(callback) {
 }
 
 
-
 // Получить недавнюю активность с правильными данными
 getRecentActivityWithDetails(limit, callback) {
   const query = `
@@ -224,7 +223,19 @@ getRecentActivityWithDetails(limit, callback) {
   `;
   
   this.sql(query, (res) => {
-    callback(res.rows || []);
+    // Нормализовать данные с поддержкой UPPERCASE
+    const events = (res.rows || []).map(event => ({
+      id: event.id || event.ID,
+      device_id: event.device_id || event.DEVICE_ID,
+      event_type: event.event_type || event.EVENT_TYPE,
+      event_data: event.event_data || event.EVENT_DATA,
+      timestamp: event.timestamp || event.TIMESTAMP,
+      device_name: event.device_name || event.DEVICE_NAME || 'Unknown Device',
+      category: event.category || event.CATEGORY || 'Uncategorized'
+    }));
+    
+    console.log('📊 Recent activity with details:', events);
+    callback(events);
   });
 }
 
