@@ -296,47 +296,53 @@ renderDevicesList(devices) {
   }
 
   // Отобразить недавнюю активность
-  renderRecentActivity(events) {
-    const container = document.getElementById('recent-activity');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    if (events.length === 0) {
-      container.innerHTML = '<p style="color: var(--text-secondary);">No recent activity</p>';
-      return;
-    }
-
-    events.forEach(event => {
-      const item = document.createElement('div');
-      item.className = 'activity-item';
-
-      const eventIcon = this.getEventIcon(event.event_type);
-      const deviceId = event.device_id || 'Unknown';
-      const eventType = event.event_type || 'unknown_event';
-      
-      // Безопасная обработка даты
-      let timeString = 'Unknown time';
-      try {
-        if (event.timestamp) {
-          const date = new Date(event.timestamp);
-          if (!isNaN(date.getTime())) {
-            timeString = date.toLocaleString();
-          }
-        }
-      } catch (e) {
-        console.error('Invalid timestamp:', event.timestamp);
-      }
-      
-      item.innerHTML = `
-        <p>${eventIcon} <strong>${this.getEventTitle(eventType)}</strong></p>
-        <p style="font-size: 12px; color: var(--text-secondary);">Device: ${deviceId}</p>
-        <p class="activity-time">${timeString}</p>
-      `;
-
-      container.appendChild(item);
-    });
+renderRecentActivity(events) {
+  const container = document.getElementById('recent-activity');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (events.length === 0) {
+    container.innerHTML = '<p style="color: var(--text-secondary);">No recent activity</p>';
+    return;
   }
+  
+  events.forEach(event => {
+    const item = document.createElement('div');
+    item.className = 'activity-item';
+    
+    const eventIcon = this.getEventIcon(event.event_type);
+    
+    // ИСПРАВЛЕНИЕ: Использовать данные из JOIN
+    const deviceName = event.device_name || 'Unknown Device';
+    const deviceId = event.device_id || 'Unknown';
+    const category = event.category || 'Uncategorized';
+    const eventType = event.event_type || 'unknown_event';
+    
+    // Безопасная обработка даты
+    let timeString = 'Unknown time';
+    try {
+      if (event.timestamp) {
+        const date = new Date(event.timestamp);
+        if (!isNaN(date.getTime())) {
+          timeString = date.toLocaleString();
+        }
+      }
+    } catch (e) {
+      console.error('Invalid timestamp:', event.timestamp);
+    }
+    
+    item.innerHTML = `
+      <p>${eventIcon} <strong>${this.getEventTitle(eventType)}</strong></p>
+      <p style="font-size: 12px; color: var(--text-secondary);">
+        Device: ${deviceName} (${category})
+      </p>
+      <p class="activity-time">${timeString}</p>
+    `;
+    
+    container.appendChild(item);
+  });
+}
 
   // Получить иконку для типа события
   getEventIcon(eventType) {
