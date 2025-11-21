@@ -221,12 +221,15 @@ function showScreen(screenId) {
 }
 
 function generateDeviceId() {
-  if (!deviceManager) {
-    ui.showNotification('System not ready', 'error');
-    return;
+  // Создать временный менеджер если основной не готов
+  const tempManager = deviceManager || new DeviceManager(db);
+  const deviceId = tempManager.generateDeviceId();
+  
+  const input = document.getElementById('device-id');
+  if (input) {
+    input.value = deviceId;
+    console.log('📝 Generated Device ID:', deviceId);
   }
-  const deviceId = deviceManager.generateDeviceId();
-  document.getElementById('device-id').value = deviceId;
 }
 
 async function addDevice() {
