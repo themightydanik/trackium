@@ -148,6 +148,25 @@
       </button>
     </div>
 
+      <!-- В dashboard, добавить после Quick Actions -->
+
+<div class="section" style="margin-top: 20px;">
+  <h3 class="section-title">Mode Selection</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+    <div class="mode-card-small" onclick="selectMode('cargo')" style="cursor: pointer; padding: 20px; background: var(--bg-light); border: 2px solid var(--border-color); border-radius: 12px; text-align: center; transition: all 0.3s;">
+      <div style="font-size: 48px; margin-bottom: 10px;">🚚</div>
+      <h4 style="margin-bottom: 5px;">Trackium Cargo</h4>
+      <p style="font-size: 12px; color: var(--text-secondary);">Professional logistics tracking</p>
+    </div>
+    
+    <div class="mode-card-small" onclick="selectMode('life')" style="cursor: pointer; padding: 20px; background: var(--bg-light); border: 2px solid var(--border-color); border-radius: 12px; text-align: center; transition: all 0.3s;">
+      <div style="font-size: 48px; margin-bottom: 10px;">🎯</div>
+      <h4 style="margin-bottom: 5px;">Trackium Life</h4>
+      <p style="font-size: 12px; color: var(--text-secondary);">Personal goals & rewards</p>
+    </div>
+  </div>
+</div>
+
     <!-- Active Goals -->
     <div class="section">
       <h3 class="section-title">Active Goals</h3>
