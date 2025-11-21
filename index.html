@@ -3163,6 +3163,31 @@ function closeGPSHelpModal() {
 function showLocationHelpModal() {
   showGPSHelpModal();
 }
+
+    // Check mode on app init
+document.addEventListener('DOMContentLoaded', function() {
+  const savedMode = localStorage.getItem('trackium_mode');
+  
+  if (!savedMode) {
+    // First time - show mode selector AFTER loading finishes
+    // НЕ показывать автоматически
+    console.log('No saved mode, will show selector when user clicks');
+  } else if (savedMode === 'life') {
+    // Load life mode directly
+    setTimeout(() => {
+      const loadingScreen = document.getElementById('loading-screen');
+      if (loadingScreen) loadingScreen.classList.remove('active');
+      initLifeMode();
+    }, 2000);
+  } else {
+    // Load cargo mode (default)
+    setTimeout(() => {
+      const loadingScreen = document.getElementById('loading-screen');
+      if (loadingScreen) loadingScreen.classList.remove('active');
+      showScreen('dashboard');
+    }, 2000);
+  }
+});
 </script>
 
 
