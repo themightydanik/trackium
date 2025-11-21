@@ -181,9 +181,8 @@ class TrackiumDatabase {
         }
       });
     });
-  }
 
-  // В метод init(), после создания таблиц добавить:
+      // В метод init(), после создания таблиц добавить:
 
 // Создать индексы
 const indexes = [
@@ -193,13 +192,21 @@ const indexes = [
   `CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)`
 ];
 
-indexes.forEach(indexQuery => {
-  MDS.sql(indexQuery, (res) => {
-    if (!res.status) {
-      console.warn('Failed to create index:', res.error);
-    }
-  });
-});
+    let completed = 0;
+    indexes.forEach(indexQuery => {
+      MDS.sql(indexQuery, (res) => {
+        if (!res.status) {
+          console.warn('Failed to create index:', res.error);
+        }
+        completed++;
+        if (completed === indexes.length && callback) {
+          callback();
+        }
+      });
+    });
+  }
+
+
 
 // Получить недавнюю активность с правильными данными
 getRecentActivityWithDetails(limit, callback) {
