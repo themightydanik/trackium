@@ -13,54 +13,63 @@ class DeviceManager {
     return `${prefix}-${timestamp}-${random}`;
   }
 
-  async registerDevice(deviceData) {
-    try {
-      const device = {
-        deviceId: deviceData.deviceId || this.generateDeviceId(),
-        name: deviceData.name,
-        type: deviceData.type,
-        transportType: deviceData.transportType || 'ground',
-        category: deviceData.category || '',
-        location: deviceData.location || '',
-        blockchainProof: deviceData.blockchainProof || false
-      };
+async registerDevice(deviceData) {
+  try {
+    const device = {
+      deviceId: deviceData.deviceId || this.generateDeviceId(),
+      name: deviceData.name,
+      type: deviceData.type,
+      transportType: deviceData.transportType || 'ground',
+      category: deviceData.category || '',
+      location: deviceData.location || '',
+      blockchainProof: deviceData.blockchainProof !== undefined ? deviceData.blockchainProof : false
+    };
 
-      console.log('📝 Registering device:', device);
+    console.log('📝 Registering device:', device);
 
-      // ИСПРАВЛЕНИЕ: Добавить в базу с правильными полями
-      await new Promise((resolve) => {
-        const query = `INSERT INTO devices 
-          (device_id, device_name, device_type, transport_type, category, location, blockchain_proof, status)
-          VALUES ('${device.deviceId}', '${this.db._escape(device.name)}', '${device.type}', 
-                  '${device.transportType}', '${this.db._escape(device.category)}',
-                  '${this.db._escape(device.location)}', ${device.blockchainProof}, 'offline')`;
-        
-        this.db.sql(query, (res) => {
-          if (res.status) {
-            console.log('✅ Device registered in DB:', device.deviceId);
-            this.db.addEvent(
-              device.deviceId,
-              'device_registered',
-              { 
-                name: device.name, 
-                type: device.type,
-                transportType: device.transportType,
-                category: device.category
-              }
-            );
-          } else {
-            console.error('❌ Failed to register device in DB:', res.error);
-          }
-          resolve(res.status);
-        });
+    // ИСПРАВЛЕНИЕ: Использовать правильный SQL
+    await new Promise((resolve, reject) => {
+      const query = `INSERT INTO devices 
+        (device_id, device_name, device_type, transport_type, category, location, blockchain_proof, status)
+        VALUES ('${device.deviceId}', '${this._escape(device.name)}', '${device.type}', 
+                '${device.transportType}', '${this._escape(device.category)}',
+                '${this._escape(device.location)}', ${device.blockchainProof ? 1 : 0}, 'offline')`;
+      
+      this.db.sql(query, (res) => {
+        if (res.status) {
+          console.log('✅ Device registered in DB:', device.deviceId);
+          
+          // Добавить событие
+          const eventData = JSON.stringify({ 
+            name: device.name, 
+            type: device.type,
+            transportType: device.transportType,
+            category: device.category
+          }).replace(/'/g, "''");
+          
+          this.db.sql(`INSERT INTO events 
+            (device_id, event_type, event_data)
+            VALUES ('${device.deviceId}', 'device_registered', '${eventData}')`, () => {});
+          
+          resolve(true);
+        } else {
+          console.error('❌ Failed to register device in DB:', res.error);
+          reject(new Error(res.error || 'Database error'));
+        }
       });
+    });
 
-      return device;
-    } catch (error) {
-      console.error('❌ Error registering device:', error);
-      return null;
-    }
+    return device;
+  } catch (error) {
+    console.error('❌ Error registering device:', error);
+    return null;
   }
+}
+
+// Добавить helper метод
+_escape(str) {
+  return String(str || '').replace(/'/g, "''");
+}
 
   async activateDevice(deviceId, deviceType) {
     if (this.activeDevices.has(deviceId)) {
