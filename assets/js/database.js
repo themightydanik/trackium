@@ -243,6 +243,8 @@ getRecentActivityWithDetails(limit, callback) {
 
   getDevices(callback) {
     MDS.sql(`SELECT * FROM devices ORDER BY created_at DESC`, (res) => {
+      console.log('📊 Raw devices from DB:', res.rows); // ← Строка для дебага
+      
       const devices = (res.rows || []).map(device => ({
         ...device,
         deviceId: device.device_id,
@@ -254,6 +256,8 @@ getRecentActivityWithDetails(limit, callback) {
         createdAt: device.created_at,
         lastSync: device.last_sync
       }));
+
+      console.log('✅ Mapped devices:', devices); // ← Строка для дебага
       callback(devices);
     });
   }
