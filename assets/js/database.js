@@ -241,26 +241,49 @@ getRecentActivityWithDetails(limit, callback) {
     });
   }
 
-  getDevices(callback) {
-    MDS.sql(`SELECT * FROM devices ORDER BY created_at DESC`, (res) => {
-      console.log('📊 Raw devices from DB:', res.rows); // ← Строка для дебага
-      
-      const devices = (res.rows || []).map(device => ({
+getDevices(callback) {
+  MDS.sql(`SELECT * FROM devices ORDER BY created_at DESC`, (res) => {
+    console.log('📊 Raw devices from DB:', res.rows);
+    
+    const devices = (res.rows || []).map(device => {
+      // Minima SQL возвращает колонки в UPPERCASE, поэтому нужно проверять оба варианта
+      const normalized = {
+        // Оригинальные данные (сохраняем всё)
         ...device,
-        deviceId: device.device_id,
-        deviceName: device.device_name,
-        deviceType: device.device_type,
-        transportType: device.transport_type,
-        signalStrength: device.signal_strength,
-        blockchainProof: device.blockchain_proof,
-        createdAt: device.created_at,
-        lastSync: device.last_sync
-      }));
-
-      console.log('✅ Mapped devices:', devices); // ← Строка для дебага
-      callback(devices);
+        
+        // Нормализованные поля (lowercase приоритет)
+        device_id: device.device_id || device.DEVICE_ID,
+        device_name: device.device_name || device.DEVICE_NAME,
+        device_type: device.device_type || device.DEVICE_TYPE,
+        transport_type: device.transport_type || device.TRANSPORT_TYPE,
+        category: device.category || device.CATEGORY,
+        location: device.location || device.LOCATION,
+        status: device.status || device.STATUS,
+        battery: device.battery || device.BATTERY,
+        signal_strength: device.signal_strength || device.SIGNAL_STRENGTH,
+        locked: device.locked || device.LOCKED,
+        blockchain_proof: device.blockchain_proof || device.BLOCKCHAIN_PROOF,
+        created_at: device.created_at || device.CREATED_AT,
+        last_sync: device.last_sync || device.LAST_SYNC,
+        
+        // CamelCase для совместимости
+        deviceId: device.device_id || device.DEVICE_ID,
+        deviceName: device.device_name || device.DEVICE_NAME,
+        deviceType: device.device_type || device.DEVICE_TYPE,
+        transportType: device.transport_type || device.TRANSPORT_TYPE,
+        signalStrength: device.signal_strength || device.SIGNAL_STRENGTH,
+        blockchainProof: device.blockchain_proof || device.BLOCKCHAIN_PROOF,
+        createdAt: device.created_at || device.CREATED_AT,
+        lastSync: device.last_sync || device.LAST_SYNC
+      };
+      
+      return normalized;
     });
-  }
+    
+    console.log('✅ Mapped devices:', devices);
+    callback(devices);
+  });
+}
 
   getDevice(deviceId, callback) {
     MDS.sql(`SELECT * FROM devices WHERE device_id = '${deviceId}'`, (res) => {
