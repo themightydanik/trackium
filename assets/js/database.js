@@ -201,7 +201,7 @@ indexes.forEach(indexQuery => {
   });
 });
 
-      // Получить недавнюю активность с правильными данными
+// Получить недавнюю активность с правильными данными
 getRecentActivityWithDetails(limit, callback) {
   const query = `
     SELECT 
