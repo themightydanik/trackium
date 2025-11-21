@@ -6,10 +6,17 @@
     <title>Trackium - Decentralized Cargo Tracking</title>
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="stylesheet" href="./assets/css/styles.css">
-    <script type="text/javascript" src="./mds.js"></script>
-    <script src="./assets/js/contracts.js"></script>
-    <script src="./assets/js/ui-location.js"></script>
-    <script src="./assets/js/device-registry.js"></script>
+<script type="text/javascript" src="./mds.js"></script>
+<script src="./assets/js/database.js"></script>
+<script src="./assets/js/contracts.js"></script>
+<script src="./assets/js/blockchain.js"></script>
+<script src="./assets/js/device-manager.js"></script>
+<script src="./assets/js/location-tracker.js"></script>
+<script src="./assets/js/qr-generator.js"></script>
+<script src="./assets/js/ui-location.js"></script>
+<script src="./assets/js/ui.js"></script>
+<script src="./assets/js/trackium-life.js"></script>
+<script src="./assets/js/device-registry.js"></script>
 </head>
 <body>
 
@@ -1379,27 +1386,41 @@ function switchMode() {
 async function initLifeMode() {
   console.log('🎮 Initializing Trackium Life...');
   
+  // ПРОВЕРКА: Если база не готова - подождать
+  if (!window.db || !db.initialized) {
+    console.log('⏳ Waiting for database...');
+    
+    // Инициализировать базу если нужно
+    if (!window.db) {
+      window.db = new TrackiumDatabase();
+      await new Promise((resolve) => {
+        db.init((success) => {
+          if (success) {
+            console.log('✅ Database initialized for Life mode');
+            resolve();
+          } else {
+            console.error('❌ Database init failed');
+            resolve(); // Продолжить даже если ошибка
+          }
+        });
+      });
+    }
+  }
+  
   if (!window.TrackiumLife) {
     console.error('TrackiumLife class not loaded');
     return;
   }
   
-  lifeSystem = new TrackiumLife(db, blockchain);
+  // Использовать глобальные переменные
+  lifeSystem = new TrackiumLife(window.db, window.blockchain);
   
-  // Load user profile
+  // Загрузить профиль
   await lifeSystem.initUserProfile((user) => {
     console.log('👤 User profile loaded:', user);
-    
-    // Update UI
     updateLifeUI(user);
-    
-    // Load active goals
     loadActiveGoals();
-    
-    // Load recent completions
     loadRecentCompletions();
-    
-    // Show life dashboard
     showScreen('life-dashboard');
   });
 }
@@ -2481,7 +2502,7 @@ window.filterRecentActivity = filterRecentActivity;
     <!-- Device ID -->
     <div class="form-group">
       <label>Device ID / Serial Number</label>
-      <input type="text" id="device-id" class="form-input" placeholder="TRACK-XXXX-XXXX" readonly>
+      <input type="text" id="device-id" class="form-input" placeholder="TRACK-XXXX-XXXX">
       <button class="secondary-btn" onclick="generateDeviceId()" style="margin-top: 8px;">
         🔄 Generate ID
       </button>
@@ -3106,14 +3127,7 @@ function testLocationAPI() {
     
 
     <!-- Scripts -->
-    <script src="./assets/js/database.js"></script>
-    <script src="./assets/js/blockchain.js"></script>
-    <script src="./assets/js/device-manager.js"></script>
-    <script src="./assets/js/location-tracker.js"></script>
-    <script src="./assets/js/qr-generator.js"></script>
-    <script src="./assets/js/ui.js"></script>
     <script src="./assets/js/app.js"></script>
-    <script src="./assets/js/trackium-life.js"></script>
 
     <!-- GPS Help Modal - добавить перед закрывающим </body> -->
 
