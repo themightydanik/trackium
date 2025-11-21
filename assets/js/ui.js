@@ -46,86 +46,96 @@ class UIManager {
   }
 
   // Отобразить список устройств
-  renderDevicesList(devices) {
-    const container = document.getElementById('devices-list');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    if (devices.length === 0) {
-      container.innerHTML = `
-        <div style="text-align: center; padding: 60px 20px;">
-          <div style="font-size: 80px; margin-bottom: 20px;">📦</div>
-          <h3 style="color: var(--text-primary); margin-bottom: 10px;">No devices yet</h3>
-          <p style="color: var(--text-secondary); margin-bottom: 30px;">
-            Add your first Trackium device to start tracking
-          </p>
-          <button class="primary-btn" onclick="showScreen('add-device')">
-            ➕ Add Device
-          </button>
-        </div>
-      `;
+renderDevicesList(devices) {
+  const container = document.getElementById('devices-list');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (devices.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 60px 20px;">
+        <div style="font-size: 80px; margin-bottom: 20px;">📦</div>
+        <h3 style="color: var(--text-primary); margin-bottom: 10px;">No devices yet</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 30px;">
+          Add your first Trackium device to start tracking
+        </p>
+        <button class="primary-btn" onclick="showScreen('add-device')">
+          ➕ Add Device
+        </button>
+      </div>
+    `;
+    return;
+  }
+  
+  devices.forEach(device => {
+    const card = document.createElement('div');
+    card.className = 'device-card';
+    
+    const statusClass = device.status === 'online' ? 'status-online' : 'status-offline';
+    
+    // ИСПРАВЛЕНИЕ: Правильно читать данные
+    const deviceId = device.device_id || device.deviceId;
+    const deviceName = device.device_name || device.deviceName || 'Unnamed Device';
+    const deviceType = device.device_type || device.deviceType || 'tracker';
+    const transportType = device.transport_type || device.transportType || 'ground';
+    const category = device.category || 'Uncategorized';
+    const battery = device.battery || 100;
+    const signalStrength = device.signal_strength || device.signalStrength || 'Unknown';
+    const locked = device.locked || false;
+    
+    // Проверка валидности
+    if (!deviceId || deviceId === 'undefined') {
+      console.error('Invalid device data:', device);
       return;
     }
-
-    devices.forEach(device => {
-      const card = document.createElement('div');
-      card.className = 'device-card';
-      
-      const statusClass = device.status === 'online' ? 'status-online' : 'status-offline';
-      
-      // Иконки по типу транспорта
-      const transportIcons = {
-        'ground': '🚚',
-        'sea': '🚢',
-        'air': '✈️'
-      };
-      const transportIcon = transportIcons[device.transport_type || device.transportType] || '📦';
-      
-      // Иконка типа устройства
-      const deviceTypeIcon = device.device_type === 'smartlock' || device.deviceType === 'smartlock' ? '🔒' : 
-                            device.device_type === 'smartphone' || device.deviceType === 'smartphone' ? '📱' : '📡';
-
-      const deviceId = device.device_id || device.deviceId;
-      const deviceName = device.device_name || device.deviceName || 'Unnamed Device';
-      const category = device.category || 'Uncategorized';
-
-      card.innerHTML = `
-        <div class="device-header">
-          <div class="device-icon">${transportIcon}</div>
-          <div class="device-status ${statusClass}">${device.status}</div>
-        </div>
-        <div class="device-info" onclick="showDeviceDetail('${deviceId}')">
-          <h4>${deviceName}</h4>
-          <p style="font-size: 11px; color: var(--primary-blue); margin: 3px 0;">
-            ${deviceTypeIcon} ${category}
-          </p>
-          <p style="font-size: 12px; color: var(--text-secondary);">ID: ${deviceId}</p>
-          <p style="font-size: 13px; margin-top: 8px;">
-            🔋 ${device.battery || 100}% | 
-            📡 ${device.signal_strength || device.signalStrength || 'Unknown'}
-          </p>
-          ${device.locked ? '<p style="color: var(--warning-orange); margin-top: 5px;">🔒 Locked</p>' : ''}
-        </div>
-        <div style="margin-top: 10px; display: flex; gap: 8px;">
-          <button 
-            class="secondary-btn" 
-            style="flex: 1; padding: 8px; font-size: 12px;"
-            onclick="event.stopPropagation(); showDeviceDetail('${deviceId}')">
-            👁️ View
-          </button>
-          <button 
-            class="secondary-btn" 
-            style="flex: 1; padding: 8px; font-size: 12px; background: var(--danger-red);"
-            onclick="event.stopPropagation(); confirmDeleteDevice('${deviceId}', '${deviceName}')">
-            🗑️ Delete
-          </button>
-        </div>
-      `;
-
-      container.appendChild(card);
-    });
-  }
+    
+    // Иконки
+    const transportIcons = {
+      'ground': '🚚',
+      'sea': '🚢',
+      'air': '✈️'
+    };
+    const transportIcon = transportIcons[transportType] || '📦';
+    
+    const deviceTypeIcon = deviceType === 'smartlock' ? '🔒' : 
+                          deviceType === 'smartphone' ? '📱' : '📡';
+    
+    card.innerHTML = `
+      <div class="device-header">
+        <div class="device-icon">${transportIcon}</div>
+        <div class="device-status ${statusClass}">${device.status}</div>
+      </div>
+      <div class="device-info" onclick="showDeviceDetail('${deviceId}')">
+        <h4>${deviceName}</h4>
+        <p style="font-size: 11px; color: var(--primary-blue); margin: 3px 0;">
+          ${deviceTypeIcon} ${category}
+        </p>
+        <p style="font-size: 12px; color: var(--text-secondary);">ID: ${deviceId}</p>
+        <p style="font-size: 13px; margin-top: 8px;">
+          🔋 ${battery}% | 📡 ${signalStrength}
+        </p>
+        ${locked ? '<p style="color: var(--warning-orange); margin-top: 5px;">🔒 Locked</p>' : ''}
+      </div>
+      <div style="margin-top: 10px; display: flex; gap: 8px;">
+        <button 
+          class="secondary-btn" 
+          style="flex: 1; padding: 8px; font-size: 12px;"
+          onclick="event.stopPropagation(); showDeviceDetail('${deviceId}')">
+          👁️ View
+        </button>
+        <button 
+          class="secondary-btn" 
+          style="flex: 1; padding: 8px; font-size: 12px; background: var(--danger-red);"
+          onclick="event.stopPropagation(); confirmDeleteDevice('${deviceId}', '${deviceName}')">
+          🗑️ Delete
+        </button>
+      </div>
+    `;
+    
+    container.appendChild(card);
+  });
+}
 
   // Отобразить детали устройства
   renderDeviceDetail(device, position, movements, proofs) {
