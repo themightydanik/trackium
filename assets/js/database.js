@@ -11,200 +11,198 @@ class TrackiumDatabase {
   }
 
   // Инициализация базы данных
-  init(callback) {
-    const queries = [
-      // Таблица устройств
-      `CREATE TABLE IF NOT EXISTS devices (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        device_id VARCHAR(256) UNIQUE NOT NULL,
-        device_name VARCHAR(128) NOT NULL,
-        device_type VARCHAR(32) NOT NULL,
-        transport_type VARCHAR(32) DEFAULT 'ground',
-        category VARCHAR(64),
-        location VARCHAR(256),
-        status VARCHAR(32) DEFAULT 'offline',
-        battery INT DEFAULT 100,
-        signal_strength VARCHAR(32),
-        locked BOOLEAN DEFAULT FALSE,
-        blockchain_proof BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_sync TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )`,
-      
-      // Таблица движений GPS
-      `CREATE TABLE IF NOT EXISTS movements (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
-        device_id VARCHAR(256) NOT NULL,
-        latitude DECIMAL(10, 8) NOT NULL,
-        longitude DECIMAL(11, 8) NOT NULL,
-        altitude DECIMAL(10, 2),
-        speed DECIMAL(10, 2),
-        accuracy DECIMAL(10, 2),
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        proof_submitted BOOLEAN DEFAULT FALSE,
-        proof_txid VARCHAR(256)
-      )`,
-      
-      // Таблица отправлений
-      `CREATE TABLE IF NOT EXISTS shipments (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
-        shipment_id VARCHAR(256) UNIQUE NOT NULL,
-        device_id VARCHAR(256) NOT NULL,
-        cargo_description VARCHAR(1024),
-        origin VARCHAR(256),
-        destination VARCHAR(256),
-        status VARCHAR(32) DEFAULT 'in_transit',
-        expected_delivery TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        delivered_at TIMESTAMP
-      )`,
-      
-      // Таблица блокчейн-подтверждений
-      `CREATE TABLE IF NOT EXISTS blockchain_proofs (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
-        device_id VARCHAR(256) NOT NULL,
-        proof_type VARCHAR(32) NOT NULL,
-        proof_hash VARCHAR(256) NOT NULL,
-        transaction_id VARCHAR(256),
-        block_number BIGINT,
-        data_hash VARCHAR(256),
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        verified BOOLEAN DEFAULT FALSE
-      )`,
-      
-      // Таблица событий
-      `CREATE TABLE IF NOT EXISTS events (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
-        device_id VARCHAR(256) NOT NULL,
-        event_type VARCHAR(64) NOT NULL,
-        event_data VARCHAR(2048),
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )`,
-      
-      // Таблица настроек
-      `CREATE TABLE IF NOT EXISTS settings (
-        setting_key VARCHAR(128) PRIMARY KEY,
-        setting_value VARCHAR(2048),
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )`
-    ];
-
-    const lifeModeTables = [
-  // Таблица пользователей Life режима
-  `CREATE TABLE IF NOT EXISTS life_users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(128) NOT NULL,
-    level INT DEFAULT 1,
-    experience INT DEFAULT 0,
-    avatar VARCHAR(64) DEFAULT 'default',
-    avatar_color VARCHAR(16) DEFAULT '#0066CC',
-    total_goals INT DEFAULT 0,
-    completed_goals INT DEFAULT 0,
-    current_streak INT DEFAULT 0,
-    longest_streak INT DEFAULT 0,
-    total_rewards DECIMAL(20, 8) DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`,
-  
-  // Таблица целей
-  `CREATE TABLE IF NOT EXISTS life_goals (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    title VARCHAR(256) NOT NULL,
-    description VARCHAR(1024),
-    target_lat DECIMAL(10, 8) NOT NULL,
-    target_lng DECIMAL(11, 8) NOT NULL,
-    target_radius INT DEFAULT 100,
-    reward_amount DECIMAL(20, 8) NOT NULL,
-    category VARCHAR(64) DEFAULT 'general',
-    repeat_type VARCHAR(32) DEFAULT 'once',
-    status VARCHAR(32) DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`,
-  
-  // Таблица выполнений целей
-  `CREATE TABLE IF NOT EXISTS life_completions (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    goal_id BIGINT NOT NULL,
-    completed_lat DECIMAL(10, 8) NOT NULL,
-    completed_lng DECIMAL(11, 8) NOT NULL,
-    reward_earned DECIMAL(20, 8) NOT NULL,
-    experience_earned INT DEFAULT 0,
-    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`,
-  
-  // Таблица достижений (NFTs)
-  `CREATE TABLE IF NOT EXISTS life_achievements (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    type VARCHAR(64) NOT NULL,
-    level INT,
-    token_id VARCHAR(256),
-    metadata VARCHAR(2048),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`
-];
-
-
-
-    lifeModeTables.forEach((query, index) => {
-  MDS.sql(query, (res) => {
-    if (!res.status) {
-      console.error(`Failed to create life table ${index}:`, res.error);
-    }
-    completed++;
+init(callback) {
+  const queries = [
+    // Таблица устройств
+    `CREATE TABLE IF NOT EXISTS devices (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      device_id VARCHAR(256) UNIQUE NOT NULL,
+      device_name VARCHAR(128) NOT NULL,
+      device_type VARCHAR(32) NOT NULL,
+      transport_type VARCHAR(32) DEFAULT 'ground',
+      category VARCHAR(64),
+      location VARCHAR(256),
+      status VARCHAR(32) DEFAULT 'offline',
+      battery INT DEFAULT 100,
+      signal_strength VARCHAR(32),
+      locked BOOLEAN DEFAULT FALSE,
+      blockchain_proof BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      last_sync TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
     
+    // Таблица движений GPS
+    `CREATE TABLE IF NOT EXISTS movements (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      device_id VARCHAR(256) NOT NULL,
+      latitude DECIMAL(10, 8) NOT NULL,
+      longitude DECIMAL(11, 8) NOT NULL,
+      altitude DECIMAL(10, 2),
+      speed DECIMAL(10, 2),
+      accuracy DECIMAL(10, 2),
+      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      proof_submitted BOOLEAN DEFAULT FALSE,
+      proof_txid VARCHAR(256)
+    )`,
+    
+    // Таблица отправлений
+    `CREATE TABLE IF NOT EXISTS shipments (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      shipment_id VARCHAR(256) UNIQUE NOT NULL,
+      device_id VARCHAR(256) NOT NULL,
+      cargo_description VARCHAR(1024),
+      origin VARCHAR(256),
+      destination VARCHAR(256),
+      status VARCHAR(32) DEFAULT 'in_transit',
+      expected_delivery TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      delivered_at TIMESTAMP
+    )`,
+    
+    // Таблица блокчейн-подтверждений
+    `CREATE TABLE IF NOT EXISTS blockchain_proofs (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      device_id VARCHAR(256) NOT NULL,
+      proof_type VARCHAR(32) NOT NULL,
+      proof_hash VARCHAR(256) NOT NULL,
+      transaction_id VARCHAR(256),
+      block_number BIGINT,
+      data_hash VARCHAR(256),
+      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      verified BOOLEAN DEFAULT FALSE
+    )`,
+    
+    // Таблица событий
+    `CREATE TABLE IF NOT EXISTS events (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      device_id VARCHAR(256) NOT NULL,
+      event_type VARCHAR(64) NOT NULL,
+      event_data VARCHAR(2048),
+      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    
+    // Таблица настроек
+    `CREATE TABLE IF NOT EXISTS settings (
+      setting_key VARCHAR(128) PRIMARY KEY,
+      setting_value VARCHAR(2048),
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+  ];
+
+  const lifeModeTables = [
+    // Таблица пользователей Life режима
+    `CREATE TABLE IF NOT EXISTS life_users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(128) NOT NULL,
+      level INT DEFAULT 1,
+      experience INT DEFAULT 0,
+      avatar VARCHAR(64) DEFAULT 'default',
+      avatar_color VARCHAR(16) DEFAULT '#0066CC',
+      total_goals INT DEFAULT 0,
+      completed_goals INT DEFAULT 0,
+      current_streak INT DEFAULT 0,
+      longest_streak INT DEFAULT 0,
+      total_rewards DECIMAL(20, 8) DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    
+    // Таблица целей
+    `CREATE TABLE IF NOT EXISTS life_goals (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      title VARCHAR(256) NOT NULL,
+      description VARCHAR(1024),
+      target_lat DECIMAL(10, 8) NOT NULL,
+      target_lng DECIMAL(11, 8) NOT NULL,
+      target_radius INT DEFAULT 100,
+      reward_amount DECIMAL(20, 8) NOT NULL,
+      category VARCHAR(64) DEFAULT 'general',
+      repeat_type VARCHAR(32) DEFAULT 'once',
+      status VARCHAR(32) DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    
+    // Таблица выполнений целей
+    `CREATE TABLE IF NOT EXISTS life_completions (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      goal_id BIGINT NOT NULL,
+      completed_lat DECIMAL(10, 8) NOT NULL,
+      completed_lng DECIMAL(11, 8) NOT NULL,
+      reward_earned DECIMAL(20, 8) NOT NULL,
+      experience_earned INT DEFAULT 0,
+      completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    
+    // Таблица достижений (NFTs)
+    `CREATE TABLE IF NOT EXISTS life_achievements (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      type VARCHAR(64) NOT NULL,
+      level INT,
+      token_id VARCHAR(256),
+      metadata VARCHAR(2048),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+  ];
+
+  let completed = 0;
+  const total = queries.length + lifeModeTables.length;
+
+  const checkComplete = () => {
+    completed++;
     if (completed === total) {
-      this.initialized = true;
-      console.log("✅ Trackium Database initialized (including Life Mode)");
-      if (callback) callback(true);
+      // Создать индексы ПОСЛЕ всех таблиц
+      this.createIndexes(() => {
+        this.initialized = true;
+        console.log("✅ Trackium Database initialized successfully");
+        if (callback) callback(true);
+      });
     }
+  };
+
+  queries.forEach((query, index) => {
+    MDS.sql(query, (res) => {
+      if (!res.status) {
+        console.error(`Failed to create table ${index}:`, res.error);
+      }
+      checkComplete();
+    });
   });
-});
 
-    let completed = 0;
-    const total = queries.length + lifeModeTables.length;
-
-    queries.forEach((query, index) => {
-      MDS.sql(query, (res) => {
-        if (!res.status) {
-          console.error(`Failed to create table ${index}:`, res.error);
-        }
-        completed++;
-        
-        if (completed === total) {
-          this.initialized = true;
-          console.log("✅ Trackium Database initialized successfully");
-          if (callback) callback(true);
-        }
-      });
+  lifeModeTables.forEach((query, index) => {
+    MDS.sql(query, (res) => {
+      if (!res.status) {
+        console.error(`Failed to create life table ${index}:`, res.error);
+      }
+      checkComplete();
     });
+  });
+}
 
-      // В метод init(), после создания таблиц добавить:
+// Новый метод для создания индексов (добавить ПОСЛЕ метода init)
+createIndexes(callback) {
+  const indexes = [
+    `CREATE INDEX IF NOT EXISTS idx_devices_id ON devices(device_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_movements_device ON movements(device_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_events_device ON events(device_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)`
+  ];
 
-// Создать индексы
-const indexes = [
-  `CREATE INDEX IF NOT EXISTS idx_devices_id ON devices(device_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_movements_device ON movements(device_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_events_device ON events(device_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)`
-];
-
-    let completed = 0;
-    indexes.forEach(indexQuery => {
-      MDS.sql(indexQuery, (res) => {
-        if (!res.status) {
-          console.warn('Failed to create index:', res.error);
-        }
-        completed++;
-        if (completed === indexes.length && callback) {
-          callback();
-        }
-      });
+  let indexCompleted = 0; // ← другое имя переменной!
+  indexes.forEach(indexQuery => {
+    MDS.sql(indexQuery, (res) => {
+      if (!res.status) {
+        console.warn('Failed to create index:', res.error);
+      }
+      indexCompleted++;
+      if (indexCompleted === indexes.length && callback) {
+        callback();
+      }
     });
-  }
+  });
+}
 
 
 
