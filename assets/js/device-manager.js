@@ -51,7 +51,7 @@ async registerDevice(deviceData) {
             (device_id, event_type, event_data)
             VALUES ('${device.deviceId}', 'device_registered', '${eventData}')`, () => {});
           
-          resolve(true);
+          resolve(device);
         } else {
           console.error('❌ Failed to register device in DB:', res.error);
           reject(new Error(res.error || 'Database error'));
