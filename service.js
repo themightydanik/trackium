@@ -1,4 +1,4 @@
-// service.js - ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ
+// service.js - ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ (обновлена + отправка в блокчейн)
 
 MDS.load('./assets/js/database.js');
 
@@ -63,17 +63,11 @@ MDS.init(function(msg) {
 
 // ========== SERVICE STATUS ==========
 
-/**
- * Инициализировать статус сервиса
- */
 function initServiceStatus() {
   updateServiceStatus(true);
   MDS.log("📡 Location service status initialized");
 }
 
-/**
- * Обновить статус сервиса
- */
 function updateServiceStatus(active) {
   const status = {
     active: active,
@@ -91,20 +85,13 @@ function updateServiceStatus(active) {
 
 // ========== LOCATION POLLING ==========
 
-/**
- * Polling для получения location updates из keypair storage
- */
 function startLocationPolling() {
   MDS.log("📡 Starting location polling (via MDS_TIMER_10SECONDS)");
 }
 
-/**
- * Проверить наличие новых данных локации
- */
 function checkForLocationUpdates() {
   if (!db || !db.initialized) return;
   
-  // Получить ожидающие обновления из keypair
   MDS.keypair.get('pending_location_updates', (res) => {
     if (res && res.value) {
       try {
@@ -119,7 +106,6 @@ function checkForLocationUpdates() {
             processLocationUpdate(update, (success) => {
               if (success) processed++;
               
-              // Если все обработаны - очистить
               if (processed === updates.length) {
                 MDS.keypair.set('pending_location_updates', '[]', () => {
                   MDS.log(`✅ ${processed} updates processed and cleared`);
@@ -135,15 +121,14 @@ function checkForLocationUpdates() {
   });
 }
 
-/**
- * Обработать обновление локации
- */
+// ========== ОБРАБОТКА ЛОКАЦИИ ==========
+
 function processLocationUpdate(update, callback) {
-  const { deviceId, latitude, longitude, accuracy, timestamp, source } = update;
+  const { deviceId, latitude, longitude, accuracy, timestamp, battery, source } = update;
   
   MDS.log(`📍 Location update for ${deviceId}: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
-  
-  // Сохранить в movements
+
+  // --- Сохраняем в локальную БД ---
   const query = `INSERT INTO movements 
     (device_id, latitude, longitude, altitude, speed, accuracy)
     VALUES ('${deviceId}', ${latitude}, ${longitude}, 
@@ -152,13 +137,13 @@ function processLocationUpdate(update, callback) {
   MDS.sql(query, (res) => {
     if (res.status) {
       MDS.log(`✅ Movement saved for ${deviceId}`);
-      
+
       // Обновить статус устройства
       MDS.sql(`UPDATE devices 
         SET status = 'online', last_sync = CURRENT_TIMESTAMP 
         WHERE device_id = '${deviceId}'`, () => {});
-      
-      // Обновить signal strength
+
+      // Обновить сигнал
       const signalStrength = source === 'bigdatacloud' ? 'WiFi/Cell (High)' :
                             source === 'ip-api' ? 'IP-based (Medium)' : 
                             'WiFi/Cell';
@@ -166,32 +151,80 @@ function processLocationUpdate(update, callback) {
       MDS.sql(`UPDATE devices 
         SET signal_strength = '${signalStrength}' 
         WHERE device_id = '${deviceId}'`, () => {});
-      
+
       // Добавить событие
       const eventData = JSON.stringify({
         source: source,
         accuracy: accuracy,
         latitude: latitude,
-        longitude: longitude
+        longitude: longitude,
+        battery: battery || null
       }).replace(/'/g, "''");
       
       MDS.sql(`INSERT INTO events 
         (device_id, event_type, event_data)
         VALUES ('${deviceId}', 'location_update', '${eventData}')`, () => {});
-      
+
       // Обновить статус сервиса
       locationServiceStatus.active = true;
       locationServiceStatus.lastUpdate = new Date().toISOString();
       locationServiceStatus.connectedDevices.add(deviceId);
       
       updateServiceStatus(true);
-      
+
+      // ===========================
+      // 🚀 ОТПРАВКА В БЛОКЧЕЙН
+      // ===========================
+      sendToBlockchain(update);
+
       if (callback) callback(true);
     } else {
       MDS.log(`❌ Failed to save movement: ${res.error}`);
       if (callback) callback(false);
     }
   });
+}
+
+// ========== SEND TO BLOCKCHAIN ==========
+
+function sendToBlockchain(update) {
+
+  const payload = JSON.stringify({
+    deviceId: update.deviceId,
+    lat: update.latitude,
+    lon: update.longitude,
+    accuracy: update.accuracy,
+    battery: update.battery || null,
+    ts: Date.now()
+  });
+
+  const clean = payload.replace(/"/g, '\\"');
+
+  MDS.log("🔗 Creating blockchain transaction...");
+
+  // 1. Создать пустую транзакцию
+  MDS.cmd("txncreate id:trackium_tx", function() {
+
+    // 2. Добавить данные
+    MDS.cmd(`txnadddata id:trackium_tx data:"${clean}"`, function() {
+
+      // 3. Подписать
+      MDS.cmd("txnsign id:trackium_tx", function() {
+
+        // 4. Отправить
+        MDS.cmd("txnpost id:trackium_tx", function(res) {
+          if (res.status) {
+            MDS.log("✅ Data posted to Minima blockchain");
+          } else {
+            MDS.log("❌ Blockchain post failed: " + res.message);
+          }
+        });
+
+      });
+
+    });
+  });
+
 }
 
 // ========== MAINTENANCE ==========
@@ -201,32 +234,23 @@ function performMaintenance() {
   
   MDS.log("🔧 Performing maintenance...");
   
-  // Удалить старые события (старше 30 дней)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   
   MDS.sql(`DELETE FROM events WHERE timestamp < '${thirtyDaysAgo}'`, (res) => {
-    if (res.status) {
-      MDS.log("Cleaned up old events");
-    }
+    if (res.status) MDS.log("Cleaned up old events");
   });
   
-  // Обновить статус offline для устройств без обновлений > 10 минут
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
   
   MDS.sql(`UPDATE devices 
     SET status = 'offline' 
     WHERE last_sync < '${tenMinutesAgo}' AND status = 'online'`, (res) => {
-    if (res.status) {
-      MDS.log("Updated offline devices");
-    }
+    if (res.status) MDS.log("Updated offline devices");
   });
 }
 
 // ========== API HANDLERS ==========
 
-/**
- * Получить статус Location Service
- */
 function getLocationServiceStatus(callback) {
   const status = {
     active: locationServiceStatus.active,
