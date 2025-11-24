@@ -146,29 +146,12 @@ function startLocationServicePolling() {
 }
 
 /**
- * Получить обновления локации из keypair storage
+ * Эта функция больше не нужна — данные идут из блокчейна
+ * Оставляем заглушку для совместимости
  */
 function pollLocationUpdates() {
-  MDS.keypair.get('pending_location_updates', (res) => {
-    if (res && res.value) {
-      try {
-        const updates = JSON.parse(res.value);
-        
-        if (Array.isArray(updates) && updates.length > 0) {
-          console.log(`📍 Received ${updates.length} location updates`);
-          
-          updates.forEach(update => {
-            processLocationUpdate(update);
-          });
-          
-          // Очистить
-          MDS.keypair.set('pending_location_updates', '[]');
-        }
-      } catch (err) {
-        console.error('Failed to parse location updates:', err);
-      }
-    }
-  });
+  // Данные теперь поступают из service.js через blockchain listener
+  console.log('📡 Location updates now come from blockchain');
 }
 
 /**
