@@ -499,5 +499,5 @@ class TrackiumLife {
   }
 }
 
-this.TrackiumLife = TrackiumLife;
+globalThis.TrackiumLife = TrackiumLife;
 console.log('✅ trackium-life.js loaded');
