@@ -289,4 +289,4 @@ class DeviceRegistry {
   }
 }
 
-window.DeviceRegistry = DeviceRegistry;
+this.DeviceRegistry = DeviceRegistry;
