@@ -461,4 +461,4 @@ class TrackiumBlockchain {
   }
 }
 
-window.TrackiumBlockchain = TrackiumBlockchain;
+globalThis.TrackiumBlockchain = TrackiumBlockchain;
