@@ -298,7 +298,7 @@ function showDeviceDetail(deviceId) {
   }
   
   currentDeviceId = deviceId;
-  window.currentDeviceId = deviceId;
+  globalThis.currentDeviceId = deviceId;
   
   db.getDevice(deviceId, (device) => {
     if (!device) {
@@ -321,7 +321,7 @@ function showDeviceDetail(deviceId) {
             clearInterval(window.positionUpdateInterval);
           }
           
-          window.positionUpdateInterval = setInterval(() => {
+          globalThis.positionUpdateInterval = setInterval(() => {
             if (window.currentDeviceId === deviceId) {
               refreshDevicePosition(deviceId);
             } else {
@@ -393,7 +393,7 @@ function closeQRModal() {
   ui.closeQRModal();
 }
 
-window.refreshDeviceLocation = function() {
+globalThis.refreshDeviceLocation = function() {
   if (!currentDeviceId || !db) return;
   
   console.log('🔄 Refreshing location for:', currentDeviceId);
@@ -430,7 +430,7 @@ function deleteDevice(deviceId) {
   });
 }
 
-window.confirmDeleteDevice = function(deviceId, deviceName) {
+globalThis.confirmDeleteDevice = function(deviceId, deviceName) {
   if (!confirm(`Delete device "${deviceName}"?\n\nThis cannot be undone!`)) return;
   deleteDevice(deviceId);
 };
@@ -656,12 +656,12 @@ async function testLocationAPI() {
 }
 
 // Export functions
-window.checkLocationServiceStatus = checkLocationServiceStatus;
-window.testLocationAPI = testLocationAPI;
+globalThis.checkLocationServiceStatus = checkLocationServiceStatus;
+globalThis.testLocationAPI = testLocationAPI;
 
 // Check status on dashboard load
 const originalLoadDashboard = window.loadDashboard || loadDashboard;
-window.loadDashboard = function() {
+globalThis.loadDashboard = function() {
   if (originalLoadDashboard) originalLoadDashboard();
   
   // Check location service status
@@ -672,17 +672,17 @@ window.loadDashboard = function() {
 
 // ========== EXPORTS ==========
 
-window.showScreen = showScreen;
-window.generateDeviceId = generateDeviceId;
-window.addDevice = addDevice;
-window.updateDeviceTypeInfo = updateDeviceTypeInfo;
-window.refreshDevices = refreshDevices;
-window.showDeviceDetail = showDeviceDetail;
-window.toggleLock = toggleLock;
-window.generateUnlockQR = generateUnlockQR;
-window.closeQRModal = closeQRModal;
-window.deleteDevice = deleteDevice;
-window.submitProofOfMovement = submitProofOfMovement;
-window.createShipment = createShipment;
+globalThis.showScreen = showScreen;
+globalThis.generateDeviceId = generateDeviceId;
+globalThis.addDevice = addDevice;
+globalThis.updateDeviceTypeInfo = updateDeviceTypeInfo;
+globalThis.refreshDevices = refreshDevices;
+globalThis.showDeviceDetail = showDeviceDetail;
+globalThis.toggleLock = toggleLock;
+globalThis.generateUnlockQR = generateUnlockQR;
+globalThis.closeQRModal = closeQRModal;
+globalThis.deleteDevice = deleteDevice;
+globalThis.submitProofOfMovement = submitProofOfMovement;
+globalThis.createShipment = createShipment;
 
-window.addEventListener('DOMContentLoaded', initApp);
+initApp();
