@@ -635,6 +635,6 @@
   };
 
   // ========== EXPORT ==========
-  window.TrackiumDatabase = TrackiumDatabase;
+this.TrackiumDatabase = TrackiumDatabase;
 
 })();
