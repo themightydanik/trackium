@@ -40,7 +40,7 @@ init(callback) {
       altitude DECIMAL(10, 2),
       speed DECIMAL(10, 2),
       accuracy DECIMAL(10, 2),
-      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       proof_submitted BOOLEAN DEFAULT FALSE,
       proof_txid VARCHAR(256)
     )`,
@@ -68,7 +68,7 @@ init(callback) {
       transaction_id VARCHAR(256),
       block_number BIGINT,
       data_hash VARCHAR(256),
-      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      verified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       verified BOOLEAN DEFAULT FALSE
     )`,
     
@@ -78,7 +78,7 @@ init(callback) {
       device_id VARCHAR(256) NOT NULL,
       event_type VARCHAR(64) NOT NULL,
       event_data VARCHAR(2048),
-      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      event_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
     
     // Таблица настроек
