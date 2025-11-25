@@ -635,6 +635,6 @@
   };
 
   // ========== EXPORT ==========
-this.TrackiumDatabase = TrackiumDatabase;
+globalThis.TrackiumDatabase = TrackiumDatabase;
 
 })();
