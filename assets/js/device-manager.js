@@ -342,5 +342,5 @@ getDevicesStatus(callback) {
   }
 }
 
-window.DeviceManager = DeviceManager;
+this.DeviceManager = DeviceManager;
 console.log('✅ device-manager.js (FIXED) loaded');
