@@ -148,4 +148,4 @@ class TrackiumContracts {
   }
 }
 
-window.TrackiumContracts = TrackiumContracts;
+globalThis.TrackiumContracts = TrackiumContracts;
