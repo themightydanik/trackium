@@ -1,5 +1,20 @@
 // location-sync.js
 
+MDS.init(function() {
+    console.log("📡 Trackium Location Sync: MDS JS API ready");
+
+    Minima.events.addListener("newkey", function(evt) {
+        console.log("🔑 newkey event:", evt);
+
+        if (!evt.key) return;
+        if (evt.key.name !== "pending_location_updates") return;
+
+        console.log("📍 New pending location data detected");
+        processLocationUpdates();
+    });
+});
+
+
 console.log("📡 Trackium Location Sync loaded");
 
 // Подписаться на изменения keypair
