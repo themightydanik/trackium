@@ -218,6 +218,10 @@ _escape(str) {
     }, (movementId) => {
       if (movementId) {
         console.log('📍 Movement saved:', movementId);
+
+        if (position.battery !== undefined && position.battery !== null) {
+        this.db.updateDeviceBattery(deviceId, position.battery);
+      }
       }
     });
   }
