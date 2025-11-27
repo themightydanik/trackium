@@ -88,19 +88,21 @@ async function processInboundLocation(update) {
 
     // ========== 1. Сохранение в DB ==========
 
-    const query = `
-        INSERT INTO movements 
-            (device_id, latitude, longitude, altitude, speed, accuracy)
-        VALUES 
-            ('${deviceId}', ${latitude}, ${longitude}, 0, 0, ${accuracy});
-    `;
+const query = `
+    INSERT INTO movements 
+        (device_id, latitude, longitude, altitude, speed, accuracy)
+    VALUES 
+        ('${deviceId}', ${latitude}, ${longitude}, 0, 0, ${accuracy});
+`;
 
-    let res = await MDS.sql(query);
+let res = await MDS.sql(query);
 
-    if (!res.status) {
-        MDS.log("❌ DB insert failed: " + res.error);
-        return;
-    }
+if (!res.status) {
+    MDS.log("❌ DB insert failed: " + res.error);
+    return;
+}
+
+
 
     MDS.log(`✅ Movement saved for ${deviceId}`);
 
