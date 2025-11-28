@@ -3224,6 +3224,39 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+    <script>
+
+        function updateInfoPanel() {
+    if (window.MINIDAPP_UID) {
+        document.getElementById("minidapp-uid").innerText = window.MINIDAPP_UID;
+    }
+
+    if (window.MINIMA_HOST) {
+        document.getElementById("minima-host").innerText = window.MINIMA_HOST + ":9003";
+    }
+}
+
+function copyUID() {
+    navigator.clipboard.writeText(window.MINIDAPP_UID);
+    MDS.log("UID copied");
+}
+
+function copyHost() {
+    navigator.clipboard.writeText(window.MINIMA_HOST + ":9003");
+    MDS.log("Host copied");
+}
+
+MDS.init(function(msg) {
+    if (msg.event === "inited") {
+        window.MINIDAPP_UID = MDS.info.uid;
+        updateInfoPanel();
+        fetchLocalIP();
+    }
+});
+
+        
+    </script>
+
     <div id="trackium-info" 
      style="margin-top:20px;padding:12px;border:1px solid #444;border-radius:8px;background:#111;">
     
