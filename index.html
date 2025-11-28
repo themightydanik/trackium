@@ -3108,6 +3108,27 @@ function testLocationAPI() {
                 </div>
             </div>
         </div>
+
+        <!-- ===== SYSTEM INFO (for Companion App setup) ===== -->
+<div id="system-info" style="margin-top: 30px; padding: 12px; border-radius: 10px;
+     background: #f3f3f3; font-family: monospace;">
+
+    <h3 style="margin: 0 0 10px 0; font-size: 18px;">🔧 System Info</h3>
+
+    <div style="margin-bottom: 10px;">
+        <strong>MiniDapp UID:</strong>
+        <span id="mdapp-uid" style="word-break: break-all;"></span>
+        <button onclick="copyUid()" style="margin-left: 10px;">Copy</button>
+    </div>
+
+    <div>
+        <strong>Node Host:</strong>
+        <span id="node-host" style="word-break: break-all;"></span>
+        <button onclick="copyHost()" style="margin-left: 10px;">Copy</button>
+    </div>
+</div>
+
+        
     </div>
 
     <!-- QR Modal -->
@@ -3224,56 +3245,19 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-    <script>
-
-        function updateInfoPanel() {
-    if (window.MINIDAPP_UID) {
-        document.getElementById("minidapp-uid").innerText = window.MINIDAPP_UID;
-    }
-
-    if (window.MINIMA_HOST) {
-        document.getElementById("minima-host").innerText = window.MINIMA_HOST + ":9003";
-    }
-}
-
-function copyUID() {
-    navigator.clipboard.writeText(window.MINIDAPP_UID);
-    MDS.log("UID copied");
+<script>
+function copyUid() {
+    const uid = document.getElementById("mdapp-uid").innerText;
+    navigator.clipboard.writeText(uid);
+    MDS.log("Copied UID");
 }
 
 function copyHost() {
-    navigator.clipboard.writeText(window.MINIMA_HOST + ":9003");
-    MDS.log("Host copied");
+    const host = document.getElementById("node-host").innerText;
+    navigator.clipboard.writeText(host);
+    MDS.log("Copied Host");
 }
-
-MDS.init(function(msg) {
-    if (msg.event === "inited") {
-        window.MINIDAPP_UID = MDS.info.uid;
-        updateInfoPanel();
-        fetchLocalIP();
-    }
-});
-
-        
-    </script>
-
-    <div id="trackium-info" 
-     style="margin-top:20px;padding:12px;border:1px solid #444;border-radius:8px;background:#111;">
-    
-    <h3 style="margin-top:0;">⚙ Trackium MiniDapp Info</h3>
-
-    <div style="margin-bottom:10px;">
-        <strong>UID:</strong>
-        <span id="minidapp-uid">Loading...</span>
-        <button onclick="copyUID()" style="margin-left:8px;">Copy</button>
-    </div>
-
-    <div>
-        <strong>Node Host:</strong>
-        <span id="minima-host">Loading...</span>
-        <button onclick="copyHost()" style="margin-left:8px;">Copy</button>
-    </div>
-</div>
+</script>
 
 
 </body>
