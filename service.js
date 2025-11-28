@@ -38,7 +38,6 @@ MDS.init(function(msg) {
     } catch (e) {
         MDS.log("❌ Error parsing inbound data: " + e);
     }
-}
 
   
   // Новый блок
