@@ -18,9 +18,26 @@ function initApp() {
   MDS.init(function(msg) {
     console.log("📡 MDS Event:", msg.event);
     
-    if (msg.event === "inited") {
-      console.log("✅ MDS initialized");
-      onMDSReady();
+if (msg.event === "inited") {
+    console.log("✅ MDS initialized");
+
+    // === INSERT HERE: System Info for Companion App ===
+    try {
+        // UID MiniDapp
+        document.getElementById("mdapp-uid").innerText = MDS.minidapp.uid;
+
+        // Host (IP + port MiniDapp Hub)
+        let host = location.origin; 
+        document.getElementById("node-host").innerText = host;
+
+        console.log("🔧 System info loaded (UID + Host)");
+    } catch (e) {
+        console.warn("System info UI elements missing:", e);
+    }
+    // === END INSERT ===
+
+    onMDSReady();
+
     } else if (msg.event === "NEWBALANCE") {
       console.log("💰 Balance updated");
       updateBlockchainInfo();
