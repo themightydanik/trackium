@@ -11,59 +11,60 @@ let locationServiceStatus = {
 
 // Инициализация MDS
 MDS.init(function(msg) {
-  
-  if (msg.event === "inited") {
-    MDS.log("=== Trackium Background Service Started ===");
-    
-    // Инициализировать базу данных
-    db = new TrackiumDatabase();
-    db.init((success) => {
-      if (success) {
-        MDS.log("✅ Database initialized in background service");
-        
-        // Инициализировать статус сервиса
-        initServiceStatus();
-      } else {
-        MDS.log("❌ Database initialization failed");
-      }
-    });
-  }
 
-  if (msg.event === "inbound") {
-    try {
-        let data = JSON.parse(msg.data);
-        MDS.log("📨 Incoming Android data: " + JSON.stringify(data));
-
-        processInboundLocation(data);
-    } catch (e) {
-        MDS.log("❌ Error parsing inbound data: " + e);
+    // === INBOUND ===
+    if (msg.event === "inbound") {
+        try {
+            let data = JSON.parse(msg.data);
+            MDS.log("📨 INBOUND from Android: " + JSON.stringify(data));
+            processInboundLocation(data);
+        } catch (e) {
+            MDS.log("❌ INBOUND JSON parse error: " + e);
+        }
+        return;
     }
-  }  
 
-  
-  // Новый блок
-  if (msg.event === "NEWBLOCK") {
-    MDS.log("New block detected: " + msg.data.txpow.header.block);
-  }
-  
-  // Обновление баланса
-  if (msg.event === "NEWBALANCE") {
-    MDS.log("Balance updated");
-  }
-  
-  // Таймер каждый час
-  if (msg.event === "MDS_TIMER_1HOUR") {
-    MDS.log("Hourly maintenance");
-    performMaintenance();
-  }
+    // === INIT ===
+    if (msg.event === "inited") {
+        MDS.log("=== Trackium Background Service Started ===");
 
-  
-  // Shutdown
-  if (msg.event === "MDS_SHUTDOWN") {
-    MDS.log("Trackium Service shutting down");
-    updateServiceStatus(false);
-  }
-  
+        db = new TrackiumDatabase();
+        db.init((success) => {
+            if (success) {
+                MDS.log("✅ Database initialized");
+                initServiceStatus();
+            } else {
+                MDS.log("❌ Database initialization failed");
+            }
+        });
+        return;
+    }
+
+    // === BLOCK ===
+    if (msg.event === "NEWBLOCK") {
+        MDS.log("⛓️ New block: " + msg.data.txpow.header.block);
+        return;
+    }
+
+    // === BALANCE ===
+    if (msg.event === "NEWBALANCE") {
+        MDS.log("💰 Balance updated");
+        return;
+    }
+
+    // === MAINTENANCE ===
+    if (msg.event === "MDS_TIMER_1HOUR") {
+        MDS.log("🧹 Hourly maintenance");
+        performMaintenance();
+        return;
+    }
+
+    // === SHUTDOWN ===
+    if (msg.event === "MDS_SHUTDOWN") {
+        MDS.log("🛑 Trackium shutting down");
+        updateServiceStatus(false);
+        return;
+    }
 });
 
 // ========== SERVICE STATUS ==========
