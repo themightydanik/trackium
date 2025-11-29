@@ -1,4 +1,6 @@
-// service.js — HTTP POST inbound version
+// ============================
+// service.js — FINISHED RPC VERSION
+// ============================
 
 MDS.load('./assets/js/database.js');
 
@@ -9,28 +11,27 @@ let locationServiceStatus = {
     connectedDevices: new Set()
 };
 
-// ======================
-// MDS.init
-// ======================
+// ===================================
+// MDS.init — обработка всех событий
+// ===================================
 MDS.init(function(msg) {
 
-    // === HTTP POST INBOUND (Android → MiniDapp) ===
-    if (msg.event === "inboundPOST") {
-        // msg.data = строка JSON
-        MDS.log("📨 HTTP POST inbound: " + msg.data);
-
+    // === ANDROID → MiniDapp (ОФИЦИАЛЬНЫЙ RPC INBOUND) ===
+    if (msg.event === "inbound") {
         try {
-            const body = JSON.parse(msg.data);
-            processInboundLocation(body);
+            // msg.data — ЭТО СТРОКА которую мы отправили из RPC
+            const data = JSON.parse(msg.data);
+            MDS.log("📨 RPC inbound: " + JSON.stringify(data));
+            processInboundLocation(data);
         } catch (e) {
-            MDS.log("❌ inboundPOST JSON parse error: " + e);
+            MDS.log("❌ RPC inbound JSON parse error: " + e);
         }
         return;
     }
 
-    // === INIT ===
+    // === МИНИДАП ЗАГРУЗИЛСЯ ===
     if (msg.event === "inited") {
-        MDS.log("=== Trackium Background Service Started ===");
+        MDS.log("=== Trackium Service Booting ===");
 
         db = new TrackiumDatabase();
         db.init((success) => {
@@ -41,11 +42,12 @@ MDS.init(function(msg) {
                 MDS.log("❌ Database initialization failed");
             }
         });
+
         return;
     }
 
     if (msg.event === "NEWBLOCK") {
-        MDS.log("⛓️ New block: " + msg.data.txpow.header.block);
+        MDS.log("⛓ NEWBLOCK " + msg.data.txpow.header.block);
         return;
     }
 
@@ -55,26 +57,25 @@ MDS.init(function(msg) {
     }
 
     if (msg.event === "MDS_TIMER_1HOUR") {
-        MDS.log("🧹 Hourly maintenance");
+        MDS.log("🧹 Maintenance triggered");
         performMaintenance();
         return;
     }
 
     if (msg.event === "MDS_SHUTDOWN") {
-        MDS.log("🛑 Trackium shutting down");
+        MDS.log("🛑 Shutting down");
         updateServiceStatus(false);
         return;
     }
 });
 
 
-// ======================
+// ============================
 // SERVICE STATUS
-// ======================
-
+// ============================
 function initServiceStatus() {
     updateServiceStatus(true);
-    MDS.log("📡 Location service status initialized");
+    MDS.log("📡 Location service active");
 }
 
 function updateServiceStatus(active) {
@@ -83,78 +84,69 @@ function updateServiceStatus(active) {
 }
 
 
-// ======================
+// ============================
 // PROCESS LOCATION
-// ======================
-
+// ============================
 async function processInboundLocation(update) {
     const { deviceId, latitude, longitude, accuracy } = update;
 
-    MDS.log(`📍 Processing inbound location for ${deviceId}`);
+    MDS.log(`📍 Processing location for ${deviceId}`);
 
-    // 1) Save to DB
+    // === 1) movements ===
     const sql = `
         INSERT INTO movements 
             (device_id, latitude, longitude, altitude, speed, accuracy)
         VALUES 
             ('${deviceId}', ${latitude}, ${longitude}, 0, 0, ${accuracy});
     `;
-
-    let res = await MDS.sql(sql);
+    const res = await MDS.sql(sql);
     if (!res.status) {
         MDS.log("❌ DB insert failed: " + res.error);
         return;
     }
-
     MDS.log(`✅ Movement saved for ${deviceId}`);
 
-// === UPDATE device_registry (если нового устройства нет) ===
-await MDS.sql(`
-    INSERT OR IGNORE INTO device_registry (id, name, description, type)
-    VALUES ('${deviceId}', '${deviceId}', 'Tracked device', 'tracker')
-`);
+    // === 2) registry (если нет — создаём) ===
+    await MDS.sql(`
+        INSERT OR IGNORE INTO device_registry (id, name, description, type)
+        VALUES ('${deviceId}', '${deviceId}', 'Tracked device', 'tracker')
+    `);
 
-// === UPDATE device_states (UI использует ЭТУ таблицу!) ===
-await MDS.sql(`
-    INSERT OR REPLACE INTO device_states (id, status, battery, last_sync)
-    VALUES (
-        '${deviceId}',
-        'online',
-        ${update.battery || 0},
-        CURRENT_TIMESTAMP
-    )
-`);
+    // === 3) device_states (для UI списков) ===
+    await MDS.sql(`
+        INSERT OR REPLACE INTO device_states (id, status, battery, last_sync)
+        VALUES ('${deviceId}', 'online', ${update.battery || 0}, CURRENT_TIMESTAMP)
+    `);
 
-// === UPDATE device_metadata (extended info) ===
-const metadata = {
-    accuracy: update.accuracy,
-    source: update.source || "gps",
-    last_lat: update.latitude,
-    last_lon: update.longitude,
-    last_update: Date.now()
-};
+    // === 4) metadata — ОБЯЗАТЕЛЬНО для UI устройства ===
+    const metadata = {
+        accuracy: update.accuracy,
+        source: update.source || "gps",
+        last_lat: update.latitude,
+        last_lon: update.longitude,
+        last_update: Date.now()
+    };
 
-await MDS.sql(`
-    INSERT OR REPLACE INTO device_metadata (id, meta)
-    VALUES ('${deviceId}', '${JSON.stringify(metadata).replace(/'/g, "''")}')
-`);
+    await MDS.sql(`
+        INSERT OR REPLACE INTO device_metadata (id, meta)
+        VALUES ('${deviceId}', '${JSON.stringify(metadata).replace(/'/g, "''")}')
+    `);
 
-    // 2) Blockchain (optional)
+    // === BLOCKCHAIN (опционально) ===
     sendToBlockchain(update);
 
-    // 3) Update MiniDapp local status
+    // === Update local status ===
     locationServiceStatus.active = true;
     locationServiceStatus.lastUpdate = new Date().toISOString();
     locationServiceStatus.connectedDevices.add(deviceId);
 
-    MDS.log(`🏁 Completed inbound update for ${deviceId}`);
+    MDS.log(`🏁 Completed for ${deviceId}`);
 }
 
 
-// ======================
-// SEND TO BLOCKCHAIN
-// ======================
-
+// ============================
+// BLOCKCHAIN TX (optional)
+// ============================
 function sendToBlockchain(update) {
     const payload = JSON.stringify({
         deviceId: update.deviceId,
@@ -163,18 +155,19 @@ function sendToBlockchain(update) {
         accuracy: update.accuracy,
         battery: update.battery || null,
         ts: Date.now()
-    });
+    }).replace(/"/g, '\\"');
 
-    const escaped = payload.replace(/"/g, '\\"');
-
-    MDS.log("🔗 Creating blockchain transaction...");
+    MDS.log("🔗 Building blockchain TX");
 
     MDS.cmd("txncreate id:trackium_tx", function() {
-        MDS.cmd(`txnadddata id:trackium_tx data:"${escaped}"`, function() {
+        MDS.cmd(`txnadddata id:trackium_tx data:"${payload}"`, function() {
             MDS.cmd("txnsign id:trackium_tx", function() {
                 MDS.cmd("txnpost id:trackium_tx", function(res) {
-                    if (res.status) MDS.log("✅ Blockchain TX posted");
-                    else MDS.log("❌ Blockchain TX failed: " + res.message);
+                    if (res.status) {
+                        MDS.log("✅ Blockchain TX posted");
+                    } else {
+                        MDS.log("❌ Blockchain TX failed: " + res.message);
+                    }
                 });
             });
         });
@@ -182,29 +175,25 @@ function sendToBlockchain(update) {
 }
 
 
-// ======================
+// ============================
 // MAINTENANCE
-// ======================
-
+// ============================
 function performMaintenance() {
-    if (!db) return;
-
     const thirty = new Date(Date.now() - 30*24*60*60*1000).toISOString();
 
     MDS.sql(`DELETE FROM events WHERE timestamp < '${thirty}'`);
 
-    const tenMin = new Date(Date.now() - 10*60*1000).toISOString();
+    const ten = new Date(Date.now() - 10*60*1000).toISOString();
 
     MDS.sql(`
         UPDATE devices 
-        SET status = 'offline'
-        WHERE last_sync < '${tenMin}' AND status = 'online'
+        SET status='offline'
+        WHERE last_sync < '${ten}' AND status='online'
     `);
 }
 
 
-// ======================
+// ============================
 // READY
-// ======================
-
-MDS.log("📡 Trackium Service Ready (HTTP POST mode)");
+// ============================
+MDS.log("📡 Trackium Service Ready (RPC mode)");
