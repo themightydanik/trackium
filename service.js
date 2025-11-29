@@ -1,4 +1,4 @@
-// service.js — FIXED VERSION (inbound RPC + correct syntax)
+// service.js — HTTP POST inbound version
 
 MDS.load('./assets/js/database.js');
 
@@ -14,14 +14,16 @@ let locationServiceStatus = {
 // ======================
 MDS.init(function(msg) {
 
-    // === INBOUND (Android → MiniDapp) ===
-    if (msg.event === "inbound") {
+    // === HTTP POST INBOUND (Android → MiniDapp) ===
+    if (msg.event === "inboundPOST") {
+        // msg.data = строка JSON
+        MDS.log("📨 HTTP POST inbound: " + msg.data);
+
         try {
-            let data = JSON.parse(msg.data);
-            MDS.log("📨 INBOUND from Android: " + JSON.stringify(data));
-            processInboundLocation(data);
+            const body = JSON.parse(msg.data);
+            processInboundLocation(body);
         } catch (e) {
-            MDS.log("❌ INBOUND JSON parse error: " + e);
+            MDS.log("❌ inboundPOST JSON parse error: " + e);
         }
         return;
     }
@@ -42,32 +44,28 @@ MDS.init(function(msg) {
         return;
     }
 
-    // === BLOCK ===
     if (msg.event === "NEWBLOCK") {
         MDS.log("⛓️ New block: " + msg.data.txpow.header.block);
         return;
     }
 
-    // === BALANCE ===
     if (msg.event === "NEWBALANCE") {
         MDS.log("💰 Balance updated");
         return;
     }
 
-    // === MAINTENANCE ===
     if (msg.event === "MDS_TIMER_1HOUR") {
         MDS.log("🧹 Hourly maintenance");
         performMaintenance();
         return;
     }
 
-    // === SHUTDOWN ===
     if (msg.event === "MDS_SHUTDOWN") {
         MDS.log("🛑 Trackium shutting down");
         updateServiceStatus(false);
         return;
     }
-}); // ← ← ← **ЭТОЙ СКОБКИ У ТЕБЯ НЕ БЫЛО**
+});
 
 
 // ======================
@@ -90,20 +88,19 @@ function updateServiceStatus(active) {
 // ======================
 
 async function processInboundLocation(update) {
-
     const { deviceId, latitude, longitude, accuracy } = update;
 
     MDS.log(`📍 Processing inbound location for ${deviceId}`);
 
     // 1) Save to DB
-    const query = `
+    const sql = `
         INSERT INTO movements 
             (device_id, latitude, longitude, altitude, speed, accuracy)
         VALUES 
             ('${deviceId}', ${latitude}, ${longitude}, 0, 0, ${accuracy});
     `;
 
-    let res = await MDS.sql(query);
+    let res = await MDS.sql(sql);
     if (!res.status) {
         MDS.log("❌ DB insert failed: " + res.error);
         return;
@@ -111,7 +108,6 @@ async function processInboundLocation(update) {
 
     MDS.log(`✅ Movement saved for ${deviceId}`);
 
-    // Update device record
     await MDS.sql(`
         UPDATE devices SET 
             status='online', 
@@ -119,10 +115,10 @@ async function processInboundLocation(update) {
         WHERE device_id='${deviceId}'
     `);
 
-    // 2) Blockchain
+    // 2) Blockchain (optional)
     sendToBlockchain(update);
 
-    // 3) Update local state
+    // 3) Update MiniDapp local status
     locationServiceStatus.active = true;
     locationServiceStatus.lastUpdate = new Date().toISOString();
     locationServiceStatus.connectedDevices.add(deviceId);
@@ -136,7 +132,6 @@ async function processInboundLocation(update) {
 // ======================
 
 function sendToBlockchain(update) {
-
     const payload = JSON.stringify({
         deviceId: update.deviceId,
         lat: update.latitude,
@@ -146,26 +141,18 @@ function sendToBlockchain(update) {
         ts: Date.now()
     });
 
-    const clean = payload.replace(/"/g, '\\"');
+    const escaped = payload.replace(/"/g, '\\"');
 
     MDS.log("🔗 Creating blockchain transaction...");
 
     MDS.cmd("txncreate id:trackium_tx", function() {
-
-        MDS.cmd(`txnadddata id:trackium_tx data:"${clean}"`, function() {
-
+        MDS.cmd(`txnadddata id:trackium_tx data:"${escaped}"`, function() {
             MDS.cmd("txnsign id:trackium_tx", function() {
-
                 MDS.cmd("txnpost id:trackium_tx", function(res) {
-                    if (res.status) {
-                        MDS.log("✅ Data posted to Minima blockchain");
-                    } else {
-                        MDS.log("❌ Blockchain post failed: " + res.message);
-                    }
+                    if (res.status) MDS.log("✅ Blockchain TX posted");
+                    else MDS.log("❌ Blockchain TX failed: " + res.message);
                 });
-
             });
-
         });
     });
 }
@@ -177,8 +164,6 @@ function sendToBlockchain(update) {
 
 function performMaintenance() {
     if (!db) return;
-
-    MDS.log("🔧 Performing maintenance...");
 
     const thirty = new Date(Date.now() - 30*24*60*60*1000).toISOString();
 
@@ -198,4 +183,4 @@ function performMaintenance() {
 // READY
 // ======================
 
-MDS.log("📡 Trackium Service Ready");
+MDS.log("📡 Trackium Service Ready (HTTP POST mode)");
