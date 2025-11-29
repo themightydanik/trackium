@@ -108,12 +108,36 @@ async function processInboundLocation(update) {
 
     MDS.log(`✅ Movement saved for ${deviceId}`);
 
-    await MDS.sql(`
-        UPDATE devices SET 
-            status='online', 
-            last_sync=CURRENT_TIMESTAMP 
-        WHERE device_id='${deviceId}'
-    `);
+// === UPDATE device_registry (если нового устройства нет) ===
+await MDS.sql(`
+    INSERT OR IGNORE INTO device_registry (id, name, description, type)
+    VALUES ('${deviceId}', '${deviceId}', 'Tracked device', 'tracker')
+`);
+
+// === UPDATE device_states (UI использует ЭТУ таблицу!) ===
+await MDS.sql(`
+    INSERT OR REPLACE INTO device_states (id, status, battery, last_sync)
+    VALUES (
+        '${deviceId}',
+        'online',
+        ${update.battery || 0},
+        CURRENT_TIMESTAMP
+    )
+`);
+
+// === UPDATE device_metadata (extended info) ===
+const metadata = {
+    accuracy: update.accuracy,
+    source: update.source || "gps",
+    last_lat: update.latitude,
+    last_lon: update.longitude,
+    last_update: Date.now()
+};
+
+await MDS.sql(`
+    INSERT OR REPLACE INTO device_metadata (id, meta)
+    VALUES ('${deviceId}', '${JSON.stringify(metadata).replace(/'/g, "''")}')
+`);
 
     // 2) Blockchain (optional)
     sendToBlockchain(update);
