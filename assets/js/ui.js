@@ -144,7 +144,7 @@ devices.forEach(device => {
 
   // Отобразить детали устройства
 renderDeviceDetail(device, position, movements, proofs) {
-  // ✅ ИСПРАВЛЕНИЕ: Нормализовать данные устройства
+ // ✅ НОРМАЛИЗАЦИЯ ДАННЫХ
   this.currentDeviceId = device.device_id || device.DEVICE_ID || device.deviceId;
 
   const updateEl = (id, value) => {
@@ -152,8 +152,7 @@ renderDeviceDetail(device, position, movements, proofs) {
     if (el) el.textContent = value || 'Unknown';
   };
 
-  // ✅ ИСПРАВЛЕНИЕ: Извлечь данные с поддержкой всех форматов
-  const deviceName = device.device_name || device.DEVICE_NAME || device.deviceName || 'Unknown Device';
+  const deviceName = device.device_name || device.DEVICE_NAME || device.deviceName || 'Unknown';
   const deviceId = device.device_id || device.DEVICE_ID || device.deviceId || 'Unknown';
   const deviceType = device.device_type || device.DEVICE_TYPE || device.deviceType || 'unknown';
   const status = device.status || device.STATUS || 'offline';
@@ -162,7 +161,6 @@ renderDeviceDetail(device, position, movements, proofs) {
   const lastSync = device.last_sync || device.LAST_SYNC || device.lastSync;
   const locked = device.locked || device.LOCKED;
 
-  // ✅ Обновить элементы (с fallback значениями)
   updateEl('device-detail-name', deviceName);
   updateEl('detail-device-id', deviceId);
   updateEl('detail-device-type', deviceType.toUpperCase());
@@ -170,7 +168,6 @@ renderDeviceDetail(device, position, movements, proofs) {
   updateEl('detail-device-battery', `${battery}%`);
   updateEl('detail-device-gps', gpsSignal ? '✅ Strong' : '⚠️ Weak');
   
-  // ✅ Безопасная обработка даты
   try {
     const syncDate = new Date(lastSync || Date.now());
     updateEl('detail-device-sync', isNaN(syncDate.getTime()) ? 'Never' : syncDate.toLocaleString());
