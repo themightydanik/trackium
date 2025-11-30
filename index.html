@@ -66,25 +66,44 @@
 
 <!-- Life Dashboard -->
 <div id="life-dashboard" class="screen">
-  <header class="app-header">
-    <div class="header-left">
-      <div class="logo-small">🎯</div>
-      <h2>Trackium Life</h2>
+<!-- Header -->
+<header class="app-header">
+  <div class="header-left">
+    <div class="logo-container">
+      <!-- ✅ LOGO -->
+      <img src="./assets/img/logo.png" alt="Trackium" class="logo-image" id="trackium-logo" onerror="this.style.display='none'">
+      <h2 class="logo-text">Trackium</h2>
     </div>
-    <div class="header-right">
-      <button class="icon-btn" onclick="showScreen('life-profile')">👤</button>
-      <button class="icon-btn" onclick="showScreen('life-achievements')">🏆</button>
-      <button class="icon-btn" onclick="switchMode()">🔄</button>
+    
+    <!-- ✅ BLOCK INDICATOR -->
+    <div class="block-indicator">
+      <span class="block-indicator-icon">⛓️</span>
+      <span class="block-indicator-text" id="current-block">Block 0</span>
     </div>
-  </header>
+  </div>
+  
+  <div class="header-right">
+    <button class="icon-btn" onclick="showScreen('mode-selector')" title="Switch Mode">🔄</button>
+    <button class="icon-btn" onclick="showScreen('settings')" title="Settings">⚙️</button>
+  </div>
+</header>
+
+    <!-- Life Hero -->
+<div class="life-hero">
+  <h2>🎯 Set Goals. Achieve. Get Rewarded!</h2>
+  <p>
+    Connect real-world locations with your personal ambitions. 
+    Complete location-based goals and earn Minima rewards while leveling up.
+  </p>
+</div>
 
   <div class="life-content">
     <!-- User Profile Card -->
     <div class="life-profile-card">
       <div class="avatar-container">
-        <div class="avatar-display" id="life-avatar">
-          <span id="avatar-emoji">🧑</span>
-        </div>
+<div class="avatar-display" id="life-avatar" style="background: #00A86B;">
+  <span id="avatar-emoji">🐶</span>
+</div>
         <button class="avatar-edit-btn" onclick="showAvatarCustomizer()">✏️</button>
       </div>
       
@@ -95,6 +114,26 @@
           <span>Level <span id="life-level">1</span></span>
         </div>
       </div>
+
+        <!-- ===== HERO SECTION (только для dashboard) ===== -->
+<section class="hero-section" id="hero-section" style="display: none;">
+  <div class="hero-content">
+    <h1 class="hero-title">Cargo Tracking and Security System</h1>
+    <p class="hero-description">
+      Trackium brings trust and real-time visibility to global logistics. 
+      Built on Minima blockchain, our solution ensures every shipment is verifiable, 
+      traceable, and tamper-proof — from origin to destination.
+    </p>
+    <div class="hero-actions">
+      <button class="hero-btn primary" onclick="showScreen('devices')">
+        📱 My Devices
+      </button>
+      <button class="hero-btn secondary" onclick="selectMode('life')">
+        🎯 Try Trackium Life
+      </button>
+    </div>
+  </div>
+</section>
       
       <div class="stats-row">
         <div class="stat-item">
@@ -3128,6 +3167,42 @@ function testLocationAPI() {
     </div>
 </div>
 
+        <!-- RPC Section -->
+<div class="setting-group rpc-section">
+  <h3>🔌 RPC Access</h3>
+  <p style="color: var(--text-secondary); margin-bottom: 15px;">
+    Enable RPC to allow external services to communicate with your node.
+  </p>
+  
+  <div class="rpc-status">
+    <div class="rpc-indicator" id="rpc-indicator"></div>
+    <span id="rpc-status-text">Checking...</span>
+  </div>
+  
+  <button class="primary-btn" id="rpc-enable-btn" onclick="enableRPC()">
+    Enable RPC
+  </button>
+</div>
+
+<!-- ✅ SIMULATOR CONTROLS -->
+<div class="setting-group">
+  <h3>🎮 Simulation Mode</h3>
+  <p style="color: var(--text-secondary); margin-bottom: 15px;">
+    Generate fake GPS updates for testing (updates every 5 minutes)
+  </p>
+  
+  <div class="setting-item">
+    <label>Enable Simulator</label>
+    <input type="checkbox" id="simulator-enabled" class="toggle" onchange="toggleSimulator(this.checked)">
+  </div>
+  
+  <div id="simulator-controls" style="display: none; margin-top: 15px;">
+    <button class="secondary-btn" onclick="forceSimulatorUpdate()">
+      🔄 Force Update Now
+    </button>
+  </div>
+</div>
+
         
     </div>
 
@@ -3259,6 +3334,53 @@ function copyHost() {
 }
 </script>
 
+    <!-- ===== FOOTER ===== -->
+<footer class="app-footer">
+  <div class="footer-main">
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <img src="./assets/img/logo.png" alt="Trackium">
+        <h3>Trackium</h3>
+      </div>
+      <p class="footer-tagline">
+        Decentralized IoT & Logistics Security Layer. 
+        Secure cargo tracking with blockchain proof-of-movement.
+      </p>
+    </div>
+    
+    <div class="footer-column">
+      <h4>Navigation</h4>
+      <div class="footer-links">
+        <a class="footer-link" onclick="showScreen('dashboard')">Dashboard</a>
+        <a class="footer-link" onclick="showScreen('devices')">My Devices</a>
+        <a class="footer-link" onclick="showScreen('add-device')">Add Device</a>
+        <a class="footer-link" onclick="showScreen('shipments')">Shipments</a>
+        <a class="footer-link" onclick="showScreen('settings')">Settings</a>
+      </div>
+    </div>
+    
+    <div class="footer-column">
+      <h4>Modes</h4>
+      <div class="footer-links">
+        <a class="footer-link" onclick="selectMode('cargo')">Trackium Cargo</a>
+        <a class="footer-link" onclick="selectMode('life')">Trackium Life</a>
+      </div>
+    </div>
+  </div>
+  
+  <div class="footer-bottom">
+    <div class="footer-bottom-content">
+      <div class="footer-powered">
+        Powered by <a href="https://minima.global" target="_blank">Minima</a>
+      </div>
+      <div class="footer-social">
+        <a href="https://x.com/trackium" target="_blank" class="social-link">𝕏</a>
+        <a href="https://t.me/trackium" target="_blank" class="social-link">📱</a>
+        <a href="https://trackium.tech" target="_blank" class="social-link">🌐</a>
+      </div>
+    </div>
+  </div>
+</footer>
 
 </body>
 </html>
