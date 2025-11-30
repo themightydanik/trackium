@@ -6,6 +6,7 @@ let deviceManager;
 let qrGenerator;
 let ui;
 let currentDeviceId = null;
+let simulator;
 
 // Инициализация приложения
 function initApp() {
@@ -106,6 +107,10 @@ async function onMDSReady() {
         }
       }, 100);
     }, 1000);
+
+    // 7. Simulator
+simulator = new LocationSimulator(db, deviceManager);
+console.log('✅ Simulator initialized');
     
   } catch (error) {
     console.error("❌ Initialization error:", error);
@@ -671,6 +676,129 @@ async function testLocationAPI() {
     );
   }
 }
+
+// ===== SIMULATOR CONTROLS =====
+function toggleSimulator(enabled) {
+  if (!simulator) return;
+  
+  if (enabled) {
+    simulator.start();
+    document.getElementById('simulator-controls').style.display = 'block';
+    ui.showNotification('Simulator enabled', 'success');
+  } else {
+    simulator.stop();
+    document.getElementById('simulator-controls').style.display = 'none';
+    ui.showNotification('Simulator disabled', 'info');
+  }
+  
+  // Сохранить в настройки
+  db.saveSetting('simulator_enabled', enabled);
+}
+
+function forceSimulatorUpdate() {
+  if (!simulator) return;
+  simulator.forceUpdate();
+}
+
+// ===== BLOCK UPDATER =====
+function updateCurrentBlock() {
+  MDS.cmd("status", (res) => {
+    if (res.status && res.response?.chain?.block) {
+      const blockEl = document.getElementById('current-block');
+      if (blockEl) {
+        blockEl.textContent = `Block ${res.response.chain.block}`;
+      }
+    }
+  });
+}
+
+setInterval(updateCurrentBlock, 30000);
+
+// ===== HERO VISIBILITY =====
+const originalShowScreen = window.showScreen;
+window.showScreen = function(screenId) {
+  if (originalShowScreen) originalShowScreen(screenId);
+  
+  const hero = document.getElementById('hero-section');
+  if (hero) {
+    hero.style.display = (screenId === 'dashboard') ? 'block' : 'none';
+  }
+};
+
+// ===== RPC FUNCTIONS =====
+async function enableRPC() {
+  const btn = document.getElementById('rpc-enable-btn');
+  const indicator = document.getElementById('rpc-indicator');
+  const statusText = document.getElementById('rpc-status-text');
+  
+  if (btn) btn.disabled = true;
+  if (statusText) statusText.textContent = 'Enabling...';
+  
+  try {
+    const res = await new Promise((resolve) => {
+      MDS.cmd("rpc enable:true", resolve);
+    });
+    
+    if (res.status) {
+      if (indicator) indicator.classList.add('active');
+      if (statusText) statusText.textContent = 'RPC Enabled ✅';
+      ui.showNotification('RPC enabled!', 'success');
+      
+      setTimeout(checkRPCStatus, 2000);
+    } else {
+      throw new Error(res.error || 'Failed');
+    }
+  } catch (error) {
+    if (statusText) statusText.textContent = 'Failed ❌';
+    ui.showNotification('RPC enable failed', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function checkRPCStatus() {
+  try {
+    const res = await new Promise((resolve) => {
+      MDS.cmd("rpc", resolve);
+    });
+    
+    const indicator = document.getElementById('rpc-indicator');
+    const statusText = document.getElementById('rpc-status-text');
+    
+    if (res.status && res.response?.enabled === true) {
+      if (indicator) indicator.classList.add('active');
+      if (statusText) statusText.textContent = 'RPC Enabled ✅';
+    } else {
+      if (indicator) indicator.classList.remove('active');
+      if (statusText) statusText.textContent = 'RPC Disabled';
+    }
+  } catch (error) {
+    console.error('RPC check error:', error);
+  }
+}
+
+// Exports
+window.toggleSimulator = toggleSimulator;
+window.forceSimulatorUpdate = forceSimulatorUpdate;
+window.enableRPC = enableRPC;
+window.checkRPCStatus = checkRPCStatus;
+window.updateCurrentBlock = updateCurrentBlock;
+
+// Initial
+document.addEventListener('DOMContentLoaded', () => {
+  updateCurrentBlock();
+  
+  // Load simulator state
+  if (db) {
+    db.getSetting('simulator_enabled', (enabled) => {
+      if (enabled) {
+        const checkbox = document.getElementById('simulator-enabled');
+        if (checkbox) checkbox.checked = true;
+        toggleSimulator(true);
+      }
+    });
+  }
+});
 
 // Export functions
 globalThis.checkLocationServiceStatus = checkLocationServiceStatus;
