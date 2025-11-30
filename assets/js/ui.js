@@ -144,31 +144,33 @@ devices.forEach(device => {
 
   // Отобразить детали устройства
 renderDeviceDetail(device, position, movements, proofs) {
-  // Нормализовать данные устройства с поддержкой UPPERCASE
+  // ✅ ИСПРАВЛЕНИЕ: Нормализовать данные устройства
   this.currentDeviceId = device.device_id || device.DEVICE_ID || device.deviceId;
 
   const updateEl = (id, value) => {
     const el = document.getElementById(id);
-    if (el) el.textContent = value;
+    if (el) el.textContent = value || 'Unknown';
   };
 
-  // Извлечь данные с поддержкой всех вариантов
+  // ✅ ИСПРАВЛЕНИЕ: Извлечь данные с поддержкой всех форматов
   const deviceName = device.device_name || device.DEVICE_NAME || device.deviceName || 'Unknown Device';
   const deviceId = device.device_id || device.DEVICE_ID || device.deviceId || 'Unknown';
   const deviceType = device.device_type || device.DEVICE_TYPE || device.deviceType || 'unknown';
   const status = device.status || device.STATUS || 'offline';
   const battery = device.battery || device.BATTERY || 0;
-  const gpsSignal = device.gps_signal || device.GPS_SIGNAL || device.gpsSignal;
+  const gpsSignal = device.signal_strength || device.SIGNAL_STRENGTH || device.signalStrength;
   const lastSync = device.last_sync || device.LAST_SYNC || device.lastSync;
   const locked = device.locked || device.LOCKED;
 
+  // ✅ Обновить элементы (с fallback значениями)
   updateEl('device-detail-name', deviceName);
   updateEl('detail-device-id', deviceId);
   updateEl('detail-device-type', deviceType.toUpperCase());
   updateEl('detail-device-status', status.toUpperCase());
   updateEl('detail-device-battery', `${battery}%`);
-  updateEl('detail-device-gps', gpsSignal ? '✅ Strong' : '❌ Weak');
+  updateEl('detail-device-gps', gpsSignal ? '✅ Strong' : '⚠️ Weak');
   
+  // ✅ Безопасная обработка даты
   try {
     const syncDate = new Date(lastSync || Date.now());
     updateEl('detail-device-sync', isNaN(syncDate.getTime()) ? 'Never' : syncDate.toLocaleString());
@@ -176,7 +178,7 @@ renderDeviceDetail(device, position, movements, proofs) {
     updateEl('detail-device-sync', 'Unknown');
   }
 
-  // Smart Lock контроли
+  // Smart Lock контроли (остальное без изменений)
   if (deviceType === 'smartlock' || deviceType === 'smartphone') {
     const lockControls = document.getElementById('lock-controls');
     if (lockControls) lockControls.style.display = 'block';
