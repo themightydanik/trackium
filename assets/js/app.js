@@ -92,21 +92,25 @@ async function onMDSReady() {
 
     
     // 6. Показать dashboard
-    setTimeout(() => {
-      console.log("🎉 Trackium ready!");
-      const loadingScreen = document.getElementById('loading-screen');
-      if (loadingScreen) loadingScreen.classList.remove('active');
-      ui.showScreen('dashboard');
-      
-      setTimeout(() => {
-        const dashboardScreen = document.getElementById('dashboard');
-        if (dashboardScreen && dashboardScreen.classList.contains('active')) {
-          console.log("✅ Dashboard is now visible");
-        } else {
-          console.error("❌ Dashboard failed to show!");
-        }
-      }, 100);
-    }, 1000);
+setTimeout(() => {
+  console.log("🎉 Trackium ready!");
+  const loadingScreen = document.getElementById('loading-screen');
+  if (loadingScreen) loadingScreen.classList.remove('active');
+  
+  // Проверить сохраненный режим
+  const savedMode = localStorage.getItem('trackium_mode');
+  
+  if (!savedMode) {
+    // Первый раз — показать выбор режима
+    ui.showScreen('mode-selector');
+  } else if (savedMode === 'life') {
+    // Life режим
+    initLifeMode();
+  } else {
+    // Cargo режим (по умолчанию)
+    ui.showScreen('dashboard');
+  }
+}, 1000);
 
     // 7. Simulator
 simulator = new LocationSimulator(db, deviceManager);
