@@ -367,6 +367,13 @@ body {
   gap: 10px;
 }
 
+#add-device .primary-btn {
+    max-width: 300px;
+    display: block;
+    margin: 0 auto;
+}
+
+
 .primary-btn:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
