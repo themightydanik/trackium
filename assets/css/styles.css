@@ -926,7 +926,7 @@ body {
   color: white;
 }
 
-#life-dashboard .screen{
+#life-dashboard.screen{
 overflow-y: hidden !important;
 }
 
