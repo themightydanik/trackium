@@ -930,6 +930,10 @@ body {
 overflow-y: hidden !important;
 }
 
+#life-dashboard.screen.active{
+overflow-y: hidden !important;
+}
+
 /* ===== FOOTER ===== */
 .app-footer {
   background: var(--bg-medium);
