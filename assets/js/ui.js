@@ -142,67 +142,92 @@ devices.forEach(device => {
   });
 }
 
-  // Отобразить детали устройства
+// Отобразить детали устройства
 renderDeviceDetail(device, position, movements, proofs) {
- // ✅ НОРМАЛИЗАЦИЯ ДАННЫХ
-  this.currentDeviceId = device.device_id || device.DEVICE_ID || device.deviceId;
+    // Сохраняем текущий ID
+    this.currentDeviceId = device.device_id || device.DEVICE_ID || device.deviceId;
 
-  const updateEl = (id, value) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = value || 'Unknown';
-  };
+    // =============================
+    // 🔒 Безопасная нормализация
+    // =============================
+    const safeDevice = {
+        device_id: device.device_id || device.DEVICE_ID || device.deviceId || "Unknown",
+        device_name: device.device_name || device.DEVICE_NAME || device.deviceName || "Unknown Device",
+        device_type: device.device_type || device.DEVICE_TYPE || device.deviceType || "tracker",
+        status: device.status || device.STATUS || "offline",
+        battery: device.battery || device.BATTERY || 100,
+        signal_strength: device.signal_strength || device.SIGNAL_STRENGTH || device.signalStrength || null,
+        last_sync: device.last_sync || device.LAST_SYNC || device.lastSync || new Date().toISOString(),
+        locked: device.locked || device.LOCKED || false
+    };
 
-  const deviceName = device.device_name || device.DEVICE_NAME || device.deviceName || 'Unknown';
-  const deviceId = device.device_id || device.DEVICE_ID || device.deviceId || 'Unknown';
-  const deviceType = device.device_type || device.DEVICE_TYPE || device.deviceType || 'unknown';
-  const status = device.status || device.STATUS || 'offline';
-  const battery = device.battery || device.BATTERY || 0;
-  const gpsSignal = device.signal_strength || device.SIGNAL_STRENGTH || device.signalStrength;
-  const lastSync = device.last_sync || device.LAST_SYNC || device.lastSync;
-  const locked = device.locked || device.LOCKED;
+    const updateEl = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value ?? "Unknown";
+    };
 
-  updateEl('device-detail-name', deviceName);
-  updateEl('detail-device-id', deviceId);
-  updateEl('detail-device-type', deviceType.toUpperCase());
-  updateEl('detail-device-status', status.toUpperCase());
-  updateEl('detail-device-battery', `${battery}%`);
-  updateEl('detail-device-gps', gpsSignal ? '✅ Strong' : '⚠️ Weak');
-  
-  try {
-    const syncDate = new Date(lastSync || Date.now());
-    updateEl('detail-device-sync', isNaN(syncDate.getTime()) ? 'Never' : syncDate.toLocaleString());
-  } catch (e) {
-    updateEl('detail-device-sync', 'Unknown');
-  }
+    // =============================
+    // 📌 Заполняем UI безопасными значениями
+    ==============================
+    updateEl("device-detail-name", safeDevice.device_name);
+    updateEl("detail-device-id", safeDevice.device_id);
+    updateEl("detail-device-type", safeDevice.device_type.toUpperCase());
+    updateEl("detail-device-status", safeDevice.status.toUpperCase());
+    updateEl("detail-device-battery", `${safeDevice.battery}%`);
+    updateEl(
+        "detail-device-gps",
+        safeDevice.signal_strength ? "✅ Strong" : "⚠️ Weak"
+    );
 
-  // Smart Lock контроли (остальное без изменений)
-  if (deviceType === 'smartlock' || deviceType === 'smartphone') {
-    const lockControls = document.getElementById('lock-controls');
-    if (lockControls) lockControls.style.display = 'block';
-    
-    const lockIcon = document.getElementById('lock-icon');
-    const lockText = document.getElementById('lock-status-text');
-    
-    if (lockIcon && lockText) {
-      if (locked) {
-        lockIcon.textContent = '🔒';
-        lockText.textContent = 'Locked';
-      } else {
-        lockIcon.textContent = '🔓';
-        lockText.textContent = 'Unlocked';
-      }
+    // Last sync — с защитой от ошибочных дат
+    try {
+        const syncDate = new Date(safeDevice.last_sync);
+        updateEl(
+            "detail-device-sync",
+            isNaN(syncDate.getTime()) ? "Never" : syncDate.toLocaleString()
+        );
+    } catch {
+        updateEl("detail-device-sync", "Unknown");
     }
-  } else {
-    const lockControls = document.getElementById('lock-controls');
-    if (lockControls) lockControls.style.display = 'none';
-  }
 
-  // История движений
-  this.renderMovementHistory(movements);
+    // =============================
+    // 🔓 Smart Lock / Smartphone controls
+    // =============================
+    const lockControls = document.getElementById("lock-controls");
 
-  // Blockchain proofs
-  this.renderBlockchainProofs(proofs);
+    if (
+        safeDevice.device_type === "smartlock" ||
+        safeDevice.device_type === "smartphone"
+    ) {
+        if (lockControls) lockControls.style.display = "block";
+
+        const lockIcon = document.getElementById("lock-icon");
+        const lockText = document.getElementById("lock-status-text");
+
+        if (lockIcon && lockText) {
+            if (safeDevice.locked) {
+                lockIcon.textContent = "🔒";
+                lockText.textContent = "Locked";
+            } else {
+                lockIcon.textContent = "🔓";
+                lockText.textContent = "Unlocked";
+            }
+        }
+    } else {
+        if (lockControls) lockControls.style.display = "none";
+    }
+
+    // =============================
+    // 📍 История движений
+    // =============================
+    this.renderMovementHistory(movements);
+
+    // =============================
+    // 🧾 Blockchain proofs
+    // =============================
+    this.renderBlockchainProofs(proofs);
 }
+
 
   // Отобразить историю движений
   renderMovementHistory(movements) {
