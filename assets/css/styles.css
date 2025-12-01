@@ -207,7 +207,7 @@ body {
 .stat-value {
   font-size: 32px;
   font-weight: 700;
-  color: var(--primary-blue);
+  color: #eef3ff;
 }
 
 #life-total-rewards .stat-value{
