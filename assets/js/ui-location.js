@@ -62,6 +62,16 @@ async function renderPositionWithLocation(position, elementId) {
     console.warn('⚠️ Element not found:', elementId);
     return;
   }
+
+   if (!position || typeof position.latitude !== 'number') {
+    coordsEl.innerHTML = `
+      <div style="text-align: center; padding: 20px;">
+        <span style="font-size: 48px;">❌</span>
+        <p style="margin: 10px 0; color: var(--danger-red);">Invalid position data</p>
+      </div>
+    `;
+    return;
+  }
   
   // Если нет позиции - показать ожидание
   if (!position) {
@@ -85,7 +95,7 @@ async function renderPositionWithLocation(position, elementId) {
     <div style="text-align: center; padding: 20px;">
       <span style="font-size: 48px;">📍</span>
       <p style="font-size: 16px; font-weight: bold; margin: 10px 0;">
-        ${position.latitude.toFixed(6)}°, ${position.longitude.toFixed(6)}°
+        ${(position.latitude || 0).toFixed(6)}°, ${(position.longitude || 0).toFixed(6)}°
       </p>
       <p style="color: var(--text-secondary); font-size: 14px;">
         <span class="loading-spinner" style="display: inline-block; width: 12px; height: 12px; margin-right: 5px;"></span>
