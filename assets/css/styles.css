@@ -1151,7 +1151,11 @@ overflow-y: hidden !important;
 .leaflet-container {
     background: #ddd;
     outline-offset: 1px;
-    min-height: 300px;
+    min-height: 300px !important;
+}
+
+#device-map .map-container.leaflet-container{
+  min-height: 300px !important;
 }
 
 /* ===== RESPONSIVE ===== */
