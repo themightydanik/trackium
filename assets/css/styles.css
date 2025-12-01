@@ -729,7 +729,7 @@ body {
 /* Все экраны по умолчанию скрыты */
 .screen {
   display: none !important;
-  position: fixed;
+  position: unset;
   top: 0;
   left: 0;
   width: 100%;
