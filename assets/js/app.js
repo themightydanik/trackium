@@ -101,13 +101,12 @@ setTimeout(() => {
   const savedMode = localStorage.getItem('trackium_mode');
   
   if (!savedMode) {
-    // Первый раз — показать выбор режима
-    ui.showScreen('mode-selector');
+    // ✅ ИСПРАВЛЕНИЕ: По умолчанию сразу Cargo режим
+    localStorage.setItem('trackium_mode', 'cargo');
+    ui.showScreen('dashboard');
   } else if (savedMode === 'life') {
-    // Life режим
     initLifeMode();
   } else {
-    // Cargo режим (по умолчанию)
     ui.showScreen('dashboard');
   }
 }, 1000);
