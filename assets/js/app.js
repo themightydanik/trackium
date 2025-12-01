@@ -364,6 +364,19 @@ function refreshDevicePosition(deviceId) {
     if (position && typeof renderPositionWithLocation === 'function') {
       await renderPositionWithLocation(position, 'device-coordinates');
     }
+
+    // 🗺️ НОВОЕ: Обновить карту
+    if (window.mapManager && position) {
+      mapManager.updateDevicePosition(
+        position.latitude || position.LATITUDE,
+        position.longitude || position.LONGITUDE,
+        {
+          accuracy: position.accuracy || position.ACCURACY,
+          speed: position.speed || position.SPEED,
+          timestamp: position.recorded_at || position.RECORDED_AT
+        }
+      );
+    }
   });
 }
 
