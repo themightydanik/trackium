@@ -311,12 +311,16 @@ renderDeviceDetail(device, position, movements, proofs) {
       return;
     }
 
-    shipments.forEach(shipment => {
-      const device = devices.find(d => d.device_id === shipment.device_id);
+  shipments.forEach(shipment => {
+  const deviceId = shipment.device_id || shipment.DEVICE_ID;
+  const device = devices.find(d => 
+    (d.device_id || d.DEVICE_ID || d.deviceId) === deviceId
+  );
       const card = document.createElement('div');
       card.className = 'shipment-card';
 
-      const statusColor = shipment.status === 'in_transit' ? 'var(--primary-blue)' :
+      const status = (shipment.status || shipment.STATUS || 'pending').toLowerCase();
+const statusColor = status === 'in_transit' ? 'var(--primary-blue)' :
                          shipment.status === 'delivered' ? 'var(--success-green)' :
                          'var(--neutral-gray)';
 
@@ -326,7 +330,7 @@ renderDeviceDetail(device, position, movements, proofs) {
         <p><strong>Cargo:</strong> ${shipment.cargo_description}</p>
         <p><strong>From:</strong> ${shipment.origin}</p>
         <p><strong>To:</strong> ${shipment.destination}</p>
-        <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${shipment.status.toUpperCase()}</span></p>
+        <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${status.toUpperCase()}</span></p>
         <p><small>Expected: ${new Date(shipment.expected_delivery).toLocaleString()}</small></p>
       `;
 
