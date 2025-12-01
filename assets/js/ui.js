@@ -190,6 +190,54 @@ renderDeviceDetail(device, position, movements, proofs) {
         updateEl("detail-device-sync", "Unknown");
     }
 
+ // =============================
+// 🗺️ НОВОЕ: Инициализация карты
+// =============================
+setTimeout(() => {
+    if (!window.mapManager) {
+        window.mapManager = new MapManager();
+    }
+
+    const lat = position?.latitude || position?.LATITUDE || 50.4501;
+    const lng = position?.longitude || position?.LONGITUDE || 30.5234;
+
+    // Инициализировать карту
+    mapManager.initMap('device-map', lat, lng);
+
+    // НОРМАЛИЗУЕМ movements
+    const normalizedMovements = (movements || []).map(m => ({
+        latitude: m.latitude || m.LATITUDE,
+        longitude: m.longitude || m.LONGITUDE,
+        accuracy: m.accuracy || m.ACCURACY,
+        speed: m.speed || m.SPEED,
+        timestamp: m.timestamp || m.TIMESTAMP || m.recorded_at || m.RECORDED_AT
+    }));
+
+    // Показать маршрут если есть история
+    if (normalizedMovements.length > 1) {
+        mapManager.showRoute(normalizedMovements);
+    }
+
+    // Обновить текущую позицию
+    if (position) {
+        mapManager.updateDevicePosition(
+            lat,
+            lng,
+            {
+                accuracy: position.accuracy || position.ACCURACY,
+                speed: position.speed || position.SPEED,
+                timestamp:
+                    position.timestamp ||
+                    position.TIMESTAMP ||
+                    position.recorded_at ||
+                    position.RECORDED_AT
+            }
+        );
+    }
+
+}, 100);
+
+
     // =============================
     // 🔓 Smart Lock / Smartphone controls
     // =============================
