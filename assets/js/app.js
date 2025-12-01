@@ -753,7 +753,7 @@ async function enableRPC() {
       throw new Error(res.error || 'Failed');
     }
   } catch (error) {
-    if (statusText) statusText.textContent = 'Failed ❌';
+    if (statusText) statusText.textContent = '🛠 Confirm the action in Pending MiniDapp';
     ui.showNotification('RPC enable failed', 'error');
   } finally {
     if (btn) btn.disabled = false;
