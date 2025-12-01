@@ -18,7 +18,7 @@
 <script src="./assets/js/trackium-life.js"></script>
 <script src="./assets/js/device-registry.js"></script>
 <script src="./assets/js/simulator.js"></script>
-<script src="./assets/js/location-sync.js"></script>
+<!-- <script src="./assets/js/location-sync.js"></script> -->
 </head>
 <body>
 
@@ -115,26 +115,6 @@
           <span>Level <span id="life-level">1</span></span>
         </div>
       </div>
-
-        <!-- ===== HERO SECTION (только для dashboard) ===== -->
-<section class="hero-section" id="hero-section" style="display: none;">
-  <div class="hero-content">
-    <h1 class="hero-title">Cargo Tracking and Security System</h1>
-    <p class="hero-description">
-      Trackium brings trust and real-time visibility to global logistics. 
-      Built on Minima blockchain, our solution ensures every shipment is verifiable, 
-      traceable, and tamper-proof — from origin to destination.
-    </p>
-    <div class="hero-actions">
-      <button class="hero-btn primary" onclick="showScreen('devices')">
-        📱 My Devices
-      </button>
-      <button class="hero-btn secondary" onclick="selectMode('life')">
-        🎯 Try Trackium Life
-      </button>
-    </div>
-  </div>
-</section>
       
       <div class="stats-row">
         <div class="stat-item">
@@ -2326,6 +2306,26 @@ console.log('✅ Trackium Life UI loaded');
       <button class="icon-btn" onclick="showScreen('help')" title="Help">❓</button>
     </div>
   </header>
+
+            <!-- ===== HERO SECTION (только для dashboard) ===== -->
+<section class="hero-section" id="hero-section" style="display: none;">
+  <div class="hero-content">
+    <h1 class="hero-title">Cargo Tracking and Security System</h1>
+    <p class="hero-description">
+      Trackium brings trust and real-time visibility to global logistics. 
+      Built on Minima blockchain, our solution ensures every shipment is verifiable, 
+      traceable, and tamper-proof — from origin to destination.
+    </p>
+    <div class="hero-actions">
+      <button class="hero-btn primary" onclick="showScreen('devices')">
+        📱 My Devices
+      </button>
+      <button class="hero-btn secondary" onclick="selectMode('life')">
+        🎯 Try Trackium Life
+      </button>
+    </div>
+  </div>
+</section>
 
   <!-- Stats Cards -->
   <div class="stats-container">
