@@ -926,6 +926,10 @@ body {
   color: white;
 }
 
+#life-dashboard .screen{
+overflow-y: hidden !important;
+}
+
 /* ===== FOOTER ===== */
 .app-footer {
   background: var(--bg-medium);
