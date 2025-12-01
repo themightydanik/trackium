@@ -168,7 +168,7 @@ renderDeviceDetail(device, position, movements, proofs) {
 
     // =============================
     // 📌 Заполняем UI безопасными значениями
-    ==============================
+   // ==============================
     updateEl("device-detail-name", safeDevice.device_name);
     updateEl("detail-device-id", safeDevice.device_id);
     updateEl("detail-device-type", safeDevice.device_type.toUpperCase());
