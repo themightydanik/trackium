@@ -2449,13 +2449,13 @@ window.filterRecentActivity = filterRecentActivity;
         📥 Download Location Service
       </button>
       
-      <div style="display: flex; gap: 10px; margin-top: 10px;">
+      <!-- <div style="display: flex; gap: 10px; margin-top: 10px;">
         <button class="secondary-btn" onclick="checkLocationServiceStatus()" style="flex: 1;">
           🔄 Check Status
         </button>
 <button class="secondary-btn" onclick="testLocationAPI()" style="flex: 1;">
   🧪 Test Connection
-</button>
+</button> -->
       </div>
       
       <div id="location-service-status" style="margin-top: 15px; padding: 10px; background: var(--bg-light); border-radius: 6px; display: none;">
@@ -3113,11 +3113,15 @@ function testLocationAPI() {
                     <span class="info-value" id="node-balance">-</span>
                 </div>
             </div>
-        </div>
-
         <!-- ===== SYSTEM INFO (for Companion App setup) ===== -->
-<div id="system-info" style="margin-top: 30px; padding: 12px; border-radius: 10px;
-     background: #f3f3f3; font-family: monospace;">
+<div id="system-info" style="
+    margin-top: 20px;
+    margin-bottom: 20px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #1a1f34;
+    border: 1.5px solid #4b4d56;
+    font-family: monospace;">
 
     <h3 style="margin: 0 0 10px 0; font-size: 18px;">🔧 System Info</h3>
 
@@ -3169,6 +3173,10 @@ function testLocationAPI() {
     </button>
   </div>
 </div>
+            
+        </div>
+
+
 
         
     </div>
