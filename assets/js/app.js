@@ -593,7 +593,11 @@ function saveSettings() {
 }
 
 function loadAnalytics() {
-  ui.showNotification('Analytics feature coming soon!', 'info');
+  if (typeof window.loadAnalytics === 'function') {
+    window.loadAnalytics(); // Вызов из analytics.js
+  } else {
+    ui.showNotification('Analytics loading...', 'info');
+  }
 }
 
 function updateDeviceTypeInfo() {
