@@ -1148,6 +1148,12 @@ overflow-y: hidden !important;
   background: var(--bg-medium);
 }
 
+.leaflet-container {
+    background: #ddd;
+    outline-offset: 1px;
+    min-height: 300px;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
 
