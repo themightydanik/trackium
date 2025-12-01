@@ -1108,6 +1108,38 @@ body {
   background: #00A86B;
 }
 
+/* Map Container */
+
+.map-container {
+  height: 400px;
+  background: var(--bg-light);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  border: 2px solid var(--border-color);
+}
+
+#device-map {
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+}
+
+.map-placeholder {
+  display: none; /* Скрыть когда карта загружена */
+}
+
+/* Leaflet popup styling */
+.leaflet-popup-content-wrapper {
+  background: var(--bg-medium);
+  color: var(--text-primary);
+  border-radius: 8px;
+}
+
+.leaflet-popup-tip {
+  background: var(--bg-medium);
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .footer-main {
