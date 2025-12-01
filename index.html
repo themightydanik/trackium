@@ -2239,19 +2239,19 @@ function filterMapGoals(filter) {
 }
 
 // Initialize on screen show
-const originalShowScreen = window.showScreen;
-window.showScreen = function(screenId) {
-  originalShowScreen(screenId);
+// const originalShowScreen = window.showScreen;
+// window.showScreen = function(screenId) {
+//   originalShowScreen(screenId);
   
-  // Life Mode specific initializations
-  if (screenId === 'life-profile') {
-    loadProfileData();
-  } else if (screenId === 'life-achievements') {
-    loadAchievements();
-  } else if (screenId === 'life-goals') {
-    filterGoals();
-  }
-};
+//   // Life Mode specific initializations
+//   if (screenId === 'life-profile') {
+//     loadProfileData();
+//   } else if (screenId === 'life-achievements') {
+//     loadAchievements();
+//   } else if (screenId === 'life-goals') {
+//     filterGoals();
+//   }
+// };
 
 console.log('✅ Trackium Life UI loaded');
 </script>
