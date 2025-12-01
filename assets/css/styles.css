@@ -789,14 +789,14 @@ body {
 
 /* ===== BLOCK INDICATOR ===== */
 .block-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 24px;
-  background: var(--bg-light);
-  position: relative;
-  overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 24px;
+    background: #1a1f34;
+    position: relative;
+    overflow: unset;
 }
 
 .block-indicator::before {
