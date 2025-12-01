@@ -210,6 +210,10 @@ body {
   color: var(--primary-blue);
 }
 
+#life-total-rewards .stat-value{
+  color: #eef3ff !important;
+}
+
 .stat-label {
   font-size: 14px;
   color: var(--text-secondary);
