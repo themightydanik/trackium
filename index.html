@@ -63,11 +63,7 @@
   </div>
 </div>
 
-<!-- ========== TRACKIUM LIFE SCREENS ========== -->
-
-<!-- Life Dashboard -->
-<div id="life-dashboard" class="screen">
-<!-- Header -->
+    <!-- Header -->
 <header class="app-header">
   <div class="header-left">
     <div class="logo-container">
@@ -86,8 +82,14 @@
   <div class="header-right">
     <button class="icon-btn" onclick="showScreen('mode-selector')" title="Switch Mode">🔄</button>
     <button class="icon-btn" onclick="showScreen('settings')" title="Settings">⚙️</button>
+    <button class="icon-btn" onclick="showScreen('help')" title="Help">❓</button>
   </div>
 </header>
+
+<!-- ========== TRACKIUM LIFE SCREENS ========== -->
+
+<!-- Life Dashboard -->
+<div id="life-dashboard" class="screen">
 
     <!-- Life Hero -->
 <div class="life-hero">
@@ -178,7 +180,7 @@
 
       <!-- В dashboard, добавить после Quick Actions -->
 
-<div class="section" style="margin-top: 20px;">
+<!-- <div class="section" style="margin-top: 20px;">
   <h3 class="section-title">Mode Selection</h3>
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
     <div class="mode-card-small" onclick="selectMode('cargo')" style="cursor: pointer; padding: 20px; background: var(--bg-light); border: 2px solid var(--border-color); border-radius: 12px; text-align: center; transition: all 0.3s;">
@@ -193,7 +195,7 @@
       <p style="font-size: 12px; color: var(--text-secondary);">Personal goals & rewards</p>
     </div>
   </div>
-</div>
+</div> -->
 
     <!-- Active Goals -->
     <div class="section">
@@ -1384,6 +1386,8 @@ function selectMode(mode) {
   // Save mode preference
   localStorage.setItem('trackium_mode', mode);
   
+  document.getElementById('mode-selector')?.classList.remove('active');
+  
   if (mode === 'cargo') {
     showScreen('dashboard');
   } else {
@@ -2249,33 +2253,6 @@ window.showScreen = function(screenId) {
   }
 };
 
-// Check mode on app init
-document.addEventListener('DOMContentLoaded', function() {
-  const savedMode = localStorage.getItem('trackium_mode');
-  
-  if (!savedMode) {
-    // First time - show mode selector
-    setTimeout(() => {
-      const loadingScreen = document.getElementById('loading-screen');
-      if (loadingScreen) loadingScreen.classList.remove('active');
-      showScreen('mode-selector');
-    }, 2000);
-  } else if (savedMode === 'life') {
-    // Load life mode directly
-    setTimeout(() => {
-      const loadingScreen = document.getElementById('loading-screen');
-      if (loadingScreen) loadingScreen.classList.remove('active');
-      initLifeMode();
-    }, 2000);
-  }
-  
-  // Listen for category change to update reward
-  const categorySelect = document.getElementById('goal-category');
-  if (categorySelect) {
-    categorySelect.addEventListener('change', updateRewardPreview);
-  }
-});
-
 console.log('✅ Trackium Life UI loaded');
 </script>
     
@@ -2293,21 +2270,10 @@ console.log('✅ Trackium Life UI loaded');
     </div>
 
     <!-- Main Dashboard -->
-<div id="dashboard" class="screen">
-  <!-- Header -->
-  <header class="app-header">
-    <div class="header-left">
-      <div class="logo-small">📦</div>
-      <h2>Trackium</h2>
-    </div>
-    <div class="header-right">
-      <button class="icon-btn" onclick="showScreen('mode-selector')" title="Switch Mode">🔄</button>
-      <button class="icon-btn" onclick="showScreen('settings')" title="Settings">⚙️</button>
-      <button class="icon-btn" onclick="showScreen('help')" title="Help">❓</button>
-    </div>
-  </header>
+<div id="dashboard" class="screen active">
 
-            <!-- ===== HERO SECTION (только для dashboard) ===== -->
+
+    <!-- ===== HERO SECTION (только для dashboard) ===== -->
 <section class="hero-section" id="hero-section" style="display: none;">
   <div class="hero-content">
     <h1 class="hero-title">Cargo Tracking and Security System</h1>
