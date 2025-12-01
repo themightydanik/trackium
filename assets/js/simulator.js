@@ -103,96 +103,133 @@ class LocationSimulator {
     });
   }
 
-  /**
-   * Обновить позицию конкретного устройства
-   */
-  updateDevicePosition(deviceId) {
+/**
+ * Обновить позицию конкретного устройства (симуляция)
+ */
+updateDevicePosition(deviceId) {
     let pos = this.devicePositions.get(deviceId);
-    
+
     if (!pos) {
-      // Создать новую позицию если нет
-      const angle = Math.random() * 2 * Math.PI;
-      const distance = Math.random() * this.radius;
-      
-      pos = {
-        lat: this.centerLat + distance * Math.cos(angle),
-        lng: this.centerLng + distance * Math.sin(angle),
-        direction: Math.random() * 2 * Math.PI,
-        speed: 20 + Math.random() * 40
-      };
+        // Создать стартовую позицию
+        const angle = Math.random() * 2 * Math.PI;
+        const distance = Math.random() * this.radius;
+
+        pos = {
+            lat: this.centerLat + distance * Math.cos(angle),
+            lng: this.centerLng + distance * Math.sin(angle),
+            direction: Math.random() * 2 * Math.PI,
+            speed: 20 + Math.random() * 40
+        };
     }
-    
+
+    // =============================
     // Симулировать движение
-    const deltaTime = 5 * 60; // 5 минут в секундах
-    const speedMs = pos.speed / 3.6; // км/ч → м/с
-    const distanceM = speedMs * deltaTime; // метры
-    
-    // Конвертировать в градусы (приблизительно)
+    // =============================
+    const deltaTime = 5 * 60; // 5 минут
+    const speedMs = pos.speed / 3.6;
+    const distanceM = speedMs * deltaTime;
     const distanceDeg = distanceM / 111000;
-    
-    // Новая позиция
+
     pos.lat += distanceDeg * Math.cos(pos.direction);
     pos.lng += distanceDeg * Math.sin(pos.direction);
-    
-    // Случайное изменение направления (±30°)
+
     pos.direction += (Math.random() - 0.5) * Math.PI / 3;
-    
-    // Случайное изменение скорости (±10 km/h)
     pos.speed += (Math.random() - 0.5) * 20;
-    pos.speed = Math.max(10, Math.min(80, pos.speed)); // 10-80 km/h
-    
-    // Убедиться что не выходим за границы
+    pos.speed = Math.max(10, Math.min(80, pos.speed));
+
     const distFromCenter = this.calculateDistance(
-      this.centerLat, this.centerLng,
-      pos.lat, pos.lng
+        this.centerLat, this.centerLng,
+        pos.lat, pos.lng
     );
-    
+
     if (distFromCenter > this.radius * 111000) {
-      // Вернуть обратно к центру
-      pos.direction = Math.atan2(
-        this.centerLat - pos.lat,
-        this.centerLng - pos.lng
-      );
+        pos.direction = Math.atan2(
+            this.centerLat - pos.lat,
+            this.centerLng - pos.lng
+        );
     }
-    
-    // Сохранить обновленную позицию
+
+    // Сохранить обратно
     this.devicePositions.set(deviceId, pos);
-    
-    // Создать объект movement
+
+    // =============================
+    // Создать movement объект
+    // =============================
     const movement = {
-      deviceId: deviceId,
-      latitude: pos.lat,
-      longitude: pos.lng,
-      altitude: 180 + Math.random() * 20,
-      speed: speedMs,
-      accuracy: 5 + Math.random() * 10,
-      timestamp: new Date().toISOString()
+        deviceId: deviceId,
+        latitude: pos.lat,
+        longitude: pos.lng,
+        altitude: 180 + Math.random() * 20,
+        speed: speedMs,
+        accuracy: 5 + Math.random() * 10,
+        timestamp: new Date().toISOString()
     };
-    
- // Сохранить в БД
+
+    // =============================
+    // Сохранить в БД
+    // =============================
     this.db.addMovement(movement, (movementId) => {
-      if (movementId) {
-        console.log(`📍 Simulated movement for ${deviceId}:`, 
-          `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`);
-        
-        // Обновить статус устройства
-        this.db.updateDeviceStatus(deviceId, 'online');
-        this.db.updateDeviceBattery(deviceId, Math.max(0, 100 - Math.random() * 50));
-        
-        // Добавить событие
-        this.db.addEvent(deviceId, 'movement_detected', {
-          simulated: true,
-          lat: pos.lat,
-          lng: pos.lng
-        });
-        
-        // Обновить UI если это текущее устройство
-        if (window.currentDeviceId === deviceId) {
-          this.refreshDeviceUI(deviceId);
+        if (movementId) {
+            console.log(`📍 Simulated movement for ${deviceId}:`,
+                `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`);
+
+            // Обновить статус
+            this.db.updateDeviceStatus(deviceId, "online");
+            this.db.updateDeviceBattery(deviceId, Math.max(0, 100 - Math.random() * 50));
+
+            // Добавить событие
+            this.db.addEvent(deviceId, "movement_detected", {
+                simulated: true,
+                lat: pos.lat,
+                lng: pos.lng
+            });
+
+            // Обновить UI если это текущее устройство
+            if (window.currentDeviceId === deviceId) {
+                this.refreshDeviceUI(deviceId);
+            }
+
+            // =============================
+            // ⛓️ Создать blockchain-транзакцию (НОВОЕ)
+            // =============================
+            if (window.blockchain) {
+                setTimeout(() => {
+                    console.log("⛓️ Creating blockchain TX for simulated movement...");
+
+                    window.blockchain
+                        .submitProofOfMovement(deviceId, movement)
+                        .then(result => {
+                            if (result) {
+                                console.log("✅ Blockchain TX created:", result.txid);
+
+                                // Увеличить счетчик proof'ов
+                                const proofCounter = document.getElementById("verified-proofs");
+                                if (proofCounter) {
+                                    const current = parseInt(proofCounter.textContent) || 0;
+                                    proofCounter.textContent = current + 1;
+                                }
+
+                                // Добавить событие
+                                this.db.addEvent(deviceId, "proof_submitted", {
+                                    txid: result.txid,
+                                    simulated: true
+                                });
+
+                                // Показать уведомление в UI
+                                if (window.ui) {
+                                    window.ui.showNotification(
+                                        "Blockchain proof created!",
+                                        "success"
+                                    );
+                                }
+                            }
+                        });
+                }, 2000); // задержка 2 сек
+            }
         }
-      }
     });
-  }
+}
+
 
   /**
    * Принудительное обновление (кнопка "Force Update")
