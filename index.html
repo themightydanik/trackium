@@ -22,6 +22,29 @@
 </head>
 <body>
 
+        <!-- Header -->
+<header class="app-header">
+  <div class="header-left">
+    <div class="logo-container">
+      <!-- ✅ LOGO -->
+      <img src="./assets/img/logo.png" alt="Trackium" class="logo-image" id="trackium-logo" onerror="this.style.display='none'">
+      <h2 class="logo-text">Trackium</h2>
+    </div>
+    
+    <!-- ✅ BLOCK INDICATOR -->
+    <div class="block-indicator">
+      <span class="block-indicator-icon">⛓️</span>
+      <span class="block-indicator-text" id="current-block">Block 0</span>
+    </div>
+  </div>
+  
+  <div class="header-right">
+    <button class="icon-btn" onclick="showScreen('mode-selector')" title="Switch Mode">🔄</button>
+    <button class="icon-btn" onclick="showScreen('settings')" title="Settings">⚙️</button>
+    <button class="icon-btn" onclick="showScreen('help')" title="Help">❓</button>
+  </div>
+</header>
+
 <!-- Mode Selector (показывать после загрузки) -->
 <div id="mode-selector" class="screen">
   <div class="mode-selector-container">
@@ -62,29 +85,6 @@
     </div>
   </div>
 </div>
-
-    <!-- Header -->
-<header class="app-header">
-  <div class="header-left">
-    <div class="logo-container">
-      <!-- ✅ LOGO -->
-      <img src="./assets/img/logo.png" alt="Trackium" class="logo-image" id="trackium-logo" onerror="this.style.display='none'">
-      <h2 class="logo-text">Trackium</h2>
-    </div>
-    
-    <!-- ✅ BLOCK INDICATOR -->
-    <div class="block-indicator">
-      <span class="block-indicator-icon">⛓️</span>
-      <span class="block-indicator-text" id="current-block">Block 0</span>
-    </div>
-  </div>
-  
-  <div class="header-right">
-    <button class="icon-btn" onclick="showScreen('mode-selector')" title="Switch Mode">🔄</button>
-    <button class="icon-btn" onclick="showScreen('settings')" title="Settings">⚙️</button>
-    <button class="icon-btn" onclick="showScreen('help')" title="Help">❓</button>
-  </div>
-</header>
 
 <!-- ========== TRACKIUM LIFE SCREENS ========== -->
 
@@ -3188,7 +3188,53 @@ function testLocationAPI() {
         </div>
     </div>
 
+        <!-- ===== FOOTER ===== -->
+<footer class="app-footer">
+  <div class="footer-main">
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <img src="./assets/img/logo.png" alt="Trackium">
+        <h3>Trackium</h3>
+      </div>
+      <p class="footer-tagline">
+        Decentralized IoT & Logistics Security Layer. 
+        Secure cargo tracking with blockchain proof-of-movement.
+      </p>
+    </div>
     
+    <div class="footer-column">
+      <h4>Navigation</h4>
+      <div class="footer-links">
+        <a class="footer-link" onclick="showScreen('dashboard')">Dashboard</a>
+        <a class="footer-link" onclick="showScreen('devices')">My Devices</a>
+        <a class="footer-link" onclick="showScreen('add-device')">Add Device</a>
+        <a class="footer-link" onclick="showScreen('shipments')">Shipments</a>
+        <a class="footer-link" onclick="showScreen('settings')">Settings</a>
+      </div>
+    </div>
+    
+    <div class="footer-column">
+      <h4>Modes</h4>
+      <div class="footer-links">
+        <a class="footer-link" onclick="selectMode('cargo')">Trackium Cargo</a>
+        <a class="footer-link" onclick="selectMode('life')">Trackium Life</a>
+      </div>
+    </div>
+  </div>
+  
+  <div class="footer-bottom">
+    <div class="footer-bottom-content">
+      <div class="footer-powered">
+        Powered by <a href="https://minima.global" target="_blank">Minima</a>
+      </div>
+      <div class="footer-social">
+        <a href="https://x.com/trackium" target="_blank" class="social-link">𝕏</a>
+        <a href="https://t.me/trackium" target="_blank" class="social-link">📱</a>
+        <a href="https://trackium.tech" target="_blank" class="social-link">🌐</a>
+      </div>
+    </div>
+  </div>
+</footer>
 
     <!-- Scripts -->
     <script src="./assets/js/app.js"></script>
@@ -3300,54 +3346,6 @@ function copyHost() {
     MDS.log("Copied Host");
 }
 </script>
-
-    <!-- ===== FOOTER ===== -->
-<footer class="app-footer">
-  <div class="footer-main">
-    <div class="footer-brand">
-      <div class="footer-logo">
-        <img src="./assets/img/logo.png" alt="Trackium">
-        <h3>Trackium</h3>
-      </div>
-      <p class="footer-tagline">
-        Decentralized IoT & Logistics Security Layer. 
-        Secure cargo tracking with blockchain proof-of-movement.
-      </p>
-    </div>
-    
-    <div class="footer-column">
-      <h4>Navigation</h4>
-      <div class="footer-links">
-        <a class="footer-link" onclick="showScreen('dashboard')">Dashboard</a>
-        <a class="footer-link" onclick="showScreen('devices')">My Devices</a>
-        <a class="footer-link" onclick="showScreen('add-device')">Add Device</a>
-        <a class="footer-link" onclick="showScreen('shipments')">Shipments</a>
-        <a class="footer-link" onclick="showScreen('settings')">Settings</a>
-      </div>
-    </div>
-    
-    <div class="footer-column">
-      <h4>Modes</h4>
-      <div class="footer-links">
-        <a class="footer-link" onclick="selectMode('cargo')">Trackium Cargo</a>
-        <a class="footer-link" onclick="selectMode('life')">Trackium Life</a>
-      </div>
-    </div>
-  </div>
-  
-  <div class="footer-bottom">
-    <div class="footer-bottom-content">
-      <div class="footer-powered">
-        Powered by <a href="https://minima.global" target="_blank">Minima</a>
-      </div>
-      <div class="footer-social">
-        <a href="https://x.com/trackium" target="_blank" class="social-link">𝕏</a>
-        <a href="https://t.me/trackium" target="_blank" class="social-link">📱</a>
-        <a href="https://trackium.tech" target="_blank" class="social-link">🌐</a>
-      </div>
-    </div>
-  </div>
-</footer>
 
 </body>
 </html>
