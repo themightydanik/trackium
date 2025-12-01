@@ -1142,6 +1142,8 @@ body {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
+
+  
   .footer-main {
     grid-template-columns: 1fr;
   }
@@ -1153,4 +1155,23 @@ body {
   .hero-actions {
     flex-direction: column;
   }
+
+.logo-image {
+    height: 30px !important;
+    width: auto;
+}
+
+button.icon-btn:nth-child(3){
+display: none !important;
+}
+
+.block-indicator{
+margin-right: 10px !important;
+}
+
+.stat-value {
+    color: #ffffff !important;
+}
+
+  
 }
