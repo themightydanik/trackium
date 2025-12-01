@@ -1458,7 +1458,7 @@ function updateLifeUI(user) {
   document.getElementById('life-total-goals').textContent = user.total_goals;
   document.getElementById('life-completed-goals').textContent = user.completed_goals;
   document.getElementById('life-current-streak').textContent = user.current_streak;
-  document.getElementById('life-total-rewards').textContent = user.total_rewards.toFixed(2);
+  document.getElementById('life-total-rewards').textContent = (user.total_rewards || 0).toFixed(2);
   
   // Avatar
   selectedAvatarEmoji = user.avatar || '🧑';
@@ -1470,9 +1470,9 @@ function updateLifeUI(user) {
   const expForNext = lifeSystem.getExpForLevel(user.level + 1);
   const progress = (currentExp / expForNext) * 100;
   
-  document.getElementById('current-exp').textContent = currentExp;
-  document.getElementById('exp-for-next-level').textContent = expForNext;
-  document.getElementById('exp-progress').style.width = progress + '%';
+document.getElementById('current-exp').textContent = currentExp || 0;
+document.getElementById('exp-for-next-level').textContent = expForNext || 150;
+document.getElementById('exp-progress').style.width = (progress || 0) + '%';
 }
 
 // Update Avatar Display
