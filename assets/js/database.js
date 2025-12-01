@@ -258,76 +258,122 @@
     });
   };
 
-  TrackiumDatabase.prototype.getDevices = function(callback) {
-    MDS.sql("SELECT * FROM devices ORDER BY created_at DESC", function(res) {
-      console.log('📊 Raw devices from DB:', res.rows);
-      
-      var devices = (res.rows || []).map(function(device) {
-        return {
-          device_id: device.device_id || device.DEVICE_ID,
-          device_name: device.device_name || device.DEVICE_NAME,
-          device_type: device.device_type || device.DEVICE_TYPE,
-          transport_type: device.transport_type || device.TRANSPORT_TYPE,
-          category: device.category || device.CATEGORY,
-          location: device.location || device.LOCATION,
-          status: device.status || device.STATUS,
-          battery: device.battery || device.BATTERY,
-          signal_strength: device.signal_strength || device.SIGNAL_STRENGTH,
-          locked: device.locked || device.LOCKED,
-          blockchain_proof: device.blockchain_proof || device.BLOCKCHAIN_PROOF,
-          created_at: device.created_at || device.CREATED_AT,
-          last_sync: device.last_sync || device.LAST_SYNC,
-          
-          // CamelCase aliases
-          deviceId: device.device_id || device.DEVICE_ID,
-          deviceName: device.device_name || device.DEVICE_NAME,
-          deviceType: device.device_type || device.DEVICE_TYPE,
-          transportType: device.transport_type || device.TRANSPORT_TYPE,
-          signalStrength: device.signal_strength || device.SIGNAL_STRENGTH,
-          blockchainProof: device.blockchain_proof || device.BLOCKCHAIN_PROOF,
-          createdAt: device.created_at || device.CREATED_AT,
-          lastSync: device.last_sync || device.LAST_SYNC
-        };
-      });
-      
-      console.log('✅ Mapped devices:', devices);
-      callback(devices);
-    });
-  };
+TrackiumDatabase.prototype.getDevices = function(callback) {
 
-  TrackiumDatabase.prototype.getDevice = function(deviceId, callback) {
-    MDS.sql("SELECT * FROM devices WHERE device_id = '" + deviceId + "'", function(res) {
-      if (res.rows && res.rows.length > 0) {
-        var device = res.rows[0];
-        callback({
-          device_id: device.device_id,
-          device_name: device.device_name,
-          device_type: device.device_type,
-          transport_type: device.transport_type,
-          category: device.category,
-          location: device.location,
-          status: device.status,
-          battery: device.battery,
-          signal_strength: device.signal_strength,
-          locked: device.locked,
-          blockchain_proof: device.blockchain_proof,
-          created_at: device.created_at,
-          last_sync: device.last_sync,
-          
-          deviceId: device.device_id,
-          deviceName: device.device_name,
-          deviceType: device.device_type,
-          transportType: device.transport_type,
-          signalStrength: device.signal_strength,
-          blockchainProof: device.blockchain_proof,
-          createdAt: device.created_at,
-          lastSync: device.last_sync
+    const sql = `
+        SELECT *
+        FROM devices
+        ORDER BY created_at DESC
+    `;
+
+    MDS.sql(sql, function(res) {
+
+        console.log("📊 Raw devices from DB:", res.rows);
+
+        if (!res.status || !res.rows) {
+            callback([]);
+            return;
+        }
+
+        // === НОРМАЛИЗАЦИЯ КАЖДОЙ СТРОКИ ===
+        const devices = res.rows.map(function(row) {
+
+            const deviceId  = row.device_id || row.DEVICE_ID || "Unknown-ID";
+            const deviceName = row.device_name || row.DEVICE_NAME || "Unnamed Device";
+            const deviceType = row.device_type || row.DEVICE_TYPE || "tracker";
+
+            return {
+                id: row.ID,
+
+                // snake_case
+                device_id: deviceId,
+                device_name: deviceName,
+                device_type: deviceType,
+                transport_type: row.transport_type || row.TRANSPORT_TYPE || "ground",
+                category: row.category || row.CATEGORY || "",
+                location: row.location || row.LOCATION || "",
+                status: row.status || row.STATUS || "offline",
+                battery: parseInt(row.battery || row.BATTERY || 0),
+                signal_strength: row.signal_strength || row.SIGNAL_STRENGTH || null,
+                locked: row.locked === "true" || row.LOCKED === "true" || false,
+                blockchain_proof: row.blockchain_proof || row.BLOCKCHAIN_PROOF || "false",
+                created_at: row.created_at || row.CREATED_AT || null,
+                last_sync: row.last_sync || row.LAST_SYNC || null,
+
+                // camelCase aliases (UI использует ЭТИ!)
+                deviceId: deviceId,
+                deviceName: deviceName,
+                deviceType: deviceType,
+                transportType: row.transport_type || row.TRANSPORT_TYPE || "ground",
+                signalStrength: row.signal_strength || row.SIGNAL_STRENGTH || null,
+                blockchainProof: row.blockchain_proof || row.BLOCKCHAIN_PROOF || "false",
+                createdAt: row.created_at || row.CREATED_AT || null,
+                lastSync: row.last_sync || row.LAST_SYNC || null
+            };
         });
-      } else {
-        callback(null);
-      }
+
+        console.log("✅ Mapped devices:", devices);
+        callback(devices);
     });
-  };
+};
+
+
+TrackiumDatabase.prototype.getDevice = function(deviceId, callback) {
+
+    const sql = `
+        SELECT *
+        FROM devices
+        WHERE device_id='${deviceId}' OR DEVICE_ID='${deviceId}'
+        LIMIT 1
+    `;
+
+    MDS.sql(sql, function(res) {
+
+        if (!res.status || !res.rows || res.rows.length === 0) {
+            callback(null);
+            return;
+        }
+
+        const d = res.rows[0];
+
+        // === НОРМАЛИЗАЦИЯ ВСЕХ ПОЛЕЙ ===
+        const device_id = d.device_id || d.DEVICE_ID || deviceId;
+        const device_name = d.device_name || d.DEVICE_NAME || "Unknown Device";
+        const device_type = d.device_type || d.DEVICE_TYPE || "tracker";
+
+        const normalized = {
+
+            // snake_case
+            device_id: device_id,
+            device_name: device_name,
+            device_type: device_type,
+
+            transport_type: d.transport_type || d.TRANSPORT_TYPE || "ground",
+            category: d.category || d.CATEGORY || "",
+            location: d.location || d.LOCATION || "",
+            status: d.status || d.STATUS || "offline",
+            battery: parseInt(d.battery || d.BATTERY || 0),
+            signal_strength: d.signal_strength || d.SIGNAL_STRENGTH || null,
+            locked: d.locked === "true" || d.LOCKED === "true" || false,
+            blockchain_proof: d.blockchain_proof || d.BLOCKCHAIN_PROOF || "false",
+            created_at: d.created_at || d.CREATED_AT || null,
+            last_sync: d.last_sync || d.LAST_SYNC || null,
+
+            // camelCase — UI использует ИХ
+            deviceId: device_id,
+            deviceName: device_name,
+            deviceType: device_type,
+            transportType: d.transport_type || d.TRANSPORT_TYPE || "ground",
+            signalStrength: d.signal_strength || d.SIGNAL_STRENGTH || null,
+            blockchainProof: d.blockchain_proof || d.BLOCKCHAIN_PROOF || "false",
+            createdAt: d.created_at || d.CREATED_AT || null,
+            lastSync: d.last_sync || d.LAST_SYNC || null
+        };
+
+        callback(normalized);
+    });
+};
+
 
   TrackiumDatabase.prototype.updateDeviceStatus = function(deviceId, status, callback) {
     var query = "UPDATE devices " +
@@ -420,27 +466,69 @@
     });
   };
 
-  TrackiumDatabase.prototype.getMovementHistory = function(deviceId, limit, callback) {
-    var query = "SELECT * FROM movements " +
-      "WHERE device_id = '" + deviceId + "' " +
-      "ORDER BY recorded_at DESC " +
-      "LIMIT " + (limit || 100);
-    
-    MDS.sql(query, function(res) {
-      callback(res.rows || []);
-    });
-  };
+TrackiumDatabase.prototype.getMovementHistory = function(deviceId, limit, callback) {
+    const sql = `
+        SELECT * FROM movements
+        WHERE device_id='${deviceId}'
+        ORDER BY timestamp DESC
+        LIMIT ${limit || 200}
+    `;
 
-  TrackiumDatabase.prototype.getLastPosition = function(deviceId, callback) {
-    var query = "SELECT * FROM movements " +
-      "WHERE device_id = '" + deviceId + "' " +
-      "ORDER BY recorded_at DESC " +
-      "LIMIT 1";
-    
-    MDS.sql(query, function(res) {
-      callback(res.rows && res.rows.length > 0 ? res.rows[0] : null);
+    MDS.sql(sql, function(res) {
+        if (!res.status || !res.rows) {
+            callback([]);
+            return;
+        }
+
+        const mapped = res.rows.map(function(r) {
+            return {
+                id: r.ID,
+                deviceId: r.DEVICE_ID || r.device_id,
+                latitude: parseFloat(r.LATITUDE),
+                longitude: parseFloat(r.LONGITUDE),
+                altitude: parseFloat(r.ALTITUDE),
+                speed: parseFloat(r.SPEED),
+                accuracy: parseFloat(r.ACCURACY),
+                timestamp: r.TIMESTAMP
+            };
+        });
+
+        callback(mapped);
     });
-  };
+};
+
+
+TrackiumDatabase.prototype.getLastPosition = function(deviceId, callback) {
+    const sql = `
+        SELECT * FROM movements
+        WHERE device_id='${deviceId}'
+        ORDER BY timestamp DESC
+        LIMIT 1
+    `;
+
+    MDS.sql(sql, function(res) {
+        if (!res.status || !res.rows || res.rows.length === 0) {
+            callback(null);
+            return;
+        }
+
+        const r = res.rows[0];
+
+        const movement = {
+            id: r.ID,
+            deviceId: r.DEVICE_ID || r.device_id,
+            latitude: parseFloat(r.LATITUDE),
+            longitude: parseFloat(r.LONGITUDE),
+            altitude: parseFloat(r.ALTITUDE),
+            speed: parseFloat(r.SPEED),
+            accuracy: parseFloat(r.ACCURACY),
+            timestamp: r.TIMESTAMP
+        };
+
+        callback(movement);
+    });
+};
+
 
   TrackiumDatabase.prototype.updateMovementProof = function(movementId, txid, callback) {
     var query = "UPDATE movements " +
