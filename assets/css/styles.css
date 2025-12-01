@@ -774,7 +774,7 @@ body {
 #analytics.active,
 #settings.active {
   z-index: 10;
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 .mode-card-small:hover {
