@@ -453,6 +453,31 @@ TrackiumDatabase.prototype.getDevice = function(deviceId, callback) {
     });
   };
 
+  TrackiumDatabase.prototype.saveDeviceLocation = function(deviceId, lat, lon, timestamp, callback) {
+
+    // movements
+    var query1 = `
+        INSERT INTO movements (device_id, latitude, longitude, altitude, speed, accuracy)
+        VALUES ('${deviceId}', ${lat}, ${lon}, 0, 0, 0)
+    `;
+
+    // update device table
+    var query2 = `
+        UPDATE devices
+        SET last_sync = CURRENT_TIMESTAMP
+        WHERE device_id='${deviceId}'
+    `;
+
+    var self = this;
+
+    MDS.sql(query1, function(res1) {
+        MDS.sql(query2, function(res2) {
+            if (callback) callback(res1.status && res2.status);
+        });
+    });
+};
+
+
   // ========== MOVEMENTS ==========
   
   TrackiumDatabase.prototype.addMovement = function(movement, callback) {
