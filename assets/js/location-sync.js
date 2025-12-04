@@ -8,7 +8,7 @@
 
     // 🛰 Локальный HTTP-сервер в Android-компаньоне
     // См. LocalHttpServer.kt — там должен быть endpoint /latest
-    var ANDROID_API_URL = "http://127.0.0.1:8132/latest";
+    var ANDROID_API_URL = "http://127.0.0.1:8123/location";
 
     // ⏱ интервал опроса (3 минуты)
     var POLL_INTERVAL_MS = 3 * 60 * 1000;
