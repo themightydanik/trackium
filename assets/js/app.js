@@ -361,24 +361,63 @@ function showDeviceDetail(deviceId) {
 
 function refreshDevicePosition(deviceId) {
   db.getLastPosition(deviceId, async (position) => {
-    if (position && typeof renderPositionWithLocation === 'function') {
-      await renderPositionWithLocation(position, 'device-coordinates');
+
+    // Ничего нет в БД – просто выходим
+    if (!position) {
+      console.log("ℹ️ No last position for device:", deviceId);
+      return;
     }
 
-    // 🗺️ НОВОЕ: Обновить карту
-    if (window.mapManager && position) {
-      mapManager.updateDevicePosition(
-        position.latitude || position.LATITUDE,
-        position.longitude || position.LONGITUDE,
-        {
-          accuracy: position.accuracy || position.ACCURACY,
-          speed: position.speed || position.SPEED,
-          timestamp: position.recorded_at || position.RECORDED_AT
+    // 1) Обновляем текстовые координаты (под картой)
+    if (typeof renderPositionWithLocation === "function") {
+      try {
+        await renderPositionWithLocation(position, "device-coordinates");
+      } catch (e) {
+        console.error("renderPositionWithLocation error:", e);
+      }
+    }
+
+    // 2) Обновляем карту, если MapManager уже инициализирован
+    if (window.mapManager) {
+      try {
+        const lat =
+          position.latitude ??
+          position.LATITUDE ??
+          position.lat ??
+          position.LAT;
+        const lng =
+          position.longitude ??
+          position.LONGITUDE ??
+          position.lon ??
+          position.LON;
+
+        if (typeof lat === "number" && typeof lng === "number") {
+          mapManager.updateDevicePosition(lat, lng, {
+            accuracy:
+              position.accuracy ??
+              position.ACCURACY ??
+              null,
+            speed:
+              position.speed ??
+              position.SPEED ??
+              null,
+            timestamp:
+              position.timestamp ??
+              position.TIMESTAMP ??
+              position.recorded_at ??
+              position.RECORDED_AT ??
+              null,
+          });
+        } else {
+          console.warn("⚠️ refreshDevicePosition: invalid lat/lng", position);
         }
-      );
+      } catch (e) {
+        console.error("Map update error in refreshDevicePosition:", e);
+      }
     }
   });
 }
+
 
 function refreshDeviceDetail() {
   if (currentDeviceId) {
