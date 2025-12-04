@@ -1,350 +1,169 @@
-// device-manager.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// ======================================================
+// device-manager.js (Android Pull Mode — FINAL VERSION)
+// ======================================================
 
 class DeviceManager {
-  constructor(database) {
-    this.db = database;
-    this.activeDevices = new Map();
-  }
-
-  generateDeviceId() {
-    const prefix = 'TRACK';
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}-${timestamp}-${random}`;
-  }
-
-async registerDevice(deviceData) {
-  try {
-    const device = {
-      deviceId: deviceData.deviceId || this.generateDeviceId(),
-      name: deviceData.name,
-      type: deviceData.type,
-      transportType: deviceData.transportType || 'ground',
-      category: deviceData.category || '',
-      location: deviceData.location || '',
-      blockchainProof: deviceData.blockchainProof !== undefined ? deviceData.blockchainProof : false
-    };
-
-    console.log('📝 Registering device:', device);
-
-    // ИСПРАВЛЕНИЕ: Использовать правильный SQL
-    await new Promise((resolve, reject) => {
-      const query = `INSERT INTO devices 
-        (device_id, device_name, device_type, transport_type, category, location, blockchain_proof, status)
-        VALUES ('${device.deviceId}', '${this._escape(device.name)}', '${device.type}', 
-                '${device.transportType}', '${this._escape(device.category)}',
-                '${this._escape(device.location)}', ${device.blockchainProof ? 1 : 0}, 'offline')`;
-      
-      this.db.sql(query, (res) => {
-        if (res.status) {
-          console.log('✅ Device registered in DB:', device.deviceId);
-          
-          // Добавить событие
-          const eventData = JSON.stringify({ 
-            name: device.name, 
-            type: device.type,
-            transportType: device.transportType,
-            category: device.category
-          }).replace(/'/g, "''");
-          
-          this.db.sql(`INSERT INTO events 
-            (device_id, event_type, event_data)
-            VALUES ('${device.deviceId}', 'device_registered', '${eventData}')`, () => {});
-          
-          resolve(device);
-        } else {
-          console.error('❌ Failed to register device in DB:', res.error);
-          reject(new Error(res.error || 'Database error'));
-        }
-      });
-    });
-
-    return device;
-  } catch (error) {
-    console.error('❌ Error registering device:', error);
-    return null;
-  }
-}
-
-// Добавить helper метод
-_escape(str) {
-  return String(str || '').replace(/'/g, "''");
-}
-
-  async activateDevice(deviceId, deviceType) {
-    if (this.activeDevices.has(deviceId)) {
-      console.log('Device already active:', deviceId);
-      return { success: true, message: 'Already active' };
+    constructor(database) {
+        this.db = database;
+        console.log("📡 DeviceManager (Android Pull Mode) loaded");
     }
 
-    console.log('🔌 Activating device:', deviceId, 'Type:', deviceType);
-    return await this.activateLocationTracking(deviceId, deviceType);
-  }
+    // -------------------------------------------
+    //  DEVICE REGISTRATION
+    // -------------------------------------------
+    generateDeviceId() {
+        const prefix = "TRACK";
+        const timestamp = Date.now().toString(36).toUpperCase();
+        const rnd = Math.random().toString(36).substring(2, 6).toUpperCase();
+        return `${prefix}-${timestamp}-${rnd}`;
+    }
 
-  async activateLocationTracking(deviceId, deviceType) {
-    try {
-      const locationTracker = new LocationTracker();
-      
-      console.log('📡 Starting location tracking...');
-      
-      // ИСПРАВЛЕНИЕ: Увеличить timeout и улучшить обработку
-      const trackingStarted = await new Promise((resolve) => {
-        let hasUpdate = false;
-        let timeoutId = null;
-        
-        // 30 секунд вместо 15
-        const TIMEOUT = 30000;
+    _escape(str) {
+        return String(str || "").replace(/'/g, "''");
+    }
 
-        const onUpdate = (position) => {
-          if (!hasUpdate) {
-            hasUpdate = true;
-            if (timeoutId) clearTimeout(timeoutId);
-            
-            console.log('✅ First location received:', position);
-            this.handleLocationSuccess(deviceId, locationTracker, onUpdate, deviceType);
-            
-            resolve(true);
-          }
-          
-          this.saveMovement(deviceId, position);
-        };
+    async registerDevice(deviceData) {
+        try {
+            const device = {
+                deviceId: deviceData.deviceId || this.generateDeviceId(),
+                name: deviceData.name,
+                type: deviceData.type,
+                transportType: deviceData.transportType || "ground",
+                category: deviceData.category || "",
+                location: deviceData.location || "",
+                blockchainProof: deviceData.blockchainProof ? 1 : 0
+            };
 
-        const onError = (error) => {
-          console.error('Location error:', error.message);
-          
-          // Не прерываем сразу - возможно следующая попытка сработает
-          if (!hasUpdate) {
-            console.log('⏳ Waiting for location...');
-          }
-        };
+            console.log("📝 Registering device:", device);
 
-        // Запустить отслеживание
-        const started = locationTracker.startTracking(deviceType, onUpdate, onError);
-        
-        if (!started) {
-          resolve(false);
-          return;
+            await this.db.sqlPromise(`
+                INSERT INTO devices 
+                (device_id, device_name, device_type, transport_type, category, location, blockchain_proof, status)
+                VALUES (
+                    '${device.deviceId}', 
+                    '${this._escape(device.name)}',
+                    '${this._escape(device.type)}',
+                    '${device.transportType}',
+                    '${this._escape(device.category)}',
+                    '${this._escape(device.location)}',
+                    ${device.blockchainProof},
+                    'offline'
+                )
+            `);
+
+            // Add event
+            await this.db.sqlPromise(`
+                INSERT INTO events (device_id, event_type, event_data)
+                VALUES ('${device.deviceId}', 'device_registered', '{}')
+            `);
+
+            return device;
+        } catch (err) {
+            console.error("❌ registerDevice failed:", err);
+            return null;
+        }
+    }
+
+    // -------------------------------------------
+    //  GET CURRENT POSITION — from Android App
+    // -------------------------------------------
+    async getCurrentPosition(deviceId, callback) {
+        try {
+            const res = await MDS.http.get("http://127.0.0.1:8123/location");
+
+            if (!res.status) {
+                console.warn("⚠️ Android not responding, fallback to DB");
+                this.db.getLastPosition(deviceId, callback);
+                return;
+            }
+
+            const data = JSON.parse(res.response);
+            callback(data);
+        } catch (e) {
+            console.error("❌ getCurrentPosition error:", e);
+            this.db.getLastPosition(deviceId, callback);
+        }
+    }
+
+    // -------------------------------------------
+    //  REFRESH LOCATION
+    // -------------------------------------------
+    async refreshDeviceLocation(deviceId, callback) {
+        return this.getCurrentPosition(deviceId, async (position) => {
+            if (position) {
+                await this.saveMovement(deviceId, position);
+                callback(position);
+            } else {
+                callback(null);
+            }
+        });
+    }
+
+    // -------------------------------------------
+    // SAVE MOVEMENT
+    // -------------------------------------------
+    async saveMovement(deviceId, position) {
+        await this.db.addMovementPromise({
+            deviceId,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            altitude: position.altitude || 0,
+            speed: position.speed || 0,
+            accuracy: position.accuracy || 0
+        });
+
+        if (position.battery !== undefined) {
+            await this.db.updateDeviceBatteryPromise(deviceId, position.battery);
         }
 
-        // Установить timeout
-        timeoutId = setTimeout(() => {
-          if (!hasUpdate) {
-            console.error('❌ Location timeout after', TIMEOUT / 1000, 'seconds');
-            locationTracker.stopTracking();
-            resolve(false);
-          }
-        }, TIMEOUT);
-      });
+        await this.db.updateDeviceStatusPromise(deviceId, "online");
 
-      if (trackingStarted) {
+        await this.db.addEventPromise(deviceId, "movement_detected", {});
+    }
+
+    // -------------------------------------------
+    // ACTIVATE DEVICE — no longer needed
+    // -------------------------------------------
+    async activateDevice(deviceId, type) {
         return {
-          success: true,
-          message: deviceType === 'smartphone' ? 'WiFi/Cell tracking active' : 'NB-IoT tracking active',
-          type: deviceType === 'smartphone' ? 'wifi' : 'nbiot'
+            success: true,
+            type: "external",
+            message: "Tracking handled by Android companion app"
         };
-      } else {
-        throw new Error('Location tracking timeout - GPS may be disabled');
-      }
-
-    } catch (error) {
-      console.error('❌ Failed to activate location tracking:', error);
-      
-      // Все равно пометить устройство как online (offline tracking)
-      this.db.updateDeviceStatus(deviceId, 'online');
-      
-      return {
-        success: false,
-        message: error.message,
-        type: 'failed'
-      };
     }
-  }
 
-  handleLocationSuccess(deviceId, locationTracker, onUpdate, deviceType) {
-    this.db.updateDeviceStatus(deviceId, 'online');
-    
-    const signalStrength = deviceType === 'smartphone' ? 'WiFi/Cell' : 'NB-IoT';
-    this.db.updateDeviceSignal(deviceId, signalStrength);
-
-    this.activeDevices.set(deviceId, {
-      locationTracker: locationTracker,
-      startTime: new Date(),
-      type: deviceType,
-      batteryLevel: 100
-    });
-
-    // Симуляция разряда батареи
-    const batteryInterval = deviceType === 'smartphone' ? 15 : 30;
-    
-    const batteryTimer = setInterval(() => {
-      const deviceData = this.activeDevices.get(deviceId);
-      if (deviceData) {
-        const newBattery = Math.max(0, deviceData.batteryLevel - 1);
-        deviceData.batteryLevel = newBattery;
-        
-        this.db.updateDeviceBattery(deviceId, newBattery);
-        
-        if (newBattery <= 20 && newBattery % 5 === 0) {
-          console.log(`⚠️ Low battery: ${newBattery}%`);
-          this.db.addEvent(deviceId, 'low_battery', { battery: newBattery });
-        }
-        
-        if (newBattery === 0) {
-          console.log('🔋 Battery depleted');
-          this.deactivateDevice(deviceId);
-          clearInterval(batteryTimer);
-        }
-      } else {
-        clearInterval(batteryTimer);
-      }
-    }, batteryInterval * 60 * 1000);
-
-    this.activeDevices.get(deviceId).batteryTimer = batteryTimer;
-    
-    this.db.addEvent(deviceId, 'location_activated', { 
-      type: deviceType,
-      signalStrength: signalStrength
-    });
-  }
-
-  saveMovement(deviceId, position) {
-    this.db.addMovement({
-      deviceId: deviceId,
-      latitude: position.latitude,
-      longitude: position.longitude,
-      altitude: position.altitude || 0,
-      speed: position.speed || 0,
-      accuracy: position.accuracy || 0
-    }, (movementId) => {
-      if (movementId) {
-        console.log('📍 Movement saved:', movementId);
-
-        if (position.battery !== undefined && position.battery !== null) {
-        this.db.updateDeviceBattery(deviceId, position.battery);
-      }
-      }
-    });
-  }
-
-  deactivateDevice(deviceId) {
-    const activeDevice = this.activeDevices.get(deviceId);
-    
-    if (activeDevice) {
-      if (activeDevice.locationTracker) {
-        activeDevice.locationTracker.stopTracking();
-      }
-      
-      if (activeDevice.batteryTimer) {
-        clearInterval(activeDevice.batteryTimer);
-      }
-      
-      this.activeDevices.delete(deviceId);
-      this.db.updateDeviceStatus(deviceId, 'offline');
-      this.db.addEvent(deviceId, 'device_deactivated', {});
-      
-      console.log('⏹️ Device deactivated:', deviceId);
+    // -------------------------------------------
+    // REMOVE DEVICE
+    // -------------------------------------------
+    removeDevice(deviceId, callback) {
+        this.db.deleteDevice(deviceId, callback);
     }
-  }
 
-  toggleLock(deviceId, callback) {
-    this.db.getDevice(deviceId, (device) => {
-      if (!device) {
-        if (callback) callback(false);
-        return;
-      }
+    // -------------------------------------------
+    // LOCK/UNLOCK DEVICE
+    // -------------------------------------------
+    toggleLock(deviceId, callback) {
+        this.db.getDevice(deviceId, (device) => {
+            if (!device) return callback(false);
 
-      const newLockState = !device.locked;
-      
-      this.db.updateLockStatus(deviceId, newLockState, (success) => {
-        if (success) {
-          this.db.addEvent(deviceId, newLockState ? 'device_locked' : 'device_unlocked', {});
-          console.log(`🔒 Device ${deviceId} ${newLockState ? 'locked' : 'unlocked'}`);
-        }
-        if (callback) callback(success);
-      });
-    });
-  }
+            const newState = !device.locked;
 
-  removeDevice(deviceId, callback) {
-    console.log('🗑️ Removing device:', deviceId);
-    
-    this.deactivateDevice(deviceId);
-    
-    this.db.deleteDevice(deviceId, (success) => {
-      if (success) {
-        console.log('✅ Device removed:', deviceId);
-      }
-      if (callback) callback(success);
-    });
-  }
-
-  getCurrentPosition(deviceId, callback) {
-    const activeDevice = this.activeDevices.get(deviceId);
-    
-    if (activeDevice && activeDevice.locationTracker && activeDevice.locationTracker.currentPosition) {
-      callback(activeDevice.locationTracker.currentPosition);
-    } else {
-      this.db.getLastPosition(deviceId, callback);
+            this.db.updateLockStatus(deviceId, newState, (success) => {
+                if (success) {
+                    this.db.addEvent(deviceId, newState ? "device_locked" : "device_unlocked", {});
+                }
+                callback(success);
+            });
+        });
     }
-  }
 
-  refreshDeviceLocation(deviceId, callback) {
-    const activeDevice = this.activeDevices.get(deviceId);
-    
-    if (activeDevice && activeDevice.locationTracker) {
-      console.log('🔄 Refreshing location for:', deviceId);
-      
-      activeDevice.locationTracker.getCurrentPosition(
-        (position) => {
-          this.saveMovement(deviceId, position);
-          if (callback) callback(position);
-        },
-        (error) => {
-          console.error('Failed to refresh location:', error);
-          if (callback) callback(null);
-        }
-      );
-    } else {
-      this.db.getLastPosition(deviceId, callback);
+    // -------------------------------------------
+    // DEVICE STATUS
+    // -------------------------------------------
+    getDevicesStatus(callback) {
+        this.db.getDevices((devices) => callback(devices));
     }
-  }
-
-getDevicesStatus(callback) {
-  this.db.getDevices((devices) => {
-    const devicesWithStatus = devices.map(device => {
-      // Поддержка обоих форматов (UPPERCASE и lowercase)
-      const deviceId = device.device_id || device.DEVICE_ID || device.deviceId;
-      const isActive = this.activeDevices.has(deviceId);
-      let currentPosition = null;
-
-      if (isActive) {
-        const activeDevice = this.activeDevices.get(deviceId);
-        currentPosition = activeDevice.locationTracker?.currentPosition || null;
-      }
-
-      return {
-        ...device,
-        isActive: isActive,
-        currentPosition: currentPosition
-      };
-    });
-
-    callback(devicesWithStatus);
-  });
-}
-
-  getActiveDevices() {
-    return Array.from(this.activeDevices.keys());
-  }
-
-  getDevicesByCategory(category, callback) {
-    this.db.getDevicesByCategory(category, callback);
-  }
-
-  getAllCategories(callback) {
-    this.db.getAllCategories(callback);
-  }
 }
 
 globalThis.DeviceManager = DeviceManager;
-console.log('✅ device-manager.js (FIXED) loaded');
+console.log("✅ device-manager.js ready (Android Pull Mode)");
