@@ -1,5 +1,5 @@
 // ======================================
-// Trackium MiniDapp — ANDROID PULL MODE
+// service.js: Trackium MiniDapp — ANDROID PULL MODE
 // ======================================
 
 MDS.load('./assets/js/database.js');
@@ -77,7 +77,7 @@ function startPollingLoop() {
 // FETCH FROM ANDROID COMPANION
 // ======================================
 async function fetchDeviceFromAndroid(deviceId) {
-    const url = `http://127.0.0.1:7331/device/${deviceId}`;
+    const url = "http://127.0.0.1:8123/location";
 
     MDS.log(`🌐 Pulling Android data for ${deviceId} ...`);
 
