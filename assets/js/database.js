@@ -492,12 +492,13 @@ TrackiumDatabase.prototype.getDevice = function(deviceId, callback) {
   };
 
 TrackiumDatabase.prototype.getMovementHistory = function(deviceId, limit, callback) {
-    const sql = `
-        SELECT * FROM movements
-        WHERE device_id='${deviceId}'
-        ORDER BY timestamp DESC
-        LIMIT ${limit || 200}
-    `;
+const sql = `
+    SELECT *
+    FROM movements
+    WHERE device_id='${deviceId}'
+    ORDER BY recorded_at DESC
+    LIMIT ${limit || 200}
+`;
 
     MDS.sql(sql, function(res) {
         if (!res.status || !res.rows) {
@@ -514,7 +515,7 @@ TrackiumDatabase.prototype.getMovementHistory = function(deviceId, limit, callba
                 altitude: parseFloat(r.ALTITUDE),
                 speed: parseFloat(r.SPEED),
                 accuracy: parseFloat(r.ACCURACY),
-                timestamp: r.TIMESTAMP
+                timestamp: r.RECORDED_AT || r.recorded_at
             };
         });
 
@@ -524,12 +525,13 @@ TrackiumDatabase.prototype.getMovementHistory = function(deviceId, limit, callba
 
 
 TrackiumDatabase.prototype.getLastPosition = function(deviceId, callback) {
-    const sql = `
-        SELECT * FROM movements
-        WHERE device_id='${deviceId}'
-        ORDER BY timestamp DESC
-        LIMIT 1
-    `;
+const sql = `
+    SELECT *
+    FROM movements
+    WHERE device_id='${deviceId}'
+    ORDER BY recorded_at DESC
+    LIMIT 1
+`;
 
     MDS.sql(sql, function(res) {
         if (!res.status || !res.rows || res.rows.length === 0) {
@@ -547,7 +549,7 @@ TrackiumDatabase.prototype.getLastPosition = function(deviceId, callback) {
             altitude: parseFloat(r.ALTITUDE),
             speed: parseFloat(r.SPEED),
             accuracy: parseFloat(r.ACCURACY),
-            timestamp: r.TIMESTAMP
+            timestamp: r.RECORDED_AT || r.recorded_at
         };
 
         callback(movement);
