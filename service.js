@@ -1,36 +1,39 @@
 // ======================================
-// service.js — FINAL VERSION (Blockchain TX mode)
+// Trackium MiniDapp — ANDROID PULL MODE
 // ======================================
 
 MDS.load('./assets/js/database.js');
 
 let db = null;
 
+// Как часто опрашиваем приложение-компаньон (в миллисекундах)
+const POLL_INTERVAL = 3 * 60 * 1000; // 3 minutes
+
+// Список устройств (MiniDapp может отслеживать много устройств)
+let deviceRegistry = [];
+
+
 // ======================================
-// INIT
+// MDS.init
 // ======================================
 MDS.init(async function(msg) {
 
     if (msg.event === "inited") {
-        MDS.log("=== Trackium TX Listener Started ===");
+        MDS.log("=== Trackium: Android Pull Mode Started ===");
 
+        // Init DB
         db = new TrackiumDatabase();
         db.init((ok) => {
             if (ok) MDS.log("✅ Database loaded");
-            else MDS.log("❌ Database init failed");
+            else    MDS.log("❌ Database init failed");
         });
 
-        return;
-    }
+        // Load existing devices
+        loadDeviceRegistry();
 
-    // ==========================
-    // NEW BLOCK → CHECK TXs
-    // ==========================
-    if (msg.event === "NEWBLOCK") {
-        const blk = msg.data.txpow.header.block;
-        MDS.log("⛓ New block: " + blk);
+        // Start polling loop
+        startPollingLoop();
 
-        scanForTrackiumTransactions();
         return;
     }
 
@@ -42,65 +45,82 @@ MDS.init(async function(msg) {
 
 
 // ======================================
-// SCAN BLOCKCHAIN
+// LOAD DEVICES FROM DB
 // ======================================
-async function scanForTrackiumTransactions() {
+async function loadDeviceRegistry() {
+    const res = await MDS.sql("SELECT id FROM device_registry ORDER BY id ASC");
 
-    // Поиск всех транзакций за последние 10 блоков
-    const search = await MDS.cmd(
-        "txpowsearch blockdepth:10 includemempool:true"
-    );
-
-    if (!search.status || !search.response) {
-        MDS.log("❌ txpowsearch failed");
-        return;
-    }
-
-    const list = search.response;
-    for (let tx of list) {
-        if (!tx.data || !tx.data.length) continue;
-
-        for (let d of tx.data) {
-
-            // Каждая data — заэскейпленный JSON
-            let raw = d.data;
-
-            if (!raw) continue;
-
-            try {
-                const clean = raw.replace(/\\"/g, '"');
-                const json = JSON.parse(clean);
-
-                // Проверяем, что это наши данные Android-компаньона
-                if (json.deviceId && json.lat && json.lon) {
-                    MDS.log("📨 TX location received for " + json.deviceId);
-                    await processLocationTX(json);
-                }
-
-            } catch (e) {
-                MDS.log("❌ TX decode failed: " + e);
-            }
-        }
+    if (res.status && res.rows && res.rows.length > 0) {
+        deviceRegistry = res.rows.map(r => r.ID || r.id);
+        MDS.log("📦 Loaded devices: " + JSON.stringify(deviceRegistry));
+    } else {
+        MDS.log("⚠️ No devices found in registry");
     }
 }
 
 
 // ======================================
-// PROCESS LOCATION FROM TX
+// POLLING LOOP
 // ======================================
-async function processLocationTX(data) {
+function startPollingLoop() {
+    MDS.log("⏳ Starting polling every 3 min...");
+
+    setInterval(async () => {
+        for (let deviceId of deviceRegistry) {
+            await fetchDeviceFromAndroid(deviceId);
+        }
+    }, POLL_INTERVAL);
+}
+
+
+// ======================================
+// FETCH FROM ANDROID COMPANION
+// ======================================
+async function fetchDeviceFromAndroid(deviceId) {
+    const url = `http://127.0.0.1:7331/device/${deviceId}`;
+
+    MDS.log(`🌐 Pulling Android data for ${deviceId} ...`);
+
+    try {
+        const res = await MDS.http.get(url);
+
+        if (!res.status) {
+            MDS.log(`❌ Android API error for ${deviceId}: ${res.error}`);
+            return;
+        }
+
+        const data = JSON.parse(res.response);
+
+        // Validate minimal fields
+        if (!data.latitude || !data.longitude) {
+            MDS.log(`⚠️ Invalid data for ${deviceId}`);
+            return;
+        }
+
+        MDS.log(`📍 Android data received for ${deviceId}`);
+        await saveLocationToDB(data);
+
+    } catch (e) {
+        MDS.log("❌ HTTP fetch failed: " + e);
+    }
+}
+
+
+// ======================================
+// SAVE MOVEMENT INTO DB
+// ======================================
+async function saveLocationToDB(data) {
 
     const deviceId = data.deviceId;
-    const latitude = data.lat;
-    const longitude = data.lon;
-    const accuracy = data.accuracy || 0;
-
-    MDS.log(`📍 Saving TX location for ${deviceId}`);
+    const lat      = data.latitude;
+    const lon      = data.longitude;
+    const acc      = data.accuracy || 0;
+    const batt     = data.battery || 0;
 
     // === movements ===
     await MDS.sql(`
         INSERT INTO movements (device_id, latitude, longitude, altitude, speed, accuracy)
-        VALUES ('${deviceId}', ${latitude}, ${longitude}, 0, 0, ${accuracy})
+        VALUES ('${deviceId}', ${lat}, ${lon}, 0, 0, ${acc})
     `);
 
     // === device_registry ===
@@ -111,16 +131,17 @@ async function processLocationTX(data) {
 
     // === device_states ===
     await MDS.sql(`
-        INSERT OR REPLACE INTO device_states (id, status, battery, last_sync)
-        VALUES ('${deviceId}', 'online', ${data.battery || 0}, CURRENT_TIMESTAMP)
+        INSERT OR REPLACE INTO device_states 
+        (id, status, battery, last_sync)
+        VALUES ('${deviceId}', 'online', ${batt}, CURRENT_TIMESTAMP)
     `);
 
     // === metadata ===
     const metadata = {
-        accuracy: accuracy,
-        source: "tx",
-        last_lat: latitude,
-        last_lon: longitude,
+        accuracy: acc,
+        source: "android",
+        last_lat: lat,
+        last_lon: lon,
         last_update: Date.now()
     };
 
@@ -129,11 +150,11 @@ async function processLocationTX(data) {
         VALUES ('${deviceId}', '${JSON.stringify(metadata).replace(/'/g, "''")}')
     `);
 
-    MDS.log(`✅ TX saved for ${deviceId}`);
+    MDS.log(`✅ Saved Android position for ${deviceId}`);
 }
 
 
 // ======================================
 // READY
 // ======================================
-MDS.log("📡 Trackium MiniDapp Ready (Blockchain TX mode)");
+MDS.log("📡 Trackium MiniDapp Ready (Android Pull Mode)");
