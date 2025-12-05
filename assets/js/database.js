@@ -749,6 +749,53 @@ const sql = `
     return String(str).replace(/'/g, "''");
   };
 
+  // =============================
+// PROMISE HELPERS FOR DEVICE MANAGER
+// =============================
+
+TrackiumDatabase.prototype.sqlPromise = function(query) {
+    return new Promise((resolve, reject) => {
+        MDS.sql(query, (res) => {
+            if (res.status) resolve(res);
+            else reject(res.error || "SQL error");
+        });
+    });
+};
+
+TrackiumDatabase.prototype.addMovementPromise = function(movement) {
+    const q = `
+        INSERT INTO movements (device_id, latitude, longitude, altitude, speed, accuracy)
+        VALUES ('${movement.deviceId}', ${movement.latitude}, ${movement.longitude},
+                ${movement.altitude || 0}, ${movement.speed || 0}, ${movement.accuracy || 0})
+    `;
+    return this.sqlPromise(q);
+};
+
+TrackiumDatabase.prototype.updateDeviceStatusPromise = function(deviceId, status) {
+    return this.sqlPromise(`
+        UPDATE devices
+        SET status='${status}', last_sync=CURRENT_TIMESTAMP
+        WHERE device_id='${deviceId}'
+    `);
+};
+
+TrackiumDatabase.prototype.updateDeviceBatteryPromise = function(deviceId, battery) {
+    return this.sqlPromise(`
+        UPDATE devices
+        SET battery=${battery}, last_sync=CURRENT_TIMESTAMP
+        WHERE device_id='${deviceId}'
+    `);
+};
+
+TrackiumDatabase.prototype.addEventPromise = function(deviceId, type, data) {
+    const escaped = String(JSON.stringify(data || {})).replace(/'/g, "''");
+    return this.sqlPromise(`
+        INSERT INTO events (device_id, event_type, event_data)
+        VALUES ('${deviceId}', '${type}', '${escaped}')
+    `);
+};
+
+
   // ========== EXPORT ==========
 globalThis.TrackiumDatabase = TrackiumDatabase;
 
