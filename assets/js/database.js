@@ -749,7 +749,7 @@ const sql = `
     return String(str).replace(/'/g, "''");
   };
 
-  // =============================
+// =============================
 // PROMISE HELPERS FOR DEVICE MANAGER
 // =============================
 
@@ -794,6 +794,8 @@ TrackiumDatabase.prototype.addEventPromise = function(deviceId, type, data) {
         VALUES ('${deviceId}', '${type}', '${escaped}')
     `);
 };
+
+
 
 
   // ========== EXPORT ==========
