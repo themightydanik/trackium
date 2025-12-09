@@ -204,6 +204,32 @@ function refreshUI(deviceId) {
     }
 }
 
+// =======================================================
+// MANUAL UPDATE TRIGGER FOR UI
+// =======================================================
+globalThis.forceUpdateNow = function(deviceId = null) {
+    try {
+        MDS.log("🔄 Manual update triggered...");
+
+        if (deviceId) {
+            // Обновить только один девайс
+            pullFromAndroid(deviceId).then(() => {
+                refreshUI(deviceId);
+                MDS.notify("Device location updated");
+            });
+        } else {
+            // Обновить все устройства
+            pollOnce();
+            MDS.notify("All devices updated");
+        }
+
+    } catch (e) {
+        MDS.notify("Update failed: " + e, "error");
+        MDS.log("❌ forceUpdateNow error: " + e);
+    }
+};
+
+
 
 // ======================================================================
 // READY
