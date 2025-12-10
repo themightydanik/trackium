@@ -773,6 +773,11 @@ const sql = `
       stats.lockedDevices = (res.rows && res.rows[0] && res.rows[0].cnt) || 0;
       checkComplete();
     });
+
+    MDS.sql("SELECT COUNT(*) AS cnt FROM devices WHERE status='online'", function(res) {
+    stats.activeDevices = (res.rows && res.rows[0] && res.rows[0].cnt) || 0;
+    checkComplete();
+});
     
     MDS.sql("SELECT COUNT(*) as cnt FROM blockchain_proofs WHERE verified = TRUE", function(res) {
       stats.verifiedProofs = (res.rows && res.rows[0] && res.rows[0].cnt) || 0;
