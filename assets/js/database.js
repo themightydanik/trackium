@@ -261,14 +261,36 @@
 TrackiumDatabase.prototype.getDevices = function(callback) {
 
     const sql = `
-        SELECT *
-        FROM devices
-        ORDER BY created_at DESC
+        SELECT 
+            d.*,
+
+            -- Последняя широта
+            (SELECT latitude FROM movements m 
+             WHERE m.device_id = d.device_id
+             ORDER BY recorded_at DESC LIMIT 1) AS last_latitude,
+
+            -- Последняя долгота
+            (SELECT longitude FROM movements m 
+             WHERE m.device_id = d.device_id
+             ORDER BY recorded_at DESC LIMIT 1) AS last_longitude,
+
+            -- Последняя точность
+            (SELECT accuracy FROM movements m 
+             WHERE m.device_id = d.device_id
+             ORDER BY recorded_at DESC LIMIT 1) AS last_accuracy,
+
+            -- Последнее время обновления
+            (SELECT recorded_at FROM movements m 
+             WHERE m.device_id = d.device_id
+             ORDER BY recorded_at DESC LIMIT 1) AS last_timestamp
+
+        FROM devices d
+        ORDER BY d.created_at DESC;
     `;
 
     MDS.sql(sql, function(res) {
 
-        MDS.log("📊 Raw devices from DB:" + res.rows);
+        MDS.log("📊 Raw devices from DB:" + JSON.stringify(res.rows));
 
         if (!res.status || !res.rows) {
             callback([]);
@@ -282,10 +304,18 @@ TrackiumDatabase.prototype.getDevices = function(callback) {
             const deviceName = row.device_name || row.DEVICE_NAME || "Unnamed Device";
             const deviceType = row.device_type || row.DEVICE_TYPE || "tracker";
 
+            // --- Last position (добавлено) ---
+            const lastPos = {
+                latitude:  row.last_latitude !== null ? parseFloat(row.last_latitude) : null,
+                longitude: row.last_longitude !== null ? parseFloat(row.last_longitude) : null,
+                accuracy:  row.last_accuracy !== null ? parseFloat(row.last_accuracy) : null,
+                timestamp: row.last_timestamp || null
+            };
+
             return {
                 id: row.ID,
 
-                // snake_case
+                // === snake_case ===
                 device_id: deviceId,
                 device_name: deviceName,
                 device_type: deviceType,
@@ -300,7 +330,7 @@ TrackiumDatabase.prototype.getDevices = function(callback) {
                 created_at: row.created_at || row.CREATED_AT || null,
                 last_sync: row.last_sync || row.LAST_SYNC || null,
 
-                // camelCase aliases (UI использует ЭТИ!)
+                // === camelCase aliases (UI использует ИХ) ===
                 deviceId: deviceId,
                 deviceName: deviceName,
                 deviceType: deviceType,
@@ -308,14 +338,18 @@ TrackiumDatabase.prototype.getDevices = function(callback) {
                 signalStrength: row.signal_strength || row.SIGNAL_STRENGTH || null,
                 blockchainProof: row.blockchain_proof || row.BLOCKCHAIN_PROOF || "false",
                 createdAt: row.created_at || row.CREATED_AT || null,
-                lastSync: row.last_sync || row.LAST_SYNC || null
+                lastSync: row.last_sync || row.LAST_SYNC || null,
+
+                // === ДОБАВЛЕНО: передаём в UI последнюю координату ===
+                lastPosition: lastPos
             };
         });
 
-        MDS.log("✅ Mapped devices:" + devices);
+        MDS.log("✅ Mapped devices:" + JSON.stringify(devices));
         callback(devices);
     });
 };
+
 
 
 TrackiumDatabase.prototype.getDevice = function(deviceId, callback) {
