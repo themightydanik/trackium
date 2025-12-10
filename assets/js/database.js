@@ -456,10 +456,11 @@ TrackiumDatabase.prototype.getDevice = function(deviceId, callback) {
   TrackiumDatabase.prototype.saveDeviceLocation = function(deviceId, lat, lon, timestamp, callback) {
 
     // movements
-    var query1 = `
-        INSERT INTO movements (device_id, latitude, longitude, altitude, speed, accuracy)
-        VALUES ('${deviceId}', ${lat}, ${lon}, 0, 0, 0)
-    `;
+var query1 = `
+    INSERT INTO movements (device_id, latitude, longitude, altitude, speed, accuracy, recorded_at)
+    VALUES ('${deviceId}', ${lat}, ${lon}, 0, 0, 0, datetime(${timestamp}/1000, 'unixepoch'))
+`;
+
 
     // update device table
     var query2 = `
@@ -482,9 +483,11 @@ TrackiumDatabase.prototype.getDevice = function(deviceId, callback) {
   
   TrackiumDatabase.prototype.addMovement = function(movement, callback) {
     var query = "INSERT INTO movements " +
-      "(device_id, latitude, longitude, altitude, speed, accuracy) " +
-      "VALUES ('" + movement.deviceId + "', " + movement.latitude + ", " + movement.longitude + ", " +
-              (movement.altitude || 0) + ", " + (movement.speed || 0) + ", " + (movement.accuracy || 0) + ")";
+ "(device_id, latitude, longitude, altitude, speed, accuracy, recorded_at) " +
+"VALUES ('" + movement.deviceId + "', " + movement.latitude + ", " + movement.longitude + ", " +
+(movement.altitude || 0) + ", " + (movement.speed || 0) + ", " + (movement.accuracy || 0) + ", " +
+"datetime(" + movement.timestamp + "/1000, 'unixepoch'))"
+
     
     MDS.sql(query, function(res) {
       if (callback) callback(res.status ? (res.response && res.response.id || true) : null);
@@ -515,7 +518,7 @@ const sql = `
                 altitude: parseFloat(r.ALTITUDE),
                 speed: parseFloat(r.SPEED),
                 accuracy: parseFloat(r.ACCURACY),
-                timestamp: r.RECORDED_AT || r.recorded_at
+                timestamp: r.recorded_at
             };
         });
 
@@ -549,7 +552,7 @@ const sql = `
             altitude: parseFloat(r.ALTITUDE),
             speed: parseFloat(r.SPEED),
             accuracy: parseFloat(r.ACCURACY),
-            timestamp: r.RECORDED_AT || r.recorded_at
+            timestamp: r.recorded_at
         };
 
         callback(movement);
