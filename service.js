@@ -1,63 +1,68 @@
 // ======================================================================
-// Trackium MiniDapp - ANDROID PULL MODE (FINAL CLEAN VERSION)
+// Trackium MiniDapp - ANDROID PULL MODE (RHINO ES5 VERSION)
 // ======================================================================
 
 MDS.load("./assets/js/database.js");
 
-let db = null;
-
-// Опрос Android companion каждые 3 минуты
-const POLL_INTERVAL = 3 * 60 * 1000;
-
-// Все зарегистрированные девайсы (device_id[])
-let deviceRegistry = [];
-
+var db = null;
+var POLL_INTERVAL = 3 * 60 * 1000; // 3 min
+var deviceRegistry = []; // array of device_id strings
 
 // ======================================================================
 // INIT
 // ======================================================================
-MDS.init(async function(msg) {
+MDS.init(function(msg) {
 
     if (msg.event === "inited") {
-        MDS.log("=== Trackium: Android Pull Mode Started ===");
 
-        // Инициализация БД
+        MDS.log("=== Trackium: Android Pull Mode (ES5) Started ===");
+
+        // Init DB
         db = new TrackiumDatabase();
-        db.init((ok) => {
-            if (ok) MDS.log("✅ Database initialized");
-            else MDS.log("❌ Database init FAILED");
+        db.init(function(ok) {
+            if (ok) {
+                MDS.log("✅ Database initialized");
+                loadDeviceRegistry();
+            } else {
+                MDS.log("❌ Database init FAILED");
+            }
         });
 
-        // Загрузить список девайсов
-        await loadDeviceRegistry();
-
-        // Старт цикла опроса
-        startPollingLoop();
         return;
     }
 
     if (msg.event === "MDS_SHUTDOWN") {
         MDS.log("🛑 Trackium shutting down...");
-        return;
     }
 });
 
 
 // ======================================================================
-// LOAD DEVICES FROM /devices TABLE
+// LOAD DEVICES FROM DB
 // ======================================================================
-async function loadDeviceRegistry() {
-    const res = await MDS.sql(`
-        SELECT device_id FROM devices ORDER BY created_at ASC
-    `);
+function loadDeviceRegistry() {
 
-    if (res.status && res.rows?.length) {
-        deviceRegistry = res.rows.map(r => r.device_id || r.DEVICE_ID);
-        MDS.log("📦 Loaded devices: " + JSON.stringify(deviceRegistry));
-    } else {
-        MDS.log("⚠️ No devices found");
-        deviceRegistry = [];
-    }
+    MDS.sql("SELECT device_id FROM devices ORDER BY created_at ASC", function(res) {
+
+        if (res.status && res.rows && res.rows.length > 0) {
+
+            deviceRegistry = [];
+            for (var i = 0; i < res.rows.length; i++) {
+                var row = res.rows[i];
+                var id = row.device_id || row.DEVICE_ID;
+                if (id) deviceRegistry.push(id);
+            }
+
+            MDS.log("📦 Loaded devices: " + JSON.stringify(deviceRegistry));
+
+            startPollingLoop();
+        } else {
+            MDS.log("⚠️ No devices found");
+            deviceRegistry = [];
+            startPollingLoop();
+        }
+
+    });
 }
 
 
@@ -65,26 +70,30 @@ async function loadDeviceRegistry() {
 // POLLING LOOP
 // ======================================================================
 function startPollingLoop() {
-    MDS.log(`⏳ Polling Android every ${POLL_INTERVAL / 60000} minutes...`);
 
-    pollOnce(); // Первый опрос сразу
+    MDS.log("⏳ Polling Android every " + (POLL_INTERVAL / 60000) + " minutes...");
 
-    setInterval(pollOnce, POLL_INTERVAL);
+    pollOnce(); // first run immediately
+
+    setInterval(function() {
+        pollOnce();
+    }, POLL_INTERVAL);
 }
 
 
 // ======================================================================
 // ONE POLL CYCLE
 // ======================================================================
-async function pollOnce() {
+function pollOnce() {
 
     if (deviceRegistry.length === 0) {
         MDS.log("⚠️ No devices to update");
         return;
     }
 
-    for (const deviceId of deviceRegistry) {
-        await pullFromAndroid(deviceId);
+    for (var i = 0; i < deviceRegistry.length; i++) {
+        var deviceId = deviceRegistry[i];
+        pullFromAndroid(deviceId);
     }
 }
 
@@ -92,146 +101,151 @@ async function pollOnce() {
 // ======================================================================
 // PULL FROM ANDROID COMPANION
 // ======================================================================
-async function pullFromAndroid(deviceId) {
-    const url = "http://127.0.0.1:8123/location";
+function pullFromAndroid(deviceId) {
 
-    MDS.log(`🌐 Requesting Android location for ${deviceId}...`);
+    var url = "http://127.0.0.1:8123/location";
+    MDS.log("🌐 Requesting Android location for " + deviceId + " ...");
 
-    try {
-        const res = await MDS.http.get(url);
+    MDS.http.get(url, function(res) {
 
         if (!res.status) {
-            MDS.log(`❌ Android HTTP error: ${res.error}`);
+            MDS.log("❌ Android HTTP error: " + res.error);
             return;
         }
 
-        const data = JSON.parse(res.response);
+        var data = null;
+        try {
+            data = JSON.parse(res.response);
+        } catch (e) {
+            MDS.log("❌ JSON parse error: " + e);
+            return;
+        }
 
         if (!data.deviceId) {
-            MDS.log(`⚠️ Android did not send deviceId`);
+            MDS.log("⚠️ Android did not send deviceId");
             return;
         }
 
         if (!data.latitude || !data.longitude) {
-            MDS.log(`⚠️ Invalid coordinates from Android`);
+            MDS.log("⚠️ Invalid coordinates from Android");
             return;
         }
 
-        MDS.log(`📍 Android → ${data.latitude}, ${data.longitude}`);
+        MDS.log("📍 Android → " + data.latitude + ", " + data.longitude);
 
-        await saveMovementToDB(data);
-
-    } catch (err) {
-        MDS.log("❌ Fetch failed: " + err);
-    }
+        saveMovementToDB(data, deviceId);
+    });
 }
 
 
 // ======================================================================
 // SAVE MOVEMENT INTO DB
 // ======================================================================
-async function saveMovementToDB(loc) {
+function saveMovementToDB(loc, deviceId) {
 
-    const deviceId = loc.deviceId;
-    const lat      = Number(loc.latitude);
-    const lon      = Number(loc.longitude);
-    const acc      = Number(loc.accuracy || 0);
-    const batt     = Number(loc.battery  || 0);
-    const ts       = loc.timestamp || Date.now();
+    var id   = loc.deviceId;
+    var lat  = Number(loc.latitude);
+    var lon  = Number(loc.longitude);
+    var acc  = Number(loc.accuracy || 0);
+    var batt = Number(loc.battery  || 0);
+    var ts   = loc.timestamp || Date.now();
 
     // 1. movements
-    await MDS.sql(`
-        INSERT INTO movements 
-        (device_id, latitude, longitude, altitude, speed, accuracy, recorded_at)
-        VALUES (
-            '${deviceId}',
-            ${lat},
-            ${lon},
-            0,
-            0,
-            ${acc},
-            ${ts}
-        )
-    `);
+    var sql1 =
+        "INSERT INTO movements " +
+        "(device_id, latitude, longitude, altitude, speed, accuracy, recorded_at) VALUES (" +
+        "'" + id + "', " +
+        lat + ", " +
+        lon + ", 0, 0, " + acc + ", " + ts +
+        ")";
 
-    // 2. devices — battery + status + last_sync
-    await MDS.sql(`
-        UPDATE devices
-        SET battery=${batt},
-            status='online',
-            last_sync=CURRENT_TIMESTAMP
-        WHERE device_id='${deviceId}'
-    `);
+    MDS.sql(sql1, function(r1) {
 
-    // 3. events — for Recent Activity
-    await MDS.sql(`
-        INSERT INTO events (device_id, event_type, event_data)
-        VALUES ('${deviceId}', 'movement_detected', '{}')
-    `);
+        if (!r1.status) {
+            MDS.log("❌ Failed to insert movement: " + r1.error);
+            return;
+        }
 
-    MDS.log(`✅ Movement saved: ${deviceId}`);
+        // 2. update devices
+        var sql2 =
+            "UPDATE devices SET " +
+            "battery=" + batt + ", " +
+            "status='online', " +
+            "last_sync=CURRENT_TIMESTAMP " +
+            "WHERE device_id='" + id + "'";
 
-    // 4. Update UI
-    refreshUI(deviceId);
+        MDS.sql(sql2, function(r2) {
+
+            if (!r2.status) {
+                MDS.log("⚠️ Failed updating device: " + r2.error);
+            }
+
+            // 3. add event
+            var sql3 =
+                "INSERT INTO events (device_id, event_type, event_data) " +
+                "VALUES ('" + id + "', 'movement_detected', '{}')";
+
+            MDS.sql(sql3, function(r3) {
+
+                if (!r3.status) {
+                    MDS.log("⚠️ Failed to insert event: " + r3.error);
+                }
+
+                MDS.log("✅ Movement saved for " + id);
+
+                refreshUI(id);
+            });
+        });
+    });
 }
 
 
 // ======================================================================
-// UI AUTO-REFRESH
+// UI AUTO REFRESH (only if running inside MiniDapp UI)
 // ======================================================================
 function refreshUI(deviceId) {
 
     try {
-        // Dashboard (recent events, stats)
-        if (window.loadDashboard) {
-            window.loadDashboard();
-        }
 
-        // Devices list
-        if (window.refreshDevices) {
-            window.refreshDevices();
-        }
+        if (typeof window !== "undefined") {
 
-        // Device detail currently open?
-        if (window.currentDeviceId === deviceId &&
-            window.refreshDevicePosition) 
-        {
-            window.refreshDevicePosition(deviceId);
-        }
+            if (window.loadDashboard) {
+                window.loadDashboard();
+            }
 
-    } catch (err) {
-        MDS.log("⚠️ UI refresh failed: " + err);
-    }
-}
+            if (window.refreshDevices) {
+                window.refreshDevices();
+            }
 
-// =======================================================
-// MANUAL UPDATE TRIGGER FOR UI
-// =======================================================
-globalThis.forceUpdateNow = function(deviceId = null) {
-    try {
-        MDS.log("🔄 Manual update triggered...");
-
-        if (deviceId) {
-            // Обновить только один девайс
-            pullFromAndroid(deviceId).then(() => {
-                refreshUI(deviceId);
-                MDS.notify("Device location updated");
-            });
-        } else {
-            // Обновить все устройства
-            pollOnce();
-            MDS.notify("All devices updated");
+            if (window.currentDeviceId === deviceId &&
+                window.refreshDevicePosition) {
+                window.refreshDevicePosition(deviceId);
+            }
         }
 
     } catch (e) {
-        MDS.notify("Update failed: " + e, "error");
-        MDS.log("❌ forceUpdateNow error: " + e);
+        MDS.log("⚠️ UI refresh error: " + e);
     }
-};
+}
 
+
+// ======================================================================
+// MANUAL UPDATE
+// ======================================================================
+globalThis.forceUpdateNow = function(deviceId) {
+
+    MDS.log("🔄 Manual update triggered...");
+
+    if (deviceId) {
+        pullFromAndroid(deviceId);
+        return;
+    }
+
+    pollOnce();
+};
 
 
 // ======================================================================
 // READY
 // ======================================================================
-MDS.log("📡 Trackium MiniDapp Ready (Android Pull Mode)");
+MDS.log("📡 Trackium MiniDapp Ready (Android Pull Mode, ES5)");
