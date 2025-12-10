@@ -509,18 +509,18 @@ const sql = `
             return;
         }
 
-        const mapped = res.rows.map(function(r) {
-            return {
-                id: r.ID,
-                deviceId: r.DEVICE_ID || r.device_id,
-                latitude: parseFloat(r.LATITUDE),
-                longitude: parseFloat(r.LONGITUDE),
-                altitude: parseFloat(r.ALTITUDE),
-                speed: parseFloat(r.SPEED),
-                accuracy: parseFloat(r.ACCURACY),
-                timestamp: r.recorded_at
-            };
-        });
+const mapped = res.rows.map(function(r) {
+    return {
+        id: r.ID || r.id,
+        deviceId: r.DEVICE_ID || r.device_id,
+        latitude: parseFloat(r.LATITUDE || r.latitude),
+        longitude: parseFloat(r.LONGITUDE || r.longitude),
+        altitude: parseFloat(r.ALTITUDE || r.altitude || 0),
+        speed: parseFloat(r.SPEED || r.speed || 0),
+        accuracy: parseFloat(r.ACCURACY || r.accuracy || 0),
+        timestamp: r.recorded_at || r.RECORDED_AT
+    };
+});
 
         callback(mapped);
     });
