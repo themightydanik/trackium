@@ -138,40 +138,42 @@ function pullFromAndroid(deviceId) {
 function saveMovementToDB(loc) {
 
     var deviceId = (loc.deviceId || "").toString().replace(/'/g, "''");
-    var lat = Number(loc.latitude);
-    var lon = Number(loc.longitude);
-    var acc = Number(loc.accuracy || 0);
-    var batt = Number(loc.battery || 0);
-    var ts = loc.timestamp || (new Date().getTime());
+    var lat      = Number(loc.latitude);
+    var lon      = Number(loc.longitude);
+    var acc      = Number(loc.accuracy || 0);
+    var batt     = Number(loc.battery || 0);
+
+    // Строка для поля location в devices — "lat, lon"
+    var locStr   = lat + ", " + lon;
 
     // 1) movements
-var sql1 =
-    "INSERT INTO movements " +
-    "(device_id, latitude, longitude, altitude, speed, accuracy) " +
-    "VALUES (" +
-    "'" + deviceId + "', " +
-    lat + ", " +
-    lon + ", " +
-    "0, " +
-    "0, " +
-    acc +
-    ")";
+    var sql1 =
+        "INSERT INTO movements " +
+        "(device_id, latitude, longitude, altitude, speed, accuracy) " +
+        "VALUES (" +
+            "'" + deviceId + "', " +
+            lat + ", " +
+            lon + ", " +
+            "0, " +      // altitude
+            "0, " +      // speed
+            acc +
+        ")";
 
-
-    // 2) devices — battery + status + last_sync
+    // 2) devices — battery + status + last_sync + location
     var sql2 =
-        "UPDATE devices " +
-        "SET battery=" + batt + ", " +
-        "    status='online', " +
-        "    last_sync=CURRENT_TIMESTAMP " +
+        "UPDATE devices SET " +
+            "battery=" + batt + ", " +
+            "status='online', " +
+            "location='" + locStr + "', " +
+            "last_sync=CURRENT_TIMESTAMP " +
         "WHERE device_id='" + deviceId + "'";
 
     // 3) events — для Recent Activity
     var sql3 =
         "INSERT INTO events (device_id, event_type, event_data) " +
         "VALUES (" +
-        "'" + deviceId + "', " +
-        "'movement_detected', '{}'" +
+            "'" + deviceId + "', " +
+            "'movement_detected', '{}'" +
         ")";
 
     MDS.sql(sql1, function (r1) {
@@ -195,6 +197,7 @@ var sql1 =
         });
     });
 }
+
 
 
 // ======================================================================
