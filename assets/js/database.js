@@ -160,7 +160,7 @@
       if (completed === total) {
         self.createIndexes(function() {
           self.initialized = true;
-          console.log("✅ Trackium Database initialized successfully");
+          MDS.log("✅ Trackium Database initialized successfully");
           if (callback) callback(true);
         });
       }
@@ -170,7 +170,7 @@
       (function(query, index) {
         MDS.sql(query, function(res) {
           if (!res.status) {
-            console.error("Failed to create table " + index + ":", res.error);
+            MDS.log("Failed to create table " + index + ":", res.error);
           }
           checkComplete();
         });
@@ -181,7 +181,7 @@
       (function(query, index) {
         MDS.sql(query, function(res) {
           if (!res.status) {
-            console.error("Failed to create life table " + index + ":", res.error);
+            MDS.log("Failed to create life table " + index + ":", res.error);
           }
           checkComplete();
         });
@@ -204,7 +204,7 @@
       (function(indexQuery) {
         MDS.sql(indexQuery, function(res) {
           if (!res.status) {
-            console.warn('Failed to create index:', res.error);
+            MDS.log('Failed to create index:', res.error);
           }
           indexCompleted++;
           if (indexCompleted === indexes.length && callback) {
@@ -239,7 +239,7 @@
         };
       });
       
-      console.log('📊 Recent activity with details:', events);
+      MDS.log('📊 Recent activity with details:', events);
       callback(events);
     });
   };
@@ -268,7 +268,7 @@ TrackiumDatabase.prototype.getDevices = function(callback) {
 
     MDS.sql(sql, function(res) {
 
-        console.log("📊 Raw devices from DB:", res.rows);
+        MDS.log("📊 Raw devices from DB:", res.rows);
 
         if (!res.status || !res.rows) {
             callback([]);
@@ -312,7 +312,7 @@ TrackiumDatabase.prototype.getDevices = function(callback) {
             };
         });
 
-        console.log("✅ Mapped devices:", devices);
+        MDS.log("✅ Mapped devices:", devices);
         callback(devices);
     });
 };
