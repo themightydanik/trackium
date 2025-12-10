@@ -34,6 +34,7 @@ class UIManager {
   updateDashboardStats(stats) {
     const elements = {
       'total-devices': stats.totalDevices || 0,
+      'active-devices': stats.activeDevices || 0,
       'active-shipments': stats.activeShipments || 0,
       'locked-devices': stats.lockedDevices || 0,
       'verified-proofs': stats.verifiedProofs || 0
@@ -127,7 +128,11 @@ devices.forEach(device => {
         </p>
         <p style="font-size: 12px; color: var(--text-secondary);">ID: ${deviceId}</p>
         <p style="font-size: 13px; margin-top: 8px;">
-          🔋 ${battery}% | 📡 ${signalStrength}
+          🔋 ${battery}% | 📍 ${
+      device.lastPosition && device.lastPosition.latitude !== null
+      ? device.lastPosition.latitude.toFixed(5) + ', ' + device.lastPosition.longitude.toFixed(5)
+      : 'Unknown'
+    }
         </p>
         ${locked ? '<p style="color: var(--warning-orange); margin-top: 5px;">🔒 Locked</p>' : ''}
       </div>
@@ -543,13 +548,29 @@ renderRecentActivity(events) {
 // AUTO-REFRESH HOOKS FOR SERVICE.JS
 // ===========================================================
 
-window.refreshDevices = function() {
-    if (window.db) {
-        db.getDevices((devices) => {
-            window.ui.renderDevicesList(devices);
+window.refreshDevices = function () {
+    if (!window.db) return;
+
+    // 🔄 1) Обновить список устройств
+    db.getDevices((devices) => {
+        window.ui.renderDevicesList(devices);
+    });
+
+    // 🔄 2) Если открыт Dashboard — обновить Recent Activity
+    if (window.ui && window.ui.currentScreen === 'dashboard') {
+        db.getRecentActivityWithDetails(10, (events) => {
+            window.ui.renderRecentActivity(events);
+        });
+    }
+
+    // 🔄 3) Если открыт Dashboard — обновить статистику
+    if (window.ui && window.ui.currentScreen === 'dashboard') {
+        db.getStatistics((stats) => {
+            window.ui.updateDashboardStats(stats);
         });
     }
 };
+
 
 window.refreshDevicePosition = function(deviceId) {
     if (window.db) {
