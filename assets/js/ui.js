@@ -50,16 +50,15 @@ renderDevicesList(devices) {
   const container = document.getElementById('devices-list');
   if (!container) return;
 
-  const updateBtn = document.createElement('button');
+  container.innerHTML = ''; // ОЧИСТКА СНАЧАЛА
+
+const updateBtn = document.createElement('button');
 updateBtn.className = 'secondary-btn';
 updateBtn.style = "width:100%; margin-bottom:12px;";
 updateBtn.textContent = "🔄 Update All Devices";
 updateBtn.onclick = () => forceUpdateNow();
 
 container.appendChild(updateBtn);
-
-  
-  container.innerHTML = '';
   
   if (devices.length === 0) {
     container.innerHTML = `
@@ -246,10 +245,6 @@ setTimeout(() => {
     }
 
 }, 100);
-
-  <button class="primary-btn" onclick="forceUpdateNow(currentDeviceId)">
-  🔄 Update Location
-</button>
 
 
 
