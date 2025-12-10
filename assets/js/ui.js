@@ -551,25 +551,46 @@ renderRecentActivity(events) {
 window.refreshDevices = function () {
     if (!window.db) return;
 
-    // 🔄 1) Обновить список устройств
+    // 1) Загружаем устройства
     db.getDevices((devices) => {
-        window.ui.renderDevicesList(devices);
+
+        let remaining = devices.length;
+
+        if (remaining === 0) {
+            window.ui.renderDevicesList([]);
+            return;
+        }
+
+        // Догружаем координаты для каждого устройства
+        devices.forEach((dev) => {
+            db.getLastPosition(dev.device_id, (pos) => {
+
+                // Добавляем в объект устройства
+                dev.lastPosition = pos || null;
+
+                remaining--;
+
+                // Когда координаты загружены для всех устройств — рисуем список
+                if (remaining === 0) {
+                    window.ui.renderDevicesList(devices);
+                }
+            });
+        });
     });
 
-    // 🔄 2) Если открыт Dashboard — обновить Recent Activity
-    if (window.ui && window.ui.currentScreen === 'dashboard') {
-        db.getRecentActivityWithDetails(10, (events) => {
-            window.ui.renderRecentActivity(events);
-        });
-    }
-
-    // 🔄 3) Если открыт Dashboard — обновить статистику
+    // 2) Если открыт Dashboard — обновляем статистику
     if (window.ui && window.ui.currentScreen === 'dashboard') {
         db.getStatistics((stats) => {
             window.ui.updateDashboardStats(stats);
         });
+
+        // 3) Если Dashboard — обновить recent activity
+        db.getRecentActivityWithDetails(10, (events) => {
+            window.ui.renderRecentActivity(events);
+        });
     }
 };
+
 
 
 window.refreshDevicePosition = function(deviceId) {
