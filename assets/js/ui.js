@@ -539,5 +539,26 @@ renderRecentActivity(events) {
   }
 }
 
+// ===========================================================
+// AUTO-REFRESH HOOKS FOR SERVICE.JS
+// ===========================================================
+
+window.refreshDevices = function() {
+    if (window.db) {
+        db.getDevices((devices) => {
+            window.ui.renderDevicesList(devices);
+        });
+    }
+};
+
+window.refreshDevicePosition = function(deviceId) {
+    if (window.db) {
+        db.getLastPosition(deviceId, (pos) => {
+            // просто перерисовать экран
+            window.showDeviceDetail(deviceId);
+        });
+    }
+};
+
 // Экспорт
 window.UIManager = UIManager;
