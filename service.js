@@ -145,18 +145,18 @@ function saveMovementToDB(loc) {
     var ts = loc.timestamp || (new Date().getTime());
 
     // 1) movements
-    var sql1 =
-        "INSERT INTO movements " +
-        "(device_id, latitude, longitude, altitude, speed, accuracy, recorded_at) " +
-        "VALUES (" +
-        "'" + deviceId + "', " +
-        lat + ", " +
-        lon + ", " +
-        "0, " +      // altitude
-        "0, " +      // speed
-        acc + ", " +
-        ts +
-        ")";
+var sql1 =
+    "INSERT INTO movements " +
+    "(device_id, latitude, longitude, altitude, speed, accuracy) " +
+    "VALUES (" +
+    "'" + deviceId + "', " +
+    lat + ", " +
+    lon + ", " +
+    "0, " +
+    "0, " +
+    acc +
+    ")";
+
 
     // 2) devices — battery + status + last_sync
     var sql2 =
