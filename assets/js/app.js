@@ -162,53 +162,53 @@ function updateBlockchainInfo() {
 /**
  * Начать polling для получения данных от Location Service
  */
-function startLocationServicePolling() {
-  console.log('📡 Starting location service polling...');
+// function startLocationServicePolling() {
+ // console.log('📡 Starting location service polling...');
   
-  setInterval(() => {
-    pollLocationUpdates();
-  }, 10000); // Каждые 10 секунд
-}
+ // setInterval(() => {
+   // pollLocationUpdates();
+ // }, 10000); // Каждые 10 секунд
+// }
 
 /**
  * Эта функция больше не нужна — данные идут из блокчейна
  * Оставляем заглушку для совместимости
  */
-function pollLocationUpdates() {
+// function pollLocationUpdates() {
   // Данные теперь поступают из service.js через blockchain listener
-  console.log('📡 Location updates now come from blockchain');
-}
+ // console.log('📡 Location updates now come from blockchain');
+// }
 
 /**
  * Обработать location update
  */
-function processLocationUpdate(update) {
-  const { deviceId, latitude, longitude, accuracy, source } = update;
+// function processLocationUpdate(update) {
+//  const { deviceId, latitude, longitude, accuracy, source } = update;
   
-  console.log(`📍 Location update for ${deviceId}:`, latitude, longitude);
+ // console.log(`📍 Location update for ${deviceId}:`, latitude, longitude);
   
   // Сохранить в БД
-  db.addMovement({
-    deviceId: deviceId,
-    latitude: latitude,
-    longitude: longitude,
-    altitude: update.altitude || 0,
-    speed: update.speed || 0,
-    accuracy: accuracy
-  }, (movementId) => {
-    if (movementId) {
-      console.log('✅ Movement saved:', movementId);
+ // db.addMovement({
+  //  deviceId: deviceId,
+  //  latitude: latitude,
+  //  longitude: longitude,
+  //  altitude: update.altitude || 0,
+  //  speed: update.speed || 0,
+   // accuracy: accuracy
+ // }, (movementId) => {
+   // if (movementId) {
+   //   console.log('✅ Movement saved:', movementId);
       
       // Обновить статус устройства
-      db.updateDeviceStatus(deviceId, 'online');
+   //   db.updateDeviceStatus(deviceId, 'online');
       
       // Обновить UI если это текущее устройство
-      if (currentDeviceId === deviceId) {
-        refreshDeviceDetail();
-      }
-    }
-  });
-}
+     // if (currentDeviceId === deviceId) {
+    //    refreshDeviceDetail();
+    //  }
+   // }
+//  });
+// }
 
 // ========== DEVICE MANAGEMENT ==========
 
