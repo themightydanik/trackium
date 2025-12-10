@@ -92,26 +92,25 @@ function pollOnce() {
 
 
 // ======================================================================
-// PULL FROM ANDROID COMPANION (HTTP GET → /location)
+// PULL FROM ANDROID COMPANION (MDS net → /location)
 // ======================================================================
 function pullFromAndroid(deviceId) {
     var url = "http://127.0.0.1:8123/location";
 
     MDS.log("🌐 Requesting Android location for " + deviceId + "...");
 
-    // В Rhino используем колбэк-версию MDS.http.get
-    MDS.http.get(url, function (res) {
+    MDS.net.GET(url, function(res) {
 
         if (!res || !res.status) {
-            var err = (res && res.error) ? res.error : "unknown";
-            MDS.log("❌ Android HTTP error: " + err);
+            var err = res && res.error ? res.error : "network_error";
+            MDS.log("❌ MDS.net GET error: " + err);
             return;
         }
 
         var data;
         try {
             data = JSON.parse(res.response);
-        } catch (e) {
+        } catch(e) {
             MDS.log("❌ JSON parse error: " + e);
             return;
         }
@@ -122,7 +121,7 @@ function pullFromAndroid(deviceId) {
         }
 
         if (data.latitude === undefined || data.longitude === undefined) {
-            MDS.log("⚠️ Invalid coordinates from Android: " + JSON.stringify(data));
+            MDS.log("⚠️ Invalid coordinates from Android");
             return;
         }
 
