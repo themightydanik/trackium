@@ -1,5 +1,7 @@
 # Trackium Cargo MiniDapp 2.0 foundation
 
+> PR #6 extends this baseline: see [Gateway integration, pairing, shipments and simulation](GATEWAY_SHIPMENTS_SIMULATION.md) for the current same-origin sessions, shipment API, simulator source/identity and migration 002. Earlier “not implemented” pairing/shipment notes below describe the original baseline; embedded Core-origin transport remains unavailable.
+
 ## What this version does
 
 `index.html` is a new dependency-free Cargo workspace with a navy/teal design system, responsive navigation, accessible mobile menu and detail dialogs, explicit loading/empty/error states, and seven screens:

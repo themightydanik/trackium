@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "node --test test/*.test.js",
-    "test:integration": "node --test test/telemetry.integration.js",
+    "test:integration": "node --test test/*.integration.js",
     "telemetry:admin": "node src/telemetry/admin.js"
   },
   "dependencies": {

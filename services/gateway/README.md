@@ -4,6 +4,8 @@
 
 Telemetry Core adds authenticated tenant-scoped registration/read APIs, an opt-in synthetic fixture adapter, additive PostgreSQL migrations and canonical event bytes. See [Telemetry Core v1](../../docs/TELEMETRY_CORE_V1.md) for provisioning, schema, API routes, tests and security limitations. TCP input still only enters the raw journal; it never becomes trusted telemetry automatically.
 
+See [Gateway integration and server simulation](../../docs/GATEWAY_SHIPMENTS_SIMULATION.md) for owner-approved web sessions, shipment APIs, durable simulation, migration 002 and the PR #7 outbox. The web workspace and simulator are disabled by default. Compose now builds from the repository root; direct image builds use `docker build -f services/gateway/Dockerfile .` there.
+
 ## Run locally
 
 From `services/gateway`, with Docker Engine and Docker Compose v2 installed:

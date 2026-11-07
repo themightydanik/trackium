@@ -1,0 +1,17 @@
+# Gateway builds use the repository root; only these public/build inputs enter context.
+**
+!index.html
+!mds.js
+!icon.png
+!assets/
+!assets/v2/
+!assets/v2/**
+!services/
+!services/gateway/
+!services/gateway/Dockerfile
+!services/gateway/package.json
+!services/gateway/package-lock.json
+!services/gateway/src/
+!services/gateway/src/**
+!services/gateway/migrations/
+!services/gateway/migrations/**

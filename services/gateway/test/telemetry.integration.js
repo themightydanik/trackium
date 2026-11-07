@@ -53,7 +53,7 @@ test(
       async () => {
         await Promise.all([migrate(db), migrate(db)]);
         assert.equal(
-          (await db.query('SELECT count(*) FROM gateway_schema_migrations')).rows[0].count,
+          (await db.query('SELECT count(*) FROM gateway_schema_migrations WHERE version=1')).rows[0].count,
           '1'
         );
         assert.equal(

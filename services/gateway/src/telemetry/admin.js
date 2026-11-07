@@ -1,13 +1,15 @@
 // Operator-only CLI; never expose database-wide provisioning as a public API.
-import { writeFile, realpath } from 'node:fs/promises';
+import { writeFile, realpath, readFile } from 'node:fs/promises';
 import { dirname, resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { pool, initialize, close } from '../journal.js';
 import { migrate } from './migrate.js';
-import { provisionTenant, issueKey } from './service.js';
+import { createTelemetryService, provisionTenant, issueKey } from './service.js';
 import { uuid } from './schema.js';
+import { createPairing } from '../cargo/pairing.js';
+import { readConfig } from '../config.js';
 const [command, ...args] = process.argv.slice(2);
 const options = Object.fromEntries(
   args.map((arg) => {
@@ -18,7 +20,22 @@ const options = Object.fromEntries(
 try {
   await initialize();
   await migrate(pool);
-  if (command === 'revoke-key') {
+  if (command === 'approve-pairing') {
+    let credential;
+    try {
+      credential = JSON.parse(await readFile(options['--credential-file'], 'utf8'));
+    } catch {
+      // JSON parser errors can include input snippets; never echo credential bytes.
+      throw new Error('Cannot read owner credential JSON');
+    }
+    const identity = await createTelemetryService(pool).authenticate('Bearer ' + credential.token);
+    await createPairing(pool, readConfig()).approve(
+      identity,
+      options['--challenge'],
+      (options['--scopes'] || 'read').split(',')
+    );
+    console.log('Pairing challenge approved for credential tenant.');
+  } else if (command === 'revoke-key') {
     const result = await pool.query(
       'UPDATE telemetry_api_keys SET revoked_at=now() WHERE id=$1 RETURNING id',
       [uuid(options['--id'])]

@@ -1,5 +1,5 @@
 import { ApiError, invalid, timestamp } from './schema.js';
-const reply = (res, status, body) => {
+export const reply = (res, status, body) => {
   res.writeHead(status, {
     'content-type': 'application/json',
     'cache-control': 'no-store',
@@ -7,7 +7,7 @@ const reply = (res, status, body) => {
   });
   res.end(JSON.stringify(body));
 };
-async function body(req) {
+export async function body(req) {
   if (req.destroyed || req.aborted) throw new ApiError(400, 'request aborted');
   if (!/^application\/json(?:\s*;.*)?$/i.test(req.headers['content-type'] ?? ''))
     throw new ApiError(415, 'application/json required');
@@ -49,7 +49,7 @@ async function body(req) {
     invalid('invalid JSON');
   }
 }
-function query(url, allowed) {
+export function query(url, allowed) {
   for (const key of url.searchParams.keys())
     if (!allowed.includes(key) || url.searchParams.getAll(key).length !== 1)
       invalid('unsupported query parameter');
@@ -65,13 +65,18 @@ function query(url, allowed) {
   if (from && to && from > to) invalid('from must not exceed to');
   return { limit: Number(limit), cursor, from: from || undefined, to: to || undefined };
 }
-export function createTelemetryApi(service, { fixturesEnabled = false, logger = console } = {}) {
+export function createTelemetryApi(
+  service,
+  { fixturesEnabled = false, logger = console, authenticate } = {}
+) {
   return async (req, res) => {
     // A client can disconnect while database authentication is still pending.
     req.on('error', () => {});
     try {
       const url = new URL(req.url, 'http://gateway.invalid');
-      const identity = await service.authenticate(req.headers.authorization);
+      const identity = authenticate
+        ? await authenticate(req)
+        : await service.authenticate(req.headers.authorization);
       const requireScope = (scope) => {
         if (!identity.scopes.includes(scope)) throw new ApiError(403, 'insufficient scope');
       };

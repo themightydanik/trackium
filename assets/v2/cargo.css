@@ -2568,3 +2568,67 @@ tbody tr:hover {
   left: 0;
   top: 0;
 }
+.server-content {
+  padding: 22px;
+  display: grid;
+  gap: 16px;
+}
+.server-content form {
+  display: grid;
+  gap: 14px;
+}
+.server-shipment {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  margin: 10px 0;
+}
+.server-shipment-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.server-shipment > small {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 10px;
+  margin: 8px 0;
+}
+.server-checkpoints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin: 18px 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.server-checkpoints .visited {
+  color: var(--teal);
+}
+.hash-cell {
+  font-size: 9px;
+  max-width: 220px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.server-content #server-pair-form {
+  max-width: 600px;
+}
+.server-content #pair-challenge {
+  overflow-wrap: anywhere;
+}
+.server-content .notice {
+  min-width: 0;
+}
+textarea.text-input {
+  font-family: monospace;
+}
+.server-content p {
+  overflow-wrap: anywhere;
+}
+.server-shipment .form-actions .button {
+  white-space: normal;
+}
