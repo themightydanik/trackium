@@ -11,6 +11,7 @@ services:
       DATABASE_URL: postgres://db/trackium
       TCP_PORT: 9000
       HTTP_PORT: 8080
+      ENABLE_FIXTURE_ADAPTER: ${ENABLE_FIXTURE_ADAPTER:-false}
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:8080:8080"

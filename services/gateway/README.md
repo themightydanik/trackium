@@ -1,6 +1,8 @@
 # Trackium Gateway Core
 
-**Raw-capture-only** foundation for Trackium Free and Managed. Not suitable for direct production exposure or a commercial pilot.
+**Raw-capture TCP journal with Telemetry Core v1** for Trackium Free and Managed. Not suitable for direct production exposure or a commercial pilot.
+
+Telemetry Core adds authenticated tenant-scoped registration/read APIs, an opt-in synthetic fixture adapter, additive PostgreSQL migrations and canonical event bytes. See [Telemetry Core v1](../../docs/TELEMETRY_CORE_V1.md) for provisioning, schema, API routes, tests and security limitations. TCP input still only enters the raw journal; it never becomes trusted telemetry automatically.
 
 ## Run locally
 
@@ -15,7 +17,7 @@ From `services/gateway`, with Docker Engine and Docker Compose v2 installed:
 
 Both published ports (TCP 9000, HTTP 8080) bind to localhost. PostgreSQL has no published port. Password configuration is required before Compose will start. Startup creates the journal table and index idempotently. Dependencies are locked and installed with `npm ci` in the image. Builds behind an inspecting HTTPS proxy can supply its trusted CA as the optional BuildKit secret `proxy_ca`; TLS verification must remain enabled.
 
-For native development, use Node.js >=22, run `npm ci`, set `DATABASE_URL` (percent-encode any password in the URI), then run `npm start`. Run `npm test` for focused tests of framing, TCP lifecycle, write failures, reconnects, resource limits, readiness and shutdown; these tests use an injected journal and do not require PostgreSQL. Validate real database persistence separately with the Compose fixture above.
+For native development, use Node.js >=22, run `npm ci`, set `DATABASE_URL` (percent-encode any password in the URI), then run `npm start`. Run `npm test` for focused tests of framing, TCP lifecycle, write failures, reconnects, resource limits, readiness, shutdown and telemetry normalization; these tests use an injected journal and do not require PostgreSQL. Validate real database persistence separately with the Compose fixture above.
 
 ## Receiver behavior and limits
 
@@ -44,7 +46,7 @@ Compose uses these defaults; changing them requires a Compose environment overri
 ## Limitations and next protocol work
 
 - This is NOT a verified AOVX GL110-GL parser. Real binary packet framing, firmware-specific validation, device acknowledgements, authentication, provisioning and MQTT are not implemented. Arbitrary bytes in a synthetic line are preserved, but embedded LF splits that line.
-- Do not expose TCP 9000 publicly before implementing protocol authentication, tenant binding, network controls and rate limiting. There is no TLS, authenticated client API, tenant isolation or retention policy in this skeleton.
+- Do not expose TCP 9000 publicly before implementing protocol authentication, tenant binding, network controls and rate limiting. Telemetry API routes require scoped tenant credentials; the raw TCP receiver still has no device authentication, TLS or tenant binding. Retention policy is not implemented.
 - The journal stores raw packets and a SHA-256 transport fingerprint. This is **not** the SHA3-256 Minima evidence commitment. Integritas, proof publishing and Android integration are outside this implementation.
 - Disk usage is unbounded. PostgreSQL needs backups, monitoring and restore verification. Process crashes, forced shutdowns, overload and ambiguous database errors can lose or duplicate data on resend; no delivery assurance is claimed.
 - GL110-GL integration needs the actual firmware version, authoritative protocol details and captured traffic with verified fixtures: frame boundaries/lengths/checksums, device identity, login/heartbeat, ACK/retry behavior, transport choice and disconnect/reconnect behavior. Bind devices to tenants before downstream processing and keep the raw journal decoupled from the future proof engine.
