@@ -57,6 +57,7 @@
     generation: 0,
     mds: { state: 'standalone', label: 'Standalone preview' }
   };
+  const server = TrackiumServer.create(() => render());
   let toastTimer;
   function loadProfile() {
     try {
@@ -141,7 +142,7 @@
     return (
       '<div class="notice">' +
       icon('signal') +
-      '<div><strong>Gateway not paired</strong><p>Ожидает реализации pairing. No live data is loaded. Demo data appears only when you enable Demo mode.</p></div><a href="#settings">Settings ' +
+      '<div><strong>Gateway not paired</strong><p>No Core-origin session is configured. Open the authenticated Gateway workspace in Settings. Preview data is static and opt-in.</p></div><a href="#settings">Settings ' +
       icon('arrow', 'northeast') +
       '</a></div>'
     );
@@ -358,7 +359,7 @@
         state.demo ? '03' : '—',
         state.demo
           ? '<span class="teal-text">2 on the move</span><span>of 3 demo shipments</span>'
-          : 'Shipment API not available',
+          : 'Open Gateway workspace',
         'shipments'
       ) +
       summaryCard(
@@ -402,7 +403,7 @@
         ? shipmentRows(state.data.shipments)
         : empty(
             'Your next journey starts here',
-            'Pairing and the shipment API are not implemented. Explore a clearly labeled demo.',
+            'Open the Gateway workspace for authenticated shipments, or explore a clearly labeled static Preview.',
             'shipments'
           )) +
       '</section><section class="panel activity-panel"><div class="panel-heading"><div><h2>Recent activity</h2><p>' +
@@ -478,7 +479,7 @@
       ) +
       '<div class="notice subtle">' +
       icon('shipments') +
-      '<div><strong>Shipment workspace preview</strong><p>The Gateway has no shipment API yet. These routes are available only in Demo mode; nothing here creates or saves a shipment.</p></div></div>' +
+      '<div><strong>Shipment workspace preview</strong><p>These static Preview routes are not Gateway records. Use the authenticated Gateway workspace to create and manage shipments in PostgreSQL.</p></div></div>' +
       '<section class="panel"><div class="toolbar">' +
       search('Search shipments, cargo or route') +
       '<span class="muted">' +
@@ -488,7 +489,7 @@
         ? shipmentRows(items)
         : empty(
             'No connected shipments',
-            'The shipment API and pairing are not implemented. No local records are presented as Gateway data.',
+            'Open your Gateway workspace for authenticated shipment records. No local Preview record is presented as Gateway data.',
             'shipments'
           )) +
       '</section>'
@@ -550,7 +551,7 @@
           '</div>'
         : empty(
             'No Gateway devices loaded',
-            'Pairing is pending. The original local MDS registry remains separate from the Gateway registry.'
+            'Open the Gateway workspace for owner-approved pairing. The original local MDS registry remains separate.'
           )) +
       '</section>'
     );
@@ -699,9 +700,15 @@
       (profile.mode === 'managed' ? 'checked' : '') +
       '><span><strong>Managed</strong><small>A tenant on a managed Gateway.</small></span></label></div></fieldset><label class="field-label" for="gateway-origin">Gateway origin</label><input class="text-input" id="gateway-origin" type="url" autocomplete="off" spellcheck="false" placeholder="https://gateway.example.com" value="' +
       escape(profile.origin) +
-      '" aria-describedby="origin-help profile-feedback"><p class="field-help" id="origin-help">Origin only. No username, password, path, query parameters or token. HTTP is accepted only on localhost.</p><div id="profile-feedback" class="form-feedback" role="status"></div><div class="form-actions"><button class="button primary" type="submit">Save profile</button><button type="button" class="button secondary" data-action="check-gateway">Check pairing support</button><button type="button" class="text-link" data-action="clear-profile">Clear</button></div></form><div class="pairing-state"><span class="pairing-symbol">' +
+      '" aria-describedby="origin-help profile-feedback"><p class="field-help" id="origin-help">Origin only. No username, password, path, query parameters or token. HTTP is accepted only on localhost.</p><div id="profile-feedback" class="form-feedback" role="status"></div><div class="form-actions"><button class="button primary" type="submit">Save profile</button><button type="button" class="button secondary" data-action="check-gateway">Check pairing support</button><button type="button" class="text-link" data-action="clear-profile">Clear</button></div></form>' +
+      (state.profile
+        ? '<div class="server-content"><a class="button primary" href="' +
+          escape(state.profile.origin) +
+          '/app/" target="_blank" rel="noopener noreferrer">Open secure Gateway workspace</a><p>Owner-approved pairing runs on the Gateway origin. No token or Minima UID is forwarded.</p></div>'
+        : '') +
+      '<div class="pairing-state"><span class="pairing-symbol">' +
       icon('signal') +
-      '</span><div><strong>Ожидает реализации pairing</strong><p>Gateway v1 has no pairing exchange or short-lived session endpoint. Saving this profile does not connect, authenticate or reach the Gateway.</p></div></div></section><div class="settings-side"><section class="panel security-panel"><span class="eyebrow">CONNECTION SECURITY</span><h2>Credentials stay off the page.</h2><p>No bearer-token field, browser token storage, anonymous API fallback or public proxy.</p><ul><li>Tenant-bound, one-use pairing exchange</li><li>Short-lived, read-only sessions</li><li>Restricted MDS service transport</li></ul><span class="muted">Proposed architecture · not implemented</span></section><section class="panel runtime-panel"><h2>Minima runtime</h2><div class="runtime-status">' +
+      '</span><div><strong>Pairing uses the Gateway workspace</strong><p>Open the same-origin workspace above for one-use tenant-owner approval and short-lived sessions. Direct Core-origin transport is not enabled. Saving this profile does not connect.</p></div></div></section><div class="settings-side"><section class="panel security-panel"><span class="eyebrow">CONNECTION SECURITY</span><h2>Credentials stay off the page.</h2><p>No bearer-token field, browser token storage, anonymous API fallback or public proxy.</p><ul><li>Tenant-bound, one-use pairing exchange</li><li>Short-lived, scope-limited sessions</li><li>No credentials forwarded from Core</li></ul><span class="muted">Same-origin Gateway sessions implemented; Core handoff requires verification</span></section><section class="panel runtime-panel"><h2>Minima runtime</h2><div class="runtime-status">' +
       badge(state.mds.label, state.mds.state === 'ready' ? 'teal' : 'neutral') +
       '</div><p>' +
       (state.mds.block !== undefined
@@ -753,6 +760,20 @@
       settings: settingsPage
     };
     $('#main').setAttribute('aria-busy', String(state.loading));
+    $('.connection-pill').innerHTML =
+      '<span></span>' + (server.state.connected ? 'Tenant session' : 'Not paired');
+    const serverBanner = $('#server-banner');
+    serverBanner.hidden = !server.state.connected || state.demo;
+    if (server.state.enabled && !state.demo) {
+      $('#main').innerHTML = server.state.connected
+        ? TrackiumServerView.render(current, server.state)
+        : header(
+            'GATEWAY WORKSPACE',
+            'Connect with tenant-owner approval.',
+            'This page runs on the Gateway origin. No Minima UID or owner API key is accepted as browser identity.'
+          ) + TrackiumServerView.pairing(server.state);
+      return;
+    }
     $('#main').innerHTML = state.loading
       ? '<div class="loading-state" role="status"><span class="spinner"></span><h2>Loading synthetic workspace…</h2><p>Demo snapshot only. No Gateway request.</p></div>'
       : views[current]();
@@ -777,7 +798,7 @@
     state.data = TrackiumDemo.create();
     state.loading = false;
     render();
-    toast('Demo mode enabled · synthetic data only');
+    toast('Preview enabled · static synthetic fixtures only');
   }
   function toast(message) {
     clearTimeout(toastTimer);
@@ -917,6 +938,37 @@
   document.addEventListener('click', async function (event) {
     const target = event.target.closest('button, a');
     if (!target) return;
+    const serverAction = target.dataset.serverAction;
+    if (serverAction) {
+      target.disabled = true;
+      try {
+        const id = target.dataset.serverId;
+        if (serverAction === 'refresh') await server.refresh();
+        else if (serverAction === 'claim') await server.claim();
+        else if (serverAction === 'disconnect') await server.disconnect();
+        else if (serverAction === 'device')
+          await server.mutate('/v1/simulated-devices', {
+            label: 'Server simulator ' + (server.state.data.devices.length + 1)
+          });
+        else if (serverAction === 'create')
+          openDialog(TrackiumServerView.createForm(server.state.data.devices));
+        else if (serverAction.startsWith('transition:'))
+          await server.mutate('/v1/shipments/' + id + '/transitions', {
+            status: serverAction.split(':')[1]
+          });
+        else if (serverAction.startsWith('start:'))
+          await server.mutate('/v1/shipments/' + id + '/simulations', {
+            scenario: serverAction.split(':')[1]
+          });
+        else if (['pause', 'resume', 'finish'].includes(serverAction))
+          await server.mutate('/v1/simulations/' + id + '/' + serverAction);
+      } catch (error) {
+        toast(error.message);
+      } finally {
+        target.disabled = false;
+      }
+      return;
+    }
     const action = target.dataset.action;
     if (target.id === 'demo-toggle') demo(!state.demo);
     if (target.id === 'exit-demo' || action === 'demo-off') demo(false);
@@ -948,7 +1000,7 @@
       } catch (error) {
         feedback.textContent =
           error.code === 'PAIRING_UNAVAILABLE'
-            ? 'Ожидает реализации pairing. No request was sent; the current Gateway cannot issue a short-lived session.'
+            ? 'No request was sent. Open the Gateway workspace for owner-approved pairing; direct Core-origin sessions are not configured.'
             : 'Gateway unavailable. No demo data was substituted.';
       }
     }
@@ -962,6 +1014,40 @@
     }
   });
   document.addEventListener('submit', function (event) {
+    if (event.target.id === 'server-pair-form') {
+      event.preventDefault();
+      server.challenge($('#pair-tenant').value.trim()).catch((error) => toast(error.message));
+      return;
+    }
+    if (event.target.id === 'server-shipment-form') {
+      event.preventDefault();
+      const form = new FormData(event.target);
+      try {
+        const input = {
+          name: form.get('name'),
+          device_id: form.get('device_id'),
+          route: JSON.parse(form.get('route')),
+          conditions: {
+            temperature_min_c: Number(form.get('min')),
+            temperature_max_c: Number(form.get('max')),
+            tolerance_c: Number(form.get('tolerance')),
+            max_deviation_m: 1000
+          }
+        };
+        server
+          .mutate('/v1/shipments', input)
+          .then(() => {
+            $('#detail-dialog').close();
+            toast('Draft saved on Gateway.');
+          })
+          .catch((error) => {
+            $('#server-form-error').textContent = error.message;
+          });
+      } catch (error) {
+        $('#server-form-error').textContent = 'Enter valid route JSON.';
+      }
+      return;
+    }
     if (event.target.id !== 'gateway-form') return;
     event.preventDefault();
     const feedback = $('#profile-feedback');
@@ -972,7 +1058,8 @@
       };
       localStorage.setItem('trackium_v2_profile', JSON.stringify(profile));
       state.profile = profile;
-      feedback.textContent = 'Profile saved locally. Ожидает реализации pairing — not connected.';
+      feedback.textContent =
+        'Profile saved locally. Open the Gateway workspace to pair — not connected here.';
     } catch (error) {
       feedback.textContent =
         error.code === 'INVALID_ORIGIN'
@@ -1034,6 +1121,7 @@
   });
   loadProfile();
   render();
+  if (TrackiumServer.enabled) server.restore();
   TrackiumMDS.start((info) => {
     state.mds = info;
     $('#mds-state').textContent = info.label;

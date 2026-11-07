@@ -1,6 +1,11 @@
 function integer(env, name, fallback, max = 2147483647) {
   const value = env[name] ?? String(fallback);
-  if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1 || Number(value) > max) {
+  if (
+    !/^\d+$/.test(value) ||
+    !Number.isSafeInteger(Number(value)) ||
+    Number(value) < 1 ||
+    Number(value) > max
+  ) {
     throw new Error(`${name} must be an integer between 1 and ${max}`);
   }
   return Number(value);
@@ -8,10 +13,20 @@ function integer(env, name, fallback, max = 2147483647) {
 
 export function readConfig(env = process.env) {
   if (!env.DATABASE_URL) throw new Error('DATABASE_URL is required');
-  if (env.ENABLE_FIXTURE_ADAPTER !== undefined && !['true','false'].includes(env.ENABLE_FIXTURE_ADAPTER)) {
+  if (
+    env.ENABLE_FIXTURE_ADAPTER !== undefined &&
+    !['true', 'false'].includes(env.ENABLE_FIXTURE_ADAPTER)
+  ) {
     throw new Error('ENABLE_FIXTURE_ADAPTER must be true or false');
   }
+  for (const name of ['ENABLE_WEB_WORKSPACE', 'ENABLE_SERVER_SIMULATOR'])
+    if (env[name] !== undefined && !['true', 'false'].includes(env[name]))
+      throw new Error(name + ' must be true or false');
   return {
+    webEnabled: env.ENABLE_WEB_WORKSPACE === 'true',
+    simulatorEnabled: env.ENABLE_SERVER_SIMULATOR === 'true',
+    publicOrigin: env.PUBLIC_ORIGIN || 'http://127.0.0.1:8080',
+    webRoot: env.WEB_ROOT,
     fixturesEnabled: env.ENABLE_FIXTURE_ADAPTER === 'true',
     tcpPort: integer(env, 'TCP_PORT', 9000, 65535),
     httpPort: integer(env, 'HTTP_PORT', 8080, 65535),

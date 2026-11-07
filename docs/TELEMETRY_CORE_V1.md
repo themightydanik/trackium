@@ -1,5 +1,7 @@
 # Telemetry Core v1
 
+> PR #6 extends this baseline: see [Gateway integration, pairing, shipments and simulation](GATEWAY_SHIPMENTS_SIMULATION.md) for the current same-origin sessions, shipment API, simulator source/identity and migration 002. Earlier “not implemented” pairing/shipment notes below describe the original baseline; embedded Core-origin transport remains unavailable.
+
 Telemetry Core extends the existing Node/PostgreSQL Gateway for both Free/self-hosted and Managed use. It adds an administrative device registry, normalized synthetic events, tenant-scoped read APIs and canonical event bytes. It does not implement a device protocol, blockchain publishing, pairing UI or production delivery guarantees. The legacy MiniDapp is unchanged.
 
 ## Trust and data paths

@@ -17,6 +17,8 @@
     <script defer src="assets/v2/mds-bridge.js"></script>
     <script defer src="assets/v2/gateway-model.js"></script>
     <script defer src="assets/v2/demo-data.js"></script>
+    <script defer src="assets/v2/server-client.js"></script>
+    <script defer src="assets/v2/server-workspace.js"></script>
     <script defer src="assets/v2/cargo.js"></script>
   </head>
   <body>
@@ -78,17 +80,23 @@
           <div class="topbar-actions">
             <span class="connection-pill"><span></span>Not paired</span
             ><button class="demo-switch" id="demo-toggle" role="switch" aria-checked="false">
-              <span class="switch-track"></span>Demo mode</button
+              <span class="switch-track"></span>Preview mode</button
             ><span class="avatar small">TC</span>
           </div>
         </header>
         <div id="demo-banner" class="demo-banner" hidden>
           <span
-            ><strong>DEMO WORKSPACE</strong
+            ><strong>PREVIEW · STATIC DEMO</strong
             ><span class="banner-description"
               >Synthetic data · fixed snapshot, 07 Nov 2026 · no Gateway writes</span
             ></span
           ><button id="exit-demo">Exit demo <span>×</span></button>
+        </div>
+        <div id="server-banner" class="demo-banner" hidden>
+          <strong>AUTHENTICATED GATEWAY</strong
+          ><span
+            >Server Simulation is synthetic · Preview is separate · no blockchain publication</span
+          >
         </div>
         <main id="main" tabindex="-1"></main>
         <footer class="main-footer">

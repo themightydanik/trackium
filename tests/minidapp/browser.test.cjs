@@ -84,7 +84,7 @@ test('unpaired workspace stays empty, never falls back to demo and has no unauth
   await page.goto(ORIGIN);
   assert.equal(await page.locator('#demo-toggle').getAttribute('aria-checked'), 'false');
   assert.equal(await page.locator('.shipment-row').count(), 0);
-  assert.match(await page.locator('#main').innerText(), /Ожидает реализации pairing/);
+  assert.match(await page.locator('#main').innerText(), /Gateway not paired/);
   assert.equal(requests.filter((u) => new URL(u).pathname.startsWith('/v1/')).length, 0);
   await page.locator('a[href="#settings"]').first().click();
   await page.getByRole('button', { name: 'Check pairing support' }).click();

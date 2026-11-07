@@ -3,6 +3,10 @@
   // ES5 intentionally: keep runtime integration small and independent of legacy side effects.
   root.TrackiumMDS = {
     start: function (onState) {
+      if ((root.location.pathname || '').indexOf('/app/') === 0) {
+        onState({ state: 'standalone', label: 'Gateway workspace · no Core session' });
+        return;
+      }
       var uid = new URLSearchParams(root.location.search).get('uid');
       if (!uid || !/^0x[0-9a-f]+$/i.test(uid) || !root.MDS) {
         onState({ state: 'standalone', label: 'Standalone preview' });
