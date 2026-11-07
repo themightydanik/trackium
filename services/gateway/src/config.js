@@ -1,3 +1,4 @@
+import { proofConfig } from './proofs/config.js';
 function integer(env, name, fallback, max = 2147483647) {
   const value = env[name] ?? String(fallback);
   if (
@@ -23,6 +24,7 @@ export function readConfig(env = process.env) {
     if (env[name] !== undefined && !['true', 'false'].includes(env[name]))
       throw new Error(name + ' must be true or false');
   return {
+    proofs: proofConfig(env),
     webEnabled: env.ENABLE_WEB_WORKSPACE === 'true',
     simulatorEnabled: env.ENABLE_SERVER_SIMULATOR === 'true',
     publicOrigin: env.PUBLIC_ORIGIN || 'http://127.0.0.1:8080',

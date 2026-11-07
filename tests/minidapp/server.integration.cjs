@@ -45,7 +45,8 @@ test(
       PUBLIC_ORIGIN: origin,
       WEB_ROOT: ROOT,
       ENABLE_WEB_WORKSPACE: 'true',
-      ENABLE_SERVER_SIMULATOR: 'true'
+      ENABLE_SERVER_SIMULATOR: 'true',
+      PROOF_MODE: 'test'
     };
     let child,
       browser,
@@ -107,7 +108,10 @@ test(
     const id = await page.locator('#pair-challenge').innerText();
     const approval = await fetch(origin + '/v1/pairing/challenges/' + id + '/approve', {
       method: 'POST',
-      headers: { authorization: 'Bearer ' + owner.token, 'content-type': 'application/json' },
+      headers: {
+        authorization: 'Bearer ' + owner.token,
+        'content-type': 'application/json'
+      },
       body: JSON.stringify({ scopes: ['read', 'shipments', 'simulate'] })
     });
     assert.equal(approval.status, 200);
@@ -203,7 +207,31 @@ test(
     );
     assert.match(await page.locator('#main').innerText(), /synthetic/);
     await page.locator('#navigation a[href="#proofs"]').click();
-    assert.match(await page.locator('#main').innerText(), /not published/);
+    await until(
+      async () =>
+        Number(
+          (await db.query("SELECT count(*) FROM cargo_proofs WHERE mode='test'")).rows[0].count
+        ) > 0
+    );
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await page.getByRole('button', { name: 'Verify', exact: true }).first().waitFor();
+    assert.match(await page.locator('#main').innerText(), /No blockchain TXID/);
+    await page.getByRole('button', { name: 'Verify', exact: true }).first().click();
+    await page.getByRole('heading', { name: 'Fresh node verification' }).waitFor();
+    assert.match(await page.locator('#detail-dialog').innerText(), /TEST_ONLY_NOT_BLOCKCHAIN/);
+    await page.locator('#detail-dialog [data-action=close-dialog]').click();
+    const downloadReady = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export bundle', exact: true }).first().click();
+    const download = await downloadReady;
+    assert.match(download.suggestedFilename(), /^trackium-proof-.*\.json$/);
+    const bundle = JSON.parse(require('node:fs').readFileSync(await download.path(), 'utf8'));
+    assert.equal(bundle.proof.mode, 'test');
+    assert.equal(bundle.proof.txpow_id, null);
+    assert.ok(bundle.records.every((r) => r.source_trust === 'synthetic'));
+    assert.ok(!JSON.stringify(bundle).includes(owner.token));
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.setViewportSize({ width: 1440, height: 1000 });
     // Static Preview is still an explicitly selected, isolated data source.
     await page.locator('#demo-toggle').click();
     await page.waitForSelector('.proof-pipeline');

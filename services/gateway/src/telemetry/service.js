@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { ApiError, invalid, object, text, uuid, timestamp } from './schema.js';
 import { ingestSynthetic } from '../cargo/ingestion.js';
 const hash = (value) => createHash('sha256').update(value).digest('hex');
-const scopesAllowed = ['read', 'admin', 'fixture', 'shipments', 'simulate'];
+const scopesAllowed = ['read', 'admin', 'fixture', 'shipments', 'simulate', 'publish'];
 async function transaction(pool, work) {
   const client = await pool.connect();
   try {
@@ -34,7 +34,7 @@ export async function provisionTenant(pool, name) {
   return transaction(pool, async (client) => {
     const id = randomUUID();
     await client.query('INSERT INTO telemetry_tenants(id,name) VALUES($1,$2)', [id, name]);
-    return issueKey(client, id, ['read', 'admin', 'fixture', 'shipments', 'simulate']);
+    return issueKey(client, id, ['read', 'admin', 'fixture', 'shipments', 'simulate', 'publish']);
   });
 }
 export function createTelemetryService(pool, { onEvent } = {}) {

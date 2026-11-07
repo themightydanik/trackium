@@ -17,6 +17,7 @@ services:
       ENABLE_SERVER_SIMULATOR: ${ENABLE_SERVER_SIMULATOR:-false}
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://127.0.0.1:8080}
       WEB_ROOT: /opt/trackium-ui
+      PROOF_MODE: ${PROOF_MODE:-disabled}
       ENABLE_FIXTURE_ADAPTER: ${ENABLE_FIXTURE_ADAPTER:-false}
     ports:
       - "127.0.0.1:9000:9000"

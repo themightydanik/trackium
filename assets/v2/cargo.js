@@ -58,12 +58,24 @@
     mds: { state: 'standalone', label: 'Standalone preview' }
   };
   const server = TrackiumServer.create(() => render());
+  window.TrackiumExchangeRequest = async function (id, input) {
+    const result = await server.request(
+      '/v1/proofs/' + id + (input.mined_data ? '/local-checkpoint' : '/local-result'),
+      'POST',
+      input
+    );
+    await server.refresh();
+    return result;
+  };
   let toastTimer;
   function loadProfile() {
     try {
       const saved = JSON.parse(localStorage.getItem('trackium_v2_profile'));
       if (saved && ['free', 'managed'].includes(saved.mode))
-        state.profile = { mode: saved.mode, origin: TrackiumGateway.validateOrigin(saved.origin) };
+        state.profile = {
+          mode: saved.mode,
+          origin: TrackiumGateway.validateOrigin(saved.origin)
+        };
     } catch (_) {
       /* Corrupt or unavailable storage must not block the workspace. */
     }
@@ -80,9 +92,12 @@
   }
   function statusLabel(status) {
     return (
-      { moving: 'Moving', alarm: 'Attention', stationary: 'Stationary', unknown: 'No telemetry' }[
-        status
-      ] || status
+      {
+        moving: 'Moving',
+        alarm: 'Attention',
+        stationary: 'Stationary',
+        unknown: 'No telemetry'
+      }[status] || status
     );
   }
   function statusBadge(status) {
@@ -666,7 +681,7 @@
         'EVIDENCE WORKSPACE',
         'Visibility is not yet proof.',
         'Keep recorded telemetry separate from cryptographically confirmed evidence.',
-        badge('Publishing not implemented', 'warning')
+        badge('Preview · no publication', 'warning')
       ) +
       '<div class="metrics-grid proof-metrics">' +
       summaryCard('Confirmed on-chain', '00', 'No confirmation adapter', 'proofs') +
@@ -681,7 +696,15 @@
       (state.demo
         ? 'Demo telemetry is synthetic and has no published proof.'
         : 'No Gateway evidence is loaded.') +
-      ' Integritas and the Minima Proof Engine are not connected. No transaction can be submitted from this screen.</p></div></section>'
+      ' Preview does not publish. Use the installed Local Core workflow with an owner-approved signed Gateway job.</p></div>' +
+      ((location.pathname ?? '').startsWith('/app/')
+        ? '<p>Open Local Core Publisher inside the installed Core MiniDapp; this Gateway origin has no Core wallet session.</p>'
+        : '<a class="button secondary" href="local-core.html' +
+          (/^0x[0-9a-f]+$/i.test(new URLSearchParams(location.search).get('uid') ?? '')
+            ? '?uid=' + encodeURIComponent(new URLSearchParams(location.search).get('uid'))
+            : '') +
+          '">Open Local Core Publisher</a>') +
+      '</section>'
     );
   }
   function settingsPage() {
@@ -946,7 +969,57 @@
         if (serverAction === 'refresh') await server.refresh();
         else if (serverAction === 'claim') await server.claim();
         else if (serverAction === 'disconnect') await server.disconnect();
-        else if (serverAction === 'device')
+        else if (serverAction === 'publisher-preflight') {
+          const result = await server.request('/v1/proof-publisher/preflight', 'POST', {});
+          openDialog(
+            '<h2>Core readiness observation</h2><pre style="white-space:pre-wrap;overflow-wrap:anywhere">' +
+              escape(JSON.stringify(result, null, 2)) +
+              '</pre><p>Recent tip and connected peers do not establish global synchronization. Check the actual Core before approving Mainnet.</p>'
+          );
+        } else if (serverAction === 'local-job') {
+          const packet = await server.request('/v1/proofs/' + id + '/local-job');
+          const url = URL.createObjectURL(
+              new Blob([JSON.stringify(packet, null, 2)], { type: 'application/json' })
+            ),
+            link = document.createElement('a');
+          link.href = url;
+          link.download = 'trackium-local-job-' + id + '.json';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } else if (serverAction === 'proof-verify') {
+          const result = await server.request('/v1/proofs/' + id + '/verify', 'POST', {});
+          openDialog(
+            '<h2>Fresh node verification</h2><p>' +
+              escape(
+                result.verified
+                  ? 'Verified against the configured node at this time'
+                  : 'Not verified'
+              ) +
+              '</p><p>' +
+              escape(result.status) +
+              ' · ' +
+              escape(result.reason) +
+              '</p><p>Depth: ' +
+              escape(result.confirmations ?? 0) +
+              '. Provenance: ' +
+              escape(result.source_trust ?? 'see event') +
+              '.</p><p>Export the bundle to verify with your own trusted node. A valid commitment does not verify the physical sensor reading.</p>'
+          );
+        } else if (serverAction === 'proof-export') {
+          const bundle = await server.request('/v1/proofs/' + id + '/bundle');
+          const url = URL.createObjectURL(
+            new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
+          );
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'trackium-proof-' + id + '.json';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } else if (serverAction === 'device')
           await server.mutate('/v1/simulated-devices', {
             label: 'Server simulator ' + (server.state.data.devices.length + 1)
           });
@@ -1128,3 +1201,33 @@
     if (page() === 'settings') render();
   });
 })();
+
+// Exchange stays in the authenticated same-origin Gateway; no cookies/keys enter Core files.
+document.addEventListener('submit', async function (event) {
+  if (event.target.id !== 'local-exchange-form') return;
+  event.preventDefault();
+  const button = event.target.querySelector('button');
+  button.disabled = true;
+  try {
+    const input = JSON.parse(new FormData(event.target).get('exchange'));
+    if (!/^[0-9a-f-]{36}$/i.test(input.proof_id ?? '')) throw Error('Invalid proof ID');
+    const proofId = input.proof_id;
+    delete input.proof_id;
+    const response = await window.TrackiumExchangeRequest(proofId, input);
+    const packet = response.ack ?? response;
+    const url = URL.createObjectURL(
+        new Blob([JSON.stringify(packet, null, 2)], { type: 'application/json' })
+      ),
+      link = document.createElement('a');
+    link.href = url;
+    link.download = 'trackium-core-ack-' + proofId + '.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});

@@ -14,7 +14,7 @@ def package(output):
         raise ValueError('Write the archive outside the checkout')
     config = json.loads((ROOT / 'dapp.conf').read_text())
     assert re.fullmatch(r'\d+\.\d+\.\d+', config['version'])
-    files = [ROOT / name for name in ('index.html', 'legacy.html', 'service.js', 'mds.js', 'dapp.conf', 'icon.png')]
+    files = [ROOT / name for name in ('index.html', 'local-core.html', 'legacy.html', 'service.js', 'mds.js', 'dapp.conf', 'icon.png')]
     files += [p for p in (ROOT / 'assets').rglob('*') if p.is_file() and p.suffix.lower() in ('.js', '.css', '.png', '.svg', '.jpg', '.webp')]
     if any(p.is_symlink() or not p.resolve().is_relative_to(ROOT) for p in files):
         raise ValueError('Refusing symlink or path outside checkout')

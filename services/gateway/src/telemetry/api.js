@@ -7,7 +7,7 @@ export const reply = (res, status, body) => {
   });
   res.end(JSON.stringify(body));
 };
-export async function body(req) {
+export async function body(req, maxBytes = 16384) {
   if (req.destroyed || req.aborted) throw new ApiError(400, 'request aborted');
   if (!/^application\/json(?:\s*;.*)?$/i.test(req.headers['content-type'] ?? ''))
     throw new ApiError(415, 'application/json required');
@@ -31,7 +31,7 @@ export async function body(req) {
     };
     const data = (chunk) => {
       length += chunk.length;
-      if (length > 16384) {
+      if (length > maxBytes) {
         cleanup();
         req.resume();
         reject(new ApiError(413, 'request body too large'));

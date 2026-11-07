@@ -45,10 +45,12 @@ Native environment settings (positive integers, rejected when invalid):
 
 Compose uses these defaults; changing them requires a Compose environment override. Keep `stop_grace_period` longer than the shutdown deadline.
 
+See [Minima Proof Engine](../../docs/MINIMA_PROOF_ENGINE.md) for additive migration 003, disabled/test/live modes, private-node configuration and proof API/verification.
+
 ## Limitations and next protocol work
 
 - This is NOT a verified AOVX GL110-GL parser. Real binary packet framing, firmware-specific validation, device acknowledgements, authentication, provisioning and MQTT are not implemented. Arbitrary bytes in a synthetic line are preserved, but embedded LF splits that line.
 - Do not expose TCP 9000 publicly before implementing protocol authentication, tenant binding, network controls and rate limiting. Telemetry API routes require scoped tenant credentials; the raw TCP receiver still has no device authentication, TLS or tenant binding. Retention policy is not implemented.
-- The journal stores raw packets and a SHA-256 transport fingerprint. This is **not** the SHA3-256 Minima evidence commitment. Integritas, proof publishing and Android integration are outside this implementation.
+- The journal stores raw packets and a SHA-256 transport fingerprint. This is separate from the versioned cargo commitment (also SHA-256) and Minima object identifiers (SHA3-256). Optional server proof publication is documented separately; Integritas and Android integration remain outside this implementation.
 - Disk usage is unbounded. PostgreSQL needs backups, monitoring and restore verification. Process crashes, forced shutdowns, overload and ambiguous database errors can lose or duplicate data on resend; no delivery assurance is claimed.
 - GL110-GL integration needs the actual firmware version, authoritative protocol details and captured traffic with verified fixtures: frame boundaries/lengths/checksums, device identity, login/heartbeat, ACK/retry behavior, transport choice and disconnect/reconnect behavior. Bind devices to tenants before downstream processing and keep the raw journal decoupled from the future proof engine.

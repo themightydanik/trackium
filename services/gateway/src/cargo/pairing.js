@@ -2,7 +2,7 @@ import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { ApiError, uuid } from '../telemetry/schema.js';
 import { transaction, hash } from './shared.js';
 const token = () => randomBytes(32).toString('base64url');
-const sessionScopes = ['read', 'shipments', 'simulate'];
+const sessionScopes = ['read', 'shipments', 'simulate', 'publish'];
 export function publicOrigin(value) {
   const u = new URL(value);
   if (
