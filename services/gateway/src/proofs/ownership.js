@@ -67,14 +67,33 @@ export function createOwnership(pool, config, proofs, { getReader, getWriter, ge
         signer_fingerprint: signer?.fingerprint ?? null,
         connection:
           policy?.publisher_kind === 'local'
-            ? 'Local Core is checked in the installed MiniDapp; manual signed file exchange'
+            ? policy.publisher_transport === 'android_minimaapi'
+              ? 'BlackBear native MinimaAPI; dedicated device session'
+              : 'Legacy/classic MDS only; not BlackBear; manual signed file exchange'
             : 'Server Core checked on explicit preflight/approval',
         automatic_backlog: false
       };
     },
     async policy(tenant, input) {
       requireLive();
-      object(input, ['publisher_kind', 'publisher_address', 'max_publications', 'max_input']);
+      object(input, [
+        'publisher_kind',
+        'publisher_address',
+        'max_publications',
+        'max_input',
+        'publisher_transport'
+      ]);
+      const transport =
+        input.publisher_transport ??
+        (input.publisher_kind === 'local' ? 'mds_legacy' : 'server_rpc');
+      if (
+        !(input.publisher_kind === 'server' && transport === 'server_rpc') &&
+        !(
+          input.publisher_kind === 'local' &&
+          ['mds_legacy', 'android_minimaapi'].includes(transport)
+        )
+      )
+        throw new ApiError(400, 'invalid publisher transport');
       if (
         !['local', 'server'].includes(input.publisher_kind) ||
         !['0.01', '0.1', '1'].includes(input.max_input) ||
@@ -114,8 +133,8 @@ export function createOwnership(pool, config, proofs, { getReader, getWriter, ge
           if (!current) {
             const conflict = (
               await db.query(
-                "SELECT 1 FROM cargo_proofs WHERE tenant_id=$1 AND mode='live' AND (publisher_kind<>$2 OR publisher_address<>$3) LIMIT 1",
-                [tenant, input.publisher_kind, address]
+                "SELECT 1 FROM cargo_proofs WHERE tenant_id=$1 AND mode='live' AND (publisher_kind<>$2 OR publisher_address<>$3 OR publisher_transport<>$4) LIMIT 1",
+                [tenant, input.publisher_kind, address, transport]
               )
             ).rowCount;
             if (conflict || input.max_input !== '1')
@@ -125,7 +144,8 @@ export function createOwnership(pool, config, proofs, { getReader, getWriter, ge
             current &&
             (current.publisher_kind !== input.publisher_kind ||
               current.publisher_address !== address ||
-              current.max_input !== input.max_input)
+              current.max_input !== input.max_input ||
+              current.publisher_transport !== transport)
           )
             throw new ApiError(
               409,
@@ -134,8 +154,15 @@ export function createOwnership(pool, config, proofs, { getReader, getWriter, ge
         }
         return (
           await db.query(
-            'INSERT INTO cargo_publisher_policies(tenant_id,publisher_kind,publisher_address,max_publications,max_input) VALUES($1,$2,$3,$4,$5) ON CONFLICT(tenant_id) DO UPDATE SET publisher_kind=$2,publisher_address=$3,max_publications=$4,max_input=$5 RETURNING *',
-            [tenant, input.publisher_kind, address, input.max_publications, input.max_input]
+            'INSERT INTO cargo_publisher_policies(tenant_id,publisher_kind,publisher_address,max_publications,max_input,publisher_transport) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(tenant_id) DO UPDATE SET publisher_kind=$2,publisher_address=$3,max_publications=$4,max_input=$5,publisher_transport=$6 RETURNING *',
+            [
+              tenant,
+              input.publisher_kind,
+              address,
+              input.max_publications,
+              input.max_input,
+              transport
+            ]
           )
         ).rows[0];
       });
@@ -145,7 +172,11 @@ export function createOwnership(pool, config, proofs, { getReader, getWriter, ge
       const policy = (await owner.status(tenant)).policy;
       if (!policy) throw new ApiError(409, 'publisher policy required');
       if (policy.publisher_kind === 'local')
-        return { ready: false, reason: 'Run preflight in the installed Core MiniDapp', ...policy };
+        return {
+          ready: false,
+          reason: 'Run preflight in the installed Core MiniDapp',
+          ...policy
+        };
       if (preflightBusy || Date.now() < preflightNext)
         throw new ApiError(429, 'Core preflight busy; retry later');
       preflightBusy = true;
@@ -196,7 +227,8 @@ export function createOwnership(pool, config, proofs, { getReader, getWriter, ge
         if (row) {
           if (
             row.publisher_kind !== policy.publisher_kind ||
-            row.publisher_address !== policy.publisher_address
+            row.publisher_address !== policy.publisher_address ||
+            row.publisher_transport !== policy.publisher_transport
           )
             throw new ApiError(409, 'proof already owned by another publisher');
           if (row.approved_at) return proofs.get(tenant, row.id);
@@ -218,7 +250,7 @@ export function createOwnership(pool, config, proofs, { getReader, getWriter, ge
           });
           row = (
             await db.query(
-              `INSERT INTO cargo_proofs(id,tenant_id,shipment_id,event_id,sequence,mode,chain_id,publisher_address,commitment,commitment_canonical,commitment_sha256,wire,custom_id,required_depth,publisher_kind) VALUES($1,$2,$3,$4,$5,'live',$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+              `INSERT INTO cargo_proofs(id,tenant_id,shipment_id,event_id,sequence,mode,chain_id,publisher_address,commitment,commitment_canonical,commitment_sha256,wire,custom_id,required_depth,publisher_kind,publisher_transport) VALUES($1,$2,$3,$4,$5,'live',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
               [
                 randomUUID(),
                 tenant,
@@ -233,7 +265,8 @@ export function createOwnership(pool, config, proofs, { getReader, getWriter, ge
                 c.wire,
                 'trk_' + c.digest,
                 config.depth,
-                policy.publisher_kind
+                policy.publisher_kind,
+                policy.publisher_transport
               ]
             )
           ).rows[0];
@@ -305,6 +338,8 @@ export function createOwnership(pool, config, proofs, { getReader, getWriter, ge
       });
       return signer.packet({
         domain: 'trackium:local-core:job:v1',
+        core_profile:
+          p.publisher_transport === 'android_minimaapi' ? 'blackbear-2.2.10' : 'classic-1.0.49.4',
         schema_version: 1,
         job_id: id,
         expires_at: p.approval_expires_at,

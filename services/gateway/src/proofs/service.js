@@ -7,7 +7,7 @@ import { inspectChain, verifyBundle } from './verifier.js';
 import { createRpc } from './rpc.js';
 import { createMinima } from './minima.js';
 const publicFields =
-  'id,shipment_id,event_id,sequence,mode,chain_id,publisher_address,state,commitment,wire,txpow_id,transaction_id,required_depth,confirmations,included_height,included_block_id,last_checked_at,last_error_code,publication_blocked,test_receipt,publisher_kind,approved_at,approval_expires_at,created_at,updated_at';
+  'id,shipment_id,event_id,sequence,mode,chain_id,publisher_address,state,commitment,wire,txpow_id,transaction_id,required_depth,confirmations,included_height,included_block_id,last_checked_at,last_error_code,publication_blocked,test_receipt,publisher_kind,publisher_transport,approved_at,approval_expires_at,created_at,updated_at';
 export function createProofService(pool, config = { mode: 'disabled' }, { writer, reader } = {}) {
   let signer,
     adapter,

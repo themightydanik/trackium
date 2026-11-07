@@ -8,6 +8,11 @@ export const reply = (res, status, body) => {
   res.end(JSON.stringify(body));
 };
 export async function body(req, maxBytes = 16384) {
+  if (req.trackiumNativeBody) {
+    if (req.trackiumNativeBody.raw.length > maxBytes)
+      throw new ApiError(413, 'request body too large');
+    return req.trackiumNativeBody;
+  }
   if (req.destroyed || req.aborted) throw new ApiError(400, 'request aborted');
   if (!/^application\/json(?:\s*;.*)?$/i.test(req.headers['content-type'] ?? ''))
     throw new ApiError(415, 'application/json required');
@@ -44,7 +49,10 @@ export async function body(req, maxBytes = 16384) {
   });
   const raw = Buffer.concat(chunks);
   try {
-    return { input: JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw)), raw };
+    return {
+      input: JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw)),
+      raw
+    };
   } catch {
     invalid('invalid JSON');
   }
