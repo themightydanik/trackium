@@ -3,7 +3,7 @@ import http from 'node:http';
 import { createLineFramer } from './framing.js';
 
 // The injected journal keeps TCP lifecycle tests independent of PostgreSQL.
-export function createGateway({ journal, config, logger = console }) {
+export function createGateway({ journal, config, logger = console, requestHandler }) {
   const sessions = new Set();
   let pendingFrames = 0;
   let pendingBytes = 0;
@@ -61,6 +61,11 @@ export function createGateway({ journal, config, logger = console }) {
   });
 
   const api = http.createServer(async (req, res) => {
+    if (requestHandler && req.url.startsWith('/v1/')) {
+      if (stopping) { res.writeHead(503); res.end(); return; }
+      await requestHandler(req, res);
+      return;
+    }
     if (req.method !== 'GET' || !['/healthz', '/readyz'].includes(req.url)) {
       res.writeHead(404, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ error: 'not found' }));
@@ -74,6 +79,8 @@ export function createGateway({ journal, config, logger = console }) {
     res.writeHead(ok ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     res.end(JSON.stringify({ status: ok ? 'ok' : 'not_ready', service: 'trackium-gateway', mode: 'raw-capture-only' }));
   });
+  api.requestTimeout = 10000;
+  api.headersTimeout = 5000;
 
   const listen = (server, port) => new Promise((resolve, reject) => {
     const onError = err => { server.off('listening', onListening); reject(err); };

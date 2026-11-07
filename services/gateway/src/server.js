@@ -1,9 +1,16 @@
 import { readConfig } from './config.js';
 import { createGateway } from './gateway.js';
+import { migrate } from './telemetry/migrate.js';
+import { createTelemetryService } from './telemetry/service.js';
+import { createTelemetryApi } from './telemetry/api.js';
 
 const config = readConfig();
 const journal = await import('./journal.js');
-const gateway = createGateway({ journal, config });
+const gateway = createGateway({
+  journal: { ...journal, async initialize() { await journal.initialize(); await migrate(journal.pool); } },
+  config,
+  requestHandler: createTelemetryApi(createTelemetryService(journal.pool), { fixturesEnabled: config.fixturesEnabled })
+});
 
 const stop = () => gateway.shutdown().catch(err => {
   console.error(err.message);

@@ -8,7 +8,11 @@ function integer(env, name, fallback, max = 2147483647) {
 
 export function readConfig(env = process.env) {
   if (!env.DATABASE_URL) throw new Error('DATABASE_URL is required');
+  if (env.ENABLE_FIXTURE_ADAPTER !== undefined && !['true','false'].includes(env.ENABLE_FIXTURE_ADAPTER)) {
+    throw new Error('ENABLE_FIXTURE_ADAPTER must be true or false');
+  }
   return {
+    fixturesEnabled: env.ENABLE_FIXTURE_ADAPTER === 'true',
     tcpPort: integer(env, 'TCP_PORT', 9000, 65535),
     httpPort: integer(env, 'HTTP_PORT', 8080, 65535),
     maxFrameBytes: integer(env, 'MAX_FRAME_BYTES', 65536, 16 * 1024 * 1024),

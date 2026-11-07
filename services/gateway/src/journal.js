@@ -15,8 +15,8 @@ pool.on('error', err => console.error('idle database connection failed:', err.me
 export async function checkReady() { await pool.query('SELECT 1'); }
 export async function close() { await pool.end(); }
 
-export async function initialize() {
-  await pool.query(`
+export async function initialize(database = pool) {
+  await database.query(`
     CREATE TABLE IF NOT EXISTS gateway_packets (
       id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -33,9 +33,9 @@ export async function initialize() {
   `);
 }
 
-export async function persistPacket({ payload, remoteAddress }) {
+export async function persistPacket({ payload, remoteAddress }, database = pool) {
   const sha256 = createHash('sha256').update(payload).digest('hex');
-  const result = await pool.query(
+  const result = await database.query(
     'INSERT INTO gateway_packets (transport, remote_address, raw_payload, sha256) VALUES ($1,$2,$3,$4) RETURNING id, received_at',
     ['tcp', remoteAddress ?? null, payload, sha256]
   );
