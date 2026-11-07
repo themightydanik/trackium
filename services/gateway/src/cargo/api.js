@@ -2,6 +2,7 @@ import { ApiError, object, text, uuid } from '../telemetry/schema.js';
 import { reply, body, query } from '../telemetry/api.js';
 export function createCargoApi({
   telemetry,
+  proofs,
   shipments,
   simulator,
   pairing,
@@ -67,6 +68,25 @@ export function createCargoApi({
           201,
           await telemetry.register(tenant, { label: input.label, mode: 'synthetic' }, 'simulator')
         );
+      }
+      const proofList = /^\/v1\/shipments\/([^/]+)\/proofs$/.exec(path);
+      if (proofList && req.method === 'GET') {
+        scope('read');
+        const q = query(url, ['limit', 'cursor']);
+        return reply(res, 200, await proofs.list(tenant, proofList[1], q.limit, q.cursor));
+      }
+      const proof = /^\/v1\/proofs\/([^/]+)(?:\/(verify|bundle))?$/.exec(path);
+      if (proof) {
+        scope('read');
+        query(url, []);
+        if (req.method === 'GET') {
+          if (!proof[2]) return reply(res, 200, await proofs.get(tenant, proof[1]));
+          if (proof[2] === 'bundle') return reply(res, 200, await proofs.bundle(tenant, proof[1]));
+        }
+        if (req.method === 'POST' && proof[2] === 'verify') {
+          object((await body(req)).input, []);
+          return reply(res, 200, await proofs.verify(tenant, proof[1]));
+        }
       }
       if (path === '/v1/shipments') {
         if (req.method === 'GET') {

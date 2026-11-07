@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
 export async function migrate(pool) {
-  const migrations = ['001_telemetry.sql', '002_cargo.sql'];
+  const migrations = ['001_telemetry.sql', '002_cargo.sql', '003_proofs.sql'];
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

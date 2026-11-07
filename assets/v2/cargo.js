@@ -63,7 +63,10 @@
     try {
       const saved = JSON.parse(localStorage.getItem('trackium_v2_profile'));
       if (saved && ['free', 'managed'].includes(saved.mode))
-        state.profile = { mode: saved.mode, origin: TrackiumGateway.validateOrigin(saved.origin) };
+        state.profile = {
+          mode: saved.mode,
+          origin: TrackiumGateway.validateOrigin(saved.origin)
+        };
     } catch (_) {
       /* Corrupt or unavailable storage must not block the workspace. */
     }
@@ -80,9 +83,12 @@
   }
   function statusLabel(status) {
     return (
-      { moving: 'Moving', alarm: 'Attention', stationary: 'Stationary', unknown: 'No telemetry' }[
-        status
-      ] || status
+      {
+        moving: 'Moving',
+        alarm: 'Attention',
+        stationary: 'Stationary',
+        unknown: 'No telemetry'
+      }[status] || status
     );
   }
   function statusBadge(status) {
@@ -946,7 +952,38 @@
         if (serverAction === 'refresh') await server.refresh();
         else if (serverAction === 'claim') await server.claim();
         else if (serverAction === 'disconnect') await server.disconnect();
-        else if (serverAction === 'device')
+        else if (serverAction === 'proof-verify') {
+          const result = await server.request('/v1/proofs/' + id + '/verify', 'POST', {});
+          openDialog(
+            '<h2>Fresh node verification</h2><p>' +
+              escape(
+                result.verified
+                  ? 'Verified against the configured node at this time'
+                  : 'Not verified'
+              ) +
+              '</p><p>' +
+              escape(result.status) +
+              ' · ' +
+              escape(result.reason) +
+              '</p><p>Depth: ' +
+              escape(result.confirmations ?? 0) +
+              '. Provenance: ' +
+              escape(result.source_trust ?? 'see event') +
+              '.</p><p>Export the bundle to verify with your own trusted node. A valid commitment does not verify the physical sensor reading.</p>'
+          );
+        } else if (serverAction === 'proof-export') {
+          const bundle = await server.request('/v1/proofs/' + id + '/bundle');
+          const url = URL.createObjectURL(
+            new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
+          );
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'trackium-proof-' + id + '.json';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } else if (serverAction === 'device')
           await server.mutate('/v1/simulated-devices', {
             label: 'Server simulator ' + (server.state.data.devices.length + 1)
           });

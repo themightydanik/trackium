@@ -1,3 +1,4 @@
+import { createProofService, startProofWorker } from '../proofs/service.js';
 import { createGateway } from '../gateway.js';
 import { initialize, persistPacket } from '../journal.js';
 import { migrate } from '../telemetry/migrate.js';
@@ -14,6 +15,8 @@ export function createRuntime(pool, config, { worker = true, logger = console } 
   const telemetry = createTelemetryService(pool, { onEvent: shipments.onTelemetry });
   const simulator = createSimulator(pool, shipments, { enabled: config.simulatorEnabled });
   const pairing = createPairing(pool, config);
+  const proofs = createProofService(pool, config.proofs);
+  let stopProofWorker = async () => {};
   const authenticate = (req) =>
     req.headers.authorization
       ? telemetry.authenticate(req.headers.authorization)
@@ -31,17 +34,21 @@ export function createRuntime(pool, config, { worker = true, logger = console } 
       async initialize() {
         await initialize(pool);
         await migrate(pool);
+        await proofs.initialize();
+        if (worker && config.proofs?.mode !== 'disabled')
+          stopProofWorker = startProofWorker(proofs, logger);
         if (worker && config.simulatorEnabled) stopWorker = startWorker(simulator, logger);
       },
       persistPacket: (packet) => persistPacket(packet, pool),
       checkReady: () => pool.query('SELECT 1'),
       async close() {
-        await stopWorker();
+        await Promise.all([stopWorker(), stopProofWorker()]);
         await pool.end();
       }
     },
     requestHandler: createCargoApi({
       telemetry,
+      proofs,
       shipments,
       simulator,
       pairing,
@@ -51,5 +58,5 @@ export function createRuntime(pool, config, { worker = true, logger = console } 
     }),
     assetHandler: createWebHandler(config)
   });
-  return { gateway, shipments, telemetry, simulator, pairing };
+  return { gateway, shipments, telemetry, simulator, pairing, proofs };
 }

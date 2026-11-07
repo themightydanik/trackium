@@ -88,6 +88,9 @@
         const events = await Promise.all(
           details.map((s) => request('/v1/shipments/' + s.id + '/events?limit=50'))
         );
+        const proofs = await Promise.all(
+          details.map((s) => request('/v1/shipments/' + s.id + '/proofs?limit=50'))
+        );
         if (version !== generation || serial !== refreshSerial) return;
         state.session = session;
         csrf = session.csrf;
@@ -95,7 +98,9 @@
           shipments: details,
           devices: deviceDetails,
           simulations: simulations.simulations,
-          events: events.flatMap((e) => e.events)
+          events: events.flatMap((e) => e.events),
+          proofs: proofs.flatMap((e) => e.proofs),
+          proofMode: proofs[0]?.engine_mode ?? 'disabled'
         };
         state.updated = new Date().toISOString();
         state.error = '';
@@ -128,7 +133,9 @@
       async challenge(tenant) {
         generation++;
         if (state.connected) await this.disconnect();
-        const result = await request('/v1/pairing/challenges', 'POST', { tenant_id: tenant });
+        const result = await request('/v1/pairing/challenges', 'POST', {
+          tenant_id: tenant
+        });
         state.challenge = result;
         state.error = '';
         change();

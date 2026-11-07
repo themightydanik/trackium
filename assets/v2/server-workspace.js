@@ -85,7 +85,7 @@
         devices: 'Registered Gateway devices.',
         map: 'Latest reported coordinates.',
         events: 'Shipment event history.',
-        proofs: 'Immutable records, ready for a worker.',
+        proofs: 'Minima commitments & verification.',
         settings: 'Your authenticated session.'
       }[page] +
       '</h1><p>PostgreSQL data · ' +
@@ -185,10 +185,57 @@
           .join('') +
         '</section>'
       );
-    if (page === 'events' || page === 'proofs')
+    if (page === 'proofs')
       return (
         heading +
-        '<div class="notice"><p>No blockchain transaction or confirmation exists. Outbox state is worker delivery state, never blockchain proof status. Up to 50 records per loaded shipment are shown; the API supports sequence pagination.</p></div><section class="panel"><div class="table-wrap"><table><thead><tr><th>Event / time</th><th>Shipment</th><th>Provenance</th><th>SHA-256 / previous hash</th><th>Outbox</th></tr></thead><tbody>' +
+        '<div class="notice"><p>Engine mode: <strong>' +
+        esc(data.proofMode ?? 'disabled') +
+        '</strong>. Test receipts are not blockchain transactions. Confirmed is the last Gateway node observation; use Verify for a fresh check and Export for a separate trusted node. Synthetic data remains synthetic after anchoring.</p></div>' +
+        '<section class="panel"><div class="table-wrap"><table><thead><tr><th>Event / date</th><th>Mode / provenance</th><th>Commitment SHA-256</th><th>TxPoW ID</th><th>State / depth</th><th>Actions</th></tr></thead><tbody>' +
+        (data.proofs ?? [])
+          .map(
+            (p) =>
+              '<tr><td>' +
+              esc(p.commitment.event_type) +
+              '<small class="cell-note">' +
+              esc(p.created_at) +
+              '</small><small class="cell-note">' +
+              esc(p.shipment_id) +
+              ' · #' +
+              esc(p.sequence) +
+              '</small></td><td>' +
+              badge(p.mode) +
+              badge(p.commitment.source_trust) +
+              '</td><td><code class="hash-cell">' +
+              esc(p.wire.slice(14)) +
+              '</code></td><td><code class="hash-cell">' +
+              esc(p.txpow_id ?? 'No blockchain TXID') +
+              '</code></td><td>' +
+              esc(p.state) +
+              ' · ' +
+              esc(p.confirmations) +
+              '/' +
+              esc(p.required_depth) +
+              '<small class="cell-note">Checked: ' +
+              esc(p.last_checked_at ?? 'never') +
+              '</small><small class="cell-note">' +
+              esc(p.last_error_code) +
+              '</small></td><td>' +
+              button('Verify', 'proof-verify', p.id) +
+              button('Export bundle', 'proof-export', p.id) +
+              '</td></tr>'
+          )
+          .join('') +
+        '</tbody></table></div>' +
+        (!(data.proofs ?? []).length
+          ? '<p class="server-content">No proof records. Publishing defaults to disabled; selected outbox events are queued only when an operator enables test or live mode.</p>'
+          : '') +
+        '<p class="server-content">First 50 proofs per loaded shipment. API supports cursor pagination. Event commitments anchor a prefix of history; they do not prove that no later events exist.</p></section>'
+      );
+    if (page === 'events')
+      return (
+        heading +
+        '<div class="notice"><p>Outbox state is worker delivery state, never blockchain proof status. See Proofs for Minima commitments. Up to 50 records per loaded shipment are shown; the API supports sequence pagination.</p></div><section class="panel"><div class="table-wrap"><table><thead><tr><th>Event / time</th><th>Shipment</th><th>Provenance</th><th>SHA-256 / previous hash</th><th>Outbox</th></tr></thead><tbody>' +
         data.events
           .map(
             (e) =>
@@ -208,7 +255,7 @@
               esc(e.previous_hash ?? 'Genesis') +
               '</small></td><td>' +
               esc(e.outbox_state) +
-              ' · not published</td></tr>'
+              ' · delivery only</td></tr>'
           )
           .join('') +
         '</tbody></table></div></section>'
