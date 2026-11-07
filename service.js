@@ -2,7 +2,7 @@
 // Trackium MiniDapp - ANDROID PULL MODE (Rhino ES5 SAFE)
 // ======================================================================
 
-MDS.load("./assets/js/database.js");
+MDS.load("./assets/v2/background-database.js");
 
 // Интервал опроса Android (3 минуты)
 var POLL_INTERVAL_MS = 3 * 60 * 1000;
@@ -23,7 +23,7 @@ MDS.init(function (msg) {
         MDS.log("=== Trackium: Android Pull Mode (ES5) Started ===");
 
         // Инициализация БД
-        db = new TrackiumDatabase();
+        db = new TrackiumBackgroundDatabase();
         db.init(function (ok) {
             if (ok) {
                 MDS.log("✅ Trackium Database initialized successfully");
