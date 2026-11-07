@@ -1,7 +1,19 @@
 import pg from 'pg';
 import { createHash } from 'node:crypto';
 
-export const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 10 });
+export const pool = new pg.Pool({
+  // PG* variables are supported too, avoiding URL-encoding passwords in Compose.
+  connectionString: process.env.DATABASE_URL,
+  max: 10,
+  connectionTimeoutMillis: 5000,
+  statement_timeout: 5000,
+  query_timeout: 6000
+});
+// Idle PostgreSQL connections can fail independently of an active query.
+pool.on('error', err => console.error('idle database connection failed:', err.message));
+
+export async function checkReady() { await pool.query('SELECT 1'); }
+export async function close() { await pool.end(); }
 
 export async function initialize() {
   await pool.query(`
