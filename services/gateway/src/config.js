@@ -1,0 +1,21 @@
+function integer(env, name, fallback, max = 2147483647) {
+  const value = env[name] ?? String(fallback);
+  if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1 || Number(value) > max) {
+    throw new Error(`${name} must be an integer between 1 and ${max}`);
+  }
+  return Number(value);
+}
+
+export function readConfig(env = process.env) {
+  if (!env.DATABASE_URL) throw new Error('DATABASE_URL is required');
+  return {
+    tcpPort: integer(env, 'TCP_PORT', 9000, 65535),
+    httpPort: integer(env, 'HTTP_PORT', 8080, 65535),
+    maxFrameBytes: integer(env, 'MAX_FRAME_BYTES', 65536, 16 * 1024 * 1024),
+    maxConnections: integer(env, 'MAX_CONNECTIONS', 100),
+    maxPendingFrames: integer(env, 'MAX_PENDING_FRAMES', 100),
+    maxPendingBytes: integer(env, 'MAX_PENDING_BYTES', 8 * 1024 * 1024),
+    socketTimeoutMs: integer(env, 'SOCKET_TIMEOUT_MS', 120000),
+    shutdownTimeoutMs: integer(env, 'SHUTDOWN_TIMEOUT_MS', 10000)
+  };
+}
