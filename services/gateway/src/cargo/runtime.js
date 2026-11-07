@@ -9,13 +9,17 @@ import { createSimulator, startWorker } from './simulator.js';
 import { createPairing, publicOrigin } from './pairing.js';
 import { createCargoApi } from './api.js';
 import { createWebHandler } from './web.js';
-export function createRuntime(pool, config, { worker = true, logger = console } = {}) {
+export function createRuntime(
+  pool,
+  config,
+  { worker = true, logger = console, proofDependencies } = {}
+) {
   publicOrigin(config.publicOrigin);
   const shipments = createShipmentService(pool);
   const telemetry = createTelemetryService(pool, { onEvent: shipments.onTelemetry });
   const simulator = createSimulator(pool, shipments, { enabled: config.simulatorEnabled });
   const pairing = createPairing(pool, config);
-  const proofs = createProofService(pool, config.proofs);
+  const proofs = createProofService(pool, config.proofs, proofDependencies);
   let stopProofWorker = async () => {};
   const authenticate = (req) =>
     req.headers.authorization

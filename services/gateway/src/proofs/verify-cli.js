@@ -20,7 +20,8 @@ try {
     rpc,
     expectedPublisher: hexId(process.env.MINIMA_PUBLISHER_ADDRESS),
     chain: chainId(process.env.MINIMA_CHAIN_ID ?? '0x00'),
-    depth
+    depth,
+    maxInput: process.env.PROOF_MAX_INPUT ?? '1'
   });
   console.log(JSON.stringify(result, null, 2));
   process.exitCode = result.verified ? 0 : 1;

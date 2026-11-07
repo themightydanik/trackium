@@ -11,8 +11,20 @@ export function proofConfig(env = process.env) {
     throw new Error('PROOF_MODE must be disabled, test or live');
   if (mode === 'live' && env.PROOF_ALLOW_LIVE !== 'true')
     throw new Error('Live publication requires PROOF_ALLOW_LIVE=true');
+  const publisher = env.PROOF_PUBLISHER ?? 'server';
+  if (!['server', 'local'].includes(publisher)) throw new Error('Invalid PROOF_PUBLISHER');
+  if (
+    mode === 'live' &&
+    (env.MINIMA_CHAIN_ID ?? '0x00') === '0x00' &&
+    env.PROOF_ALLOW_MAINNET !== 'true'
+  )
+    throw new Error('Mainnet requires PROOF_ALLOW_MAINNET=true');
   return {
     mode,
+    publisher,
+    allowMainnet: env.PROOF_ALLOW_MAINNET === 'true',
+    maxPublications: positive(env, 'PROOF_MAX_PUBLICATIONS', 1, 100),
+    jobSigningFile: env.PROOF_JOB_SIGNING_KEY_FILE,
     chain: chainId(env.MINIMA_CHAIN_ID ?? '0x00'),
     publisherAddress: env.MINIMA_PUBLISHER_ADDRESS ? hexId(env.MINIMA_PUBLISHER_ADDRESS) : null,
     depth: positive(env, 'PROOF_CONFIRMATION_DEPTH', 6, 100),

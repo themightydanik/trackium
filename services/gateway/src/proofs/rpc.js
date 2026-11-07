@@ -46,7 +46,7 @@ export async function createRpc({ url, file, caFile, readOnly = false, requestTi
     auth = await credentials(file),
     authorization = 'Basic ' + Buffer.from(auth.username + ':' + auth.password).toString('base64');
   const ca = caFile ? await readFile(caFile) : undefined;
-  const readonly = new Set(['status', 'txpow']);
+  const readonly = new Set(['status', 'txpow', 'scripts', 'coins']);
   const allowed = new Set([
     ...readonly,
     'txncreate',
@@ -134,7 +134,7 @@ export async function createRpc({ url, file, caFile, readOnly = false, requestTi
         if (result.status !== true) {
           const notFound =
             typeof result.error === 'string' &&
-            /^Transaction not found|^TxPoW not found/i.test(result.error);
+            /^(?:Transaction not found|TxPoW not found)/i.test(result.error);
           throw new ProofError(notFound ? 'RPC_NOT_FOUND' : 'RPC_COMMAND_ERROR');
         }
         return result.response;

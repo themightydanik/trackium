@@ -1,3 +1,4 @@
+import { createOwnership, loadSigner } from './ownership.js';
 import { randomUUID } from 'node:crypto';
 import { ApiError, uuid } from '../telemetry/schema.js';
 import { hash } from '../cargo/shared.js';
@@ -6,9 +7,10 @@ import { inspectChain, verifyBundle } from './verifier.js';
 import { createRpc } from './rpc.js';
 import { createMinima } from './minima.js';
 const publicFields =
-  'id,shipment_id,event_id,sequence,mode,chain_id,publisher_address,state,commitment,wire,txpow_id,transaction_id,required_depth,confirmations,included_height,included_block_id,last_checked_at,last_error_code,publication_blocked,test_receipt,created_at,updated_at';
+  'id,shipment_id,event_id,sequence,mode,chain_id,publisher_address,state,commitment,wire,txpow_id,transaction_id,required_depth,confirmations,included_height,included_block_id,last_checked_at,last_error_code,publication_blocked,test_receipt,publisher_kind,approved_at,approval_expires_at,created_at,updated_at';
 export function createProofService(pool, config = { mode: 'disabled' }, { writer, reader } = {}) {
-  let adapter,
+  let signer,
+    adapter,
     busyVerify = false,
     nextVerify = 0,
     stopping = false;
@@ -18,13 +20,15 @@ export function createProofService(pool, config = { mode: 'disabled' }, { writer
     },
     async initialize() {
       if (config.mode === 'live') {
-        if (!config.publisherAddress)
+        signer = await loadSigner(config.jobSigningFile);
+        if (config.publisher !== 'local' && !config.publisherAddress)
           throw new ProofError('PUBLISHER_ADDRESS_REQUIRED', { retryable: false });
-        writer ??= await createRpc({
-          url: config.writerUrl,
-          file: config.writerFile,
-          caFile: config.caFile
-        });
+        if (config.publisher !== 'local')
+          writer ??= await createRpc({
+            url: config.writerUrl,
+            file: config.writerFile,
+            caFile: config.caFile
+          });
         reader ??= await createRpc({
           url: config.readerUrl,
           file: config.readerFile,
@@ -38,9 +42,9 @@ export function createProofService(pool, config = { mode: 'disabled' }, { writer
             return rpc.call(...args);
           }
         });
-        writer = guard(writer);
+        if (writer) writer = guard(writer);
         reader = guard(reader);
-        adapter = createMinima(writer, config);
+        if (writer) adapter = createMinima(writer, config);
       }
     },
     async list(tenant, shipment, limit = 100, cursor) {
@@ -113,9 +117,16 @@ export function createProofService(pool, config = { mode: 'disabled' }, { writer
       try {
         return await verifyBundle(bundle, {
           rpc: reader,
-          expectedPublisher: config.publisherAddress,
+          expectedPublisher: bundle.proof.publisher_address,
           chain: config.chain,
-          depth: config.depth
+          depth: config.depth,
+          maxInput:
+            (
+              await pool.query(
+                'SELECT max_input FROM cargo_publisher_policies WHERE tenant_id=$1',
+                [tenant]
+              )
+            ).rows[0]?.max_input ?? '1'
         });
       } finally {
         busyVerify = false;
@@ -126,14 +137,21 @@ export function createProofService(pool, config = { mode: 'disabled' }, { writer
       const db = await pool.connect();
       let locked = false;
       try {
-        locked = (await db.query('SELECT pg_try_advisory_lock(736219,7) AS locked')).rows[0].locked;
-        if (!locked) return;
-        const rows = (
+        locked = (
           await db.query(
-            `SELECT e.* FROM cargo_outbox o JOIN cargo_events e ON e.id=o.event_id AND e.tenant_id=o.tenant_id WHERE e.event_type=ANY($1::text[]) AND NOT EXISTS(SELECT 1 FROM cargo_proofs p WHERE p.event_id=e.id AND p.mode=$2) ORDER BY e.recorded_at,e.sequence LIMIT 100`,
-            [TYPES, config.mode]
+            "SELECT pg_try_advisory_lock(hashtextextended('trackium:proof:'||current_schema(),0)) AS locked"
           )
-        ).rows;
+        ).rows[0].locked;
+        if (!locked) return;
+        const rows =
+          config.mode === 'test'
+            ? (
+                await db.query(
+                  `SELECT e.* FROM cargo_outbox o JOIN cargo_events e ON e.id=o.event_id AND e.tenant_id=o.tenant_id WHERE e.event_type=ANY($1::text[]) AND NOT EXISTS(SELECT 1 FROM cargo_proofs p WHERE p.event_id=e.id AND p.mode=$2) ORDER BY e.recorded_at,e.sequence LIMIT 100`,
+                  [TYPES, config.mode]
+                )
+              ).rows
+            : [];
         for (const row of rows) {
           if (stopping) return;
           const c = buildCommitment(row, {
@@ -201,8 +219,16 @@ export function createProofService(pool, config = { mode: 'disabled' }, { writer
         for (const row of monitor) {
           if (stopping) return;
           try {
+            row.max_input =
+              (
+                await db.query(
+                  'SELECT max_input FROM cargo_publisher_policies WHERE tenant_id=$1',
+                  [row.tenant_id]
+                )
+              ).rows[0]?.max_input ?? '1';
             const result = await inspectChain(reader, row, audit(db, row.id));
-            reconciled.add(row.id);
+            if (result.status !== 'unavailable' || row.included_height === null)
+              reconciled.add(row.id);
             await state(
               db,
               row,
@@ -225,7 +251,7 @@ export function createProofService(pool, config = { mode: 'disabled' }, { writer
             });
           }
         }
-        if (stopping) return;
+        if (stopping || config.allowMainnet !== true || !adapter) return;
         // One wallet spend in flight. Do not spend selected inputs twice across shipments.
         const inflight = (
           await db.query(
@@ -236,10 +262,20 @@ export function createProofService(pool, config = { mode: 'disabled' }, { writer
         if (!row)
           row = (
             await db.query(
-              `SELECT p.* FROM cargo_proofs p WHERE p.mode='live' AND p.mined_data IS NULL AND p.state IN ('pending','submitting','retryable_error') AND p.next_attempt_at<=now() AND NOT EXISTS(SELECT 1 FROM cargo_events e WHERE e.shipment_id=p.shipment_id AND e.sequence<p.sequence AND e.event_type=ANY($1::text[]) AND NOT EXISTS(SELECT 1 FROM cargo_proofs predecessor WHERE predecessor.event_id=e.id AND predecessor.mode='live' AND predecessor.state='confirmed')) ORDER BY p.created_at,p.sequence LIMIT 1`,
+              `SELECT p.* FROM cargo_proofs p WHERE p.mode='live' AND p.publisher_kind='server' AND p.approved_at IS NOT NULL AND p.approval_expires_at>now() AND p.mined_data IS NULL AND p.state IN ('pending','submitting','retryable_error') AND p.next_attempt_at<=now() AND NOT EXISTS(SELECT 1 FROM cargo_events e WHERE e.shipment_id=p.shipment_id AND e.sequence<p.sequence AND e.event_type=ANY($1::text[]) AND NOT EXISTS(SELECT 1 FROM cargo_proofs predecessor WHERE predecessor.event_id=e.id AND predecessor.mode='live' AND predecessor.state='confirmed')) ORDER BY p.created_at,p.sequence LIMIT 1`,
               [TYPES]
             )
           ).rows[0];
+        if (row?.publisher_kind === 'local') return;
+        if (
+          row &&
+          (
+            await db.query('SELECT 1 FROM cargo_local_wallet_claims WHERE publisher_address=$1', [
+              row.publisher_address
+            ])
+          ).rowCount
+        )
+          return;
         if (row?.mined_data && !reconciled.has(row.id)) return;
         if (
           row &&
@@ -248,6 +284,8 @@ export function createProofService(pool, config = { mode: 'disabled' }, { writer
           throw new ProofError('PUBLISHER_CONFIGURATION_CHANGED', { retryable: false });
         if (
           !row ||
+          !row.approved_at ||
+          new Date(row.approval_expires_at) < new Date() ||
           row.attempts >= config.maxAttempts ||
           row.submit_attempts >= config.maxAttempts ||
           row.publication_blocked ||
@@ -257,6 +295,13 @@ export function createProofService(pool, config = { mode: 'disabled' }, { writer
         )
           return;
         try {
+          const policy = (
+            await db.query('SELECT max_input FROM cargo_publisher_policies WHERE tenant_id=$1', [
+              row.tenant_id
+            ])
+          ).rows[0];
+          if (!policy) throw new ProofError('PUBLISHER_POLICY_REQUIRED', { retryable: false });
+          row.max_input = policy.max_input;
           const attempt = row.attempts + 1;
           await state(db, row, 'submitting', { attempts: attempt, last_error_code: null });
           row.attempts = attempt;
@@ -292,14 +337,25 @@ export function createProofService(pool, config = { mode: 'disabled' }, { writer
           );
         }
       } finally {
+        let discard = false;
         if (locked)
           try {
-            await db.query('SELECT pg_advisory_unlock(736219,7)');
-          } catch {}
-        db.release();
+            const unlocked = await db.query(
+              "SELECT pg_advisory_unlock(hashtextextended('trackium:proof:'||current_schema(),0))"
+            );
+            discard = unlocked.rows[0]?.pg_advisory_unlock !== true;
+          } catch {
+            discard = true;
+          }
+        db.release(discard);
       }
     }
   };
+  service.owner = createOwnership(pool, config, service, {
+    getReader: () => reader,
+    getWriter: () => writer,
+    getSigner: () => signer
+  });
   return service;
 }
 const mutable = new Set([
@@ -362,7 +418,7 @@ function audit(db, proof) {
     async finish(id, response) {
       await db.query(
         "UPDATE cargo_proof_attempts SET outcome='succeeded',finished_at=now(),response=$2,response_sha256=$3 WHERE id=$1",
-        [id, response, hash(JSON.stringify(response))]
+        [id, JSON.stringify(response), hash(JSON.stringify(response))]
       );
     },
     async fail(id, error) {

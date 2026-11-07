@@ -20,6 +20,8 @@ export async function inspectChain(rpc, proof, audit) {
     tx.header?.chainid?.toLowerCase() !== proof.chain_id
   )
     throw new ProofError('TXPOW_ID_OR_NETWORK_MISMATCH', { retryable: false });
+  if ((tx.body?.burntxn?.inputs?.length ?? 0) || (tx.body?.burntxn?.outputs?.length ?? 0))
+    throw new ProofError('BURN_TRANSACTION_FORBIDDEN', { retryable: false });
   checkTransaction(tx.body?.txn, proof);
   checkWitness(tx.body?.witness, proof);
   if (proof.transaction_id && hexId(tx.body.txn.transactionid) !== proof.transaction_id)
@@ -33,8 +35,17 @@ export async function inspectChain(rpc, proof, audit) {
       } catch (e) {
         if (e.code !== 'RPC_NOT_FOUND') throw e;
       }
-      if (old && hexId(old.txpowid) !== hexId(proof.included_block_id))
+      if (old && hexId(old.txpowid) !== hexId(proof.included_block_id)) {
+        const after = await call('status');
+        if (before.chain?.hash !== after.chain?.hash || before.chain?.block !== after.chain?.block)
+          throw new ProofError('CHAIN_TIP_CHANGED');
+        if (
+          old.header?.chainid?.toLowerCase() !== proof.chain_id ||
+          Number(old.header?.block) !== Number(proof.included_height)
+        )
+          throw new ProofError('INCLUSION_MISMATCH', { retryable: false });
         return { status: 'reorged', reason: 'INCLUSION_BLOCK_CHANGED', confirmations: 0 };
+      }
     }
     return { status: 'submitted', reason: 'NOT_ON_CURRENT_CHAIN', confirmations: 0 };
   }
@@ -69,7 +80,10 @@ export async function inspectChain(rpc, proof, audit) {
     tip: before.chain.hash
   };
 }
-export async function verifyBundle(bundle, { rpc, expectedPublisher, chain, depth = 6 }) {
+export async function verifyBundle(
+  bundle,
+  { rpc, expectedPublisher, chain, depth = 6, maxInput = '1' }
+) {
   try {
     if (Buffer.byteLength(JSON.stringify(bundle)) > 4194304)
       throw new ProofError('BUNDLE_TOO_LARGE', { retryable: false });
@@ -115,8 +129,11 @@ export async function verifyBundle(bundle, { rpc, expectedPublisher, chain, dept
         reason: 'NO_TXPOW_ID',
         hash_chain_valid: true
       };
+    if (!['0.01', '0.1', '1'].includes(maxInput))
+      throw new ProofError('INVALID_SPEND_POLICY', { retryable: false });
     const result = await inspectChain(rpc, {
       ...proof,
+      max_input: maxInput,
       required_depth: depth,
       included_height: null
     });
@@ -125,6 +142,7 @@ export async function verifyBundle(bundle, { rpc, expectedPublisher, chain, dept
       verified: result.status === 'confirmed',
       hash_chain_valid: true,
       source_trust: anchor.source_trust,
+      max_input_checked: maxInput,
       checked_at: new Date().toISOString()
     };
   } catch (e) {

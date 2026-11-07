@@ -136,7 +136,25 @@ test(
           ticket = await audit?.start(verb, { verb });
         let response;
         try {
-          if (verb === 'status') response = { version: '1.0.49.4' };
+          if (verb === 'status')
+            response = {
+              version: '1.0.49.4',
+              network: { connected: 1 },
+              chain: { block: 100, hash: BLOCK }
+            };
+          else if (verb === 'txpow')
+            response = {
+              txpowid: BLOCK,
+              header: { chainid: '0x00', timemilli: String(Date.now()) }
+            };
+          else if (verb === 'scripts')
+            response = {
+              address: ADDRESS,
+              simple: true,
+              script: 'RETURN SIGNEDBY(' + ADDRESS + ')'
+            };
+          else if (verb === 'coins')
+            response = [{ address: ADDRESS, tokenid: '0x00', amount: '0.001' }];
           else if (verb === 'txnlist') {
             if (!exists) throw new ProofError('RPC_NOT_FOUND');
             response = { transaction: tx, witness };
@@ -145,8 +163,8 @@ test(
             response = {};
           } else if (verb === 'txnaddamount') {
             tx = {
-              inputs: [{ address: ADDRESS, tokenid: '0x00' }],
-              outputs: [{ address: ADDRESS, tokenid: '0x00' }],
+              inputs: [{ address: ADDRESS, tokenid: '0x00', amount: '0.001' }],
+              outputs: [{ address: ADDRESS, tokenid: '0x00', amount: '0.001' }],
               state: [],
               transactionid: TX
             };
@@ -215,6 +233,8 @@ test(
     };
     const config = {
       mode: 'live',
+      allowMainnet: true,
+      maxPublications: 1,
       chain: '0x00',
       publisherAddress: ADDRESS,
       depth: 6,
@@ -227,6 +247,10 @@ test(
         const event = (
           await db.query('SELECT * FROM cargo_events WHERE id=$1', [testProof.event_id])
         ).rows[0];
+        await db.query(
+          "INSERT INTO cargo_publisher_policies(tenant_id,publisher_kind,publisher_address,max_publications,max_input) VALUES($1,'server',$2,1,'1')",
+          [event.tenant_id, ADDRESS]
+        );
         const c = buildCommitment(event, {
           mode: 'live',
           chain: config.chain,
@@ -250,6 +274,9 @@ test(
             'trk_' + c.digest
           ]
         );
+        await db.query(
+          "UPDATE cargo_proofs SET approved_at=now(),approval_expires_at=now()+interval '1 day' WHERE mode='live'"
+        );
         assert.equal(posts, 0);
       }
     );
@@ -264,7 +291,11 @@ test(
           await db.query("SELECT * FROM cargo_proofs WHERE mode='live' ORDER BY sequence LIMIT 1")
         ).rows[0];
         assert.equal(liveProof.state, 'retryable_error');
-        assert.equal(liveProof.txpow_id, TX);
+        assert.equal(
+          liveProof.txpow_id,
+          TX,
+          JSON.stringify({ error: liveProof.last_error_code, attempts: liveProof.attempts })
+        );
         assert.equal(posts, 1);
         assert.equal(mines, 1);
         assert.equal(
@@ -340,6 +371,56 @@ test(
         await live.tick();
         assert.equal(posts, 2, 'chain monitoring must not clear permanent broadcast prohibition');
         assert.equal((await db.query('SELECT count(*) FROM cargo_events')).rows[0].count, '3');
+      }
+    );
+    await t.test(
+      'upgrade preserves legacy publisher identity and pre-existing reservations cannot bypass count caps',
+      async () => {
+        await db.query('DELETE FROM cargo_publisher_policies WHERE tenant_id=$1', [a.tenant_id]);
+        await assert.rejects(
+          live.owner.policy(a.tenant_id, {
+            publisher_kind: 'server',
+            publisher_address: ADDRESS,
+            max_publications: 1,
+            max_input: '0.01'
+          }),
+          /legacy/
+        );
+        await live.owner.policy(a.tenant_id, {
+          publisher_kind: 'server',
+          publisher_address: ADDRESS,
+          max_publications: 1,
+          max_input: '1'
+        });
+        const e = (
+            await db.query("SELECT * FROM cargo_events WHERE event_type='checkpoint_reached'")
+          ).rows[0],
+          c = buildCommitment(e, { mode: 'live', chain: '0x00', publisherAddress: ADDRESS });
+        await db.query(
+          `INSERT INTO cargo_proofs(id,tenant_id,shipment_id,event_id,sequence,mode,chain_id,publisher_address,commitment,commitment_canonical,commitment_sha256,wire,custom_id,required_depth) VALUES($1,$2,$3,$4,$5,'live','0x00',$6,$7,$8,$9,$10,$11,6)`,
+          [
+            randomUUID(),
+            e.tenant_id,
+            e.shipment_id,
+            e.id,
+            e.sequence,
+            ADDRESS,
+            c.envelope,
+            c.canonical,
+            c.digest,
+            c.wire,
+            'trk_' + c.digest
+          ]
+        );
+        await assert.rejects(
+          live.owner.approve(a.tenant_id, e.id, { confirmation: 'PUBLISH MAINNET ' + e.id }),
+          (error) => error.status === 409 && /count limit/.test(error.message)
+        );
+        assert.equal(
+          (await db.query('SELECT txpow_id FROM cargo_proofs WHERE id=$1', [liveProof.id])).rows[0]
+            .txpow_id,
+          TX
+        );
       }
     );
   }

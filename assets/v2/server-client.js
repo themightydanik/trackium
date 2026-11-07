@@ -69,10 +69,11 @@
         serial = ++refreshSerial;
       try {
         const session = await request('/v1/session');
-        const [shipments, devices, simulations] = await Promise.all([
+        const [shipments, devices, simulations, publisher] = await Promise.all([
           request('/v1/shipments?limit=25'),
           request('/v1/devices?limit=25'),
-          request('/v1/simulations')
+          request('/v1/simulations'),
+          request('/v1/proof-publisher')
         ]);
         const details = await Promise.all(
           shipments.shipments.map((s) => request('/v1/shipments/' + s.id))
@@ -100,7 +101,8 @@
           simulations: simulations.simulations,
           events: events.flatMap((e) => e.events),
           proofs: proofs.flatMap((e) => e.proofs),
-          proofMode: proofs[0]?.engine_mode ?? 'disabled'
+          proofMode: proofs[0]?.engine_mode ?? 'disabled',
+          publisher
         };
         state.updated = new Date().toISOString();
         state.error = '';

@@ -63,8 +63,8 @@ export function proof(row = event()) {
 }
 export function chainRpc(p, { depth = 6, reorg = false, missing = false } = {}) {
   const tx = {
-    inputs: [{ address: ADDRESS, tokenid: '0x00' }],
-    outputs: [{ address: ADDRESS, tokenid: '0x00' }],
+    inputs: [{ address: ADDRESS, tokenid: '0x00', amount: '0.001' }],
+    outputs: [{ address: ADDRESS, tokenid: '0x00', amount: '0.001' }],
     state: [{ port: 250, data: p.wire }],
     transactionid: TX
   };
@@ -196,7 +196,17 @@ test('Minima adapter signs and mines without posting; signed checkpoint precedes
   const rpc = {
     async call(c) {
       commands.push(c);
-      if (c === 'status') return { version: '1.0.49.4' };
+      if (c === 'status')
+        return {
+          version: '1.0.49.4',
+          network: { connected: 1 },
+          chain: { block: 100, hash: BLOCK }
+        };
+      if (c === 'txpow block:100')
+        return { txpowid: BLOCK, header: { chainid: '0x00', timemilli: String(Date.now()) } };
+      if (c.startsWith('scripts address:'))
+        return { address: ADDRESS, simple: true, script: 'RETURN SIGNEDBY(' + ADDRESS + ')' };
+      if (c.startsWith('coins ')) return [{ address: ADDRESS, tokenid: '0x00', amount: '0.001' }];
       const verb = c.split(' ')[0];
       if (verb === 'txnlist') {
         if (!exists) throw new ProofError('RPC_NOT_FOUND');
@@ -208,8 +218,8 @@ test('Minima adapter signs and mines without posting; signed checkpoint precedes
       }
       if (verb === 'txnaddamount') {
         tx = {
-          inputs: [{ address: ADDRESS, tokenid: '0x00' }],
-          outputs: [{ address: ADDRESS, tokenid: '0x00' }],
+          inputs: [{ address: ADDRESS, tokenid: '0x00', amount: '0.001' }],
+          outputs: [{ address: ADDRESS, tokenid: '0x00', amount: '0.001' }],
           state: [],
           transactionid: TX
         };
@@ -288,4 +298,29 @@ test('publisher identity rejects anyone-can-spend scripts and missing signatures
     checkWitness({ scripts: [{ address: ADDRESS, script: 'RETURN TRUE' }], signatures: [{}] }, p)
   );
   assert.throws(() => checkWitness({ ...witness, signatures: [] }, p));
+});
+
+test('independent verification ignores an untrusted bundle attempt to raise the spending cap', async () => {
+  const a = event(),
+    p = { ...proof(a), max_input: '100' },
+    base = chainRpc(p);
+  const rpc = {
+    async call(command) {
+      const r = await base.call(command);
+      if (command.startsWith('txpow txpowid:')) {
+        r.body.txn.inputs[0].amount = '2';
+        r.body.txn.outputs = [
+          { address: ADDRESS, tokenid: '0x00', amount: '0.001' },
+          { address: ADDRESS, tokenid: '0x00', amount: '1.999' }
+        ];
+      }
+      return r;
+    }
+  };
+  const result = await verifyBundle(
+    { schema_version: 1, records: [a], proof: p },
+    { rpc, expectedPublisher: ADDRESS, chain: '0x00' }
+  );
+  assert.equal(result.verified, false);
+  assert.equal(result.reason, 'SELF_TRANSFER_SPEND_LIMIT');
 });

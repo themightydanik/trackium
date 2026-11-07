@@ -188,6 +188,59 @@
     if (page === 'proofs')
       return (
         heading +
+        '<section class="panel server-content"><h2>Awaiting owner approval (first 50 selected events)</h2>' +
+        (data.publisher?.pending_events ?? [])
+          .map(
+            (e) =>
+              '<p>' +
+              esc(e.event_type) +
+              ' · ' +
+              esc(e.source_trust) +
+              '<br><code class="hash-cell">' +
+              esc(e.id) +
+              '</code></p>'
+          )
+          .join('') +
+        '<h2>Publisher &amp; Mainnet safety</h2>' +
+        button(
+          'Check Core / wallet readiness',
+          'publisher-preflight',
+          '',
+          !data.publisher?.enabled
+        ) +
+        '<p>Last explicit Core balance observation: ' +
+        esc(data.publisher?.last_preflight?.spendable_minima ?? 'not checked') +
+        ' MIN · ' +
+        esc(data.publisher?.last_preflight?.checked_at ?? 'no observation') +
+        '</p><p>Policy: <strong>' +
+        esc(
+          data.publisher?.policy?.publisher_kind === 'local'
+            ? 'Local Core'
+            : data.publisher?.policy
+              ? 'Server Core'
+              : 'Not configured'
+        ) +
+        '</strong> · Network: Mainnet · Enablement: ' +
+        esc(data.publisher?.enabled ?? false) +
+        '</p><p>Wallet: <code class="hash-cell">' +
+        esc(data.publisher?.policy?.publisher_address ?? 'not configured') +
+        '</code><br>Publication cap: ' +
+        esc(data.publisher?.policy?.max_publications ?? 'not configured') +
+        ' · global cap: ' +
+        esc(data.publisher?.global_limit ?? 1) +
+        '<br>Input cap: ' +
+        esc(data.publisher?.policy?.max_input ?? 'not configured') +
+        ' MIN · requested self-transfer 0.001 MIN / burn 0.</p><p>Core connection / balance: checked on explicit owner preflight (Server) or in the installed MiniDapp (Local). A saved configuration is not a connectivity or synchronization claim. No automatic backlog publication.</p><p>Gateway job-signing fingerprint — obtain only through this trusted authenticated origin:<code class="hash-cell">' +
+        esc(data.publisher?.signer_fingerprint ?? 'not configured') +
+        '</code></p><p>Pending queue: ' +
+        esc(
+          (data.proofs ?? []).filter((p) =>
+            ['pending', 'submitting', 'retryable_error'].includes(p.state)
+          ).length
+        ) +
+        ' in loaded proofs. Local publishing requires signed job export → installed Core prepare → checkpoint import → signed acknowledgement → explicit publish. Owner approval is performed using the trusted operator CLI, never an owner key in this browser.</p><form id="local-exchange-form"><label>Import Local Core checkpoint or result JSON (requires owner-granted publish scope)<textarea class="text-input" name="exchange" rows="4" required maxlength="262144"></textarea></label><button class="button secondary" type="submit" ' +
+        (!can('publish') ? 'disabled' : '') +
+        '>Import exchange &amp; download acknowledgement</button></form></section>' +
         '<div class="notice"><p>Engine mode: <strong>' +
         esc(data.proofMode ?? 'disabled') +
         '</strong>. Test receipts are not blockchain transactions. Confirmed is the last Gateway node observation; use Verify for a fresh check and Export for a separate trusted node. Synthetic data remains synthetic after anchoring.</p></div>' +
@@ -205,6 +258,7 @@
               esc(p.sequence) +
               '</small></td><td>' +
               badge(p.mode) +
+              badge(p.publisher_kind === 'local' ? 'Local Core' : 'Server Core') +
               badge(p.commitment.source_trust) +
               '</td><td><code class="hash-cell">' +
               esc(p.wire.slice(14)) +
@@ -223,12 +277,15 @@
               '</small></td><td>' +
               button('Verify', 'proof-verify', p.id) +
               button('Export bundle', 'proof-export', p.id) +
+              (p.publisher_kind === 'local'
+                ? button('Export Local Core job', 'local-job', p.id)
+                : '') +
               '</td></tr>'
           )
           .join('') +
         '</tbody></table></div>' +
         (!(data.proofs ?? []).length
-          ? '<p class="server-content">No proof records. Publishing defaults to disabled; selected outbox events are queued only when an operator enables test or live mode.</p>'
+          ? '<p class="server-content">No proof records. Publishing defaults to disabled; test receipts require test mode; live jobs require an owner policy and event-specific Mainnet approval.</p>'
           : '') +
         '<p class="server-content">First 50 proofs per loaded shipment. API supports cursor pagination. Event commitments anchor a prefix of history; they do not prove that no later events exist.</p></section>'
       );

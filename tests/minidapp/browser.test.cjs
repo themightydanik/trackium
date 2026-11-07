@@ -249,3 +249,15 @@ test('actual bundled MDS SDK with mocked node makes read-only status calls; bloc
   assert.match(await page.locator('#main').innerText(), /No blockchain proofs published/);
   assert.ok(commands.every((c) => c === 'status'));
 });
+
+test('Local Core page is responsive and never invokes a wallet outside installed MDS', async (t) => {
+  const {page}=await newPage(t,{width:390,height:844});
+  await page.goto(ORIGIN+'/local-core.html');
+  assert.match(await page.locator('h1').innerText(),/Local Core Publisher/);
+  await page.getByRole('button',{name:'Connect to installed Core',exact:true}).click();
+  assert.match(await page.locator('#status').innerText(),/inside the installed Core MiniDapp/);
+  assert.equal(await page.locator('#consent').isChecked(),false);
+  await page.getByRole('button',{name:'Prepare signed & mined checkpoint (does not broadcast)',exact:true}).click();
+  assert.match(await page.locator('#status').innerText(),/Connect to installed Core first/);
+  await noOverflow(page);
+});

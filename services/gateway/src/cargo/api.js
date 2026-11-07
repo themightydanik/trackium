@@ -69,6 +69,52 @@ export function createCargoApi({
           await telemetry.register(tenant, { label: input.label, mode: 'synthetic' }, 'simulator')
         );
       }
+      if (path === '/v1/proof-publisher') {
+        scope('read');
+        if (req.method === 'GET') return reply(res, 200, await proofs.owner.status(tenant));
+      }
+      if (path === '/v1/proof-publisher/policy' && req.method === 'POST') {
+        scope('admin');
+        return reply(res, 200, await proofs.owner.policy(tenant, (await body(req)).input));
+      }
+      if (path === '/v1/proof-publisher/preflight' && req.method === 'POST') {
+        scope('read');
+        object((await body(req)).input, []);
+        return reply(res, 200, await proofs.owner.preflight(tenant));
+      }
+      const approvalProof = /^\/v1\/proof-publisher\/events\/([^/]+)\/approve$/.exec(path);
+      if (approvalProof && req.method === 'POST') {
+        scope('admin');
+        return reply(
+          res,
+          201,
+          await proofs.owner.approve(tenant, approvalProof[1], (await body(req)).input)
+        );
+      }
+      const localProof = /^\/v1\/proofs\/([^/]+)\/(local-job|local-checkpoint|local-result)$/.exec(
+        path
+      );
+      if (localProof) {
+        if (req.method === 'GET' && localProof[2] === 'local-job') {
+          scope('read');
+          query(url, []);
+          return reply(res, 200, await proofs.owner.job(tenant, localProof[1]));
+        }
+        if (req.method === 'POST' && localProof[2] !== 'local-job') {
+          if (!identity.scopes.includes('publish') && !identity.scopes.includes('admin'))
+            throw new ApiError(403, 'publish scope required');
+          const input = (await body(req, 262144)).input;
+          return reply(
+            res,
+            200,
+            await proofs.owner[localProof[2] === 'local-checkpoint' ? 'checkpoint' : 'result'](
+              tenant,
+              localProof[1],
+              input
+            )
+          );
+        }
+      }
       const proofList = /^\/v1\/shipments\/([^/]+)\/proofs$/.exec(path);
       if (proofList && req.method === 'GET') {
         scope('read');

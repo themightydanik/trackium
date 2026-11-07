@@ -1,3 +1,4 @@
+import { checkSpend, preflight } from './safety.js';
 import { ProofError, hexId, PORT } from './commitment.js';
 const fail = (code) => {
   throw new ProofError(code, { retryable: false });
@@ -37,6 +38,7 @@ export function checkTransaction(tx, proof, { state = true } = {}) {
     )
   )
     fail('FOREIGN_TRANSACTION_STATE');
+  checkSpend(tx, proof);
   return tx;
 }
 // Publisher identity must be a standard signature wallet script, not an anyone-can-spend address.
@@ -58,8 +60,7 @@ export function createMinima(rpc, config) {
       const call = (c) => rpc.call(c, audit),
         id = proof.custom_id;
       if (!/^trk_[a-f0-9]{64}$/.test(id)) fail('INVALID_CUSTOM_ID');
-      const status = await call('status');
-      if (status.version !== config.coreVersion) fail('UNSUPPORTED_CORE_VERSION');
+      await preflight({ call }, proof.publisher_address, config);
       let row;
       try {
         row = await call(`txnlist id:${id}`);
@@ -96,6 +97,9 @@ export function createMinima(rpc, config) {
         if (hexId(row.transaction.transactionid) !== proof.transaction_id)
           fail('SIGNED_TRANSACTION_MISMATCH');
       }
+      const finalCheck = await call(`txncheck id:${id}`);
+      if (finalCheck.validtransaction !== true || finalCheck.allsignaturesvalid !== true)
+        fail('TRANSACTION_CHECK_FAILED');
       const mined = await call(`txnmine id:${id}`);
       return { txpow_id: hexId(mined.txpowid), mined_data: blob(mined.data) };
     },
