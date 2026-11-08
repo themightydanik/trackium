@@ -45,7 +45,20 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;35.0.0'
 
       - name: Run Android unit tests and assemble debug APK
-        run: ./gradlew --no-daemon :app:testDebugUnitTest :minimaapi:testDebugUnitTest :app:assembleDebug
+        run: |
+          set -euo pipefail
+          # Retry transient Gradle distribution/download errors (e.g. GitHub 504).
+          for attempt in 1 2 3 4; do
+            if ./gradlew --no-daemon :app:testDebugUnitTest :minimaapi:testDebugUnitTest :app:assembleDebug; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 4 ]; then
+              echo "::error::Android build failed after four attempts; inspect the Gradle logs."
+              exit 1
+            fi
+            echo "::warning::Gradle failed (attempt $attempt); retrying after transient network failure."
+            sleep $((attempt * 15))
+          done
 
       - name: Verify APK and record source and checksum
         run: |
