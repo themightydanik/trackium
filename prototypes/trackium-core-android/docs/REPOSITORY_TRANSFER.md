@@ -21,6 +21,21 @@ test "$(git rev-parse "$SOURCE_COMMIT:$PROJECT_PATH")" = "$(git -C "$DESTINATION
 
 The exact extracted tree was `9186657ce49ca0476119f1c5c7836c33e37e0fca`. This equality includes executable bits, binary JAR/wrapper/icons, LICENSE, NOTICE, original source pins, all tests and architecture docs. Git subtree is not installed in this environment; `git archive`/tree verification provides the tested portable alternative. The source reference remains in extraction commit message and source pins, rather than claiming that the entire unrelated backend history was imported.
 
+## Offline handoff bundle
+
+`/workspace/trackium-core-android-stage2.bundle` contains the complete standalone Git history and both prepared branches, without keys/caches/APKs/wallet data. It can be verified and cloned on another machine:
+
+```sh
+git bundle verify trackium-core-android-stage2.bundle
+git clone --branch feat/stage2-phone-readiness trackium-core-android-stage2.bundle trackium-core-android
+cd trackium-core-android
+git branch main origin/main
+git remote rename origin prepared-bundle
+git remote add origin https://github.com/themightydanik/trackium-core-android.git
+```
+
+A fresh clone of the bundle was built with the full common script: 327 JVM/Robolectric and 33 Python tests passed, host lint had 0 errors, and uncompressed APK entries matched the first local build despite different temporary signing identities. An online target must still be provided/verified before any push.
+
 ## Move the completed stage-2 tree after the owner provides an accessible empty repository
 
 These commands do **not** create a repository. The owner must first create/provide the intended repository and grant appropriate access. Do not force-push an existing nonempty repository.
