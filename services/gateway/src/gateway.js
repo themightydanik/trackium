@@ -3,7 +3,7 @@ import http from 'node:http';
 import { createLineFramer } from './framing.js';
 
 // The injected journal keeps TCP lifecycle tests independent of PostgreSQL.
-export function createGateway({ journal, config, logger = console, requestHandler, assetHandler }) {
+export function createGateway({ journal, config, logger = console, requestHandler, assetHandler, ingressGuard }) {
   const sessions = new Set();
   let pendingFrames = 0;
   let pendingBytes = 0;
@@ -61,6 +61,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
   });
 
   const api = http.createServer(async (req, res) => {
+    if (ingressGuard && !ingressGuard(req, res)) return;
     if (assetHandler && (req.url === '/app' || req.url.startsWith('/app/'))) { await assetHandler(req,res);return; }
     if (requestHandler && req.url.startsWith('/v1/')) {
       if (stopping) { res.writeHead(503); res.end(); return; }
@@ -130,7 +131,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
       startPromise = (async () => {
         await journal.initialize();
         if (stopping) return;
-        await listen(tcp, config.tcpPort);
+        if (config.tcpEnabled !== false) await listen(tcp, config.tcpPort);
         if (stopping) return;
         await listen(api, config.httpPort);
       })();

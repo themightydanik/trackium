@@ -8,6 +8,8 @@ See [Gateway integration and server simulation](../../docs/GATEWAY_SHIPMENTS_SIM
 
 ## Run locally
 
+For the single-instance Railway HTTPS test deployment, private PostgreSQL, safe owner provisioning and native Android pairing, see [Railway deployment](../../docs/RAILWAY_DEPLOYMENT.md). That profile disables raw TCP and all Minima publication. `PORT` overrides `HTTP_PORT`; `ENABLE_TCP_RECEIVER=false` disables the TCP listener (enabled by default for existing local workflows).
+
 From `services/gateway`, with Docker Engine and Docker Compose v2 installed:
 
 1. Copy `.env.example` to `.env` and set a strong `POSTGRES_PASSWORD`. Quote values containing `$` with single quotes in `.env`. This file is ignored by Git and excluded from Docker builds. The password is passed using `PGPASSWORD`, rather than interpolated into a connection URI. Changing it later does not rotate credentials in an existing database volume.

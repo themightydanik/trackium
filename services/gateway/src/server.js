@@ -12,7 +12,7 @@ process.once('SIGTERM', stop);
 process.once('SIGINT', stop);
 try {
   await gateway.start();
-  console.log('gateway TCP listening', config.tcpPort);
+  if (config.tcpEnabled) console.log('gateway TCP listening', config.tcpPort);
   console.log('gateway HTTP listening', config.httpPort);
 } catch (err) {
   console.error('gateway startup failed:', err.message);

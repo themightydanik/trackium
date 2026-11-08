@@ -1,0 +1,11 @@
+{
+  "name": "trackium-railway-config",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit --module nodenext --target es2022 railway.ts",
+    "test": "node --experimental-strip-types --test config.test.mjs"
+  },
+  "dependencies": { "railway": "3.16.0" },
+  "devDependencies": { "typescript": "5.9.3", "@types/node": "22.19.0" }
+}

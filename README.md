@@ -8,5 +8,6 @@ A Minima MiniDapp foundation for cargo visibility, with an explicit synthetic De
 - [Gateway architecture and rollout](docs/GATEWAY_V1_ARCHITECTURE.md)
 - [Telemetry Core v1 API, migrations and security boundaries](docs/TELEMETRY_CORE_V1.md)
 - [Gateway local development](services/gateway/README.md)
+- [Railway test deployment: HTTPS, PostgreSQL and Android owner pairing](docs/RAILWAY_DEPLOYMENT.md)
 
 `index.html` opens the new Cargo workspace. The original interface is preserved in `legacy.html`. The same-origin Gateway workspace supports owner-approved sessions, shipments and synthetic server simulation. Static Preview remains separate; embedded Core-origin transport is not implemented. The optional Proof Engine supports Server Core RPC and a signed-file Local Core workflow using the installed MiniDapp wallet. Publication is disabled by default, with event-specific Mainnet approvals and no automatic backlog. Real Core/network validation remains an operator prerequisite.
