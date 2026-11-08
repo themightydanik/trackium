@@ -37,11 +37,12 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Android command-line tools and licenses
-        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
-
-      - name: Install SDK 36 and build-tools 35.0.0
-        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Install Android SDK 36 and build-tools 35.0.0
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:?Android SDK must be preinstalled on ubuntu-24.04}"
+          printf 'y\\n' | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;35.0.0'
 
       - name: Run Android unit tests and assemble debug APK
         run: ./gradlew --no-daemon :app:testDebugUnitTest :minimaapi:testDebugUnitTest :app:assembleDebug
