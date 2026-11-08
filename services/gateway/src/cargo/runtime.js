@@ -1,3 +1,4 @@
+import { createNativeSessions } from './native-session.js';
 import { createProofService, startProofWorker } from '../proofs/service.js';
 import { createGateway } from '../gateway.js';
 import { initialize, persistPacket } from '../journal.js';
@@ -21,10 +22,13 @@ export function createRuntime(
   const pairing = createPairing(pool, config);
   const proofs = createProofService(pool, config.proofs, proofDependencies);
   let stopProofWorker = async () => {};
+  const native = createNativeSessions(pool, config);
   const authenticate = (req) =>
-    req.headers.authorization
-      ? telemetry.authenticate(req.headers.authorization)
-      : pairing.authenticate(req, !['GET', 'HEAD'].includes(req.method));
+    req.headers.authorization?.startsWith('Bearer trk_native_')
+      ? native.authenticate(req)
+      : req.headers.authorization
+        ? telemetry.authenticate(req.headers.authorization)
+        : pairing.authenticate(req, !['GET', 'HEAD'].includes(req.method));
   const telemetryApi = createTelemetryApi(telemetry, {
     fixturesEnabled: config.fixturesEnabled,
     authenticate,
@@ -52,6 +56,8 @@ export function createRuntime(
     },
     requestHandler: createCargoApi({
       telemetry,
+      authenticate,
+      native,
       proofs,
       shipments,
       simulator,
@@ -62,5 +68,5 @@ export function createRuntime(
     }),
     assetHandler: createWebHandler(config)
   });
-  return { gateway, shipments, telemetry, simulator, pairing, proofs };
+  return { gateway, shipments, telemetry, simulator, pairing, proofs, native };
 }

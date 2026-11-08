@@ -62,6 +62,7 @@
     return value.payload;
   }
   async function jobCheck(value, pin) {
+    if(value?.payload?.bundle?.proof?.publisher_transport==='android_minimaapi')throw Error('BlackBear requires the native Trackium Android app, not MDS');
     const job = await packet(value, pin, 'trackium:local-core:job:v1'),
       p = job.bundle?.proof,
       records = job.bundle?.records;

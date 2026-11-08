@@ -2,6 +2,8 @@ import { ApiError, object, text, uuid } from '../telemetry/schema.js';
 import { reply, body, query } from '../telemetry/api.js';
 export function createCargoApi({
   telemetry,
+  authenticate: suppliedAuthenticate,
+  native,
   proofs,
   shipments,
   simulator,
@@ -10,16 +12,20 @@ export function createCargoApi({
   telemetryApi,
   logger = console
 }) {
-  const authenticate = async (req) =>
-    req.headers.authorization
-      ? telemetry.authenticate(req.headers.authorization)
-      : pairing.authenticate(req, !['GET', 'HEAD'].includes(req.method));
+  const authenticate =
+    suppliedAuthenticate ??
+    (async (req) =>
+      req.headers.authorization
+        ? telemetry.authenticate(req.headers.authorization)
+        : pairing.authenticate(req, !['GET', 'HEAD'].includes(req.method)));
   return async (req, res) => {
     req.on('error', () => {});
     try {
       const url = new URL(req.url, 'http://gateway.invalid'),
         path = url.pathname;
       if (!['GET', 'HEAD'].includes(req.method)) query(url, []);
+      if (!config.nativeEnabled && path.startsWith('/v1/native/'))
+        throw new ApiError(404, 'native clients disabled');
       if (!config.webEnabled && path.startsWith('/v1/pairing'))
         throw new ApiError(404, 'not found');
       if (path === '/v1/pairing/challenges' && req.method === 'POST') {
@@ -32,11 +38,34 @@ export function createCargoApi({
         query(url, []);
         return reply(res, 201, await pairing.claim(req, res));
       }
+      if (path === '/v1/native/challenges' && req.method === 'POST') {
+        if (req.headers.origin || req.headers.cookie)
+          throw new ApiError(403, 'native client required');
+        return reply(res, 201, await native.challenge((await body(req)).input));
+      }
+      if (path === '/v1/native/claim' && req.method === 'POST') {
+        if (req.headers.origin || req.headers.cookie)
+          throw new ApiError(403, 'native client required');
+        return reply(res, 201, await native.claim((await body(req)).input));
+      }
       const identity = await authenticate(req),
         tenant = identity.tenant_id;
       const scope = (name) => {
         if (!identity.scopes.includes(name)) throw new ApiError(403, 'insufficient scope');
       };
+      const nativeApproval = /^\/v1\/native\/challenges\/([^/]+)\/approve$/.exec(path);
+      if (nativeApproval && req.method === 'POST') {
+        object((await body(req)).input, []);
+        return reply(res, 200, await native.approve(identity, nativeApproval[1]));
+      }
+      if (path === '/v1/native/session') {
+        if (identity.kind !== 'native') throw new ApiError(403, 'native session required');
+        if (req.method === 'GET') return reply(res, 200, identity);
+        if (req.method === 'DELETE') return reply(res, 200, await native.revoke(identity));
+      }
+      const nativeRevoke = /^\/v1\/native\/sessions\/([^/]+)$/.exec(path);
+      if (nativeRevoke && req.method === 'DELETE')
+        return reply(res, 200, await native.revoke(identity, nativeRevoke[1]));
       const approval = /^\/v1\/pairing\/challenges\/([^/]+)\/approve$/.exec(path);
       if (approval && req.method === 'POST') {
         const input = (await body(req)).input;

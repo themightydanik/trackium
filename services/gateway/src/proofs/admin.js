@@ -31,7 +31,11 @@ try {
     const owner = JSON.parse(await readFile(file, 'utf8'));
     if (typeof owner.token !== 'string' || !owner.token) throw Error('owner token required');
     let path, input;
-    if (action === 'policy') {
+    if (action === 'native-approve') {
+      if (!/^[0-9a-f-]{36}$/i.test(inputFile ?? '')) throw Error('challenge UUID required');
+      path = '/v1/native/challenges/' + inputFile + '/approve';
+      input = {};
+    } else if (action === 'policy') {
       path = '/v1/proof-publisher/policy';
       input = JSON.parse(await readFile(inputFile, 'utf8'));
     } else if (action === 'preflight') {
@@ -43,13 +47,16 @@ try {
       input = JSON.parse(await readFile(inputFile, 'utf8'));
     } else
       throw Error(
-        'use keygen PATH | policy ORIGIN OWNER_FILE POLICY_JSON | preflight ORIGIN OWNER_FILE | approve ORIGIN OWNER_FILE CONFIRM_JSON EVENT_ID'
+        'use native-approve ORIGIN OWNER_FILE CHALLENGE_UUID | keygen PATH | policy ORIGIN OWNER_FILE POLICY_JSON | preflight ORIGIN OWNER_FILE | approve ORIGIN OWNER_FILE CONFIRM_JSON EVENT_ID'
       );
     const response = await fetch(new URL(path, url), {
       method: 'POST',
       redirect: 'error',
       signal: AbortSignal.timeout(30000),
-      headers: { authorization: 'Bearer ' + owner.token, 'content-type': 'application/json' },
+      headers: {
+        authorization: 'Bearer ' + owner.token,
+        'content-type': 'application/json'
+      },
       body: JSON.stringify(input)
     });
     const result = await response.json();

@@ -20,11 +20,12 @@ export function readConfig(env = process.env) {
   ) {
     throw new Error('ENABLE_FIXTURE_ADAPTER must be true or false');
   }
-  for (const name of ['ENABLE_WEB_WORKSPACE', 'ENABLE_SERVER_SIMULATOR'])
+  for (const name of ['ENABLE_WEB_WORKSPACE', 'ENABLE_SERVER_SIMULATOR', 'ENABLE_NATIVE_CLIENTS'])
     if (env[name] !== undefined && !['true', 'false'].includes(env[name]))
       throw new Error(name + ' must be true or false');
   return {
     proofs: proofConfig(env),
+    nativeEnabled: env.ENABLE_NATIVE_CLIENTS === 'true',
     webEnabled: env.ENABLE_WEB_WORKSPACE === 'true',
     simulatorEnabled: env.ENABLE_SERVER_SIMULATOR === 'true',
     publicOrigin: env.PUBLIC_ORIGIN || 'http://127.0.0.1:8080',

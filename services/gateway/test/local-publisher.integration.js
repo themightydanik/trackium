@@ -20,11 +20,16 @@ test(
     const schema = 'local_proof_' + randomUUID().replaceAll('-', ''),
       admin = new pg.Pool({ connectionString: URL_DB });
     await admin.query('CREATE SCHEMA ' + schema);
-    const db = new pg.Pool({ connectionString: URL_DB, options: '-c search_path=' + schema });
+    const db = new pg.Pool({
+      connectionString: URL_DB,
+      options: '-c search_path=' + schema
+    });
     const dir = await mkdtemp(tmpdir() + '/trackium-local-api-'),
       file = dir + '/signer.pem';
     const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-    await writeFile(file, privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 });
+    await writeFile(file, privateKey.export({ type: 'pkcs8', format: 'pem' }), {
+      mode: 0o600
+    });
     let visible = false,
       wire,
       depth = 6,
@@ -36,7 +41,11 @@ test(
           return { version: '1.0.49.4', chain: { block: 100 + depth, hash: BLOCK } };
         if (c.startsWith('txpow txpowid:')) {
           if (!visible) throw new ProofError('RPC_NOT_FOUND');
-          const coin = { address: ADDRESS, tokenid: '0x00', amount: largeInput ? '0.1' : '0.001' };
+          const coin = {
+            address: ADDRESS,
+            tokenid: '0x00',
+            amount: largeInput ? '0.1' : '0.001'
+          };
           return {
             txpowid: TX,
             istransaction: true,
@@ -398,7 +407,11 @@ test(
         assert.ok(session.csrf);
         r = await fetch(config.publicOrigin + '/v1/proofs/' + proofId + '/local-result', {
           method: 'POST',
-          headers: { ...headers, cookie: sessionCookie, 'content-type': 'application/json' },
+          headers: {
+            ...headers,
+            cookie: sessionCookie,
+            'content-type': 'application/json'
+          },
           body: JSON.stringify({ txpow_id: TX })
         });
         assert.equal(r.status, 403);
@@ -422,7 +435,11 @@ test(
             'x-csrf-token': session.csrf,
             'content-type': 'application/json'
           },
-          body: JSON.stringify({ txpow_id: TX, transaction_id: TX, mined_data: '0x5678' })
+          body: JSON.stringify({
+            txpow_id: TX,
+            transaction_id: TX,
+            mined_data: '0x5678'
+          })
         });
         assert.equal(
           r.status,
@@ -508,5 +525,60 @@ test(
         );
       }
     );
+    await t.test('Native transport is signed, immutable and isolated from legacy MDS', async () => {
+      config.proofs.maxPublications = 10;
+      const c = await provisionTenant(db, 'Native tenant');
+      const d = await runtime.telemetry.register(
+        c.tenant_id,
+        { label: 'Native simulation', mode: 'synthetic' },
+        'simulator'
+      );
+      const cargo = await runtime.shipments.create(c.tenant_id, {
+        name: 'Native cargo',
+        device_id: d.id,
+        route: [
+          { name: 'A', latitude: 50, longitude: 30 },
+          { name: 'B', latitude: 51, longitude: 31 }
+        ],
+        conditions: { temperature_min_c: 2, temperature_max_c: 8 }
+      });
+      const address = '0x' + 'd'.repeat(64);
+      await runtime.proofs.owner.policy(c.tenant_id, {
+        publisher_kind: 'local',
+        publisher_transport: 'android_minimaapi',
+        publisher_address: address,
+        max_publications: 1,
+        max_input: '0.01'
+      });
+      const event = (await db.query('SELECT id FROM cargo_events WHERE shipment_id=$1', [cargo.id]))
+        .rows[0];
+      const approved = await runtime.proofs.owner.approve(c.tenant_id, event.id, {
+        confirmation: 'PUBLISH MAINNET ' + event.id
+      });
+      const packet = await runtime.proofs.owner.job(c.tenant_id, approved.proof_id);
+      assert.equal(packet.payload.core_profile, 'blackbear-2.2.10');
+      assert.equal(packet.payload.bundle.proof.publisher_transport, 'android_minimaapi');
+      assert.equal(packet.payload.bundle.records[0].source_trust, 'synthetic');
+      await assert.rejects(
+        runtime.proofs.owner.job(a.tenant_id, approved.proof_id),
+        (e) => e.status === 404
+      );
+      await assert.rejects(
+        runtime.proofs.owner.policy(c.tenant_id, {
+          publisher_kind: 'local',
+          publisher_transport: 'mds_legacy',
+          publisher_address: address,
+          max_publications: 1,
+          max_input: '0.01'
+        }),
+        /locked|immutable/
+      );
+      await assert.rejects(
+        db.query("UPDATE cargo_proofs SET publisher_transport='mds_legacy' WHERE id=$1", [
+          approved.proof_id
+        ]),
+        /immutable/
+      );
+    });
   }
 );
