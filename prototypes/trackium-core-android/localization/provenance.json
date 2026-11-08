@@ -1,0 +1,47 @@
+{
+  "baseline": "9def96e6801a9bef261611e45349f28a1eb6ae1c",
+  "parlons_source_commit": "41c9b0a967d9a2393a047bae6b13fa5ad9a3d5c5",
+  "files": {
+    "chatshared/com/eurobuddha/maxima/app/i18n/Language.java": "9a1a7427a0ee7a11c1f3d425fd296ceea7969213e67aa2e402ab865803d4cd83",
+    "chatshared/com/eurobuddha/maxima/app/i18n/LanguageDialog.java": "f32b9fd557a454a3dda28778348862453317845a8482dab5abfd86c502f121ba",
+    "chatshared/com/eurobuddha/maxima/app/i18n/NotificationLabels.java": "13cb7aca3db5b9bd52be82128fea4eadd2705d2a6810e8591d7160323cdc43d0",
+    "localization/android/test/com/eurobuddha/maxima/app/i18n/LanguageTest.java": "d690c803b6dbec76fbb8ca9e6e2c8a4b6c9fed817fd74d1ba6656240d66de83d",
+    "tools/localization/generate.cjs": "d07b565eef5b9f22db8fe1de0b30728c80ebbd718f849bc2e425305abec126eb",
+    "localization/android/test/com/eurobuddha/maxima/app/i18n/NotificationLabelsTest.java": "68a973d119791e27f69cc2b99047852814ae631a9f1523e7110807f7f88c8166",
+    "chatshared/com/eurobuddha/maxima/app/i18n/ChatPreview.java": "74bae9e9b306571c92cb8ad687dc065ecf7ea10bccda2d8db39d336c7009d9fb",
+    "localization/android/test/com/eurobuddha/maxima/app/i18n/ChatPreviewTest.java": "daf330c4a780bbf384627f9fc8f06ee10f8038b8f0c0f4dd08e4fae39d7ec2f4"
+  },
+  "catalogue_reuse": [
+    {
+      "key": "language.close",
+      "parlons_key": "language.close"
+    },
+    {
+      "key": "language.title",
+      "parlons_key": "language.title"
+    },
+    {
+      "key": "date.today",
+      "parlons_key": "date.today"
+    },
+    {
+      "key": "date.yesterday",
+      "parlons_key": "date.yesterday"
+    },
+    {
+      "key": "menu.logs",
+      "parlons_key": "nodeIde.logs"
+    }
+  ],
+  "adaptations": [
+    "Android library packaging and namespace",
+    "Four explicit languages including uk",
+    "Core launcher/main entry points and separate preference store",
+    "Core notification channel identities",
+    "Android-only resource generation",
+    "First-choice prompt respects the existing AppLock gate",
+    "Retain existing Material dialog theme and caller on-show validation handlers",
+    "Bind single-choice rows and input validation errors without altering input or selected values",
+    "ChatPreview reused with namespace/resource substitutions; its assertions run with real Android resources in ChatListLanguagesTest. Core chat reads message type separately from raw body so user-written preview-like text stays literal."
+  ]
+}

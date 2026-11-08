@@ -1,0 +1,22 @@
+{
+  "engine_sha256": "f8dc2d7b60c327c8016ba072cb68cc6e5981a41eb4514808693ffbbc8d56e6e0",
+  "unchanged_imports": 551,
+  "modified_imports": [
+    "app/build.gradle",
+    "app/src/block/java/com/eurobuddha/minimacore/integrated/PandamoniumHooks.java",
+    "app/src/block/res/values/strings.xml",
+    "app/src/main/java/com/eurobuddha/minimacore/main/MainActivity.java",
+    "app/src/main/java/com/eurobuddha/minimacore/main/views/home/HomeView.java",
+    "app/src/main/res/layout/view_home.xml",
+    "app/src/main/res/menu/optionsmenu.xml",
+    "build.gradle",
+    "gradle.properties",
+    "integrated/trackium/src/main/java/tech/trackium/cargo/MainActivity.kt",
+    "integrated/trackium/src/main/java/tech/trackium/cargo/TrackiumApp.kt",
+    "minimaapi/src/main/java/com/eurobuddha/minimaapi/MinimaAPI.java",
+    "minimaapi/src/main/java/com/eurobuddha/minimaapi/direct/DirectNodeApi.java"
+  ],
+  "omitted_imports": [
+    "integrated/trackium/src/main/java/tech/trackium/cargo/BlackBearTransport.kt"
+  ]
+}

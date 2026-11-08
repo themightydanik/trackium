@@ -1,0 +1,22 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:padding="14dp"
+    android:gravity="center_vertical"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <ProgressBar
+        android:id="@+id/loader"
+        android:layout_marginEnd="12dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:indeterminateTint="@color/minima_orange" />
+
+    <TextView
+        android:id="@+id/loading_msg"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Starting Minima…"
+        android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+        android:textColor="@color/core_text" />
+</LinearLayout>

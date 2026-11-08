@@ -1,0 +1,16 @@
+plugins { alias(libs.plugins.android.library); id 'org.jetbrains.kotlin.android' }
+android {
+    namespace 'tech.trackium.cargo'
+    compileSdk 36
+    defaultConfig { minSdk 28 }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    kotlinOptions { jvmTarget = '17' }
+    testOptions { unitTests.returnDefaultValues = true; unitTests.includeAndroidResources = true }
+}
+dependencies {
+    implementation project(':minimaapi')
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+    testImplementation 'org.robolectric:robolectric:4.14.1'
+    testImplementation 'org.mockito:mockito-core:5.12.0'
+}

@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Minima Core</string>
+    <string name="hide_keyboard">Hide keyboard</string>
+    <string name="home_keyuses_label">Key uses</string>
+    <string name="restore_keyuses_label">Key uses</string>
+    <string name="restore_intro">Enter your seed phrase, key uses and the address of a Minima MegaMMR node.</string>
+    <string name="startup_params_title">Startup Params</string>
+    <string name="classic_mode_title">Classic mode</string>
+    <string name="block_mode_title">Block mode</string>
+    <string name="classic_mode_description">On: removes -lowram and -blockaskeyuses. Off (default): enables both. Takes effect after restart; classic mode uses more RAM.\n\nExisting keys, addresses and usage counters are retained. New or seed-restored keys use the selected mode, which produces different addresses from the same seed. Select the original wallet mode before restoring. Classic keys may be unable to sign if you switch back to block mode.</string>
+    <string name="keyuses_classic_caption">Key uses</string>
+    <string name="keyuses_block_caption">Last key block</string>
+</resources>

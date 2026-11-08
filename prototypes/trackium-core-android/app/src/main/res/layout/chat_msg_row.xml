@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/msg_row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="2dp">
+
+    <LinearLayout
+        android:id="@+id/msg_bubble"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:maxWidth="310dp"
+        android:paddingHorizontal="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="5dp">
+
+        <ImageView
+            android:id="@+id/msg_image"
+            android:tag="l10n:description=l10n_chat_photo"
+        android:layout_width="240dp"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:maxHeight="320dp"
+            android:scaleType="fitCenter"
+            android:visibility="gone"
+            android:contentDescription="Photo" />
+
+        <TextView
+            android:id="@+id/msg_body"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/msg_attach"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textStyle="italic"
+            android:visibility="gone" />
+
+        <LinearLayout
+        android:id="@+id/msg_audio"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/msg_audio_btn"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:textSize="20sp"
+            android:text="\u25b6" />
+        <com.eurobuddha.minimacore.chat.WaveformView
+            android:id="@+id/msg_audio_wave"
+            android:layout_width="150dp"
+            android:layout_height="36dp" />
+        <TextView
+            android:id="@+id/msg_audio_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="8dp"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+        <TextView
+            android:id="@+id/msg_meta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:textSize="11sp"
+            android:alpha="0.7" />
+    </LinearLayout>
+</LinearLayout>

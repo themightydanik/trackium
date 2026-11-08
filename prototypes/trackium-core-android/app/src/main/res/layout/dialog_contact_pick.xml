@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <EditText
+        android:id="@+id/pick_search"
+        android:tag="l10n:hint=l10n_chat_search_contacts"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="4dp"
+        android:hint="Search contacts"
+        android:inputType="text"
+        android:maxLines="1"
+        android:drawablePadding="8dp"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/pick_empty"
+        android:tag="l10n:text=l10n_chat_no_contacts"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="28dp"
+        android:gravity="center"
+        android:text="No saved contacts yet"
+        android:textColor="@color/core_text_faint"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <ListView
+        android:id="@+id/pick_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@null"
+        android:dividerHeight="0dp"
+        android:scrollbarStyle="outsideOverlay" />
+</LinearLayout>

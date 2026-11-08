@@ -1,0 +1,85 @@
+<resources>
+    <!-- Manrope-based type scale. android:textFontWeight resolves the weight
+         from the @font/manrope family (minSdk 28+). -->
+
+    <style name="TextAppearance.MinimaCore.Display" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="fontFamily">@font/manrope</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textFontWeight">800</item>
+        <item name="android:textSize">30sp</item>
+        <item name="android:letterSpacing">-0.02</item>
+        <item name="android:textColor">@color/core_text</item>
+    </style>
+
+    <style name="TextAppearance.MinimaCore.Title" parent="TextAppearance.Material3.TitleLarge">
+        <item name="fontFamily">@font/manrope</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textFontWeight">700</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:textColor">@color/core_text</item>
+    </style>
+
+    <style name="TextAppearance.MinimaCore.Body" parent="TextAppearance.Material3.BodyLarge">
+        <item name="fontFamily">@font/manrope</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textFontWeight">400</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/core_text</item>
+    </style>
+
+    <style name="TextAppearance.MinimaCore.BodyStrong" parent="TextAppearance.Material3.BodyLarge">
+        <item name="fontFamily">@font/manrope</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textFontWeight">600</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/core_text</item>
+    </style>
+
+    <style name="TextAppearance.MinimaCore.Label" parent="TextAppearance.Material3.LabelLarge">
+        <item name="fontFamily">@font/manrope</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textFontWeight">700</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+
+    <style name="TextAppearance.MinimaCore.Tab" parent="TextAppearance.Material3.LabelMedium">
+        <item name="fontFamily">@font/manrope</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textFontWeight">600</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <style name="TextAppearance.MinimaCore.Caption" parent="TextAppearance.Material3.BodyMedium">
+        <item name="fontFamily">@font/manrope</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/core_text_mid</item>
+    </style>
+
+    <!-- section eyebrow: small, spaced, faint -->
+    <style name="TextAppearance.MinimaCore.Eyebrow" parent="TextAppearance.Material3.LabelSmall">
+        <item name="fontFamily">@font/manrope</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textFontWeight">700</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textColor">@color/core_text_faint</item>
+    </style>
+
+    <!-- big tabular number, e.g. balance / key uses -->
+    <style name="TextAppearance.MinimaCore.Numeral" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="fontFamily">@font/manrope</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textFontWeight">800</item>
+        <item name="android:textSize">34sp</item>
+        <item name="android:letterSpacing">-0.025</item>
+        <item name="android:textColor">@color/core_text</item>
+    </style>
+</resources>

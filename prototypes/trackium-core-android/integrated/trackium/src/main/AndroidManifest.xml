@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+ <application>
+  <activity android:name="tech.trackium.cargo.MainActivity" android:exported="false" android:theme="@style/TrackiumTheme" />
+  <provider android:name="tech.trackium.cargo.ProofExportProvider" android:authorities="${applicationId}.trackium.exports" android:exported="false" android:grantUriPermissions="true" />
+ </application>
+</manifest>

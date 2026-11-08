@@ -1,0 +1,70 @@
+{
+  "fixed": {
+    "not run": "entropy.errorNotRun",
+    "BIP39 wordlist must have 2048 words": "entropy.errorWordlistSize",
+    "BIP39 wordlist unreadable": "entropy.errorUnreadable",
+    "SHA-256 unavailable": "entropy.errorShaUnavailable",
+    "wordlist not loaded": "entropy.errorNotLoaded",
+    "wordlist bounds wrong": "entropy.errorBounds",
+    "dice encoding length check failed": "entropy.errorEncoding",
+    "raw truncation check failed": "entropy.errorTruncation",
+    "dice-to-phrase vector failed": "entropy.errorDiceVector",
+    "last-word tool: candidate count failed": "entropy.errorCandidateCount",
+    "last-word tool: known candidate missing": "entropy.errorCandidateMissing",
+    "last-word tool: validator rejects known phrase": "entropy.errorRejectsKnown",
+    "last-word tool: validator accepts invalid phrase": "entropy.errorAcceptsInvalid",
+    "last-word tool: candidate fails checksum": "entropy.errorCandidateChecksum"
+  },
+  "patterns": [
+    {
+      "key": "entropy.errorInit",
+      "template": "init failed: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "entropy.errorSelfException",
+      "template": "self-test exception: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "entropy.errorWordCount",
+      "template": "wordlist has {0} words",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "entropy.errorVector",
+      "template": "BIP39 vector {0} failed",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "entropy.errorValidVector",
+      "template": "check() rejects valid vector {0}",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "entropy.errorInputCount",
+      "template": "enter 11, 14, 17, 20 or 23 words (got {0})",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "entropy.errorUnknownWord",
+      "template": "word {0} (\"{1}\") is not in the BIP39 list",
+      "kinds": [
+        "integer",
+        "literal"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+<resources>
+    <string name="chat_files_title">文件传输</string>
+    <string name="chat_files_attach">文件（最大 100 MB）</string>
+    <string name="chat_files_open">打开文件传输</string>
+    <string name="chat_files_limit">请选择不超过 100 MB 的本地文件</string>
+    <string name="chat_files_failed">文件传输失败。点按继续重试。</string>
+    <string name="chat_files_storage">请移除已完成的传输以释放存储空间。</string>
+    <string name="chat_files_none">此聊天没有已存储的文件传输</string>
+    <string name="chat_files_save">保存已验证的文件</string>
+    <string name="chat_files_remove">移除本地副本</string>
+    <string name="chat_files_ready">验证完成，可以保存</string>
+    <string name="chat_files_working">正在传输加密文件…</string>
+    <string name="chat_files_help">下载或继续。请保持双方节点在线，文件数据通过点对点传输。</string>
+    <string name="chat_files_pause">暂停</string>
+    <string name="chat_files_send">发送／继续</string>
+    <string name="chat_files_download">下载／继续</string>
+    <string name="chat_files_paused">传输已暂停</string>
+    <string name="chat_files_saved">文件已保存</string>
+    <string name="chat_files_incomplete">文件准备已中断。请移除此本地传输，然后重新选择文件。</string>
+    <string name="chat_files_contact">此联系人已移除。请先添加联系人，再传输文件。</string>
+</resources>

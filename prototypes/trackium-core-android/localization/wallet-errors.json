@@ -1,0 +1,280 @@
+{
+  "fixed": {
+    "Wallet is locked": "wallet.error.locked",
+    "Vault is locked": "wallet.error.locked",
+    "The node seed changed. Review setup again": "wallet.error.nodeSeedChanged",
+    "Wallet counters are unavailable. Start the embedded node and retry.": "wallet.error.counterUnavailable",
+    "Classic key exhausted": "wallet.error.classicExhausted",
+    "Classic key-use floor is out of range": "wallet.error.invalidFloor",
+    "Could not verify or persist the node key counter": "wallet.error.counterPersist",
+    "Node key query was incomplete": "wallet.error.counterIncomplete",
+    "Node key query was ambiguous": "wallet.error.counterAmbiguous",
+    "Invalid node key counter": "wallet.error.counterInvalid",
+    "Invalid stored key uses": "wallet.error.counterInvalid",
+    "Invalid signing reservation": "wallet.error.reservationInvalid",
+    "Invalid node key row": "wallet.error.nodeKeyRowInvalid",
+    "Missing node key counter": "wallet.error.counterMissing",
+    "Counter would decrease": "wallet.error.counterDecrease",
+    "Node counter update did not persist": "wallet.error.counterNotPersisted",
+    "Node key is not a valid classic key": "wallet.error.notClassic",
+    "Start the embedded node and wait for its keys before using this wallet": "wallet.error.nodeStartKeys",
+    "The embedded node seed is unavailable": "wallet.error.nodeSeedUnavailable",
+    "The embedded node seed could not be verified": "wallet.error.nodeSeedUnverified",
+    "Node wallet unavailable": "wallet.error.nodeWalletUnavailable",
+    "Node wallet database is unavailable": "wallet.error.nodeWalletUnavailable",
+    "Node wallet database is closed": "wallet.error.nodeWalletUnavailable",
+    "Node wallet changed": "wallet.error.nodeWalletChanged",
+    "Failed to persist wallet vault": "wallet.error.vaultPersist",
+    "Could not encrypt/persist wallet vault": "wallet.error.vaultPersist",
+    "Failed to persist wallet vault and public audit keys": "wallet.error.vaultAuditPersist",
+    "Could not encrypt vault with new passphrase": "wallet.error.vaultPasswordEncrypt",
+    "Vault file too large": "wallet.error.vaultTooLarge",
+    "Stored vault too large": "wallet.error.vaultTooLarge",
+    "Vault payload too large or missing": "wallet.error.vaultPayloadMissing",
+    "Wallet vault payload is unreadable": "wallet.error.vaultUnreadable",
+    "Corrupt vault payload": "wallet.error.vaultUnreadable",
+    "Wrong passphrase or corrupt vault": "wallet.error.vaultPasswordOrDamage",
+    "Not a Minima vault blob (bad magic)": "wallet.error.vaultInvalidFormat",
+    "Vault blob too short / not a vault": "wallet.error.vaultInvalidFormat",
+    "Unsupported or malformed vault schema": "wallet.error.vaultInvalidFormat",
+    "Cannot open file for writing": "wallet.error.fileWrite",
+    "Cannot open file for reading": "wallet.error.fileRead",
+    "empty coinexport reply": "wallet.error.coinExportEmpty",
+    "coinexport returned a different coin": "wallet.error.coinExportDifferent",
+    "No input coins provided": "wallet.error.noInputs",
+    "Token-coin burn is not supported in M1 (burn must be 0 for tokens)": "wallet.error.tokenBurn",
+    "Not a token coin — NFT transfer needs a custom-token coin": "wallet.error.nftTokenRequired",
+    "NFT transfer requires the Token descriptor on the input coin": "wallet.error.tokenDescriptor",
+    "Custom-token send requires a Token descriptor on the input coins": "wallet.error.tokenDescriptor",
+    "The embedded node did not respond. Check its status in Minima Core.": "wallet.error.nodeTimeout",
+    "Node result unavailable. Outcome unknown.": "wallet.error.nodeUnknown",
+    "Wallet public audit keys are unavailable": "wallet.error.auditUnavailable",
+    "Unlock minimaWallet to prepare its public audit keys": "wallet.error.auditUnlock",
+    "minimaWallet public audit data is incomplete. Unlock it and retry": "wallet.error.auditIncomplete",
+    "Wallet session changed": "wallet.sessionChanged",
+    "Wrong wallet passphrase": "wallet.wrongPassphrase",
+    "Burn cannot be negative": "wallet.negativeBurn",
+    "Signing is blocked: the number of signatures already used by this seed is unknown. Reusing a one-time key EXPOSES it and can lose your funds. Enter your signatures-used count, confirm this seed is brand-new, or import a keyuses backup, before sending.": "wallet.error.signingBlocked",
+    "Negative key uses": "wallet.error.negativeUses",
+    "signatures used must be >= 0": "wallet.error.negativeUses",
+    "Negative key index": "wallet.error.negativeIndex",
+    "key index must be >= 0": "wallet.error.negativeIndex",
+    "Invalid wallet public key": "wallet.error.publicKeyInvalid",
+    "Invalid counter namespace": "wallet.error.namespaceInvalid",
+    "Invalid key namespace": "wallet.error.namespaceInvalid",
+    "Re-encrypted vault did not verify": "wallet.error.vaultVerification",
+    "Re-encrypted vault failed verification": "wallet.error.vaultVerification",
+    "Invalid iteration count": "wallet.error.iterationsInvalid",
+    "Unsupported iteration count": "wallet.error.iterationsInvalid",
+    "Bad salt length": "wallet.error.saltInvalid",
+    "Bad nonce length": "wallet.error.nonceInvalid",
+    "hkdfExpand len must be <= 32": "wallet.error.hkdfLength",
+    "Missing vault phrase or key uses": "wallet.error.vaultFieldsMissing",
+    "Invalid vault key uses": "wallet.error.vaultUsesInvalid",
+    "Invalid vault key count": "wallet.error.vaultUsesInvalid",
+    "Unexpected vault object": "wallet.error.vaultObjectInvalid",
+    "Duplicate vault field": "wallet.error.vaultFieldDuplicate",
+    "Unexpected vault array": "wallet.error.vaultArrayInvalid",
+    "Invalid vault key index": "wallet.error.vaultIndexInvalid",
+    "Invalid public key record": "wallet.error.auditRecordInvalid",
+    "Invalid or duplicate public key": "wallet.error.auditDuplicate",
+    "Incomplete base key list": "wallet.error.auditBaseIncomplete",
+    "Public key metadata needs refreshing": "wallet.error.auditRefresh",
+    "Invalid integer": "wallet.error.integerInvalid"
+  },
+  "patterns": [
+    {
+      "template": "Insufficient funds: have {0} need {1}",
+      "key": "wallet.error.funds",
+      "kinds": [
+        "number",
+        "number"
+      ]
+    },
+    {
+      "template": "Insufficient funds: have {0} require {1}",
+      "key": "wallet.error.funds",
+      "kinds": [
+        "number",
+        "number"
+      ]
+    },
+    {
+      "template": "Too fragmented: covering {0} needs more than {1} coins — consolidate first",
+      "key": "wallet.error.fragmented",
+      "kinds": [
+        "number",
+        "integer"
+      ]
+    },
+    {
+      "template": "Consolidate needs at least 3 coins of this token (have {0})",
+      "key": "wallet.error.mergeFew",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Consolidate needs >= 3 input coins (was {0})",
+      "key": "wallet.error.mergeFew",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Split must be 1..{0} (was {1})",
+      "key": "wallet.error.splitRange",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "Split must be 1..{0}",
+      "key": "wallet.error.splitMaximum",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Consolidated output <= 0 (sum={0} burn={1})",
+      "key": "wallet.error.mergeOutput",
+      "kinds": [
+        "number",
+        "number"
+      ]
+    },
+    {
+      "template": "Output amount must be > 0 (was {0})",
+      "key": "wallet.error.outputPositive",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Split output too small for amount {0}",
+      "key": "wallet.error.splitTooSmall",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Input coin token mismatch: {0} != {1}",
+      "key": "wallet.error.tokenMismatch",
+      "kinds": [
+        "hex",
+        "hex"
+      ]
+    },
+    {
+      "template": "Input address {0} does not match wallet key index {1} (derived {2})",
+      "key": "wallet.error.addressMismatch",
+      "kinds": [
+        "hex",
+        "integer",
+        "hex"
+      ]
+    },
+    {
+      "template": "Token coin {0} has no token descriptor — resolve it via coinexport before building",
+      "key": "wallet.error.missingDescriptor",
+      "kinds": [
+        "hex"
+      ]
+    },
+    {
+      "template": "Token descriptor mismatch on coin {0}: descriptor recomputes to {1} but the coin's tokenid is {2} — rebuild this input via coinexport (lossy JSON token name)",
+      "key": "wallet.error.descriptorMismatch",
+      "kinds": [
+        "hex",
+        "hex",
+        "hex"
+      ]
+    },
+    {
+      "template": "Key {0} exhausted: {1} / {2} one-time signatures used",
+      "key": "wallet.error.keyExhausted",
+      "kinds": [
+        "integer",
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "Coin address is not in our wallet: {0}",
+      "key": "wallet.error.foreignCoin",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Coin parse failed: {0}",
+      "key": "wallet.error.coinParse",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "coinexport failed for {0}: {1}",
+      "key": "wallet.error.coinExport",
+      "kinds": [
+        "hex",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "{0} failed: {1}",
+      "key": "wallet.error.commandFailed",
+      "kinds": [
+        "command",
+        "literal"
+      ]
+    },
+    {
+      "template": "Wallet vault is unreadable: {0}",
+      "key": "wallet.error.vaultReadDetail",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "KeyUses: failed to durably record external uses for key {0}",
+      "key": "wallet.error.externalCounter",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "KeyUses: failed to persist raiseTo for key {0} (mirrorA={1}, mirrorB={2})",
+      "key": "wallet.error.raiseCounter",
+      "kinds": [
+        "integer",
+        "boolean",
+        "boolean"
+      ]
+    },
+    {
+      "template": "KeyUses: failed to durably persist uses advance for key {0} (mirrorA={1}, mirrorB={2}) — refusing to sign",
+      "key": "wallet.error.reserveCounter",
+      "kinds": [
+        "integer",
+        "boolean",
+        "boolean"
+      ]
+    },
+    {
+      "template": "Unsupported vault version: {0}",
+      "key": "wallet.error.vaultVersion",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Unsupported KDF id: {0}",
+      "key": "wallet.error.vaultKdf",
+      "kinds": [
+        "integer"
+      ]
+    }
+  ]
+}

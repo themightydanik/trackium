@@ -1,0 +1,4 @@
+<resources>
+    <style name="pm_history_Base.Theme.Utxo" parent="Theme.Material3.DayNight.NoActionBar">
+    </style>
+</resources>

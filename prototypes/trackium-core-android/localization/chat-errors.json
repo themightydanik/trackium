@@ -1,0 +1,63 @@
+{
+  "fixed": {
+    "could not open image": "chat.error.openImage",
+    "could not read image": "chat.error.readImage",
+    "MediaStore refused": "chat.error.saveImage",
+    "Parlons transport still starting - try again in a moment": "chat.error.transportStarting",
+    "Parlons transport not running": "chat.error.transportStopped",
+    "media service not set": "chat.error.mediaUnavailable",
+    "empty media": "chat.error.emptyMedia",
+    "not a MAX# address": "chat.error.notMaxAddress",
+    "malformed MAX# address": "chat.error.malformedMaxAddress",
+    "send interrupted": "chat.error.sendInterrupted",
+    "send interrupted before fallback": "chat.error.sendInterruptedBeforeFallback",
+    "node stopped": "chat.error.nodeStopped",
+    "lane closed": "chat.error.laneClosed"
+  },
+  "patterns": [
+    {
+      "key": "chat.error.mediaOver",
+      "template": "media over {0} bytes",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "chat.error.meshLimit",
+      "template": "Maxima mesh supports files up to {0} MB. This file is {1} MB — host it on a server (SFTP/IPFS/GitHub) or compress it first.",
+      "kinds": [
+        "integer",
+        "number"
+      ]
+    },
+    {
+      "key": "chat.error.noReachableAddress",
+      "template": "no reachable address for {0} (peer not registered at that MLS, or we share no relay)",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "chat.error.unreachableRelay",
+      "template": "couldn't reach {0} on any known relay",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "chat.error.anchorDirectory",
+      "template": "anchor directory failed: {0}",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "chat.error.packageTooBig",
+      "template": "MaximaPackage too big: {0} > {1} (peer would reply TOOBIG)",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    }
+  ]
+}

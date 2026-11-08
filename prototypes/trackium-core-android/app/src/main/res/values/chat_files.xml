@@ -1,0 +1,21 @@
+<resources>
+    <string name="chat_files_title">File transfers</string>
+    <string name="chat_files_attach">File (up to 100 MB)</string>
+    <string name="chat_files_open">Open file transfer</string>
+    <string name="chat_files_limit">Choose a local file up to 100 MB</string>
+    <string name="chat_files_failed">File transfer failed. Tap Resume to retry.</string>
+    <string name="chat_files_storage">Remove a finished transfer to free file-sharing storage.</string>
+    <string name="chat_files_none">No stored file transfers in this chat</string>
+    <string name="chat_files_save">Save verified file</string>
+    <string name="chat_files_remove">Remove local copy</string>
+    <string name="chat_files_ready">Verified and ready to save</string>
+    <string name="chat_files_working">Transferring encrypted file…</string>
+    <string name="chat_files_help">Download or resume. Keep both nodes online. File data travels peer to peer.</string>
+    <string name="chat_files_pause">Pause</string>
+    <string name="chat_files_send">Send / resume</string>
+    <string name="chat_files_download">Download / resume</string>
+    <string name="chat_files_paused">Transfer paused</string>
+    <string name="chat_files_saved">File saved</string>
+    <string name="chat_files_incomplete">Preparation was interrupted. Remove this local transfer and choose the file again.</string>
+    <string name="chat_files_contact">This contact was removed. Add the contact before transferring files.</string>
+</resources>

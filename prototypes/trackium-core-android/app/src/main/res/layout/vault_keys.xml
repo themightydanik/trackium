@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/vault_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/core_surface"
+        app:titleTextColor="@color/core_text"
+        app:titleTextAppearance="@style/TextAppearance.MinimaCore.Title"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="?attr/actionBarTheme" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="40dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Private keys"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Display"  android:tag="l10n:text=l10n_backup_private_keys" />
+
+            <TextView
+                android:id="@+id/vault_state"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:padding="14dp"
+                android:background="@drawable/bg_token_tile"
+                android:accessibilityLiveRegion="polite"
+                android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong"
+                android:lineSpacingMultiplier="1.25" />
+
+            <TextView
+                android:id="@+id/vault_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:accessibilityLiveRegion="polite"
+                android:visibility="gone"
+                android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong" />
+
+            <ProgressBar
+                android:id="@+id/vault_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="10dp"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
+            <!-- Seed phrase. Hidden until asked for: it should never be sitting on screen by
+                 default, and it is the whole wallet in twelve to twenty-four words. -->
+            <TextView style="@style/FormLabel" android:text="Seed phrase"  android:tag="l10n:text=l10n_onboarding_seed_phrase" />
+
+            <TextView
+                android:id="@+id/vault_phrase_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Anyone who reads these words owns your funds. Write them down somewhere only you can reach — never in a photo, a note app or a message."
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.25"  android:tag="l10n:text=l10n_vault_seed_warning" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/vault_reveal"
+                style="@style/Widget.MinimaCore.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Show seed phrase" />
+
+            <TextView
+                android:id="@+id/vault_phrase"
+                style="@style/MonoBlock"
+                android:layout_marginTop="10dp"
+                android:padding="12dp"
+                android:background="@drawable/bg_token_tile"
+                android:textIsSelectable="true"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/vault_seed_label"
+                style="@style/FormLabel"
+                android:text="Seed"
+                android:visibility="gone"  android:tag="l10n:text=l10n_vault_seed" />
+
+            <TextView
+                android:id="@+id/vault_seed"
+                style="@style/MonoBlock"
+                android:padding="12dp"
+                android:background="@drawable/bg_token_tile"
+                android:textIsSelectable="true"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/vault_copy_phrase"
+                style="@style/Widget.MinimaCore.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                android:text="Copy seed phrase"  android:tag="l10n:text=l10n_vault_copy_seed" />
+
+            <View style="@style/HomeDivider" android:layout_marginTop="24dp" />
+
+            <TextView style="@style/FormLabel" android:text="Actions"  android:tag="l10n:text=l10n_vault_actions" />
+
+            <LinearLayout
+                android:id="@+id/vault_actions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

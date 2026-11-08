@@ -1,0 +1,27 @@
+<resources>
+    <!-- 8dp spacing scale -->
+    <dimen name="space_0">2dp</dimen>
+    <dimen name="space_1">4dp</dimen>
+    <dimen name="space_2">8dp</dimen>
+    <dimen name="space_3">12dp</dimen>
+    <dimen name="space_4">16dp</dimen>
+    <dimen name="space_5">24dp</dimen>
+    <dimen name="space_6">32dp</dimen>
+    <dimen name="space_7">40dp</dimen>
+    <dimen name="space_8">48dp</dimen>
+
+    <!-- radii -->
+    <dimen name="radius_card">16dp</dimen>
+    <dimen name="radius_control">12dp</dimen>
+    <dimen name="radius_pill">999dp</dimen>
+
+    <!-- screen gutter -->
+    <dimen name="screen_gutter">16dp</dimen>
+
+    <!-- kept: still referenced by legacy layouts (now feeding sp-based sizes) -->
+    <dimen name="home_info_size_left">14sp</dimen>
+    <dimen name="home_info_size_right">15sp</dimen>
+    <dimen name="home_info_size_keyuses">30sp</dimen>
+    <dimen name="home_info_size_gap">16dp</dimen>
+    <dimen name="wallet_send_header_size">22sp</dimen>
+</resources>

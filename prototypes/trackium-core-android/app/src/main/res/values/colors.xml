@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ============================================================
+         Minima brand constants — identical in light & dark
+         ============================================================ -->
+    <color name="minima_orange">#FF4A2B</color>
+    <color name="minima_orange_pressed">#E43C20</color>
+    <color name="minima_blue">#2F6BF6</color>
+    <color name="minima_grey">#9A9DA3</color>
+
+    <!-- ============================================================
+         LIGHT theme surfaces & text  (dark overrides in values-night)
+         ============================================================ -->
+    <color name="core_bg">#F4F5F7</color>
+    <color name="core_surface">#FFFFFF</color>
+    <color name="core_surface_variant">#F0F2F4</color>
+    <color name="core_outline">#E4E7EB</color>
+    <color name="core_text">#14171B</color>
+    <color name="core_text_mid">#5B616B</color>
+    <color name="core_text_faint">#9CA2AB</color>
+    <color name="on_primary">#FFFFFF</color>
+
+    <!-- semantic (light values; dark brighter in values-night) -->
+    <color name="status_good">#1F9D48</color>
+    <color name="status_warn">#B8791A</color>
+    <color name="status_bad">#D33B22</color>
+
+    <!-- legacy names kept so nothing breaks -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

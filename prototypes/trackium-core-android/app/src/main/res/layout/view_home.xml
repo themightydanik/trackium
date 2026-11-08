@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <Button android:id="@+id/open_trackium" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Open Trackium" />
+
+            <!-- ===== NODE ===== -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="Node" android:tag="l10n:text=l10n_tab_node"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Eyebrow" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout style="@style/HomeRow">
+                        <View android:id="@+id/home_status_dot" android:layout_width="8dp" android:layout_height="8dp"
+                            android:layout_gravity="center_vertical" android:layout_marginEnd="8dp"
+                            android:background="@drawable/bg_dot" android:backgroundTint="@color/core_text_faint" />
+                        <TextView style="@style/HomeRow.Label" android:text="Status" android:tag="l10n:text=l10n_home_status" />
+                        <TextView android:id="@+id/home_status" style="@style/HomeRow.Value" android:text="Waiting for node" android:tag="l10n:text=l10n_home_waiting"
+                            android:textColor="@color/core_text_faint" />
+                    </LinearLayout>
+
+                    <View style="@style/HomeDivider" />
+                    <LinearLayout style="@style/HomeRow">
+                        <TextView style="@style/HomeRow.Label" android:text="Block" android:tag="l10n:text=l10n_history_block" />
+                        <TextView android:id="@+id/home_blocks" style="@style/HomeRow.Value" />
+                    </LinearLayout>
+
+                    <View style="@style/HomeDivider" />
+                    <LinearLayout style="@style/HomeRow">
+                        <TextView style="@style/HomeRow.Label" android:text="Block time" android:tag="l10n:text=l10n_home_block_time" />
+                        <TextView android:id="@+id/home_block_time" style="@style/HomeRow.Value" android:layout_width="0dp" android:layout_weight="2" />
+                    </LinearLayout>
+
+                    <View style="@style/HomeDivider" />
+                    <LinearLayout style="@style/HomeRow">
+                        <TextView style="@style/HomeRow.Label" android:text="Connections" android:tag="l10n:text=l10n_home_connections" />
+                        <TextView android:id="@+id/home_connections" style="@style/HomeRow.Value" />
+                    </LinearLayout>
+
+                    <View style="@style/HomeDivider" />
+                    <LinearLayout style="@style/HomeRow">
+                        <TextView style="@style/HomeRow.Label" android:text="Incoming" android:tag="l10n:text=l10n_home_incoming" />
+                        <TextView android:id="@+id/home_incoming" style="@style/HomeRow.Value" />
+                    </LinearLayout>
+
+                    <View style="@style/HomeDivider" />
+                    <LinearLayout style="@style/HomeRow">
+                        <TextView style="@style/HomeRow.Label" android:text="Random peer" android:tag="l10n:text=l10n_home_peer" />
+                        <!-- shown in full and selectable - never ellipsized -->
+                        <TextView android:id="@+id/home_peers" style="@style/HomeRow.Value"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:textIsSelectable="true"
+                            android:breakStrategy="simple"
+                            android:hyphenationFrequency="none" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ===== IDENTITY ===== -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="8dp"
+                android:text="Identity" android:tag="l10n:text=l10n_home_identity"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Eyebrow" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/home_keyuses_caption"
+                        android:text="@string/home_keyuses_label"
+                        android:textAppearance="@style/TextAppearance.MinimaCore.Caption" />
+                    <TextView
+                        android:id="@+id/home_keyuses"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Connecting…"
+                        android:textAppearance="@style/TextAppearance.MinimaCore.Numeral" />
+
+                    <View style="@style/HomeDivider" android:layout_marginTop="14dp" />
+                    <LinearLayout style="@style/HomeRow">
+                        <TextView style="@style/HomeRow.Label" android:text="Minima" />
+                        <TextView android:id="@+id/home_version" style="@style/HomeRow.Value" />
+                    </LinearLayout>
+
+                    <View style="@style/HomeDivider" />
+                    <LinearLayout style="@style/HomeRow">
+                        <TextView style="@style/HomeRow.Label" android:text="APK version" android:tag="l10n:text=l10n_home_apk" />
+                        <TextView android:id="@+id/home_app_version" style="@style/HomeRow.Value" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_tester"
+                style="@style/Widget.MinimaCore.Button.Text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_gravity="start"
+                android:text="Tester" android:tag="l10n:text=l10n_home_tester" />
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

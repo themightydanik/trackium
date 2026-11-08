@@ -1,0 +1,20 @@
+plugins { id 'java-library' }
+
+/*
+ * The Maxima transport core, vendored. Java 11 is the upstream's hard constraint and the reason it can be
+ * consumed by an Android module at all, so it is kept exactly as it is rather than raised to match the app.
+ *
+ * Zero runtime dependencies by design. SHA3-256 is the one thing it cannot supply itself on Android, and
+ * the app injects one rather than this taking on a library for a single function — see Sha3 and the known
+ * answer the core checks it against.
+ */
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+tasks.withType(JavaCompile).configureEach {
+    options.release = 11
+    options.encoding = 'UTF-8'
+    // Vendored code, read but not written here: its warnings are upstream's to answer, not this build's.
+    options.compilerArgs << '-nowarn'
+}

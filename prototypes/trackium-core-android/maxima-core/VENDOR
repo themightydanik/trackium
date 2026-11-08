@@ -1,0 +1,4 @@
+Vendored from: https://github.com/eurobuddha/maxima  (core/src/main/java + core/src/main/resources)
+Source commit: f2f41994  (keets refs are untrusted: validate before any node-command interpolation)
+Re-vendor: copy core/src/main/* over this module's src/main/*, then update this file.
+Parity check: diff -r <maxima>/core/src/main/java maxima-core/src/main/java  (must be empty).

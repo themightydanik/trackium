@@ -1,0 +1,15 @@
+{
+  "eurobuddha/minima-core-android": {
+    "commit": "bc39f8f7a3c09cff55d1639ee8947b66325817b5",
+    "minima_jar_sha256": "f8dc2d7b60c327c8016ba072cb68cc6e5981a41eb4514808693ffbbc8d56e6e0"
+  },
+  "themightydanik/minima-core": {
+    "commit": "c2a54a2e46b2c3a4fd541b80e7d7f5e7afe7d4da"
+  },
+  "spartacusrex-minima/minima-core": {
+    "commit": "c2a54a2e46b2c3a4fd541b80e7d7f5e7afe7d4da"
+  },
+  "themightydanik/trackium": {
+    "commit": "196b3dd5848e35844acfeffccf8f984030d7bee3"
+  }
+}

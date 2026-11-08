@@ -1,0 +1,812 @@
+{
+  "fixed": {
+    "LIQUIDITY POOLS": "pools.subtitle",
+    "SWAP": "pools.swap",
+    "POOLS": "pools.pools",
+    "MY LP": "pools.myLp",
+    "WALLET": "pools.wallet",
+    "ACTIVITY": "pools.activity",
+    "◐ STYLE": "pools.style",
+    "Change appearance": "pools.styleDescription",
+    "Finish your transaction first, then switch theme.": "pools.busyTheme",
+    "This device has no battery-optimisation screen. Exclude PandaPools from battery optimisation for Minima Core in Android Settings.": "pools.batteryMissing",
+    "PandaPools is not enabled yet": "pools.unavailable",
+    "The embedded node is unavailable. Open Minima Core from the menu and check its status, then retry.": "pools.nodeUnavailable",
+    "Open Minima Core": "pools.openNode",
+    "↻ SCAN": "pools.scan",
+    "INDIVIDUAL": "pools.individual",
+    "COMBINED": "pools.combined",
+    "Scanning the pool registry…": "pools.scanning",
+    "no active pools": "pools.noActive",
+    "No live pools found in the registry yet. Create one to seed liquidity.": "pools.noLive",
+    "No funded pools to combine yet.": "pools.noFunded",
+    "pools combined": "pools.combinedCount",
+    "total reserves": "pools.totalReserves",
+    "aggregate spot price": "pools.aggregatePrice",
+    "tradeable depth": "pools.depth",
+    "reserves": "pools.reserves",
+    "spot price": "pools.spotPrice",
+    "fees accrued (K/KMIN−1)": "pools.fees",
+    "pool": "pools.pool",
+    "pool address": "pools.poolAddress",
+    "payout address": "pools.payoutAddress",
+    "backup check": "pools.backupCheck",
+    "transaction id": "pools.transactionId",
+    "address": "pools.address",
+    "coins": "pools.coins",
+    "Txpow id": "pools.txpowId",
+    "From": "pools.from",
+    "To": "pools.to",
+    "Finding pools…": "pools.finding",
+    "No live pools yet — create one in the My LP tab to seed liquidity.": "pools.swapEmpty",
+    "YOU PAY": "pools.youPay",
+    "YOU RECEIVE (EST.)": "pools.youReceiveEstimate",
+    "token": "pools.tokenPlaceholder",
+    "Reverse swap direction": "pools.flipDescription",
+    "Market price unavailable (MEXC)": "pools.marketUnavailable",
+    "at market": "pools.atMarket",
+    "This trade is too large for the pools' depth.": "pools.tradeTooLarge",
+    "Rate": "pools.rate",
+    "Price impact": "pools.impact",
+    "Routed across": "pools.routed",
+    "Pool fee (0.50%)": "pools.poolFee",
+    "kept by LPs": "pools.lpKept",
+    "You receive": "pools.youReceive",
+    "SWAPPING…": "pools.swapping",
+    "Enter an amount first.": "pools.enterAmount",
+    "That trade is too large for these pools.": "pools.tradeRejected",
+    "Confirm swap": "pools.confirmSwap",
+    "Swap": "pools.swapAction",
+    "Cancel": "pools.cancel",
+    "Building + posting your swap…": "pools.swapPosting",
+    "RECENT ACTIVITY": "pools.recentActivity",
+    "See all  →  Activity": "pools.seeActivity",
+    "Failed": "pools.failed",
+    "Outcome unknown · check node history": "pools.outcomeUnknown",
+    "No transaction ID saved": "pools.noTransaction",
+    "Not found on this node": "pools.notFoundNode",
+    "Awaiting on-chain inclusion": "pools.awaitingInclusion",
+    "Checking on-chain…": "pools.checkingChain",
+    "Not found on-chain": "pools.notFoundChain",
+    "The node has not confirmed the outcome of a previous write. It may still complete. New signing is paused. Check Activity and use Wallet → Resolve interrupted write.": "pools.writeUncertain",
+    "Close": "language.close",
+    "Direction": "history.direction",
+    "Amount": "history.amount",
+    "Block": "history.block",
+    "Time": "history.dateTime",
+    "Inputs": "history.inputs",
+    "Outputs": "history.outputs",
+    "Transaction": "history.transaction",
+    "Balance unavailable.": "pools.balanceUnavailable",
+    "Loading balances…": "pools.loadingBalances",
+    "No balances yet.": "pools.noBalances",
+    "AVAILABLE TO POOL": "pools.availableToPool",
+    "Sendable balances below — funds locked in your pools show as LOCKED.": "pools.balanceNote",
+    "tap to copy your receive address": "pools.receiveCopy",
+    "Consolidate MINIMA coins": "pools.consolidateMinima",
+    "Check node connection": "pools.checkNode",
+    "Resolve interrupted write": "pools.resolveWrite",
+    "Tap image for full resolution": "pools.fullResolution",
+    "Tap image to enlarge": "pools.enlargeImage",
+    "Sendable": "pools.sendable",
+    "Confirmed": "pools.confirmed",
+    "Unconfirmed": "pools.unconfirmed",
+    "Locked ≈": "pools.locked",
+    "Coins": "pools.coinsLabel",
+    "Supply": "pools.supply",
+    "Ticker": "pools.ticker",
+    "Decimals": "pools.decimals",
+    "Owner": "pools.owner",
+    "Loading coins…": "pools.loadingCoins",
+    "copy all coins": "pools.copyCoins",
+    "Token ID": "pools.tokenId",
+    "Description": "pools.description",
+    "Website": "pools.website",
+    "Web validation": "pools.webValidation",
+    "↗ open": "pools.openLink",
+    "No node connection.": "pools.noConnection",
+    "Coin count unavailable. Try again when the node responds.": "pools.coinCountUnavailable",
+    "Could not read spendable coins. Try again.": "pools.spendableReadFailed",
+    "Could not read coins. Try again.": "pools.coinsReadFailed",
+    "No coins.": "pools.noCoins",
+    "Too many coins to list.": "pools.tooManyCoins",
+    "   spendable": "pools.spendableTag",
+    "   locked": "pools.lockedTag",
+    "  (pool)": "pools.poolTag",
+    "  (beacon)": "pools.beaconTag",
+    "(the node's reply was over its size cap — sendable coins only)": "pools.sendableOnly",
+    "never": "pools.never",
+    "MY ACTIVITY": "pools.myActivity",
+    "ALL POOLS": "pools.allPools",
+    "Refresh activity": "pools.refreshActivity",
+    "Checking confirmations with the node…": "pools.checkingConfirmations",
+    "Checking public pool transactions…": "pools.checkingPublic",
+    "No public transaction list returned.": "pools.noPublicList",
+    "Syncing node history…": "pools.syncingHistory",
+    "Loading your history…": "pools.loadingHistory",
+    "No transactions recorded yet.": "pools.noTransactions",
+    "TRANSACTIONS · NEWEST FIRST": "pools.newestTransactions",
+    "POOL TRANSACTIONS · NEWEST FIRST": "pools.newestPoolTransactions",
+    "Loading transactions from the node…": "pools.loadingNodeTransactions",
+    "No pool transactions found in this node's stored history.": "pools.noPoolTransactions",
+    "PREVIOUS LOCAL OBSERVATIONS": "pools.previousObservations",
+    "These were inferred from pool scans. They are not verified transaction records.": "pools.observationsNote",
+    "Pool creation": "pools.poolCreation",
+    "Liquidity addition": "pools.liquidityAddition",
+    "Liquidity withdrawal": "pools.liquidityWithdrawal",
+    "MINIMA sale": "pools.minimaSale",
+    "MINIMA purchase": "pools.minimaPurchase",
+    "Pool reserves changed": "pools.reservesChanged",
+    "Waiting for node check": "pools.waitingNodeCheck",
+    "Unavailable": "pools.valueUnavailable",
+    "Not saved by the older build": "pools.olderIdMissing",
+    "History sync checks this older receipt against mined transaction headers. A match requires its exact cryptographic hash; amounts and times alone are insufficient.": "pools.receiptMatchNote",
+    "OK": "pools.ok",
+    "Unknown": "pools.unknown",
+    "Consolidate coins": "pools.consolidateCoins",
+    "Create pool": "pools.createPool",
+    "Add liquidity": "pools.addLiquidity",
+    "Migrate pool": "pools.migratePool",
+    "Withdraw / close": "pools.withdrawClose",
+    " Showing the last successful read.": "pools.lastRead",
+    "Pool first seen (unverified)": "pools.observedCreate",
+    "Reserve increase observed (unverified)": "pools.observedAdd",
+    "Reserve decrease or disappearance observed (unverified)": "pools.observedWithdraw",
+    "Reserve change observed (unverified): sold": "pools.observedSold",
+    "Reserve change observed (unverified): bought": "pools.observedBought",
+    "Consolidate": "utxo.consolidate",
+    "Keep paused": "atomixRecovery.keep",
+    "Wallet": "tab.wallet",
+    "The node replied, but its chain size limit could not be read.": "pools.chainLimitUnreadable",
+    "Could not read the node's chain tip.": "pools.chainTipUnreadable",
+    "Invalid token ID.": "pools.invalidTokenId",
+    "Consolidation submitted. Activity will show its on-chain confirmations.": "pools.consolidationSubmitted",
+    "There is no interrupted write to resolve.": "pools.noInterruptedWrite",
+    "A node write lost its reply. It may have completed. First restart MinimaCore to stop any old command, then check your transactions and balances. Clearing this safety pause does not undo or retry any transaction.": "pools.interruptedReview",
+    "I restarted and checked": "pools.restartedChecked",
+    "Safety pause cleared. Review your balances before starting a new transaction.": "pools.safetyPauseCleared",
+    "The reviewed write changed, a write is still active, or the safety state could not be saved. Keep paused.": "pools.keepWritePaused",
+    "No coins could be combined.": "pools.nothingCombined",
+    "Could not verify current wallet keys. Nothing consolidated.": "pools.currentKeysUnreadable",
+    "YOUR LIQUIDITY": "pools.lpHeading",
+    "+  CREATE A POOL": "pools.lpCreate",
+    "BACK UP / RESTORE POOLS": "pools.lpRecovery",
+    "EXPORT STATEMENT": "pools.lpStatement",
+    "POOL CALCULATOR": "pools.lpCalculator",
+    "Loading your pools…": "pools.lpLoading",
+    "Your pool hasn't appeared after ~20 blocks — it may just be slow. Switch tabs to refresh, or check the Activity tab. You can create again if needed.": "pools.lpDelayed",
+    "Your new pool is being written on-chain.": "pools.lpWriting",
+    "Reserves unavailable": "pools.lpUnavailable",
+    "No pools yet": "pools.lpNone",
+    "Pair the node to see your liquidity.": "pools.lpConnect",
+    "Create a pool to start earning the swap fee.": "pools.lpStart",
+    "Owner signing paused": "pools.lpSigningPaused",
+    "PandaPools cannot tell how many of this owner key's one-time signatures have already been used, so it has stopped signing for this pool. Automatic refresh is paused too.": "pools.lpSigningNote",
+    "Confirm wallet signing state": "pools.lpConfirmSigning",
+    "Their recipes are still saved and still go into your backups — they are just out of the way. If a close never actually landed, the pool reappears here on its own.": "pools.lpRetiredNote",
+    "Show closed pools": "pools.lpShowClosed",
+    "Closed pools": "pools.lpClosed",
+    "Bring back": "pools.lpBringBack",
+    "Closed pools are showing again.": "pools.lpShowingClosed",
+    "Saved pool · reserves not found": "pools.lpSavedMissing",
+    "The owner key for it is on this device.": "pools.lpKeyHere",
+    "The owner key for it is NOT on this device. Restore the matching MinimaCore wallet backup.": "pools.lpKeyMissing",
+    " Owner signing is paused for it — see below.": "pools.lpPauseSuffix",
+    "Check for reserves": "pools.lpCheckReserves",
+    "It's closed — put it away": "pools.lpPutAway",
+    "Put away. The recipe is still saved and still goes into your backups.": "pools.lpPutAwayDone",
+    "Could not read the saved pool recipe.": "pools.lpRecipeUnreadable",
+    "Seeding": "pools.lpSeeding",
+    "It will appear here automatically — no need to resubmit.  (Tap to dismiss.)": "pools.lpAppearAutomatically",
+    "Your liquidity": "pools.lpLiquidity",
+    "Reserve proofs need attention. Older reserves may require fresh archive proofs after a node reset; keep a current wallet backup and pool recipe.": "pools.lpProofWarning",
+    "Value now": "pools.lpValue",
+    "Pool price": "pools.lpPrice",
+    "Fees earned": "pools.lpFees",
+    "Price since open": "pools.lpPriceMove",
+    "Impermanent loss": "pools.lpLoss",
+    "What if the price moves?  Pool calculator ›": "pools.lpWhatIf",
+    "Floor headroom": "pools.lpHeadroom",
+    "migrate soon": "pools.lpMigrateSoon",
+    "healthy": "pools.lpHealthy",
+    "Add (full)": "pools.lpAddFull",
+    "Migrate": "pools.lpMigrate",
+    "Confirming…": "nft.confirming",
+    "Status": "utxo.status",
+    "Age": "coreWallet.age",
+    "Add": "mail.add",
+    "No verified pool backup recorded": "pools.lpBackupNeeded",
+    "Your pools are not backed up": "pools.lpBackupNeeded",
+    "Check your pool backup": "pools.lpBackupChanged",
+    "Your backup is out of date": "pools.lpBackupChanged",
+    "The saved pool set has changed since the last verified export. Save a fresh file to cover the current recipes.": "pools.lpBackupChangedBody",
+    "Back up now": "pools.lpBackupNow",
+    "Add coin proofs to your pool file": "pools.lpAddProofs",
+    "Back up again": "pools.lpBackupAgain",
+    "Not now": "pools.lpNotNow",
+    "A withdrawal was interrupted": "pools.lpExitInterrupted",
+    "PandaPools sent a withdrawal for this pool but did not receive its outcome. It does not know whether it was posted.": "pools.lpExitUncertain",
+    "PandaPools stopped during this pool withdrawal. It does not know whether the withdrawal was posted.": "pools.lpExitStopped",
+    "It will not retry automatically: another attempt could use another one-time owner signature.\n\nCheck the transaction and payout on-chain before acting. Missing local reserve coins alone do not prove a successful withdrawal. If the withdrawal is confirmed and funds are at the payout address, use Collect. Before retrying a withdrawal, resolve the first attempt and check current reserves.": "pools.lpExitCheck",
+    "Payout address needs the matching wallet": "pools.lpCollectStranded",
+    "Withdrawn funds cannot be moved from this address": "pools.lpCollectStranded",
+    "Withdrawal collection pending": "pools.lpCollectPending",
+    "Withdrawn funds still being moved to your wallet": "pools.lpCollectPending",
+    "The last node check found coins at this payout address, but this wallet could not sign for it. Restore the matching complete MinimaCore wallet backup, then use Collect. A seed alone may not restore this address or its current signing state.": "pools.lpCollectStrandedBody",
+    "PandaPools is tracking this payout address for collection. It rechecks the address and retries while the background worker runs. This entry alone does not prove that the withdrawal is confirmed or that funds reached your wallet. Check the transaction outcome and balances.": "pools.lpCollectPendingBody",
+    "Collect now": "pools.lpCollectNow",
+    "Try again": "pools.lpTryAgain",
+    "Discoverability: checking…": "pools.lpDiscoveryChecking",
+    "Recent reserves — this pool may be discoverable": "pools.lpDiscoveryFresh",
+    "Others can find this pool ✓": "pools.lpDiscoveryFresh",
+    "Others may not see this pool now": "pools.lpDiscoveryOld",
+    "Re-publish": "pools.lpRepublish",
+    "Re-publishing your pool so others can find it…": "pools.lpRepublishing",
+    "Preparing backup…": "pools.lpPreparingBackup",
+    "Backup cancelled.": "pools.lpBackupCancelled",
+    "Could not write the backup file.": "pools.lpBackupWriteFailed",
+    "Backup could not be verified": "pools.lpBackupVerifyFailed",
+    "Backup saved and verified ✓": "pools.lpBackupVerifiedStatus",
+    "Backup saved and verified": "pools.lpBackupVerifiedTitle",
+    "Some reserve proofs were unavailable or changed during export. Recovery may require an available archive or fresh proofs. A recipe alone cannot reconstruct chain proofs.": "pools.lpBackupProofsMissing",
+    "Included coin proofs can expire. Keep the recipe file; recovery may also require an available archive or fresh proofs.": "pools.lpBackupProofsExpire",
+    "Save": "common.save",
+    "Collect withdrawn funds to my wallet": "pools.recoveryCollect",
+    "Back up my pools to a file": "pools.recoveryBackup",
+    "Check a backup file (changes nothing)": "pools.recoveryCheck",
+    "Restore pools from a file": "pools.recoveryRestore",
+    "Archive connection": "pools.recoveryArchive",
+    "How recovery works": "pools.recoveryHow",
+    "Pool recovery": "pools.recoveryTitle",
+    "HTTPS URL of a public read-only Minima MegaMMR RPC service. Only the pool address and public coin IDs are queried. This is an RPC URL, not a P2P host:port. Leave blank to use this node and backup proofs only.": "pools.recoveryArchiveHelp",
+    "Archive connection saved.": "pools.recoveryArchiveSaved",
+    "Enter an HTTPS URL without credentials, query parameters or a fragment.": "pools.recoveryArchiveInvalid",
+    "Signing remains paused": "pools.recoverySigningPaused",
+    "Connect the node before checking its wallet state.": "pools.recoveryConnectWallet",
+    "Wallet signing state": "pools.recoveryWalletState",
+    "No restored owner keys are awaiting confirmation.": "pools.recoveryNoKeys",
+    "Select restored owner key": "pools.recoverySelectKey",
+    "Confirm current wallet signing state": "pools.recoveryConfirmState",
+    "Keep signing paused": "pools.recoveryKeepPaused",
+    "I have verified this": "pools.recoveryVerified",
+    "Signing state confirmed by you. Owner actions are enabled.": "pools.recoveryConfirmed",
+    "The owner key is missing, exhausted, below a recorded count, or the confirmation could not be saved.": "pools.recoveryConfirmationFailed",
+    "Could not verify the owner key on this node.": "pools.recoveryKeyUnreadable",
+    "Save your pool file now": "pools.recoverySaveNow",
+    "Save file…": "pools.recoverySaveFile",
+    "Check cancelled.": "pools.recoveryCheckCancelled",
+    "Could not read that file.": "pools.recoveryFileUnreadable",
+    "Connect the node before checking a backup file.": "pools.recoveryConnectCheck",
+    "Checking that backup file…": "pools.recoveryChecking",
+    "That file isn't a PandaPools backup.": "pools.recoveryNotBackup",
+    "Backup check": "pools.recoveryCheckTitle",
+    "Restore and withdraw": "pools.recoveryRestoreWithdraw",
+    "This imports pool recipes, checks reserves, and then attempts withdrawals for eligible pools without asking again. Withdrawals use one-time owner signatures. Stop other copies of this wallet from signing before proceeding.\n\nThe checks reject known counter regressions, missing recorded counts, unreadable reserves, and reserves recent enough to suggest another active wallet. They cannot prove the latest signing state or detect every signature made elsewhere.\n\nTo inspect a file without changing anything, use “Check a backup file”. To keep a pool running, cancel, restore the matching current complete MinimaCore wallet backup, and verify its signing state. Older reserves may need an available archive or fresh proofs.": "pools.recoveryRestoreWarning",
+    "Restore cancelled.": "pools.recoveryRestoreCancelled",
+    "Restoring pools…": "pools.recoveryRestoring",
+    "Nothing restored": "pools.recoveryNothing",
+    "That file isn't a readable PandaPools backup — pick the pandapools-backup.json you saved from Back up.": "pools.recoveryPickBackup",
+    "Reserves verified": "pools.recoveryReserveVerified",
+    "Recovery needs attention": "pools.recoveryNeedsAttention",
+    "Nothing was withdrawn, because no pool's reserves could be verified. Saved recipes remain available below.": "pools.recoveryNoneWithdrawn",
+    "Saved recipes remain available below. This was a reserve check only; nothing was withdrawn.": "pools.recoveryCheckOnly",
+    "Withdrawing restored pools…": "pools.recoveryWithdrawing",
+    "Connect the node to withdraw the restored pools.": "pools.recoveryConnectWithdraw",
+    "Restore finished · withdrawals submitted": "pools.recoverySubmittedTitle",
+    "Restore finished · some pools need attention": "pools.recoveryPartialTitle",
+    "Submitted requests still need on-chain confirmation and collection from the owner payout address. Check Activity and balances before treating funds as received.\n\nRestored recipes keep automatic refresh paused until the current wallet signing state is confirmed. Older reserves may need archive recovery. The checks cannot prove that no unseen one-time signatures were used on another wallet copy.": "pools.recoveryWithdrawNote",
+    "How pool recovery works": "pools.recoveryGuideTitle",
+    "Keep both a current MinimaCore wallet backup and your PandaPools recipe file. The wallet backup preserves keys and signing state; the recipe records the pool contracts.\n\nRestore the matching wallet in MinimaCore, then restore the recipes here. Check live reserves before spending. A seed or recipe alone does not establish which one-time signatures were used. PandaPools will not automatically recreate missing owner keys. Do not run two restored copies of the same wallet and sign from both.\n\nCoin proofs in recipe backups expire. If live reserves are missing, Recover reserves checks the backup proofs, this node’s MegaMMR, and your configured archive connection. The receiving node validates proofs before import. An empty local lookup does not prove the funds were spent. Recovery needs an available archive or fresh proofs; a recipe alone cannot reconstruct chain proofs.\n\nRestored recipes pause owner signing, including automatic refresh, until you confirm current wallet signing state. Check both reserve amounts and signing status before withdrawing.": "pools.recoveryGuideBody",
+    "Waiting for verified withdrawal confirmation and an empty payout address. Older entries without transaction evidence remain unresolved.": "pools.collectionPending",
+    "Could not save withdrawal collection evidence. Nothing was posted.": "pools.collectionSaveFailed",
+    "Could not read withdrawal transaction identity. Nothing was posted.": "pools.collectionReadFailed",
+    "Withdrawal confirmed; tracked payout address is empty. Check your wallet balance.": "pools.collectionCheckedEmpty",
+    "This node does not hold this pool's owner key, so the pool belongs to a different wallet. Restore the MinimaCore wallet backup that created this pool, including its signing state. Nothing was posted.": "pools.detailAbsent",
+    "PandaPools could not read this node's keys, so it cannot check this key's signing state at all. Check MinimaCore is running and paired, then try again. Nothing was posted. This says nothing about the key itself — do not change anything about your wallet on the strength of this message.": "pools.detailUnreadable",
+    "This owner key has used all of its one-time signatures and can never sign again. Nothing was posted.": "pools.detailExhausted",
+    "Your last signing-state confirmation could not be saved on this device, so owner signing stays paused. Free some storage and confirm it again in Pool recovery.": "pools.detailUnsaved",
+    "PandaPools has no record of how many of this owner key's one-time signatures have already been used — the recipe was imported, predates that record, or was rebuilt from what this node could see. Signing the wrong one could expose the key, so nothing was posted. Restore the matching MinimaCore wallet backup — the complete one, including signing state — and confirm it in Pool recovery. A seed phrase on its own is NOT enough: it rebuilds the key with its counter reset, which is exactly what causes this.": "pools.detailQuarantined",
+    "That file is not readable JSON, so it is not a PandaPools backup.": "pools.detailNotJson",
+    "That file is not a PandaPools backup, or it contains no pools.": "pools.detailNoPools",
+    "Nothing was changed. This check saves nothing, imports nothing and signs nothing.": "pools.detailNoChange",
+    "  ✗ unusable entry — no pool address": "pools.detailNoAddress",
+    "  ✗ no covenant script in the backup — this pool cannot be rebuilt from this file": "pools.detailNoCovenant",
+    "  ✗ the recipe fields do not describe this covenant — this entry cannot be used": "pools.detailInvalidRecipe",
+    "  ✓ recipe fields are valid": "pools.detailValidRecipe",
+    "  ✗ the covenant script does not produce this pool address — the entry has been altered or corrupted": "pools.detailWrongAddress",
+    "  ✓ the covenant script rebuilds this exact pool address": "pools.detailExactAddress",
+    "  ? could not read this pool's coins on this node": "pools.detailCoinsUnreadable",
+    "  — no reserve coins visible on this node. That does NOT mean the funds are gone: coins older than about 1700 blocks are only visible to a MegaMMR archive. Recovery would need one.": "pools.detailCoinsMissing",
+    "  ✗ the owner key in this entry is not a valid public key": "pools.detailInvalidKey",
+    "  — this wallet does not hold the owner key, so this node could not withdraw the pool. Restore the MinimaCore wallet backup that created it first.": "pools.detailKeyNotEstablished",
+    "  ⚠ this backup records NO signature count, so nothing here can detect a counter that has gone backwards. PandaPools will not withdraw automatically from a recipe like this.": "pools.detailNoCounter",
+    "  ✓ both reserve coin proofs are in the file (a shortcut; they expire)": "pools.detailBothProofs",
+    "  — only one reserve coin proof is in the file; recovery would fall back to an archive lookup": "pools.detailOneProof",
+    "  — no coin proofs in the file. Expected, and not a problem: they expire, and recovery works from the recipe plus an archive lookup.": "pools.detailNoProofs",
+    "  — the owner key's derivation index is not recorded (an older backup format)": "pools.detailNoIndex",
+    "Pool: (no address in this entry)": "pools.detailMissingAddress",
+    "no pool": "pools.exitNoPool",
+    "this pool has already used its automatic-withdrawal attempts. Withdraw it yourself from MY LP.": "pools.exitLifetimeLimit",
+    "this node could not read the owner key's signature counter.": "pools.exitUnreadable",
+    "the owner key is unavailable on this node.": "pools.exitUnavailable",
+    "this backup recorded no signature count, so nothing can detect a counter that has gone backwards. PandaPools will not sign for it automatically.": "pools.exitNoCounter",
+    "the age of this pool's reserves is unknown, so PandaPools cannot tell whether another device is still running this wallet.": "pools.exitUnknownAge",
+    "this pool's current reserves could not be read, so nothing was posted.": "pools.exitReservesUnreadable",
+    "could not record the owner key's signature count on this device.": "pools.exitCounterUnsaved",
+    "could not record the withdrawal on this device, so nothing was posted.": "pools.exitWithdrawalUnsaved",
+    "withdrawn; moving the funds into your wallet": "pools.exitForwardPending",
+    "No pools in that backup file.": "pools.exitEmptyBackup",
+    "That doesn't look like a PandaPools backup.": "pools.exitInvalidBackup",
+    "Could not save the verified reserve IDs. Recovery needs attention.": "pools.exitReserveSaveFailed",
+    "Invalid pool address or token.": "pools.reserveInvalid",
+    "Both reserve coins verified on this node. Withdrawal still requires the matching wallet's current signing state.": "pools.reserveVerified",
+    "The configured archive did not confirm MegaMMR support.": "pools.reserveArchiveSupport",
+    "Archive returned an invalid coin list.": "pools.reserveArchiveList",
+    "Reserves are not fully visible on this node. The recipe is retained. Use a synced MegaMMR archive or a fresh pool backup from one; an empty local lookup does not prove the funds are gone.": "pools.reserveIncomplete",
+    "Could not establish the pool coin count.": "pools.reserveCountUnknown",
+    "\"Could not establish the pool coin count.\"": "pools.reserveCountUnknown",
+    "Could not verify a reserve coin ID.": "pools.reserveIdUnknown",
+    "\"Could not verify a reserve coin ID.\"": "pools.reserveIdUnknown",
+    "Unexpected reserve coin ID.": "pools.reserveIdUnexpected",
+    "\"Unexpected reserve coin ID.\"": "pools.reserveIdUnexpected",
+    "Node reply missing or awaiting approval.": "pools.reservePending",
+    "\"Node reply missing or awaiting approval.\"": "pools.reservePending",
+    "Node command failed.": "pools.reserveCommandFailed",
+    "\"Node command failed.\"": "pools.reserveCommandFailed",
+    "Restore your pools": "pools.recoveryRestoreWithdraw",
+    "Choose pool backup": "pools.recoveryChooseBackup",
+    "Pools restored": "pools.recoveryRestoredTitle",
+    "Saved pool · owner key missing": "pools.lpOwnerMissingTitle",
+    "Recovery diagnostic": "pools.recoveryRestoredTitle"
+  },
+  "patterns": [
+    {
+      "key": "pools.secondsAgo",
+      "template": "{0}s ago",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.balanceBreakdown",
+      "template": "confirmed {0}  ·  locked ≈ {1}  ·  unconfirmed {2}  ·  {3} coins  ·  updated {4}  ·  tap for coins",
+      "kinds": [
+        "literal",
+        "literal",
+        "literal",
+        "integer",
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.nodeCheckFailed",
+      "template": "Node check failed: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.publicLookupIncomplete",
+      "template": "Public pool lookup incomplete: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.recoveryWithdrawalSubmitted",
+      "template": "Withdrawn ✓ {0}",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.detailRegressed",
+      "template": "This node says the pool's owner key has used {0} one-time signatures, but your saved recipe recorded {1}. Signing here would reuse a signature and could expose the key, so PandaPools posted nothing. Restore the newest matching MinimaCore wallet backup — the one from the device that used this pool most recently.",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailKey",
+      "template": "Owner key: {0}",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.detailPool",
+      "template": "Pool: {0}",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.detailIndentedKey",
+      "template": "  Owner key: {0}",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.detailWarning",
+      "template": "! {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.detailNothingSigned",
+      "template": "Nothing signed.\n\n{0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.detailTooMany",
+      "template": "That file claims {0} pools, which is more than a backup can hold.",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailVersion",
+      "template": "Backup format version {0}",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailOldVersion",
+      "template": "Backup format version {0} (older than this app writes — still readable, but it may not record the owner key's derivation index or its signature count)",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailPoolCount",
+      "template": "{0} pools in the file.",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailPoolCount",
+      "template": "{0} pool in the file.",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailCheckedEntries",
+      "template": "{0} of {1} pools look recoverable from this file on this node.",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailCheckedEntries",
+      "template": "{0} of {1} pool looks recoverable from this file on this node.",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailCovenantError",
+      "template": "  ? could not check the covenant: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.detailCoinsError",
+      "template": "  ? could not read this pool's coins: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.detailKeyError",
+      "template": "  ? could not read the owner key: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.detailCoinCount",
+      "template": "  ✓ {0} coins visible on this node at this pool address",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailCoinCount",
+      "template": "  ✓ {0} coin visible on this node at this pool address",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailKeyCount",
+      "template": "  ✓ this wallet holds the owner key ({0} of {1} one-time signatures used)",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailCounterWarning",
+      "template": "  ⚠ DO NOT RESTORE THIS ONTO THIS NODE. The backup recorded {0} signatures used, but this node's key reports {1}. Signing here would reuse a one-time signature and could expose the key. Find the newest matching wallet backup — the one from the device that used this pool most recently.",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailCounterCheck",
+      "template": "  ✓ the node's signature count ({0}) is not below what this backup recorded ({1}). No problem detected — which is not proof the key is unused.",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailSavedNote",
+      "template": "  note from when this backup was taken: {0}",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.detailKeyIndex",
+      "template": "  ✓ the owner key's derivation index is recorded ({0})",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.exitExhausted",
+      "template": "the owner key has spent all {0} of its one-time signatures.",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.exitRegressed",
+      "template": "this node reports {0} signatures used but the recipe recorded {1}. Signing would reuse one. Restore the newest matching wallet backup.",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.exitRecent",
+      "template": "these reserves were recreated {0} blocks ago. Only this pool's owner key can do that, so another device is still running this wallet. Nothing was posted — signing here while that device is also signing could expose the key. Stop the other device, then use Withdraw on this pool's card.",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.exitBatch",
+      "template": "Withdrawing the first {0} of {1} pools now; the rest keep their recipes and can be withdrawn from MY LP.",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.exitReadKeyError",
+      "template": "the owner key could not be read: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.exitWithdrawing",
+      "template": "Withdrawing {0} …",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.exitUnknown",
+      "template": "Withdrawal status UNKNOWN for {0}: {1}",
+      "kinds": [
+        "hex",
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.exitFailed",
+      "template": "Could not withdraw {0}: {1}",
+      "kinds": [
+        "hex",
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.exitSkipped",
+      "template": "NOT withdrawn — {0}: {1}",
+      "kinds": [
+        "hex",
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.exitForwardFailed",
+      "template": "withdrawn to the owner address; the transfer to your wallet did not complete: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.exitMissingCovenant",
+      "template": "Skipped {0} (no covenant in backup).",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.exitInvalidRecipe",
+      "template": "Skipped {0} (invalid recipe fields).",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.exitWrongAddress",
+      "template": "Skipped {0} (covenant address did not verify).",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.exitVerifyFailed",
+      "template": "Could not verify {0}. Nothing imported.",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.exitSaveFailed",
+      "template": "Could not save {0}. Nothing imported.",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.exitTrackFailed",
+      "template": "Could not track {0}; recipe saved.",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "key": "pools.reserveLocalLookup",
+      "template": "Local lookup: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.reserveArchiveLookup",
+      "template": "Archive lookup: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.reserveArchiveStatus",
+      "template": "Archive status: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.reserveArchiveExport",
+      "template": "Archive export: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.reserveCoinImport",
+      "template": "Coin import: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.reserveProofCheck",
+      "template": "Coin proof check: {0}",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "key": "pools.reserveMissingToken",
+      "template": "Archive could not find the {0} reserve.",
+      "kinds": [
+        "hex"
+      ]
+    },
+    {
+      "key": "pools.reserveExportFailed",
+      "template": "Archive export failed for {0}.",
+      "kinds": [
+        "hex"
+      ]
+    },
+    {
+      "key": "pools.reserveMalformedProof",
+      "template": "Missing or malformed reserve proof for {0}.",
+      "kinds": [
+        "hex"
+      ]
+    },
+    {
+      "key": "pools.reserveRejectedProof",
+      "template": "Node rejected or could not verify the {0} proof for this pool.",
+      "kinds": [
+        "hex"
+      ]
+    },
+    {
+      "key": "pools.reserveImportFailed",
+      "template": "Coin import failed for {0}.",
+      "kinds": [
+        "hex"
+      ]
+    },
+    {
+      "key": "pools.reserveCrowded",
+      "template": "This pool has {0} coins; use archive discovery or fresh reserve proofs to check individual coin IDs safely.",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.reserveCrowded",
+      "template": "\"This pool has {0} coins; use archive discovery or fresh reserve proofs to check individual coin IDs safely.\"",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "key": "pools.detailKeyPoolEnvelope",
+      "template": "{0}\n\nOwner key: {1}\nPool: {2}",
+      "kinds": [
+        "diagnostic",
+        "hex",
+        "hex"
+      ]
+    },
+    {
+      "key": "pools.detailKeyPoolEnvelope",
+      "template": "{0}  Owner key: {1}  Pool: {2}",
+      "kinds": [
+        "diagnostic",
+        "hex",
+        "hex"
+      ]
+    },
+    {
+      "key": "pools.detailKeyEnvelope",
+      "template": "{0}\n\nOwner key: {1}",
+      "kinds": [
+        "diagnostic",
+        "hex"
+      ]
+    },
+    {
+      "key": "pools.detailKeyEnvelope",
+      "template": "{0}  Owner key: {1}",
+      "kinds": [
+        "diagnostic",
+        "hex"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+<resources>
+    <!-- Home / key-value list helpers -->
+    <style name="HomeRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingTop">9dp</item>
+        <item name="android:paddingBottom">9dp</item>
+    </style>
+
+    <style name="HomeRow.Label">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textAppearance">@style/TextAppearance.MinimaCore.Body</item>
+        <item name="android:textColor">@color/core_text_mid</item>
+    </style>
+
+    <style name="HomeRow.Value">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">@style/TextAppearance.MinimaCore.BodyStrong</item>
+        <item name="android:gravity">end</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+    </style>
+
+    <style name="HomeDivider">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">1dp</item>
+        <item name="android:background">@color/core_outline</item>
+    </style>
+
+    <!-- form field label (eyebrow) -->
+    <style name="FormLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">18dp</item>
+        <item name="android:layout_marginBottom">6dp</item>
+        <item name="android:textAppearance">@style/TextAppearance.MinimaCore.Eyebrow</item>
+    </style>
+
+    <!-- form input -->
+    <style name="FormField">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/bg_token_tile</item>
+        <item name="android:paddingHorizontal">14dp</item>
+        <item name="android:paddingVertical">12dp</item>
+        <item name="android:textColor">@color/core_text</item>
+        <item name="android:textColorHint">@color/core_text_faint</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+    </style>
+
+    <!--
+      Monospace block for hashes shown in full.
+
+      Must be a style, NOT a TextAppearance: breakStrategy / hyphenationFrequency are
+      TextView attributes and are silently ignored inside a TextAppearance. Together with
+      a bounded width and no maxLines/ellipsize, these are what let a 66-char coinid
+      character-break onto a second line instead of being clipped.
+    -->
+    <style name="MonoBlock">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textSize">12.5sp</item>
+        <item name="android:textColor">@color/core_text</item>
+        <item name="android:lineSpacingMultiplier">1.15</item>
+        <item name="android:breakStrategy">simple</item>
+        <item name="android:hyphenationFrequency">none</item>
+    </style>
+</resources>

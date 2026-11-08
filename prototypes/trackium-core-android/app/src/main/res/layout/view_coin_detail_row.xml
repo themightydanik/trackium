@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingVertical="8dp">
+
+    <TextView
+        android:id="@+id/detail_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="3dp"
+        android:textAppearance="@style/TextAppearance.MinimaCore.Eyebrow" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="top"
+        android:baselineAligned="false">
+
+        <!--
+          0dp + weight gives this a BOUNDED width, which is what makes a 66-char hex
+          character-break onto a second line. wrap_content here would measure unbounded
+          and clip. No maxLines / ellipsize, ever.
+        -->
+        <TextView
+            android:id="@+id/detail_value"
+            style="@style/MonoBlock"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:textIsSelectable="true" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/detail_copy"
+            style="@style/Widget.MinimaCore.Button.Text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:minWidth="0dp"
+            android:minHeight="36dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="10dp"
+            android:text="COPY" android:tag="l10n:text=l10n_wallet_copy"
+            android:textSize="11sp" />
+    </LinearLayout>
+</LinearLayout>

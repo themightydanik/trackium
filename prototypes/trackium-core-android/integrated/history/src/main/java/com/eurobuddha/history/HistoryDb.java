@@ -1,0 +1,137 @@
+package com.eurobuddha.history;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Persistent, txpowid-keyed mirror of the node's relevant history. It ACCUMULATES forever — never pruned —
+ * so a transaction stays in the local record even after the node drops it from its own `history`. That
+ * permanence is the whole point of the app.
+ */
+public class HistoryDb extends SQLiteOpenHelper {
+
+    private static final String DB = "minima_history.db";
+    private static final int VERSION = 1;
+    private static final String TX = "tx";
+    private static final String META = "meta";
+
+    public HistoryDb(Context ctx) { super(ctx, DB, null, VERSION); }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + TX + " (" +
+                "txpowid TEXT PRIMARY KEY," +
+                "block INTEGER, timemilli INTEGER," +
+                "direction TEXT, incoming INTEGER," +
+                "tokenid TEXT, tokenname TEXT, amount TEXT," +
+                "deltas TEXT, counterparty TEXT, inputs TEXT, outputs TEXT," +
+                "synced_at INTEGER)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_block ON " + TX + "(block)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_dir ON " + TX + "(direction)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_tok ON " + TX + "(tokenid)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + META + " (k TEXT PRIMARY KEY, v TEXT)");
+    }
+
+    // Never drop the table (permanence). Future versions add columns via ALTER here.
+    @Override public void onUpgrade(SQLiteDatabase db, int o, int n) { onCreate(db); }
+
+    private Ownership reconciledOwnership;
+
+    /** Correct existing rows before search/export; retain IDs, timestamps and coin evidence. */
+    public synchronized void reconcile(Ownership own) {
+        if (own == null || !own.isLoaded() || reconciledOwnership == own) return;
+        SQLiteDatabase database=getWritableDatabase();
+        database.beginTransaction();
+        try {
+            for (HistoryEntry entry:all()) {
+                if (!entry.reconcile(own)) continue;
+                ContentValues values=new ContentValues();
+                values.put("direction",entry.direction);values.put("incoming",entry.incoming ? 1 : 0);
+                values.put("tokenid",entry.tokenid);values.put("tokenname",entry.tokenName);
+                values.put("amount",entry.amount);values.put("deltas",entry.deltas);values.put("counterparty",entry.counterparty);
+                database.update(TX,values,"txpowid=?",new String[]{entry.txpowid});
+            }
+            database.setTransactionSuccessful();
+        } finally { database.endTransaction(); }
+        reconciledOwnership=own;
+    }
+
+    /** Insert a row; returns true if it was NEW, false if this txpowid was already stored. Idempotent. */
+    public boolean insert(HistoryEntry e) { return put(e,false); }
+    public boolean insertFromNode(HistoryEntry e) { return put(e,true); }
+    private synchronized boolean put(HistoryEntry e, boolean refresh) {
+        ContentValues v = new ContentValues();
+        v.put("txpowid", e.txpowid);
+        v.put("block", e.block);
+        v.put("timemilli", e.timemilli);
+        v.put("direction", e.direction);
+        v.put("incoming", e.incoming ? 1 : 0);
+        v.put("tokenid", e.tokenid);
+        v.put("tokenname", e.tokenName);
+        v.put("amount", e.amount);
+        v.put("deltas", e.deltas);
+        v.put("counterparty", e.counterparty);
+        v.put("inputs", e.inputs);
+        v.put("outputs", e.outputs);
+        v.put("synced_at", e.syncedAt);
+        long rid = getWritableDatabase().insertWithOnConflict(TX, null, v, SQLiteDatabase.CONFLICT_IGNORE);
+        if (rid != -1) reconciledOwnership=null;
+        else if (refresh && e.hasCoinData()) {
+            getWritableDatabase().update(TX,v,"txpowid=?",new String[]{e.txpowid});
+            reconciledOwnership=null;
+        }
+        return rid != -1;
+    }
+
+    public int count() {
+        Cursor c = getReadableDatabase().rawQuery("SELECT COUNT(*) FROM " + TX, null);
+        try { return c.moveToFirst() ? c.getInt(0) : 0; } finally { c.close(); }
+    }
+
+    /** Newest-first page, optionally free-text filtered across address / id / token / amount / direction. */
+    public List<HistoryEntry> list(int limit, int offset, String search) {
+        List<HistoryEntry> out = new ArrayList<>();
+        String where = "";
+        String[] args = null;
+        if (search != null && !search.trim().isEmpty()) {
+            String s = "%" + search.trim() + "%";
+            where = " WHERE counterparty LIKE ? OR txpowid LIKE ? OR tokenname LIKE ? OR amount LIKE ? OR direction LIKE ?";
+            args = new String[]{s, s, s, s, s};
+        }
+        Cursor c = getReadableDatabase().rawQuery(
+                "SELECT txpowid,block,timemilli,direction,incoming,tokenid,tokenname,amount,deltas,counterparty,inputs,outputs,synced_at FROM "
+                        + TX + where + " ORDER BY block DESC, timemilli DESC LIMIT " + limit + " OFFSET " + offset, args);
+        try {
+            while (c.moveToNext()) {
+                HistoryEntry e = new HistoryEntry();
+                e.txpowid = c.getString(0); e.block = c.getLong(1); e.timemilli = c.getLong(2);
+                e.direction = c.getString(3); e.incoming = c.getInt(4) == 1;
+                e.tokenid = c.getString(5); e.tokenName = Util.tokenName(c.getString(6), e.tokenid); e.amount = c.getString(7);
+                e.deltas = c.getString(8); e.counterparty = c.getString(9);
+                e.inputs = c.getString(10); e.outputs = c.getString(11); e.syncedAt = c.getLong(12);
+                e.reconcile(reconciledOwnership);
+                out.add(e);
+            }
+        } finally { c.close(); }
+        return out;
+    }
+
+    /** Every row, newest-first — for export. */
+    public List<HistoryEntry> all() { return list(Integer.MAX_VALUE, 0, null); }
+
+    public void setMeta(String k, String v) {
+        ContentValues cv = new ContentValues(); cv.put("k", k); cv.put("v", v);
+        getWritableDatabase().insertWithOnConflict(META, null, cv, SQLiteDatabase.CONFLICT_REPLACE);
+    }
+
+    public String getMeta(String k, String def) {
+        Cursor c = getReadableDatabase().rawQuery("SELECT v FROM " + META + " WHERE k=?", new String[]{k});
+        try { return c.moveToFirst() ? c.getString(0) : def; } finally { c.close(); }
+    }
+}

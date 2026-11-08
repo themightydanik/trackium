@@ -1,0 +1,171 @@
+{
+  "fixed": {
+    "Wallet/node not ready yet — open the app and wait a moment.": "atomixReport.notReady",
+    "No record of this swap.": "atomixReport.noRecord",
+    "Engine stopped — reopen the app to inspect.": "atomixReport.engineStopped",
+    "started": "atomixHistory.waiting",
+    "locked": "atomixHistory.locked",
+    "claiming": "atomixHistory.claiming",
+    "complete": "atomixHistory.complete",
+    "refunded": "atomixHistory.refunded",
+    "error": "atomixHistory.error",
+    "not your Minima leg": "atomixReport.notMinima",
+    "UNKNOWN — node lookup failed": "atomixReport.unknown",
+    "claimed by the counterparty (complete)": "atomixReport.claimed",
+    "LOCKED on Ethereum": "atomixReport.ethLocked",
+    "claimed or refunded": "atomixReport.claimedRefunded",
+    "NOT FOUND yet — the maker hasn't locked it.": "atomixReport.notFound",
+    "withdrawn (complete)": "atomixReport.withdrawn",
+    "locked; secret available for collection": "atomixReport.secretAvailable",
+    "locked; waiting for the secret": "atomixReport.lockedWaiting",
+    "The settlement poll can attempt collection, subject to amount/token validation and gas.": "atomixReport.settlement",
+    "Waiting for the counterparty to claim the Minima leg and reveal the secret. Ethereum funds cannot be collected without it.": "atomixReport.waitingCounter",
+    "The counterparty refunded. No Minima lock was found to refund; the recorded submission needs on-chain verification.": "atomixReport.counterRefundUnknown",
+    "secret known; settlement must validate and confirm the claim": "atomixReport.secretValidate",
+    "waiting for the secret": "atomixReport.waitingSecret",
+    "no matching unspent coin returned — may be unposted, younger than 2 confirmations, spent/refunded, or outside available history.": "atomixReport.noMatching",
+    "• Secret: known locally; collection also requires a valid matching leg": "atomixReport.secretKnown",
+    "• Secret: not revealed yet": "atomixReport.secretUnknown",
+    "Recorded transactions: NONE. No transaction id is recorded locally. A broadcast may have completed despite a lost reply. Check the on-chain state before retrying or deciding whether funds need recovery.": "atomixReport.none",
+    "(swaps take a few minutes — ~90s polls + 2 confirmations + on-phone PoW per step)": "atomixReport.timing"
+  },
+  "patterns": [
+    {
+      "template": "Sell {0} {1} → {2} {3}  ·  {4}",
+      "key": "atomixReport.sell",
+      "kinds": [
+        "literal",
+        "literal",
+        "literal",
+        "literal",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Buy {0} {1} → {2} {3}  ·  {4}",
+      "key": "atomixReport.buy",
+      "kinds": [
+        "literal",
+        "literal",
+        "literal",
+        "literal",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Hashlock: {0}",
+      "key": "atomixReport.hash",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Minima lookup: completed, depth {0}, minimum coin age 2",
+      "key": "atomixReport.lookup",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Minima lookup: FAILED — {0}. Leg presence is unknown; this is not evidence of a missing or spent coin.",
+      "key": "atomixReport.lookupFailed",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Node block: {0} · recorded refund block: {1}",
+      "key": "atomixReport.block",
+      "kinds": [
+        "literal",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "• Your {0} {1}: {2}",
+      "key": "atomixReport.your",
+      "kinds": [
+        "literal",
+        "literal",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "LOCKED — refundable at block {0} (~{1} min)",
+      "key": "atomixReport.lockedTime",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "LOCKED — refundable at block {0}",
+      "key": "atomixReport.lockedBlock",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "not returned by the {0}-block lookup. This does NOT mean it was spent — the lookup only reaches {1} blocks back, so a lock older than that returns nothing whether or not it is still there. The coin was recorded when it was in range, so the refund is built from that record and does not need the scan.",
+      "key": "atomixReport.outsideRecorded",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "not returned by the {0}-block lookup. This does NOT mean it was spent — the lookup only reaches {1} blocks back, so a lock older than that returns nothing whether or not it is still there. No coin was recorded for this swap, so it needs manual recovery — the coin id can be read from an archive node.",
+      "key": "atomixReport.outsideMissing",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "• Counterparty {0} leg: {1}",
+      "key": "atomixReport.counter",
+      "kinds": [
+        "literal",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "FOUND {0} {1} — {2}",
+      "key": "atomixReport.found",
+      "kinds": [
+        "literal",
+        "literal",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "The counterparty refunded. Your visible Minima lock is refundable after block {0}; settlement will attempt recovery.",
+      "key": "atomixReport.counterRefunded",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Recorded {0} transaction: {1}",
+      "key": "atomixReport.transaction",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "Recorded transactions: {0} (listed above).",
+      "key": "atomixReport.recorded",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Check failed (RPC/node): {0}",
+      "key": "atomixReport.failed",
+      "kinds": [
+        "literal"
+      ]
+    }
+  ]
+}

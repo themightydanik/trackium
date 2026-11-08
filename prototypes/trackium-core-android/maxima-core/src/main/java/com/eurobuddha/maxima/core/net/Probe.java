@@ -1,0 +1,144 @@
+package com.eurobuddha.maxima.core.net;
+
+import com.eurobuddha.maxima.core.msg.Greeting;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+
+/**
+ * Tier 2 reachability proof: "is my mapped port actually reachable from the
+ * outside?"
+ *
+ * Hairpin NAT makes a phone testing its own port worthless (we measured this on
+ * the Pi), so proof must come from a THIRD PARTY. A relay does it: the phone
+ * asks its relay to dial it back, and the relay — which sees the phone's real
+ * public source IP — attempts a greeting handshake to that IP at the requested
+ * port. If a {@link DirectEndpoint} answers, the port is genuinely reachable.
+ *
+ * The security of the service lives in one rule enforced by the relay, NOT
+ * here: the target IP is the SOURCE IP of the asking connection. A caller can
+ * only ever prove its OWN reachability, so the service cannot be turned into a
+ * port scanner. This class holds the wire constant and the dial mechanism both
+ * sides share.
+ */
+public final class Probe {
+
+    /**
+     * The application string a probe request carries. Reserved: the IPC layer
+     * refuses it to external apps, like the other transport-owned strings.
+     */
+    public static final String APPLICATION = "**maxima_probe**";
+
+    /** Ports at or below this are refused - a probe must target a high port. */
+    public static final int MIN_PORT = 1024;
+
+    private Probe() {
+    }
+
+    /** The request payload is just the port, as text. */
+    public static byte[] request(int zPort) {
+        return Integer.toString(zPort).getBytes(StandardCharsets.UTF_8);
+    }
+
+    /** Parse a request payload back to a port, or -1 if malformed. */
+    public static int portOf(byte[] zData) {
+        try {
+            int p = Integer.parseInt(new String(zData, StandardCharsets.UTF_8).trim());
+            return (p > 0 && p <= 65535) ? p : -1;
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Dial zHost:zPort and attempt a greeting handshake.
+     *
+     * Reachable = a TCP connection is accepted AND a greeting frame comes back,
+     * which confirms it is a Maxima endpoint answering and not merely an open
+     * port on some unrelated service. We send only a greeting and read only a
+     * greeting; nothing else crosses, and the socket is closed immediately.
+     *
+     * @return true if the target answered as a Maxima endpoint
+     */
+    public static boolean dial(String zHost, int zPort, int zConnectMs, int zReadMs,
+                               String zVersion) {
+        return dialGreeting(zHost, zPort, zConnectMs, zReadMs, zVersion) != null;
+    }
+
+    /**
+     * As {@link #dial} but returns the peer's greeting (or null if it did not answer as
+     * a Maxima endpoint), so the caller can read what the peer advertises — e.g. the
+     * staticMLS-pool bit ({@link Greeting#poolOf}) used to pick mesh forwarding targets.
+     */
+    public static Greeting dialGreeting(String zHost, int zPort, int zConnectMs, int zReadMs,
+                                        String zVersion) {
+        return dialGreeting(zHost, zPort, zConnectMs, zReadMs, zVersion, null, 0);
+    }
+
+    /**
+     * As above, but the greeting we send CLAIMS our own public endpoint ({@code zSelfHost}:
+     * {@code zSelfPort}) - the way a relay introduces itself to a peer it dials. The far
+     * relay accepts the claim only if the host equals our source IP (self-nomination), then
+     * dials us back to verify before ever sharing us: so a relay that verifies its mesh peers
+     * with this call becomes known to them by the same act. Pass null / 0 to claim nothing.
+     */
+    public static Greeting dialGreeting(String zHost, int zPort, int zConnectMs, int zReadMs,
+                                        String zVersion, String zSelfHost, int zSelfPort) {
+        return dialGreeting(new Socket(), zHost, zPort, zConnectMs, zReadMs, zVersion,
+                zSelfHost, zSelfPort);
+    }
+
+    /**
+     * Own and close the supplied socket. Its owner may close it to cancel an in-flight probe;
+     * a cancellation or failed handshake returns null through the same cleanup path.
+     */
+    public static Greeting dialGreeting(Socket zSocket, String zHost, int zPort, int zConnectMs,
+                                 int zReadMs, String zVersion, String zSelfHost, int zSelfPort) {
+        boolean claim = zSelfHost != null && !zSelfHost.isEmpty() && zSelfPort > 0;
+        try (Socket s = zSocket) {
+            // Separate connect and read budgets, so a target that completes the
+            // TCP handshake and then goes silent blocks for connect+read, not
+            // 2x a single figure. The read budget is the shorter one - a real
+            // endpoint greets immediately.
+            s.connect(DialAlias.resolve(zHost, zPort), zConnectMs);
+            // Linux can assign the closed target's port as our ephemeral source port,
+            // completing a TCP self-connect. Its echoed greeting proves no peer exists.
+            if (s.getLocalSocketAddress().equals(s.getRemoteSocketAddress())) {
+                return null;
+            }
+            s.setSoTimeout(zReadMs);
+            DataInputStream in = new DataInputStream(s.getInputStream());
+            DataOutputStream out = new DataOutputStream(s.getOutputStream());
+
+            out.write(intFrame(Frame.body(Frame.MSG_GREETING, claim
+                    ? Greeting.commsOnly(zVersion, zSelfHost, zSelfPort)
+                    : Greeting.commsOnly(zVersion, "", 0))));
+            out.flush();
+
+            // Read one frame; a real endpoint greets back. Bounded read - we do
+            // not trust the far side just because we dialled it.
+            byte[] frame = Frame.readOrSkip(in, 64 * 1024);
+            if (frame == null || frame.length < 1 || Frame.typeOf(frame) != Frame.MSG_GREETING) {
+                return null;
+            }
+            byte[] body = new byte[frame.length - 1];
+            System.arraycopy(frame, 1, body, 0, body.length);
+            return Greeting.fromBytes(body);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static byte[] intFrame(byte[] zBody) {
+        byte[] out = new byte[4 + zBody.length];
+        out[0] = (byte) (zBody.length >>> 24);
+        out[1] = (byte) (zBody.length >>> 16);
+        out[2] = (byte) (zBody.length >>> 8);
+        out[3] = (byte) zBody.length;
+        System.arraycopy(zBody, 0, out, 4, zBody.length);
+        return out;
+    }
+}

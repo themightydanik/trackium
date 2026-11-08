@@ -1,0 +1,11 @@
+pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories { google(); mavenCentral() }
+}
+rootProject.name = 'trackium-core-android'
+include ':app', ':minimaapi', ':localization', ':maxima-core'
+include ':core-regression'
+include ':integrated-history', ':integrated-trackium'
+project(':integrated-history').projectDir = file('integrated/history')
+project(':integrated-trackium').projectDir = file('integrated/trackium')

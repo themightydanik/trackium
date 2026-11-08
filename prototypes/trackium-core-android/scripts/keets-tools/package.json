@@ -1,0 +1,14 @@
+{
+  "name": "minima-keets-build-tools",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "bare": "1.34.1",
+    "bare-runtime": "1.34.1",
+    "bare-pack": "2.2.4"
+  },
+  "overrides": {
+    "bare-bundle": "1.11.0",
+    "bare-module-traverse": "2.6.0"
+  }
+}

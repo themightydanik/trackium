@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/core_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Slim header: my identity entry point (QR + full address live in the dialog) -->
+        <LinearLayout
+            android:id="@+id/chat_myaddress_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/core_surface"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:foreground="?attr/selectableItemBackground">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_qr_code"
+                app:tint="@color/minima_blue" />
+
+            <TextView
+                android:id="@+id/chat_myaddress_label"
+                android:tag="l10n:text=l10n_chat_my_address_qr"
+        android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:text="My address &amp; QR"
+                android:textColor="@color/core_text"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/chat_myname"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/core_text_mid"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Shown only when the OS is blocking this app's notifications; tap opens Settings -->
+        <TextView
+            android:id="@+id/chat_notify_off"
+            android:tag="l10n:text=l10n_chat_notifications_off"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:background="?attr/selectableItemBackground"
+            android:textColor="@color/core_text_mid"
+            android:textSize="13sp"
+            android:visibility="gone"
+            android:text="Notifications are off. Tap to turn them on." />
+
+        <LinearLayout
+            android:id="@+id/chat_empty_box"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="28dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/chat_empty"
+                android:tag="l10n:text=l10n_chat_empty"
+        android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:textColor="@color/core_text_mid"
+                android:text="No chats yet.\n\nStart one by scanning your friend's QR code or pasting their address. Messages are end-to-end encrypted and need no server: delivered instantly when they're online, held safely for them when they're not." />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/chat_empty_start"
+                android:tag="l10n:text=l10n_chat_start_new"
+        android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:paddingHorizontal="28dp"
+                android:text="Start a new chat" />
+        </LinearLayout>
+
+        <ListView
+            android:id="@+id/chat_threads"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@null"
+            android:dividerHeight="0dp" />
+    </LinearLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/chat_fab"
+        android:tag="l10n:description=l10n_chat_new_chat"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="20dp"
+        android:contentDescription="New chat"
+        android:src="@drawable/ic_chat"
+        app:tint="@color/white"
+        app:backgroundTint="@color/minima_blue" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

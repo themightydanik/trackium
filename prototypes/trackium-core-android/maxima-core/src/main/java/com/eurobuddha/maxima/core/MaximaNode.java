@@ -1,0 +1,2358 @@
+package com.eurobuddha.maxima.core;
+
+import com.eurobuddha.maxima.core.chat.ChatMessage;
+import com.eurobuddha.maxima.core.chat.ClassicChat;
+import com.eurobuddha.maxima.core.codec.MiniData;
+import com.eurobuddha.maxima.core.contacts.Contact;
+import com.eurobuddha.maxima.core.contacts.ContactCtrl;
+import com.eurobuddha.maxima.core.directory.MlsStore;
+import com.eurobuddha.maxima.core.identity.Keys;
+import com.eurobuddha.maxima.core.identity.MaximaIdentity;
+import com.eurobuddha.maxima.core.mailbox.Mailbox;
+import com.eurobuddha.maxima.core.msg.MaximaMessage;
+import com.eurobuddha.maxima.core.net.HostConnection;
+import com.eurobuddha.maxima.core.reliability.DedupCache;
+import com.eurobuddha.maxima.core.reliability.Outbox;
+import com.eurobuddha.maxima.core.rpc.Capabilities;
+import com.eurobuddha.maxima.core.rpc.RpcEnvelope;
+import com.eurobuddha.maxima.core.rpc.RpcPeer;
+import com.eurobuddha.maxima.core.rpc.ServiceRegistry;
+import com.eurobuddha.maxima.core.services.Tier1Services;
+import com.eurobuddha.maxima.core.session.HostPool;
+import com.eurobuddha.maxima.core.session.PeerDiscovery;
+import com.eurobuddha.maxima.core.store.Store;
+import com.eurobuddha.maxima.core.util.Json;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * One Maxima node: identity, relays, contacts, services, reliability.
+ *
+ * Both hosts use this - the Android app and the headless server differ only in
+ * how they schedule {@link #pump} and {@link #maintain}, not in what they do.
+ * Nothing here touches a platform API, a filesystem or a clock it did not ask
+ * for, which is what keeps :core portable.
+ *
+ * Deliberately NOT threaded internally: Android wants work driven from a
+ * foreground service and exact alarms, a server wants a plain loop. Imposing a
+ * thread model here would fight both.
+ */
+public final class MaximaNode implements ChatPort {
+
+    private final MaximaIdentity mIdentity;
+    private final PeerDiscovery mDiscovery;
+    private final String mVersion;
+    private final HostPool mPool;
+    private final ServiceRegistry mServices = new ServiceRegistry();
+    private final RpcPeer mRpc;
+    private final Tier1Services mTier1;
+
+    private final Map<String, Contact> mContacts = new ConcurrentHashMap<>();
+    private final DedupCache mDedup = new DedupCache();
+    // Active deliveries survive dedup-cache eviction. Guarded by this, with admission below.
+    private final Map<String, java.util.concurrent.CompletableFuture<Void>> mDeliveries = new java.util.HashMap<>();
+    private boolean mStopping;
+    private final Outbox mOutbox = new Outbox();
+    private final Mailbox mMailbox = new Mailbox();
+    private final MlsStore mDirectory = new MlsStore();
+
+    // ---- Maxima maintenance loop, matching the reference cadence ----
+    /** The reference re-publishes to MLS and re-announces to every contact on a
+     *  20-min loop (MAXIMA_LOOP_DELAY), first firing 3 min after boot. We drive
+     *  the same from the heartbeat rather than a dedicated timer. */
+    private static final long MAXIMA_LOOP_MS = 20 * 60 * 1000L;
+    private static final long FIRST_LOOP_MS = 3 * 60 * 1000L;
+    /** Only re-resolve a contact via MLS if we have not heard from them for this
+     *  long — the reference's MAXIMA_CHECK_MLS 30-min threshold. */
+    private static final long MLS_STALE_MS = 30 * 60 * 1000L;
+    private final long mStartedAt = System.currentTimeMillis();
+    private volatile long mLastMaximaLoop;   // 0 until the first loop runs
+    /** Guards the self-heal resolver so a slow pass never piles up or blocks the
+     *  heartbeat thread. */
+    private final java.util.concurrent.atomic.AtomicBoolean mResolveBusy =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+    /** Short socket timeout for a directory lookup during self-heal - we may try
+     *  several, and must not hang on a slow one. */
+    private static final int SELFHEAL_TIMEOUT_MS = 5000;
+
+    // ---- check-connect: verify a host actually RELAYS, not just answers ----
+    /** Application tag of the self-addressed check-connect probe. Internal:
+     *  intercepted in {@link #handle} and never surfaced to app listeners. */
+    static final String CHECK_APP = "__maxchk";
+    /** Grace before an attached-but-unverified host is dropped — the reference's
+     *  MAXIMA_CHECK_CONNECTED 30s window. */
+    private static final long CHECK_GRACE_MS = 30_000L;
+    /** Tight socket timeout for a check-connect send so the heartbeat that drives
+     *  the audit never stalls on a dead host. */
+    private static final int CHECK_TIMEOUT_MS = 4000;
+    /** Hosts whose self-addressed probe came back — proven to relay TO us. */
+    private final java.util.Set<String> mHostVerified =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** hostPort -> when we sent its outstanding check-connect probe. */
+    private final Map<String, Long> mHostCheckSent = new ConcurrentHashMap<>();
+
+    // ---- MLS server rotation, matching the reference's 12h cadence ----
+    /** Our current Location Service, and the previous one we still publish to so
+     *  contacts holding the old address can still resolve us. The reference
+     *  rotates at most once / 12h (MLSService.newMLSNode). */
+    private volatile String mCurrentMls = "";
+    private volatile String mOldMls = "";
+    private volatile long mLastMlsRotate;
+    private static final long MLS_ROTATE_MS = 12L * 60 * 60 * 1000;
+
+    /** Tier 2 inbound listener. Null until {@link #startDirect}. */
+    private volatile com.eurobuddha.maxima.core.net.DirectEndpoint mDirect;
+    /** Proven public ip:port, or empty. Set only after external proof. */
+    private volatile String mDirectAddress = "";
+    /** Our LAN ip:port (site-local) while on Wi-Fi with the direct listener up.
+     *  Advertised as an identity-keyed source so a SAME-LAN peer dials our phone
+     *  directly for our hosted blobs. Empty off Wi-Fi. */
+    private volatile String mLanAddress = "";
+    /** Our own hosted blobs, handed to the direct endpoint so a same-LAN peer can
+     *  pull our profile/media from this phone directly. Set by the app at startup. */
+    private volatile com.eurobuddha.maxima.core.store.BlobStore mLocalBlobs;
+    /** Ephemeral LAN-discovered addresses: contact identity (norm) -> Mx@lanIp:port. */
+    private final Map<String, String> mLanPeers = new ConcurrentHashMap<>();
+
+    /** Short connect leash for a chat send: a real connection (direct or relay) completes in
+     *  well under a second, so a stale/dead direct address fails here in a few seconds and we
+     *  fall through to a relay, instead of eating the patient 20s default. The real defence
+     *  against a dead direct is only advertising it while actually reachable (DirectReachability
+     *  re-proves the manual forward every ~60s); this just bounds the residual window. */
+    private static final int SEND_CONNECT_TIMEOUT_MS = 5000;
+
+
+    /**
+     * Durable storage. Defaults to memory-only so nothing breaks if a host
+     * forgets to supply one, but a real deployment MUST call
+     * {@link #setStore} or it loses every contact on restart.
+     */
+    private volatile Store mStore = Store.MEMORY_ONLY;
+
+    private static final String C_CONTACTS = "contacts";
+    private static final String C_SETTINGS = "settings";
+
+    private volatile String mName = "noname";
+
+    /**
+     * Our Maxima Location Service, as classic understands it.
+     *
+     * Classic picks an MLS from whichever public peer offered one, and lets you
+     * pin it with `maxextra action:staticmls`. A pinned MLS matters more for us
+     * than for a server: a phone's address changes every time a relay drops, and
+     * the MLS is how contacts find the new one.
+     */
+    private volatile String mStaticMls = "";
+    private volatile Capabilities mCapabilities = Capabilities.phoneDefaults();
+    /** Our self-declared node kind, advertised in contact-ctrl ("core" for a
+     *  full/desktop node, "" for the phone app). Lets a peer's contact list
+     *  label us. */
+    private volatile String mNodeKind = "";
+    private volatile String mIcon = "0x00";
+
+    /**
+     * Whether strangers may add us as a contact.
+     *
+     * Classic: `maxextra action:allowallcontacts`. Default true, matching
+     * classic, with an explicit allow-list for when it is false.
+     */
+    private volatile boolean mAllowAllContacts = true;
+    private final java.util.Set<String> mAllowedContacts =
+            java.util.Collections.synchronizedSet(new java.util.LinkedHashSet<>());
+
+    /**
+     * Identities this node will resolve for ANYONE, not just their own contacts.
+     * Classic: `maxextra action:addpermanent`, used on a static MLS host so a
+     * stranger can look you up from a MAX# address.
+     */
+    private final java.util.Set<String> mPermanent =
+            java.util.Collections.synchronizedSet(new java.util.LinkedHashSet<>());
+
+    /** Application messages that are not ours - handed to the embedder. */
+    public interface MessageListener {
+        void onMessage(MaximaMessage zMessage, MiniData zMsgid);
+    }
+
+    /**
+     * The two events classic publishes alongside MAXIMA, without which an app
+     * using us as transport cannot react to a contact appearing or a host
+     * dropping. Classic: MAXIMACONTACTS and MAXIMAHOSTS.
+     */
+    public interface EventListener {
+        /** A contact was added, updated or removed. */
+        void onContactsChanged(Contact zContact, boolean zRemoved);
+
+        /** A host attached or dropped. */
+        void onHostsChanged(String zHostPort, boolean zConnected);
+    }
+
+    /** Diagnostic lines for the embedder's event log. Optional; unset = silent. */
+    public interface LogListener {
+        void onLog(String zLine);
+    }
+
+    private volatile MessageListener mListener;
+    private volatile EventListener mEvents;
+    private volatile LogListener mLog;
+
+    public MaximaNode(MaximaIdentity zIdentity, String zVersion, int zRelayTarget) {
+        mIdentity = zIdentity;
+        mVersion = zVersion;
+        mPool = new HostPool(zIdentity, zVersion, zRelayTarget);
+        // Relay discovery, classic Minima's way (see PeerDiscovery): every greeting's peer
+        // list is verified before adoption, the verified list is what fill() draws from at
+        // random, and a peer that fails three connects running is forgotten.
+        mDiscovery = new PeerDiscovery(zVersion);
+        mDiscovery.setConnectedSupplier(() -> mPool.activeCount() > 0);
+        mDiscovery.setListener(new PeerDiscovery.Listener() {
+            @Override
+            public void onVerified(String zHostPort) {
+                mPool.addCandidate(zHostPort);
+            }
+
+            @Override
+            public void onRemoved(String zHostPort) {
+                mPool.removeCandidate(zHostPort);
+            }
+        });
+        mPool.setBeforeAck(this::runFlushHooks);
+        mPool.setListener(new HostPool.Listener() {
+            @Override
+            public void onAttached(String zHostPort,
+                                   com.eurobuddha.maxima.core.msg.Greeting zTheirs) {
+                mDiscovery.onGreeting(zHostPort, zTheirs);
+            }
+
+            @Override
+            public void onNoConnect(String zHostPort) {
+                mDiscovery.noConnect(zHostPort);
+            }
+        });
+        // Push receive: every attached host gets a dedicated reader that hands
+        // inbound straight to handle() the instant the relay pushes it. Admission is
+        // synchronized; per-delivery completion follows the selected worker or inline path.
+        mPool.setSink(new com.eurobuddha.maxima.core.net.HostConnection.Sink() {
+            @Override
+            public void onInbound(com.eurobuddha.maxima.core.net.HostConnection.Inbound zIn) {
+                handle(zIn);
+            }
+
+            @Override
+            public void onDead(String zHostPort) {
+                // Bank the uptime and free the slot; the caller's maintain
+                // heartbeat re-attaches. No cooldown: a NAT-reaped socket says
+                // nothing bad about the relay.
+                mPool.detachClosed(zHostPort);
+            }
+        });
+        mRpc = new RpcPeer(zIdentity, mServices);
+        mRpc.setAttached(mPool.attachedSender());   // device pushes ride the attached relay links
+        mTier1 = new Tier1Services(zIdentity, mMailbox, mDirectory);
+        mTier1.registerAll(mServices);
+    }
+
+    public MaximaIdentity identity() {
+        return mIdentity;
+    }
+
+    /** Dial {@code zActual} whenever {@code zHostPort} is wanted - our own relay over loopback,
+     *  known to the world by its public address (see {@link com.eurobuddha.maxima.core.net.DialAlias}). */
+    public void setDialAlias(String zHostPort, String zActual) {
+        if (zActual == null || zActual.isEmpty()) {
+            com.eurobuddha.maxima.core.net.DialAlias.clear(zHostPort);
+        } else {
+            com.eurobuddha.maxima.core.net.DialAlias.set(zHostPort, zActual);
+        }
+    }
+
+    /** Prefer one host (a node's own public cape): attached first, advertised first, never
+     *  evicted by merit. See {@link HostPool#setPreferred}. */
+    public void setPreferredHost(String zHostPort) {
+        mPool.setPreferred(zHostPort);
+    }
+
+    public HostPool pool() {
+        return mPool;
+    }
+
+    /** The relay discovery (classic peers checker) this node runs. */
+    public PeerDiscovery discovery() {
+        return mDiscovery;
+    }
+
+    /** Work to run before a mailbox ack is signed: our own store, then whatever apps add. */
+    private final List<Runnable> mFlushHooks = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    @Override
+    public boolean addFlushHook(Runnable zHook) {
+        if (zHook != null) {
+            mFlushHooks.add(zHook);
+        }
+        return true;
+    }
+
+    private void runFlushHooks() {
+        // HostConnection has waited for its own deliveries, including RPC and CallerRuns
+        // work. A global worker barrier neither proves that nor needs to delay other relays.
+        mStore.flush();
+        for (Runnable r : mFlushHooks) {
+            r.run(); // a failed flush must reach HostConnection and withhold deletion permission
+        }
+    }
+
+    public ServiceRegistry services() {
+        return mServices;
+    }
+
+    public RpcPeer rpc() {
+        return mRpc;
+    }
+
+    public Tier1Services tier1() {
+        return mTier1;
+    }
+
+    public Mailbox mailbox() {
+        return mMailbox;
+    }
+
+    public MlsStore directory() {
+        return mDirectory;
+    }
+
+    public Outbox outbox() {
+        return mOutbox;
+    }
+
+    public DedupCache dedup() {
+        return mDedup;
+    }
+
+    public void setName(String zName) {
+        mName = zName;
+        mStore.put(C_SETTINGS, "name", zName);
+    }
+
+    /** Our display name - what contacts (including classic peers) see. */
+    /** ChatPort: my identity public key hex. */
+    @Override
+    public String publicKeyHex() {
+        return mIdentity.publicKeyHex();
+    }
+
+    public String name() {
+        return mName;
+    }
+
+    /** Our wallet RECEIVE address (Mx...), advertised in the contact handshake's
+     *  {@code minimaaddress} field - exactly where classic peers expect to find
+     *  where to pay us. Empty until the app's wallet reports it. */
+    private volatile String mWalletAddress = "";
+
+    public void setWalletAddress(String zMxAddress) {
+        mWalletAddress = zMxAddress == null ? "" : zMxAddress;
+    }
+
+    /**
+     * Attach durable storage and load whatever is already there.
+     * Call once, before {@link #start}.
+     */
+    public void setStore(Store zStore) {
+        mStore = zStore == null ? Store.MEMORY_ONLY : zStore;
+        loadFromStore();
+        mDiscovery.setStore(mStore);   // the saved peer list, classic P2PDB style
+    }
+
+    public Store store() {
+        return mStore;
+    }
+
+    private void loadFromStore() {
+        // settings
+        String n = mStore.get(C_SETTINGS, "name");
+        if (n != null && !n.isEmpty()) {
+            mName = n;
+        }
+        String mls = mStore.get(C_SETTINGS, "staticmls");
+        if (mls != null) {
+            mStaticMls = mls;
+        }
+        String icon = mStore.get(C_SETTINGS, "icon");
+        if (icon != null && !icon.isEmpty()) {
+            mIcon = icon;
+        }
+        String allow = mStore.get(C_SETTINGS, "allowall");
+        if (allow != null) {
+            mAllowAllContacts = Boolean.parseBoolean(allow);
+        }
+
+        // contacts
+        int loaded = 0;
+        for (Map.Entry<String, String> e : mStore.all(C_CONTACTS).entrySet()) {
+            try {
+                Contact c = contactFromJson(e.getValue());
+                if (c == null || c.publicKey == null || c.publicKey.isEmpty()) {
+                    // Do not silently drop it - a contact vanishing with no
+                    // trace is worse than a noisy skip.
+                    System.err.println("[chat] skipping unreadable contact record " + e.getKey());
+                    continue;
+                }
+                String key = Keys.norm(c.publicKey);
+                mContacts.put(key, c);
+                // Migrate records written under the older 0X... form.
+                if (!key.equals(e.getKey())) {
+                    mStore.remove(C_CONTACTS, e.getKey());
+                    mStore.put(C_CONTACTS, key, e.getValue());
+                }
+                loaded++;
+            } catch (Exception ex) {
+                System.err.println("[chat] bad contact record " + e.getKey() + ": " + ex);
+            }
+        }
+        if (loaded > 0) {
+            mDedup.clear();
+        }
+    }
+
+    /**
+     * A classic-style handshake (e.g. from the classic engine) carries no
+     * capability flags, so a Parlons peer can be mislabelled CLASSIC - which
+     * blocks capability-gated features like voice notes. Inbound chat traffic
+     * is PROOF they run Parlons; upgrade on first sight.
+     */
+    @Override
+    public void noteCapable(String zPublicKey) {
+        Contact c = contact(zPublicKey);
+        if (c != null && c.isClassic()) {
+            c.capabilities = com.eurobuddha.maxima.core.rpc.Capabilities.phoneDefaults();
+            storeContact(c);
+            log("capability learned: " + (c.name == null ? "contact" : c.name)
+                    + " runs Parlons");
+        }
+    }
+
+    /** A keets-only contact (KeetChat peer): keyed by its keets pubkey, kind
+     *  "keets", never part of the Maxima handshake/self-heal machinery. An
+     *  existing contact keeps its user-chosen name; a real sender name only
+     *  fills one we never named (mirrors KeetChat's own contact rule). */
+    @Override
+    public Contact storeKeetsContact(String zPubkey, String zName) {
+        String key = Keys.norm(zPubkey);
+        Contact c = mContacts.get(key);
+        if (c == null) {
+            c = new Contact(key);
+            c.kind = "keets";
+            c.name = (zName == null || zName.isEmpty()) ? key : zName;
+            storeContact(c);
+        } else if (("noname".equals(c.name) || c.name.equals(key))
+                && zName != null && !zName.isEmpty()) {
+            c.name = zName;
+            storeContact(c);
+        }
+        return c;
+    }
+
+    /** Add or update a contact and persist it. */
+    public void storeContact(Contact zContact) {
+        mContacts.put(Keys.norm(zContact.publicKey), zContact);
+        saveContact(zContact);
+        fireContacts(zContact, false);
+    }
+
+    private void saveContact(Contact zContact) {
+        mStore.put(C_CONTACTS, Keys.norm(zContact.publicKey), contactToJson(zContact));
+    }
+
+    /**
+     * Note when a contact's address set changes.
+     *
+     * A contact moving host is the single most common cause of "my message did
+     * not arrive", and without a record of WHEN it moved the failure is
+     * unexplainable. Kept as an append log rather than in the contact record so
+     * it cannot bloat the hot path.
+     */
+    private void recordAddressHistory(Contact zNew, Contact zOld) {
+        if (zNew.addresses.isEmpty()) {
+            return;
+        }
+        String now = zNew.primaryAddress();
+        String was = zOld == null ? null : zOld.primaryAddress();
+        if (was != null && was.equals(now)) {
+            return;
+        }
+        mStore.append("addrhistory",
+                System.currentTimeMillis() + "\t" + zNew.publicKey + "\t" + now);
+    }
+
+    /** Every observed address change, newest last. */
+    public java.util.List<String> addressHistory() {
+        return mStore.read("addrhistory");
+    }
+
+    /** Address changes for one contact. */
+    public java.util.List<String> addressHistory(String zPublicKeyHex) {
+        java.util.List<String> out = new ArrayList<>();
+        String key = zPublicKeyHex.toUpperCase();
+        for (String l : mStore.read("addrhistory")) {
+            String[] p = l.split("\t");
+            if (p.length >= 3 && p[1].toUpperCase().equals(key)) {
+                out.add(l);
+            }
+        }
+        return out;
+    }
+
+    /** Public: engine-flip sync writes jar contacts into this book's format. */
+    public static String contactToJson(Contact c) {
+        return new Json.Writer()
+                .put("publickey", c.publicKey)
+                .put("name", c.name)
+                .put("icon", c.icon)
+                .put("addresses", String.join(",", c.addresses))
+                .put("myaddress", c.myAddress == null ? "" : c.myAddress)
+                .put("mls", c.mls == null ? "" : c.mls)
+                .put("minimaaddress", c.minimaAddress == null ? "" : c.minimaAddress)
+                .put("caps", c.capabilities.encode())
+                .put("kind", c.kind == null ? "" : c.kind)
+                .put("lastseen", Long.toString(c.lastSeen))
+                .done();
+    }
+
+    /** Public: the jar-engine migration replays the persisted records. */
+    public static Contact contactFromJson(String zJson) {
+        Map<String, String> m = Json.parse(zJson);
+        Contact c = new Contact(m.get("publickey"));
+        c.name = m.getOrDefault("name", "noname");
+        c.icon = m.getOrDefault("icon", "0x00");
+        c.myAddress = m.getOrDefault("myaddress", "");
+        c.mls = m.getOrDefault("mls", "");
+        c.minimaAddress = m.getOrDefault("minimaaddress", "");
+        c.capabilities = Capabilities.decode(m.get("caps"));
+        c.kind = m.getOrDefault("kind", "");
+        try {
+            c.lastSeen = Long.parseLong(m.getOrDefault("lastseen", "0"));
+        } catch (NumberFormatException ignored) {
+        }
+        String addrs = m.getOrDefault("addresses", "");
+        java.util.List<String> list = new ArrayList<>();
+        for (String a : addrs.split(",")) {
+            if (!a.trim().isEmpty()) {
+                list.add(a.trim());
+            }
+        }
+        c.setAddresses(list);
+        return c;
+    }
+
+    public void setCapabilities(Capabilities zCaps) {
+        mCapabilities = zCaps;
+    }
+
+    /** Declare our node kind (e.g. "core" for a full/desktop node). Advertised
+     *  to contacts so their list can label us; empty for the phone app. */
+    public void setNodeKind(String zKind) {
+        mNodeKind = zKind == null ? "" : zKind.trim();
+    }
+
+    public String nodeKind() {
+        return mNodeKind;
+    }
+
+    public Capabilities capabilities() {
+        return mCapabilities;
+    }
+
+    /** Pin our Location Service. Empty means "use whatever a host offers". */
+    public void setStaticMls(String zMlsAddress) {
+        mStaticMls = zMlsAddress == null ? "" : zMlsAddress.trim();
+        mStore.put(C_SETTINGS, "staticmls", mStaticMls);
+    }
+
+    public boolean isStaticMls() {
+        return !mStaticMls.isEmpty();
+    }
+
+    /**
+     * The MLS we advertise to contacts - the pinned one if set, otherwise the
+     * STABLE current server chosen by {@link #updateMlsServers}. It no longer
+     * recomputes from the live host order on every call: that flip-flopped our
+     * advertised MLS whenever the host set reordered, stranding contacts who
+     * cached the previous one. Rotation is now bounded to once / 12h with the
+     * previous server retained.
+     */
+    public String mlsAddress() {
+        if (!mStaticMls.isEmpty()) {
+            return mStaticMls;
+        }
+        if (mCurrentMls.isEmpty()) {
+            updateMlsServers();   // lazily adopt the first offer on first use
+        }
+        return mCurrentMls;
+    }
+
+    /**
+     * Adopt one attached host's directory as our anchor NOW, outside the 12 h rotation - for a
+     * node whose OWN relay came up (or learned its public address) after the account had
+     * already anchored on a fleet relay. The previous anchor is retained as the old MLS so
+     * contacts holding it still resolve us. Returns the new permanent address, or "" when the
+     * host is not attached or offers no directory (nothing changes then).
+     */
+    public synchronized String adoptMlsOf(String zHostPort) {
+        if (!mStaticMls.isEmpty()) {
+            return permanentAddress();   // pinned by the operator: their choice stands
+        }
+        HostConnection c = mPool.connection(zHostPort);
+        String m = c == null ? null : c.getTheirMlsAddress();
+        if (m == null || m.isEmpty()) {
+            return "";
+        }
+        if (!m.equals(mCurrentMls)) {
+            mOldMls = mCurrentMls;
+            mCurrentMls = m;
+            mLastMlsRotate = System.currentTimeMillis();
+        }
+        return permanentAddress();
+    }
+
+    /**
+     * Choose and rotate our MLS server on the reference's schedule. Candidate =
+     * the pinned static MLS, else the first MLS a host offers. We adopt the first
+     * candidate immediately, but ROTATE to a different one only when the current
+     * server's host has dropped (its MLS is dead) or 12h have passed - and we
+     * keep the previous server as {@link #mOldMls} so contacts holding the old
+     * address still resolve us. Idempotent and cheap; safe to call often.
+     */
+    void updateMlsServers() {
+        if (!mStaticMls.isEmpty()) {
+            mCurrentMls = mStaticMls;
+            return;
+        }
+        String candidate = firstHostMls();
+        boolean currentDead = !mCurrentMls.isEmpty() && !mlsHostActive(mCurrentMls);
+        String[] next = decideMls(mCurrentMls, mOldMls, mLastMlsRotate,
+                System.currentTimeMillis(), candidate, currentDead, MLS_ROTATE_MS);
+        mCurrentMls = next[0];
+        mOldMls = next[1];
+        mLastMlsRotate = Long.parseLong(next[2]);
+    }
+
+    /**
+     * Pure rotation decision, factored out so it can be tested without sockets.
+     * Returns {@code [newCurrent, newOld, newLastRotateMillisAsString]}.
+     */
+    static String[] decideMls(String zCurrent, String zOld, long zLastRotate, long zNow,
+                              String zCandidate, boolean zCurrentDead, long zRotateMs) {
+        String current = zCurrent == null ? "" : zCurrent;
+        String old = zOld == null ? "" : zOld;
+        if (zCandidate == null || zCandidate.isEmpty()) {
+            return new String[]{current, old, Long.toString(zLastRotate)};   // nothing offered
+        }
+        if (current.isEmpty()) {
+            return new String[]{zCandidate, old, Long.toString(zNow)};       // first adoption
+        }
+        if (zCandidate.equals(current)) {
+            return new String[]{current, old, Long.toString(zLastRotate)};   // still valid
+        }
+        if (zCurrentDead || zNow - zLastRotate >= zRotateMs) {
+            return new String[]{zCandidate, current, Long.toString(zNow)};   // rotate, retain old
+        }
+        return new String[]{current, old, Long.toString(zLastRotate)};       // hold (too soon)
+    }
+
+    private String firstHostMls() {
+        // Best-scoring host first (merit: reliability x uptime x capacity, no
+        // node type), so the MLS we adopt as our perm anchor is the most reliable
+        // directory we can reach - phone or jar, chosen the same way. But PREFER a
+        // relay that advertises open staticMLS pool membership: our permanent MAX#
+        // only resolves for strangers via an open-resolve (pool) relay. Fall back
+        // to the best directory of any kind when no attached relay advertises the
+        // pool bit (older relays / classic), preserving prior behaviour.
+        String fallback = "";
+        for (String h : mPool.activeHostsByScore()) {
+            HostConnection c = mPool.connection(h);
+            String m = c == null ? null : c.getTheirMlsAddress();
+            if (m == null || m.isEmpty()) {
+                continue;
+            }
+            if (c.getTheirPool()) {
+                return m;   // best-scoring POOL relay
+            }
+            if (fallback.isEmpty()) {
+                fallback = m;
+            }
+        }
+        return fallback;
+    }
+
+    /** The best-scoring ATTACHED open-pool relay's MLS address, or "" if none is
+     *  attached. Unlike {@link #firstHostMls} this NEVER falls back to a non-pool
+     *  directory: it is used to PIN a stable, stranger-resolvable permanent anchor,
+     *  which only a pool (open-resolve) relay can be. */
+    public String bestPoolMls() {
+        for (String h : mPool.activeHostsByScore()) {
+            HostConnection c = mPool.connection(h);
+            if (c != null && c.getTheirPool()) {
+                String m = c.getTheirMlsAddress();
+                if (m != null && !m.isEmpty()) {
+                    return m;
+                }
+            }
+        }
+        return "";
+    }
+
+    /** Every attached open-pool relay's MLS address, best-scoring first, deduped — the
+     *  redundant resolvers the permanent-address fallback (B3) asks when a MAX#'s baked-in
+     *  host is down. Like {@link #bestPoolMls()} but collects all, not just the first. */
+    public java.util.List<String> poolMlsAddresses() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (String h : mPool.activeHostsByScore()) {
+            HostConnection c = mPool.connection(h);
+            if (c != null && c.getTheirPool()) {
+                String m = c.getTheirMlsAddress();
+                if (m != null && !m.isEmpty() && !out.contains(m)) {
+                    out.add(m);
+                }
+            }
+        }
+        return out;
+    }
+
+    private boolean mlsHostActive(String zMls) {
+        int at = zMls.lastIndexOf('@');
+        if (at < 0) {
+            return false;
+        }
+        return mPool.activeHosts().contains(zMls.substring(at + 1));
+    }
+
+    /**
+     * The single address to hand out, matching classic's `contact` field.
+     * Multi-homing publishes all of them in the contact metadata, but a human
+     * copying one address should get one address.
+     */
+    public String primaryAddress() {
+        List<String> a = mPool.contactAddresses();
+        return a.isEmpty() ? null : a.get(0);
+    }
+
+    // ---- classic: maxima action:seticon ----
+    public void setIcon(String zIcon) {
+        mIcon = zIcon == null || zIcon.isEmpty() ? "0x00" : zIcon;
+        mStore.put(C_SETTINGS, "icon", mIcon);
+    }
+
+    public String icon() {
+        return mIcon;
+    }
+
+    // ---- classic: maxextra action:allowallcontacts / addallowed / listallowed ----
+    public void setAllowAllContacts(boolean zAllow) {
+        mAllowAllContacts = zAllow;
+        mStore.put(C_SETTINGS, "allowall", Boolean.toString(zAllow));
+    }
+
+    public boolean allowAllContacts() {
+        return mAllowAllContacts;
+    }
+
+    public void addAllowedContact(String zPublicKeyHex) {
+        mAllowedContacts.add(Keys.norm(zPublicKeyHex));
+    }
+
+    public java.util.List<String> allowedContacts() {
+        return new ArrayList<>(mAllowedContacts);
+    }
+
+    public void clearAllowedContacts() {
+        mAllowedContacts.clear();
+    }
+
+    // ---- classic: maxextra addpermanent / listpermanent / clearpermanent ----
+    public void addPermanent(String zPublicKeyHex) {
+        mPermanent.add(Keys.norm(zPublicKeyHex));
+        mDirectory.addPermanent(zPublicKeyHex);
+    }
+
+    public java.util.List<String> permanentKeys() {
+        return new ArrayList<>(mPermanent);
+    }
+
+    public void removePermanent(String zPublicKeyHex) {
+        mPermanent.remove(Keys.norm(zPublicKeyHex));
+    }
+
+    public void clearPermanent() {
+        mPermanent.clear();
+    }
+
+    /**
+     * Who is using US as their Location Service, and who may resolve them.
+     * Classic: {@code maxextra action:mlsinfo}.
+     */
+    public java.util.List<String> mlsInfo() {
+        java.util.List<String> out = new ArrayList<>();
+        for (java.util.Map.Entry<String, String> e
+                : mStore.all("mlsserved").entrySet()) {
+            out.add(e.getKey() + " -> " + e.getValue());
+        }
+        return out;
+    }
+
+    /**
+     * Our permanent address: {@code MAX#<pubkey>#<mls>}.
+     *
+     * Classic's answer to "my contact address keeps changing". It is not
+     * routable itself - a sender resolves it through the MLS to get a live
+     * Mx...@host:port. Only useful once the MLS operator has us on its
+     * permanent list.
+     */
+    public String permanentAddress() {
+        String mls = mlsAddress();
+        if (mls.isEmpty()) {
+            return "";
+        }
+        return "MAX#" + mIdentity.publicKeyHex() + "#" + mls;
+    }
+
+    /**
+     * Resolve a MAX# permanent address to a live contact address.
+     * Classic: `maxextra action:getaddress`.
+     */
+    public String resolvePermanent(String zMaxAddress) throws Exception {
+        if (!zMaxAddress.startsWith("MAX#")) {
+            throw new IllegalArgumentException("not a MAX# address");
+        }
+        int a = zMaxAddress.indexOf('#');
+        int b = zMaxAddress.indexOf('#', a + 1);
+        if (b < 0) {
+            throw new IllegalArgumentException("malformed MAX# address");
+        }
+        String targetKey = zMaxAddress.substring(a + 1, b);
+        String mls = zMaxAddress.substring(b + 1);
+
+        com.eurobuddha.maxima.core.directory.MlsClient c =
+                mlsClient();
+        // The anchor with the self-heal leash (5 s / 5 s), not the 20 s / 20 s defaults: a
+        // black-holed anchor used to cost 40 s before the fallback below even started.
+        String anchorError;
+        Exception anchorFailure = null;
+        try {
+            com.eurobuddha.maxima.core.directory.MlsClient.Resolved r =
+                    c.resolve(mls, targetKey, SELFHEAL_TIMEOUT_MS, SELFHEAL_TIMEOUT_MS);
+            if (r.ok()) {
+                return r.address;
+            }
+            anchorError = r.error;
+        } catch (InterruptedException e) {
+            throw e;
+        } catch (Exception e) {
+            // Connection refusal/DNS failure throws instead of returning a failed result.
+            // Like ParlonsKit, still ask our own pool when the anchor cannot be reached.
+            anchorFailure = e;
+            anchorError = "anchor directory failed: " + e.getMessage();
+        }
+        // Phase B3 fallback: the baked-in host is DOWN or missed. Ask our OWN attached pool
+        // relays and accept an address only when >=2 independently agree (each may itself
+        // forward across the Phase-B mesh). This resolves a permanent MAX# whose host is
+        // offline, as long as two reachable pool relays can answer for the key. (When the host
+        // is merely MISSING but reachable, it forwards for us via the mesh and the anchor reply is
+        // already successful — this path also covers a down host.)
+        java.util.List<String> pool = poolMlsAddresses();
+        pool.remove(mls);   // no point re-asking the host that just failed
+        String viaPool = resolveKeyVia(targetKey, pool);
+        if (viaPool != null) {
+            return viaPool;
+        }
+        throw new IllegalStateException(anchorError, anchorFailure);
+    }
+
+    /** Publish our address to the directory - to our current MLS, the one we most
+     *  recently rotated away from, AND every relay we are attached to. Publishing
+     *  broadly is the rendezvous half of self-heal: a contact that shares ANY
+     *  relay with us can then resolve our current address there, even if it never
+     *  learned our specific MLS (the reference only publishes to current + old). */
+    public boolean publishToMls() {
+        if (myAddresses().isEmpty()) {
+            return false;
+        }
+        updateMlsServers();
+        java.util.List<String> readers = new ArrayList<>();
+        for (Contact c : mContacts.values()) {
+            readers.add(c.publicKey);
+        }
+        boolean any = false;
+        java.util.Set<String> targets = new java.util.LinkedHashSet<>();
+        if (!mlsAddress().isEmpty()) {
+            targets.add(mlsAddress());
+        }
+        if (mOldMls != null && !mOldMls.isEmpty()) {
+            targets.add(mOldMls);
+        }
+        targets.addAll(reachableDirectories());   // every attached relay's directory
+        for (String mls : targets) {
+            try {
+                any |= mlsClient()
+                        .publish(mls, myAddresses(), readers,
+                                SELFHEAL_TIMEOUT_MS, SELFHEAL_TIMEOUT_MS);
+            } catch (Exception e) {
+                // best effort per server - a slow relay must not hold up the rest - but NEVER
+                // silent: an oversize SET (too many contacts) would otherwise stop every
+                // directory publish with no trace.
+                log("MLS publish to " + mls + " failed: "
+                        + (e.getMessage() == null ? e.toString() : e.getMessage()));
+            }
+        }
+        return any;
+    }
+
+    // ---- classic: maxcontacts action:remove ----
+    /** Remove a contact AND tell them, as classic does. */
+    public boolean removeContact(String zPublicKeyHex) {
+        Contact c = mContacts.remove(Keys.norm(zPublicKeyHex));
+        if (c == null) {
+            return false;
+        }
+        mStore.remove(C_CONTACTS, Keys.norm(zPublicKeyHex));
+        fireContacts(c, true);
+        String json = ContactCtrl.buildDelete(mIdentity.publicKeyHex());
+        for (String addr : c.addresses) {
+            try {
+                sendRaw(addr, ContactCtrl.APPLICATION,
+                        json.getBytes(StandardCharsets.UTF_8));
+                break;
+            } catch (Exception ignored) {
+                // They may be gone already; the local removal still stands.
+            }
+        }
+        return true;
+    }
+
+    // ---- classic: maxcontacts action:export / import ----
+    /** Comma-separated contact addresses, the format classic uses. */
+    public String exportContacts() {
+        StringBuilder sb = new StringBuilder();
+        for (Contact c : mContacts.values()) {
+            String a = c.primaryAddress();
+            if (a != null) {
+                if (sb.length() > 0) {
+                    sb.append(',');
+                }
+                sb.append(a);
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Import by introducing ourselves to each address.
+     * Classic warns these go stale fast - an address is only good while that
+     * host connection lives.
+     *
+     * @return how many introductions were sent
+     */
+    public int importContacts(String zCsv) {
+        int n = 0;
+        for (String a : zCsv.split(",")) {
+            String addr = a.trim();
+            if (addr.isEmpty()) {
+                continue;
+            }
+            try {
+                introduce(addr, true);
+                n++;
+            } catch (Exception ignored) {
+            }
+        }
+        return n;
+    }
+
+    /** Classic: maxcontacts action:search */
+    public java.util.List<Contact> searchContacts(String zQuery) {
+        String q = zQuery.toLowerCase();
+        java.util.List<Contact> out = new ArrayList<>();
+        for (Contact c : mContacts.values()) {
+            if (c.name.toLowerCase().contains(q)
+                    || c.publicKey.toLowerCase().contains(q)) {
+                out.add(c);
+            }
+        }
+        return out;
+    }
+
+    // ---- classic: maxima action:sendall ----
+    /** Send to every contact. Returns how many were accepted. */
+    public int sendAll(String zApplication, byte[] zData) {
+        int ok = 0;
+        for (Contact c : mContacts.values()) {
+            for (String addr : c.addresses) {
+                try {
+                    if (sendRaw(addr, zApplication, zData).isOk()) {
+                        ok++;
+                        break;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return ok;
+    }
+
+    public void setMessageListener(MessageListener zListener) {
+        mListener = zListener;
+    }
+
+    public void setEventListener(EventListener zListener) {
+        mEvents = zListener;
+    }
+
+    public void setLogListener(LogListener zListener) {
+        mLog = zListener;
+    }
+
+    /** Hand a diagnostic line to the embedder's log; no-op when none is set.
+     *  Failures used to be swallowed here in core (fanOut, mlsLookup, resend)
+     *  which left a dead outbound path completely invisible - the 15-minute
+     *  blind window of 2026-08-20. Silence is never a valid failure mode. */
+    public void log(String zLine) {
+        LogListener l = mLog;
+        if (l != null) {
+            try {
+                l.onLog(zLine);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private void fireContacts(Contact zContact, boolean zRemoved) {
+        EventListener l = mEvents;
+        if (l != null) {
+            try {
+                l.onContactsChanged(zContact, zRemoved);
+            } catch (Exception ignored) {
+                // A listener must never break the transport.
+            }
+        }
+    }
+
+    private void fireHosts(String zHostPort, boolean zConnected) {
+        EventListener l = mEvents;
+        if (l != null) {
+            try {
+                l.onHostsChanged(zHostPort, zConnected);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    public List<Contact> contacts() {
+        return new ArrayList<>(mContacts.values());
+    }
+
+    public Contact contact(String zPublicKeyHex) {
+        return mContacts.get(Keys.norm(zPublicKeyHex));
+    }
+
+    /**
+     * Find a contact by the short {@link Keys#fingerprint} of their public key.
+     * LAN discovery carries only the fingerprint in its NSD TXT record (the full
+     * key is too large for the 255-byte cap), so this maps a discovered peer back
+     * to the contact whose key hashes to it. Null if none matches.
+     */
+    public Contact contactByFingerprint(String zFingerprint) {
+        if (zFingerprint == null || zFingerprint.isEmpty()) {
+            return null;
+        }
+        for (Contact c : mContacts.values()) {
+            if (zFingerprint.equals(Keys.fingerprint(c.publicKey))) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    // ---------------------------------------------------------------
+    // lifecycle
+    // ---------------------------------------------------------------
+
+    /** Attach to relays and start publishing our addresses. */
+    public int start(List<String> zRelays, int zTimeoutMs) {
+        mPool.addFloor(zRelays);   // the bootstrap list: candidates discovery never drops
+        int n = mPool.fill(zTimeoutMs);
+        mRpc.setMyAddresses(mPool.contactAddresses());
+        return n;
+    }
+
+    public void stop() {
+        List<java.util.concurrent.CompletableFuture<Void>> pending;
+        synchronized (this) {
+            mStopping = true;
+            pending = new ArrayList<>(mDeliveries.values());
+            mDeliveries.clear();
+        }
+        for (java.util.concurrent.CompletableFuture<Void> done : pending) {
+            done.completeExceptionally(new IllegalStateException("node stopped"));
+        }
+        mRpc.close();
+        stopDirect();
+        mPool.closeAll();
+        try {
+            mDiscovery.stop();   // saves the peer list (classic P2P shutdown)
+            drainInbound(5_000); // let queued inbound persist before the store is flushed
+            mStore.flush();
+        } finally {
+            // Storage failure is reported, but cannot leave the node's workers accepting work.
+            mInboundExec.shutdown();
+            mRpcExec.shutdown();
+            mSideExec.shutdown();
+        }
+    }
+
+    /**
+     * Tier 2: start accepting direct connections on zPort (0 = any free port).
+     *
+     * The endpoint does not, by itself, make us reachable - a NAT still sits in
+     * front. The caller (the Android reachability manager) maps a public port
+     * to it, PROVES the port from outside, and only then calls
+     * {@link #setDirectAddress} so the address is advertised. Starting the
+     * listener and advertising an address are deliberately two steps.
+     *
+     * @return the bound port, or -1 on failure
+     */
+    public synchronized int startDirect(int zPort) {
+        if (mDirect != null && mDirect.isRunning()) {
+            return mDirect.port();
+        }
+        mDirect = new com.eurobuddha.maxima.core.net.DirectEndpoint(
+                mIdentity, mVersion, this::handle, mLocalBlobs);
+        return mDirect.start(zPort);
+    }
+
+    public synchronized void stopDirect() {
+        if (mDirect != null) {
+            mDirect.stop();
+            mDirect = null;
+        }
+        mDirectAddress = "";
+    }
+
+    public int directPort() {
+        return mDirect == null ? -1 : mDirect.port();
+    }
+
+    /** Wire our own blob store so the direct endpoint can serve our hosted files
+     *  to same-LAN peers. Call before {@link #startDirect}. */
+    public void setLocalBlobs(com.eurobuddha.maxima.core.store.BlobStore zBlobs) {
+        mLocalBlobs = zBlobs;
+    }
+
+    /**
+     * Advertise (or withdraw, with "") a PROVEN direct address of the form
+     * Mx&lt;identity&gt;@ip:port. Only call this AFTER the port has been shown
+     * reachable from outside - advertising an unverified address is the classic
+     * sin this whole layer refuses to repeat.
+     */
+    public void setDirectAddress(String zIpPort) {
+        mDirectAddress = zIpPort == null ? "" : zIpPort.trim();
+    }
+
+    /**
+     * Whether we currently have a PROVEN public direct address - the signal that
+     * we can actually serve the reachability-gated roles (directory/mailbox/
+     * storage). {@link #setDirectAddress} sets this only after the port has been
+     * shown reachable from outside, so it is never a guess.
+     */
+    public boolean isDirectlyReachable() {
+        return !mDirectAddress.isEmpty();
+    }
+
+    public String directAddress() {
+        // Sealed to the IDENTITY key, not a per-host key: on a direct link the
+        // endpoint decrypts with the identity private key, and there is no relay
+        // to hide the routing key from anyway (the address already exposes our
+        // IP). Relay addresses keep their per-host keys for unlinkability.
+        return mDirectAddress.isEmpty()
+                ? "" : mIdentity.mxIdentity() + "@" + mDirectAddress;
+    }
+
+    /**
+     * Every EXTERNALLY-REACHABLE address we can be reached at, direct first.
+     *
+     * This is what we hand to remote contacts, publish to MLS, show as "your
+     * address", and expose over IPC - so it must never contain our own LAN /
+     * site-local IP. A NAT'd phone has no routable address of its own; its
+     * reachable addresses are the relays it dialled out to (and a direct address
+     * only once it has been PROVEN public). This mirrors classic exactly, which
+     * advertises a connected OUTGOING host and refuses any internal-IP host
+     * (MaximaManager.java:515-573): we filter the advertised set through the same
+     * internal-IP predicate. The LAN direct address is deliberately excluded -
+     * it lives only in {@link #directAddresses()} for same-LAN blob serving.
+     *
+     * Direct leads because it is the cheapest path for a sender - no relay hop.
+     * (The 0.5.4 relay-first ordering was reverted: it removed the dead-direct
+     * timeout but forced a permanent 2-hop relay on every send to a reachable
+     * peer. The proper fix is a hedged send in sendToContact - see Part B - which
+     * makes a dead direct cheap so direct-first is safe again.)
+     */
+    public List<String> myAddresses() {
+        List<String> out = new ArrayList<>();
+        String pub = directAddress();               // proven-public direct only; NOT the LAN address
+        if (!pub.isEmpty() && !isInternalAddress(pub)) {
+            out.add(pub);
+        }
+        for (String a : mPool.contactAddresses()) {  // relays we dialled out to
+            if (!isInternalAddress(a)) {
+                out.add(a);
+            }
+        }
+        // Classic-scale addressing: advertise ONLY the home relays we actually
+        // attend (k is small). Staleness after a home move is healed the classic
+        // way - refreshContacts() pushes the new set on change, and a failed
+        // send does an on-demand MLS lookup (mlsLookup) - instead of being
+        // papered over by attending the whole fleet.
+        return out;
+    }
+
+    /** Bypass the internal-IP filter, exactly as classic's {@code -allowallip}.
+     *  Off by default: a phone is always NAT'd, so a LAN address is never a
+     *  valid thing to advertise. */
+    public static volatile boolean ALLOW_ALL_IP = false;
+
+    /**
+     * Classic's internal-IP test, mirrored EXACTLY (MaximaManager.java:519-527):
+     * a naive dotted-decimal prefix match on the host, intentionally broad. A
+     * classic node refuses to adopt (and therefore never advertises) any host
+     * whose address starts with one of these, so neither do we.
+     */
+    public static boolean isInternalHost(String zHost) {
+        if (ALLOW_ALL_IP || zHost == null || zHost.isEmpty()) {
+            return false;
+        }
+        String h = zHost.trim();
+        return h.startsWith("127.") || h.startsWith("10.") || h.startsWith("100.")
+                || h.startsWith("0.") || h.startsWith("169.") || h.startsWith("172.")
+                || h.startsWith("198.") || h.startsWith("192.");
+    }
+
+    /** As {@link #isInternalHost} but for a full {@code Mx…@host:port} address. */
+    public static boolean isInternalAddress(String zMxAddress) {
+        if (zMxAddress == null) {
+            return false;
+        }
+        int at = zMxAddress.lastIndexOf('@');
+        return isInternalHost(at < 0 ? zMxAddress : zMxAddress.substring(at + 1));
+    }
+
+    public void setLanAddress(String zIpPort) {
+        mLanAddress = zIpPort == null ? "" : zIpPort.trim();
+    }
+
+    /** LAN direct address (identity-keyed), or "" when off Wi-Fi. Same identity-key
+     *  form as {@link #directAddress()}: a direct link decrypts with the identity key. */
+    public String lanDirectAddress() {
+        return mLanAddress.isEmpty() ? "" : mIdentity.mxIdentity() + "@" + mLanAddress;
+    }
+
+    /**
+     * Addresses a peer can dial to reach our DirectEndpoint (proven-public first,
+     * then LAN) — the ONLY places our phone can serve its own hosted blobs. Relay
+     * addresses are excluded here: a relay only serves blobs it holds, and can't
+     * carry OUR blob response, so a relay-routed own address is a dead blob source.
+     */
+    public List<String> directAddresses() {
+        List<String> out = new ArrayList<>();
+        String pub = directAddress();
+        if (!pub.isEmpty()) {
+            out.add(pub);
+        }
+        String lan = lanDirectAddress();
+        if (!lan.isEmpty() && !lan.equals(pub)) {
+            out.add(lan);
+        }
+        return out;
+    }
+
+    /**
+     * Drain one relay connection.
+     *
+     * Call this per attached relay, from whatever thread the host prefers.
+     *
+     * @return true if a message was processed
+     */
+    public boolean pump(String zHostPort, int zTimeoutMs) throws Exception {
+        HostConnection conn = mPool.connection(zHostPort);
+        if (conn == null) {
+            return false;
+        }
+        HostConnection.Inbound in = conn.receive(zTimeoutMs);
+        if (in == null) {
+            return false;
+        }
+        handle(in);
+        return true;
+    }
+
+    /**
+     * The inbound lanes. Every attached relay has its own reader thread; the chat engine and
+     * the contact table were written for ONE pump thread, so inbound is serialised - but on a
+     * lane of its own, not under a node-wide lock held across disk and network. Before this,
+     * handle() was one synchronized block covering dedup, contact fsync, the reciprocal
+     * introduce (a network send), every RPC handler (a contacts.resolve did an MLS lookup,
+     * a node.cmd slept up to 2.5 s) and the chat persist: one slow thing deafened the node.
+     * Now: dedup + last-seen under the lock; chat + contact-ctrl normally on one inbound
+     * worker, and RPC on a separate worker. Saturated bounded queues fall back to the reader
+     * thread, so completion follows each delivery, not merely the worker's queue position.
+     */
+    private final java.util.concurrent.ThreadPoolExecutor mInboundExec = lane("maxima-inbound", 4096);
+    private final java.util.concurrent.ThreadPoolExecutor mRpcExec = lane("maxima-rpc", 1024);
+    /** Side work an inbound message triggers that must not hold the inbound lane (the
+     *  reciprocal introduce is a network send). */
+    private final java.util.concurrent.ThreadPoolExecutor mSideExec = lane("maxima-side", 256);
+
+    private static java.util.concurrent.ThreadPoolExecutor lane(String zName, int zQueue) {
+        java.util.concurrent.ThreadPoolExecutor e = new java.util.concurrent.ThreadPoolExecutor(
+                1, 1, 30, java.util.concurrent.TimeUnit.SECONDS,
+                new java.util.concurrent.LinkedBlockingQueue<>(zQueue),
+                r -> {
+                    Thread t = new Thread(r, zName);
+                    t.setDaemon(true);
+                    return t;
+                },
+                (task, executor) -> {
+                    if (executor.isShutdown()) throw new java.util.concurrent.RejectedExecutionException("lane closed");
+                    task.run(); // backpressure; its delivery future still tracks this reader-thread work
+                });
+        e.allowCoreThreadTimeOut(true);
+        return e;
+    }
+
+    /**
+     * Wait until everything queued on the inbound lane so far has run (bounded). The
+     * shutdown uses this for best-effort draining. Mailbox acknowledgement instead follows
+     * per-delivery futures, since a worker barrier cannot cover inline or RPC work.
+     */
+    boolean drainInbound(long zTimeoutMs) {
+        if (Thread.currentThread().isInterrupted()) return false;
+        if (Thread.currentThread().getName().equals("maxima-inbound")) {
+            return false; // the current delivery is still running; never certify it as finished
+        }
+        if (mInboundExec.isShutdown()) return false;
+        Thread caller = Thread.currentThread();
+        java.util.concurrent.CompletableFuture<Boolean> done = new java.util.concurrent.CompletableFuture<>();
+        // CallerRunsPolicy supplies backpressure for deliveries, but an inline barrier has NOT
+        // waited behind the queue. Only a barrier executed by the worker certifies its prefix.
+        Runnable barrier = () -> done.complete(Thread.currentThread() != caller);
+        try {
+            mInboundExec.execute(barrier);
+            return done.get(zTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    && !Thread.currentThread().isInterrupted();
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (Exception ignored) {
+            return false;
+        } finally {
+            mInboundExec.remove(barrier); // expired barriers must not accumulate behind a slow task
+        }
+    }
+
+    /** Route one inbound message: dedup and last-seen under the lock, the rest on lanes. */
+    public void handle(HostConnection.Inbound zInbound) {
+        MaximaMessage msg = zInbound.message;
+        final long sent;
+        try { sent = msg.mTimeMilli.getAsBigDecimal().longValueExact(); }
+        catch (ArithmeticException invalidTimestamp) { return; }
+        String app = msg.mApplication.toString();
+        String msgid = zInbound.msgid.to0xString();
+        boolean rpc = RpcEnvelope.APPLICATION.equals(app);
+        java.util.concurrent.CompletableFuture<Void> done;
+        synchronized (this) {
+            if (mStopping) {
+                java.util.concurrent.CompletableFuture<Void> stopped = new java.util.concurrent.CompletableFuture<>();
+                stopped.completeExceptionally(new IllegalStateException("node stopped"));
+                zInbound.deferAcknowledgementUntil(stopped);
+                return;
+            }
+            java.util.concurrent.CompletableFuture<Void> running = mDeliveries.get(msgid);
+            if (running != null) {
+                zInbound.deferAcknowledgementUntil(running);
+                return;
+            }
+            // Replay and duplicate protection - neither exists in classic.
+            DedupCache.Verdict v = mDedup.check(msgid, sent);
+            // Live and held units have the same wire shape. Only history content may use
+            // the longer mailbox horizon; RPC, calls and mutable controls stay on the
+            // original freshness gate. Keep the same bounded transport-id dedup cache.
+            boolean delayedChat = v == DedupCache.Verdict.STALE && isRetainedChat(msg, sent);
+            if (delayedChat) {
+                v = mDedup.seenBefore(msgid)
+                        ? DedupCache.Verdict.DUPLICATE : DedupCache.Verdict.ACCEPT;
+            }
+            if (v != DedupCache.Verdict.ACCEPT) {
+                if (v == DedupCache.Verdict.DUPLICATE) {
+                    zInbound.deferAcknowledgementUntil(mDedup.completion(msgid));
+                }
+                return;
+            }
+            done = new java.util.concurrent.CompletableFuture<>();
+            zInbound.deferAcknowledgementUntil(done);
+            if (mDeliveries.size() >= DedupCache.DEFAULT_MAX_ENTRIES) {
+                mDedup.forget(msgid);
+                done.completeExceptionally(new java.util.concurrent.RejectedExecutionException("inbound delivery capacity"));
+                return;
+            }
+            mDeliveries.put(msgid, done);
+            mDedup.trackCompletion(msgid, done);
+            // Keep presence updates for the original freshness window. The extended
+            // history admission must not mark a long-offline sender as online NOW.
+            // Classic bumps a contact's lastseen only on a contact-ctrl refresh
+            // (~20-min loop); we also count chat/RPC so the dot tracks a live
+            // conversation, not just the last handshake. In-memory only: the UI
+            // polls these Contact objects directly, and the periodic contact-ctrl
+            // refresh persists lastSeen. (Self-addressed check-connect probes carry
+            // our own key as the sender, so they match no contact and are ignored.)
+            Contact seen = mContacts.get(Keys.norm(msg.mFrom.to0xString()));
+            if (seen != null && !delayedChat) {
+                seen.lastSeen = System.currentTimeMillis();
+            }
+        }
+        java.util.concurrent.atomic.AtomicBoolean started = new java.util.concurrent.atomic.AtomicBoolean();
+        try {
+            (rpc ? mRpcExec : mInboundExec).execute(() -> {
+                started.set(true);
+                Throwable failure = null;
+                try {
+                    if (rpc) mRpc.onInbound(msg); else handleOnLane(zInbound);
+                } catch (Throwable error) {
+                    failure = error;
+                } finally {
+                    finishDelivery(msgid, done, failure, !rpc);
+                }
+                if (failure != null) log((rpc ? "rpc inbound: " : "inbound: ") + failure);
+            });
+        } catch (RuntimeException rejected) {
+            // CallerRuns can propagate an error from inside the task. Only a rejection
+            // before dispatch is known to have produced no RPC side effect.
+            finishDelivery(msgid, done, rejected, !started.get() || !rpc);
+        }
+    }
+
+    private void finishDelivery(String zMsgid, java.util.concurrent.CompletableFuture<Void> zDone,
+                                Throwable zFailure, boolean zRetryable) {
+        synchronized (this) {
+            mDeliveries.remove(zMsgid, zDone);
+            // RPC dispatch normally turns service errors into ERROR replies. An unexpected
+            // failure outside that contract may follow a side effect: retain its failed outcome
+            // in the bounded dedup cache instead of transparently executing the command again.
+            if (zFailure != null && zRetryable) mDedup.forget(zMsgid);
+        }
+        if (zFailure == null) zDone.complete(null); else zDone.completeExceptionally(zFailure);
+    }
+
+    /** Content understood by ChatEngine as history, never an action or a mutable control.
+     *  It still has a finite past horizon and cannot gain extra future clock skew. Relay
+     *  storage time is not authenticated on this wire: use the signed sender timestamp. */
+    private java.util.function.Predicate<MaximaMessage> mRetainedMessage = message -> false;
+
+    /** Host-owned passive inbox admission; never use for commands or automatic actions. */
+    public void setRetainedMessageValidator(java.util.function.Predicate<MaximaMessage> validator) {
+        mRetainedMessage = java.util.Objects.requireNonNull(validator);
+    }
+
+    private boolean isRetainedChat(MaximaMessage zMessage, long time) {
+        long now = System.currentTimeMillis();
+        if (time > now || time < now - Mailbox.DEFAULT_TTL_MS) return false;
+        if (mRetainedMessage.test(zMessage)) return true;
+        String app = zMessage.mApplication.toString();
+        if (!ChatMessage.APPLICATION.equals(app) && !ClassicChat.APPLICATION.equals(app)) return false;
+        try {
+            String payload = new String(zMessage.mData.getBytes(), StandardCharsets.UTF_8);
+            if (ClassicChat.APPLICATION.equals(app)) {
+                ClassicChat.parse(payload); // this channel only displays content, including media
+                return true;
+            }
+            ChatMessage chat = ChatMessage.decode(payload);
+            return !chat.id.isEmpty() && (chat.type == ChatMessage.TYPE_TEXT
+                    || chat.type == ChatMessage.TYPE_GROUP_TEXT || chat.type == ChatMessage.TYPE_PAYMENT);
+        } catch (RuntimeException malformed) {
+            return false;
+        }
+    }
+
+    /** The ordered part: check-connect, contact-ctrl and the app listener, one at a time. */
+    private void handleOnLane(HostConnection.Inbound zInbound) {
+        MaximaMessage msg = zInbound.message;
+        String app = msg.mApplication.toString();
+
+        // Check-connect reply: our own self-addressed probe came back down a
+        // host, proving that host actually RELAYS to us (not just answers
+        // keep-alives). The payload names the host it was sent through. Internal
+        // - never surfaced to an app listener.
+        if (CHECK_APP.equals(app)) {
+            // The self-probe carries OUR OWN identity as the sender. Without
+            // this check any contact could forge a __maxchk to pin a
+            // black-holing relay as "verified", defeating the check-connect
+            // audit that would otherwise detach it.
+            if (Keys.same(msg.mFrom.to0xString(), mIdentity.publicKeyHex())) {
+                mHostVerified.add(new String(msg.mData.getBytes(),
+                        StandardCharsets.UTF_8));
+            }
+            return;
+        }
+        if (ContactCtrl.APPLICATION.equals(app)) {
+            handleContactCtrl(msg);
+            return;
+        }
+        MessageListener l = mListener;
+        if (l != null) {
+            l.onMessage(msg, zInbound.msgid);
+        }
+    }
+
+    private void handleContactCtrl(MaximaMessage zMsg) {
+        try {
+            ContactCtrl.Parsed p = ContactCtrl.parse(
+                    new String(zMsg.mData.getBytes(), StandardCharsets.UTF_8),
+                    zMsg.mFrom.to0xString());
+
+            if (p.delete) {
+                Contact gone = mContacts.remove(Keys.norm(p.contact.publicKey));
+                mStore.remove(C_CONTACTS, Keys.norm(p.contact.publicKey));
+                if (gone != null) {
+                    fireContacts(gone, true);
+                }
+                return;
+            }
+            // Classic gate: may a stranger add us at all?
+            boolean known = mContacts.containsKey(Keys.norm(p.contact.publicKey));
+            if (!known && !mAllowAllContacts
+                    && !mAllowedContacts.contains(Keys.norm(p.contact.publicKey))) {
+                return;
+            }
+
+            Contact existing = mContacts.get(Keys.norm(p.contact.publicKey));
+            if (existing != null) {
+                // Carry over what only we know.
+                p.contact.myAddress = existing.myAddress;
+            }
+            recordAddressHistory(p.contact, existing);
+            mContacts.put(Keys.norm(p.contact.publicKey), p.contact);
+            saveContact(p.contact);
+            fireContacts(p.contact, false);
+
+            // Reciprocate an introduction, as the reference does - a network send, so off
+            // the inbound lane (it would hold every message behind one slow peer).
+            if (p.intro) {
+                final String addr = p.contact.primaryAddress();
+                mSideExec.execute(() -> {
+                    try {
+                        introduce(addr, false);
+                    } catch (Exception ignored) {
+                        // Best effort; the refresh cycle will retry.
+                    }
+                });
+            }
+        } catch (IllegalArgumentException e) {
+            // Bad JSON, or the publickey did not match the signer. Drop it.
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // contacts
+    // ---------------------------------------------------------------
+
+    /** Send a contact-ctrl introduction (or update) to an address. */
+    public void introduce(String zPeerAddress, boolean zIntro) throws Exception {
+        if (zPeerAddress == null) {
+            return;
+        }
+        // A MAX# permanent address resolves to the peer's CURRENT address via
+        // their MLS first - same behaviour as the classic engine. Without this
+        // the raw MAX# string reaches the socket parser and dies on the port.
+        // Keep the MAX#'s own MLS host: if the resolved address is BARE (a
+        // classic-slave peer publishes "Mx…@" with no host), we re-home the
+        // routing key onto that MLS host + our relays below.
+        String peerMls = null;
+        if (zPeerAddress.trim().startsWith("MAX#")) {
+            String max = zPeerAddress.trim();
+            int h2 = max.indexOf('#', max.indexOf('#') + 1);
+            if (h2 >= 0 && h2 < max.length() - 1) {
+                peerMls = max.substring(h2 + 1);
+            }
+            zPeerAddress = resolvePermanent(max);
+            log("MAX# resolved to " + zPeerAddress);
+        }
+        String json = ContactCtrl.build(
+                mIdentity.publicKeyHex(),
+                myAddresses(),   // externally-reachable, internal-IP-filtered set
+                mName, mIcon, mWalletAddress, mlsAddress(),
+                // Advertise the SERVER roles (directory/mailbox/storage) + host
+                // capacity only while we are actually directly reachable - a NAT'd
+                // node keeps its client-side roles (so it stays non-classic) but
+                // never promises a service it cannot serve. Reachability, not
+                // device type, is the gate.
+                mCapabilities.gateForReachability(isDirectlyReachable()),
+                mNodeKind, zIntro);
+
+        // Re-home a bare/hostless resolved address onto real relays (same as
+        // fanOut) and try each. A fully-qualified address yields exactly one
+        // form, so this is a no-op for the normal case. NEVER let a malformed
+        // address reach the parser raw (that threw "Range [n,-1]" on introduce).
+        byte[] payload = json.getBytes(StandardCharsets.UTF_8);
+        java.util.List<String> forms = routableForms(zPeerAddress, peerMls);
+        if (forms.isEmpty()) {
+            throw new IllegalStateException(
+                    "no reachable address for " + zPeerAddress
+                    + " (peer not registered at that MLS, or we share no relay)");
+        }
+        boolean ok = false;
+        for (String form : forms) {
+            try {
+                if (sendRaw(form, ContactCtrl.APPLICATION, payload).isOk()) {
+                    ok = true;
+                }
+            } catch (Exception ignored) {
+                // try the next form; a bad address must not crash the introduce
+            }
+        }
+        if (!ok) {
+            throw new IllegalStateException(
+                    "couldn't reach " + zPeerAddress + " on any known relay");
+        }
+    }
+
+    /** Tell every known contact our current addresses. Call after a relay change. */
+    /** Contact refreshes run a few at a time, never one by one: 150 contacts x a 20 s
+     *  timeout each was a 50-minute serial loop. */
+    private final java.util.concurrent.ExecutorService mRefreshExec =
+            new java.util.concurrent.ThreadPoolExecutor(0, 4, 30, java.util.concurrent.TimeUnit.SECONDS,
+                    new java.util.concurrent.SynchronousQueue<>(),
+                    r -> {
+                        Thread t = new Thread(r, "maxima-refresh");
+                        t.setDaemon(true);
+                        return t;
+                    },
+                    new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+    /** contact key -> epoch ms before which we do not try it again (exponential backoff after
+     *  a refresh in which none of its addresses accepted); cleared by any success. */
+    private final Map<String, Long> mRefreshNotBefore = new ConcurrentHashMap<>();
+    private final Map<String, Integer> mRefreshFailures = new ConcurrentHashMap<>();
+    private static final long REFRESH_BACKOFF_MIN_MS = 60_000L;
+    private static final long REFRESH_BACKOFF_MAX_MS = 6L * 3_600_000L;
+    /** One refresh round may not outlive this (the heartbeat calls the next). */
+    private static final long REFRESH_BUDGET_MS = 90_000L;
+
+    public int refreshContacts() {
+        publishToMls();
+        final java.util.concurrent.atomic.AtomicInteger ok = new java.util.concurrent.atomic.AtomicInteger();
+        final long now = System.currentTimeMillis();
+        List<java.util.concurrent.Future<?>> pending = new ArrayList<>();
+        for (Contact c : mContacts.values()) {
+            final String key = Keys.norm(c.publicKey);
+            Long due = mRefreshNotBefore.get(key);
+            if (due != null && now < due) {
+                continue;   // backing off: its addresses were all dead last time
+            }
+            final Contact fc = c;
+            pending.add(mRefreshExec.submit(() -> {
+                boolean any = false;
+                for (String addr : fc.addresses) {
+                    try {
+                        introduce(addr, false);
+                        any = true;
+                        break;
+                    } catch (Exception ignored) {
+                        // try the next address
+                    }
+                }
+                if (any) {
+                    ok.incrementAndGet();
+                    mRefreshFailures.remove(key);
+                    mRefreshNotBefore.remove(key);
+                } else {
+                    int n = mRefreshFailures.merge(key, 1, Integer::sum);
+                    long wait = Math.min(REFRESH_BACKOFF_MAX_MS, REFRESH_BACKOFF_MIN_MS << Math.min(n, 12));
+                    mRefreshNotBefore.put(key, System.currentTimeMillis() + wait);
+                }
+            }));
+        }
+        long deadline = now + REFRESH_BUDGET_MS;
+        for (java.util.concurrent.Future<?> f : pending) {
+            long left = deadline - System.currentTimeMillis();
+            if (left <= 0) {
+                break;   // the rest finish on their own; the next round counts them
+            }
+            try {
+                f.get(left, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (Exception ignored) {
+            }
+        }
+        return ok.get();
+    }
+
+    // ---------------------------------------------------------------
+    // sending
+    // ---------------------------------------------------------------
+
+    /**
+     * Send to a CONTACT rather than a raw address, trying every address they
+     * have. Classic lets you send by contact id for the same reason: a human
+     * should not have to know which host someone is on today.
+     */
+    public MaximaSender.Result sendToContact(Contact zContact, String zApplication, byte[] zData)
+            throws Exception {
+        return sendToContact(zContact, zApplication, zData, true);
+    }
+
+    /**
+     * As {@link #sendToContact(Contact, String, byte[])}; {@code zAllAddresses=false} stops at
+     * the FIRST relay that accepts (group fan-out: N members x every address is the cost that
+     * made groups slow; one accepted copy per member is enough, the MLS heal still runs if none
+     * accepts). 1:1 keeps the every-mailbox redundancy.
+     */
+    public MaximaSender.Result sendToContact(Contact zContact, String zApplication, byte[] zData,
+                                             boolean zAllAddresses) throws Exception {
+        // 1. LAN FIRST. A same-network hit is a REAL delivery straight to the peer's
+        //    endpoint (not a mailbox), so on success we are done - instant, no relay.
+        //    A short connect leash means a stale LAN entry fails in a few seconds and
+        //    self-heals via forgetLanPeer, and we fall through to the relays.
+        String lan = mLanPeers.get(Keys.norm(zContact.publicKey));
+        if (lan != null) {
+            try {
+                MaximaSender.Result r = sendRaw(lan, zApplication, zData,
+                        SEND_CONNECT_TIMEOUT_MS, MaximaSender.READ_TIMEOUT_MS);
+                if (r.isOk()) {
+                    return r;
+                }
+                forgetLanPeer(zContact.publicKey);
+            } catch (Exception e) {
+                forgetLanPeer(zContact.publicKey);
+            }
+        }
+
+        // 2. FAN OUT to EVERY advertised address (direct + all relays), not just the
+        //    first that accepts. A relay only stores-and-forwards; the peer pulls from
+        //    whichever relay it is attached to RIGHT NOW. On a weak/flapping network the
+        //    peer's live relay set drifts away from any single relay we would pick, so a
+        //    one-relay delivery strands in a mailbox the peer never checks - the cause of
+        //    the multi-minute stalls and lost messages. sendRaw opens a fresh connection
+        //    to each relay, so we can drop a copy in ALL of the peer's mailboxes; wherever
+        //    the peer is actually listening, a copy lands. The peer dedups by message id
+        //    (ChatMessage.id), so the extra copies are harmless. This is the reliability
+        //    guarantee: as long as the peer is reachable via ANY of its relays, it wins.
+        MaximaSender.Result okResult = fanOut(zContact, zApplication, zData, zAllAddresses);
+        if (okResult != null) {
+            return okResult;
+        }
+
+        // 3. THE CLASSIC HEAL: every address failed, so the contact's advertised
+        //    set is stale (they moved homes while we weren't told). Ask their MLS
+        //    - the phone book classic uses for exactly this - for their CURRENT
+        //    address, and retry once. This is what lets a small home-relay set
+        //    (k=2, not the whole fleet) stay reliable: staleness is healed on
+        //    demand instead of being papered over with redundancy.
+        if (mlsLookup(zContact)) {
+            okResult = fanOut(zContact, zApplication, zData, zAllAddresses);
+            if (okResult != null) {
+                return okResult;
+            }
+        }
+        throw new IllegalStateException("no reachable address for " + zContact.name);
+    }
+
+    /** One pass over the contact's advertised addresses. First OK wins the
+     *  return but every address still gets a copy (mailbox redundancy). Null
+     *  if nothing accepted. */
+    private MaximaSender.Result fanOut(Contact zContact, String zApplication, byte[] zData) {
+        return fanOut(zContact, zApplication, zData, true);
+    }
+
+    private MaximaSender.Result fanOut(Contact zContact, String zApplication, byte[] zData,
+                                       boolean zAllAddresses) {
+        MaximaSender.Result okResult = null;
+        // Per-address outcome, reported ONLY on total failure. A silent
+        // all-addresses-dead fan-out is how an outbound path stays invisibly
+        // broken for minutes while inbound flows.
+        StringBuilder fails = new StringBuilder();
+        // Expand each stored address into concrete sendable forms. A well-formed
+        // Mx…@host:port passes through unchanged; a BARE / hostless one (classic
+        // slave mode advertises "Mx…@") is re-homed onto relays we can reach.
+        java.util.LinkedHashSet<String> targets = new java.util.LinkedHashSet<>();
+        for (String addr : zContact.addresses) {
+            targets.addAll(routableForms(addr, zContact));
+        }
+        for (String addr : targets) {
+            try {
+                MaximaSender.Result r = sendRaw(addr, zApplication, zData,
+                        SEND_CONNECT_TIMEOUT_MS, MaximaSender.READ_TIMEOUT_MS);
+                if (r.isOk() && okResult == null) {
+                    okResult = r;
+                    if (!zAllAddresses) {
+                        break;   // group send: one accepted copy is the whole job
+                    }
+                }
+                if (!r.isOk()) {
+                    fails.append(fails.length() == 0 ? "" : " | ")
+                            .append(addr).append(" -> ").append(r.statusName);
+                }
+            } catch (Exception e) {
+                fails.append(fails.length() == 0 ? "" : " | ")
+                        .append(addr).append(" -> ")
+                        .append(e.getClass().getSimpleName())
+                        .append(e.getMessage() == null ? "" : ": " + e.getMessage());
+            }
+        }
+        if (okResult == null) {
+            log("send DEAD to " + zContact.name + " (" + targets.size()
+                    + " target" + (targets.size() == 1 ? "" : "s") + "): " + fails);
+        }
+        return okResult;
+    }
+
+    /**
+     * Concrete sendable addresses for one stored contact address.
+     *
+     * A fully-qualified {@code Mx…@host:port} is returned as-is. A BARE / hostless
+     * address - classic slave mode advertises {@code Mx…@} with the host meant to
+     * be resolved via MLS, and the built-in engine used to CRASH parsing it - is
+     * re-homed: its routing key is registered on whatever relays the peer is
+     * attached to, and we typically share the fleet, so we address that key to
+     * the peer's own pinned static-MLS host AND to every relay WE hold. Wherever
+     * we share a relay with the peer, a copy lands (the peer dedups by msgid).
+     * This is how the built-in engine speaks classic's bare-address convention.
+     */
+    private java.util.List<String> routableForms(String zAddr, Contact zContact) {
+        return routableForms(zAddr, zContact == null ? null : zContact.mls);
+    }
+
+    /** As {@link #routableForms(String, Contact)} but taking the peer's full MLS
+     *  address ({@code Mx…@host:port}) directly - lets the introduce-by-MAX# path
+     *  re-home a hostless resolved address without a Contact. */
+    private java.util.List<String> routableForms(String zAddr, String zPeerMls) {
+        java.util.List<String> out = new ArrayList<>();
+        if (zAddr == null || zAddr.isEmpty()) {
+            return out;
+        }
+        int at = zAddr.indexOf('@');
+        int colon = at < 0 ? -1 : zAddr.indexOf(':', at + 1);
+        if (at > 0 && colon > at + 1 && colon < zAddr.length() - 1) {
+            out.add(zAddr);   // already fully-qualified Mx…@host:port
+            return out;
+        }
+        String routing = at > 0 ? zAddr.substring(0, at) : zAddr;
+        if (routing.isEmpty()) {
+            return out;
+        }
+        java.util.LinkedHashSet<String> hosts = new java.util.LinkedHashSet<>();
+        // The peer's pinned static-MLS host first (a relay they are surely on).
+        if (zPeerMls != null) {
+            int a = zPeerMls.indexOf('@');
+            if (a >= 0 && a < zPeerMls.length() - 1) {
+                hosts.add(zPeerMls.substring(a + 1));
+            }
+        }
+        // …then every relay WE currently hold - we very likely share the fleet.
+        hosts.addAll(mPool.activeHosts());
+        for (String h : hosts) {
+            if (h != null && !h.isEmpty() && h.indexOf(':') > 0) {
+                out.add(routing + "@" + h);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Ask a contact's MLS server for their CURRENT address (classic's
+     * {@code **maxima_mls_get**}; the answer rides back in the ack channel as a
+     * serialised MLSPacketGETResp - see {@link MaximaSender.Result#replyData}).
+     * On success the fresh address is put at the FRONT of the contact's set
+     * (old ones kept as fallback) and persisted.
+     *
+     * @return true if the contact's address set was updated
+     */
+    public boolean mlsLookup(Contact zContact) {
+        String mls = zContact.mls;
+        if (mls == null || mls.isEmpty() || zContact.publicKey == null) {
+            log("mls lookup " + zContact.name + ": no mls address stored");
+            return false;
+        }
+        try {
+            final String nonce = new MiniData(
+                    com.eurobuddha.maxima.core.crypto.MaximaCrypto
+                            .randomBytes(16)).to0xString();
+            com.eurobuddha.maxima.core.msg.MLSPacketGETReq req =
+                    new com.eurobuddha.maxima.core.msg.MLSPacketGETReq(
+                            zContact.publicKey, nonce);
+            MaximaSender.Result r = sendRaw(mls,
+                    com.eurobuddha.maxima.core.directory.MlsService.APP_GET,
+                    com.eurobuddha.maxima.core.codec.Codec.serialise(req),
+                    SEND_CONNECT_TIMEOUT_MS, MaximaSender.READ_TIMEOUT_MS);
+            if (r == null || !r.hasPayload()) {
+                log("mls lookup " + zContact.name + " @ " + mls + ": no answer");
+                return false;
+            }
+            com.eurobuddha.maxima.core.msg.MLSPacketGETResp resp =
+                    com.eurobuddha.maxima.core.msg.MLSPacketGETResp
+                            .fromBytes(r.replyData.getBytes());
+            String addr = resp.getAddress();
+            if (addr == null || addr.isEmpty()
+                    || !Keys.same(resp.getPublicKey(), zContact.publicKey)
+                    || !nonce.equals(resp.getRandomUID())) {
+                // The nonce check is the redirect-attack defence a malicious
+                // relay could otherwise use to hand us a forged address; the
+                // background resolve path (MlsClient) already enforces it.
+                log("mls lookup " + zContact.name + " @ " + mls
+                        + ": empty, mismatched, or replayed record");
+                return false;
+            }
+            // Never accept an internal-IP address from the directory.
+            if (isInternalAddress(addr)) {
+                return false;
+            }
+            if (!addr.equals(zContact.primaryAddress())) {
+                java.util.List<String> merged = new ArrayList<>();
+                merged.add(addr);
+                merged.addAll(zContact.addresses);
+                zContact.setAddresses(merged);
+                saveContact(zContact);
+                fireContacts(zContact, false);
+            }
+            return true;
+        } catch (Exception e) {
+            log("mls lookup " + zContact.name + " @ " + mls + ": "
+                    + e.getClass().getSimpleName()
+                    + (e.getMessage() == null ? "" : ": " + e.getMessage()));
+            return false;
+        }
+    }
+
+    /**
+     * Note a peer just discovered on the local network (Tier 2 LAN, phase E).
+     *
+     * The address is sealed to the peer's IDENTITY key - exactly what their
+     * direct endpoint decrypts with - so it is built the same way our own direct
+     * address is. Kept OUT of the persisted contact: a LAN address is true only
+     * while both devices are on that network, so it is ephemeral by design.
+     *
+     * @param zPeerIdentityHex the peer's identity public key (0x hex)
+     * @param zLanHostPort     e.g. 192.168.1.42:9601
+     */
+    public void noteLanPeer(String zPeerIdentityHex, String zLanHostPort) {
+        Contact c = contact(zPeerIdentityHex);
+        if (c == null) {
+            return;   // only peers we already know as contacts
+        }
+        String mx = com.eurobuddha.maxima.core.identity.MxAddress.make(
+                new MiniData(zPeerIdentityHex));
+        mLanPeers.put(Keys.norm(zPeerIdentityHex), mx + "@" + zLanHostPort);
+    }
+
+    public void forgetLanPeer(String zPeerIdentityHex) {
+        mLanPeers.remove(Keys.norm(zPeerIdentityHex));
+    }
+
+    /** The LAN address currently known for a contact, or null. */
+    public String lanAddressFor(String zPeerIdentityHex) {
+        return mLanPeers.get(Keys.norm(zPeerIdentityHex));
+    }
+
+    /** Send an application message to an address, no reliability wrapper. */
+    /**
+     * Ask each attached relay to dial our public address on zPort and greet: true iff one answers
+     * OK. The same proof ReachabilityManager uses for the direct port, offered for any listener
+     * (the phone relay on 9535, a desktop relay) so a Network page can say "reached" honestly.
+     */
+    public boolean provePortFromRelays(int zPort) {
+        for (String hostPort : pool().activeHosts()) {
+            HostConnection c = pool().connection(hostPort);
+            String relayAddr = c == null ? null : c.getTheirMlsAddress();
+            if (relayAddr == null) {
+                continue;
+            }
+            try {
+                MaximaSender.Result r = sendRaw(relayAddr, com.eurobuddha.maxima.core.net.Probe.APPLICATION,
+                        com.eurobuddha.maxima.core.net.Probe.request(zPort));
+                if (r.isOk()) {
+                    return true;
+                }
+            } catch (Exception ignored) {
+                // try the next relay
+            }
+        }
+        return false;
+    }
+
+    public MaximaSender.Result sendRaw(String zAddress, String zApplication, byte[] zData)
+            throws Exception {
+        return sendRaw(zAddress, zApplication, zData,
+                MaximaSender.CONNECT_TIMEOUT_MS, MaximaSender.READ_TIMEOUT_MS);
+    }
+
+    /**
+     * As {@link #sendRaw(String, String, byte[])} but with caller-chosen socket
+     * timeouts - blob replication uses a short leash (see {@code MediaWire.put}).
+     */
+    public MaximaSender.Result sendRaw(String zAddress, String zApplication, byte[] zData,
+                                       int zConnectTimeoutMs, int zReadTimeoutMs)
+            throws Exception {
+        int at = zAddress.indexOf('@');
+        int colon = at < 0 ? -1 : zAddress.indexOf(':', at + 1);
+        // Guard a bare / hostless address (e.g. classic slave mode advertises
+        // "Mx…@" with the host meant to be resolved via MLS). It is not directly
+        // sendable - callers re-home the routing key onto a real relay first via
+        // routableForms(). Refuse cleanly here rather than crash the parse below
+        // (the old substring(at+1, colon) threw StringIndexOutOfBounds on "-1").
+        if (at <= 0 || colon <= at + 1 || colon >= zAddress.length() - 1) {
+            return MaximaSender.Result.of(-1);
+        }
+        MiniData routing = com.eurobuddha.maxima.core.identity.MxAddress
+                .convert(zAddress.substring(0, at));
+        String host = zAddress.substring(at + 1, colon);
+        int port = Integer.parseInt(zAddress.substring(colon + 1));
+
+        MaximaSender.Built built = MaximaSender.build(
+                mIdentity.publicKey(), mIdentity.keyPair().getPrivate(),
+                routing.getBytes(), zApplication, zData, System.currentTimeMillis());
+
+        // Over the attached link when this host is one of our relays; a fresh socket otherwise.
+        return MaximaSender.send(host, port, built.unit, built.msgid,
+                zConnectTimeoutMs, zReadTimeoutMs, mPool.attachedSender());
+    }
+
+    /** A directory client that sends over our attached relay links where it can. */
+    private com.eurobuddha.maxima.core.directory.MlsClient mlsClient() {
+        return new com.eurobuddha.maxima.core.directory.MlsClient(mIdentity)
+                .attached(mPool.attachedSender());
+    }
+
+    /**
+     * Send with retry: queue in the outbox, try every known address for the
+     * peer, and keep the item until it succeeds or the attempts run out.
+     */
+    public String sendReliable(Contact zPeer, String zApplication, byte[] zData) {
+        String msgid = new MiniData(
+                com.eurobuddha.maxima.core.crypto.MaximaCrypto.randomBytes(16)).to0xString();
+        mOutbox.add(msgid, zPeer.publicKey, zPeer.addresses, zApplication, zData);
+        return msgid;
+    }
+
+    /**
+     * Work the outbox once. Drive from a heartbeat.
+     *
+     * @return how many were delivered this pass
+     */
+    public int flushOutbox() {
+        int sent = 0;
+        for (Outbox.Item item : mOutbox.due()) {
+            String addr = item.currentAddress();
+            if (addr == null) {
+                mOutbox.failed(item, "no address");
+                continue;
+            }
+            try {
+                MaximaSender.Result r = sendRaw(addr, item.application, item.payload);
+                if (r.isOk()) {
+                    mOutbox.acknowledge(item.msgid);
+                    sent++;
+                } else {
+                    mOutbox.failed(item, r.statusName);
+                }
+            } catch (Exception e) {
+                mOutbox.failed(item, e.getClass().getSimpleName());
+            }
+        }
+        return sent;
+    }
+
+    /** Periodic upkeep: relays, outbox, expiries. Drive from a heartbeat. */
+    public void maintain(int zAttachTimeoutMs) {
+        java.util.Set<String> before = new java.util.HashSet<>(mPool.activeHosts());
+        mPool.reconcile(zAttachTimeoutMs);
+        List<String> addrs = mPool.contactAddresses();
+        mRpc.setMyAddresses(addrs);
+
+        // Compare the host SET, not just its size: a black-hole host dropped and
+        // replaced by a live one leaves the count unchanged but our reachable
+        // address CHANGED, so contacts hold a stale address and must be told the
+        // new one (classic's MAXIMA_DISCONNECTED -> reassign-contacts flow). The
+        // old count-only check missed exactly this same-count swap.
+        java.util.Set<String> after = new java.util.HashSet<>(mPool.activeHosts());
+        if (!before.equals(after)) {
+            for (String h : after) {
+                fireHosts(h, true);
+            }
+            for (String h : before) {
+                if (!after.contains(h)) {
+                    fireHosts(h, false);   // a host we lost - apps can react
+                }
+            }
+            refreshContacts();
+        }
+        auditHosts();
+        mDiscovery.tick();    // deferred rechecks, the 6-hour full recheck, the 10-min save
+        updateMlsServers();   // adopt/rotate our Location Service on schedule
+        flushOutbox();
+        mRpc.expire();
+        mDirectory.flushExpired();
+
+        // The periodic Maxima loop: re-publish + re-announce + re-resolve stale
+        // contacts, on the reference's cadence, INDEPENDENT of a host-set change.
+        // Classic does this every 20 min (first at 3 min) so a contact who moved
+        // hosts, or an MLS entry that expired, is refreshed even when nothing on
+        // our side changed. The heartbeat calls maintain() far more often than
+        // this; the time gate makes it fire on the reference schedule.
+        long nowT = System.currentTimeMillis();
+        long due = (mLastMaximaLoop == 0)
+                ? mStartedAt + FIRST_LOOP_MS
+                : mLastMaximaLoop + MAXIMA_LOOP_MS;
+        if (nowT >= due) {
+            mLastMaximaLoop = nowT;
+            maximaLoop();
+        }
+    }
+
+    /**
+     * Check-connect audit (the reference's MAXIMA_SENDCHKCONNECT /
+     * MAXIMA_CHECK_CONNECTED). Keep-alive proves a host's SOCKET is alive; this
+     * proves the host actually RELAYS a message addressed to us - a host can hold
+     * the socket and answer pings while silently dropping relayed traffic.
+     *
+     * For each attached host not yet verified: send a self-addressed probe
+     * through it (once), and if the probe has not come back within the grace
+     * window, detach the host so reconcile fills a working one. A verified host
+     * is never re-probed while it stays attached; a host that drops loses its
+     * verification and is re-probed on re-attach.
+     */
+    void auditHosts() {
+        java.util.List<String> active = mPool.activeHosts();
+        // Forget state for hosts no longer attached (re-attach re-verifies).
+        mHostVerified.retainAll(active);
+        mHostCheckSent.keySet().retainAll(active);
+        long now = System.currentTimeMillis();
+        for (String hp : active) {
+            if (mHostVerified.contains(hp)) {
+                continue;
+            }
+            Long sent = mHostCheckSent.get(hp);
+            if (sent == null) {
+                // Only record it as sent if the relay ACCEPTED it for relay; a
+                // failed send is our problem, not proof the host does not relay.
+                if (sendCheckConnect(hp)) {
+                    mHostCheckSent.put(hp, now);
+                }
+            } else if (now - sent > CHECK_GRACE_MS) {
+                // Accepted for relay, graced, never delivered back: this host is
+                // not relaying to us. Drop it; reconcile refills with a live one.
+                mPool.detach(hp);
+                mHostCheckSent.remove(hp);
+            }
+        }
+    }
+
+    /** Whether a host has passed its check-connect (proven to relay to us). */
+    public boolean isHostVerified(String zHostPort) {
+        return mHostVerified.contains(zHostPort);
+    }
+
+    /** Send a self-addressed check-connect probe through one host. The relay
+     *  routes it to our per-host key, which is registered only on THIS host, so
+     *  it can only arrive back down this host's connection. Returns true if the
+     *  relay accepted it for relay. */
+    private boolean sendCheckConnect(String zHostPort) {
+        HostConnection c = mPool.connection(zHostPort);
+        if (c == null || !c.isAttached()) {
+            return false;
+        }
+        try {
+            MaximaSender.Result r = sendRaw(c.contactAddress(), CHECK_APP,
+                    zHostPort.getBytes(StandardCharsets.UTF_8),
+                    CHECK_TIMEOUT_MS, CHECK_TIMEOUT_MS);
+            return r.isOk();
+        } catch (Exception e) {
+            return false;   // retry next tick
+        }
+    }
+
+    /** One turn of the reference's MAXIMA_LOOP: re-publish our address to MLS and
+     *  re-announce to every contact (MAXIMA_REFRESH), then re-resolve contacts we
+     *  have not heard from recently (MAXIMA_CHECK_MLS). */
+    void maximaLoop() {
+        refreshContacts();      // publishToMls() + re-introduce to all contacts
+        checkStaleMls();
+        mPool.purgeOldHosts();  // reference deleteOldHosts: forget 7-day-dead relays
+    }
+
+    /**
+     * Self-heal stale contacts (the reference's MAXIMA_CHECK_MLS, made robust).
+     * For every contact we have not heard from for {@link #MLS_STALE_MS}, look up
+     * its CURRENT address again - not only via the one MLS it last advertised
+     * (which may be empty or itself stale), but across EVERY directory we can
+     * reach: their cached MLS first, then each relay we are attached to. Because
+     * we also publish ourselves to all those relays ({@link #publishToMls}), two
+     * nodes that share ANY relay converge without a manual re-add - closing the
+     * mutual-orphaning gap where both sides hold each other's old address.
+     *
+     * The network work runs off-thread (a slow directory must never stall the
+     * heartbeat), guarded so passes cannot pile up.
+     *
+     * @return how many stale contacts were scheduled for re-resolution
+     */
+    public int checkStaleMls() {
+        long now = System.currentTimeMillis();
+        java.util.List<Contact> stale = new ArrayList<>();
+        for (Contact c : mContacts.values()) {
+            if (now - c.lastSeen >= MLS_STALE_MS) {
+                stale.add(c);
+            }
+        }
+        if (stale.isEmpty()) {
+            return 0;
+        }
+        java.util.List<String> dirs = reachableDirectories();
+        // Nothing to query with (no relay, no cached MLS on any stale contact) -
+        // do not spin up a thread that can only fail.
+        boolean anyMls = false;
+        for (Contact c : stale) {
+            if (c.mls != null && !c.mls.isEmpty()) {
+                anyMls = true;
+                break;
+            }
+        }
+        if (dirs.isEmpty() && !anyMls) {
+            return 0;
+        }
+        if (!mResolveBusy.compareAndSet(false, true)) {
+            return 0;   // a resolve pass is already running
+        }
+        Thread t = new Thread(() -> {
+            try {
+                resolveStale(stale, dirs);
+            } finally {
+                mResolveBusy.set(false);
+            }
+        }, "mls-selfheal");
+        t.setDaemon(true);
+        t.start();
+        return stale.size();
+    }
+
+    /** Every directory we can currently query: each attached relay's offered MLS,
+     *  plus our own current/old MLS. Deduped. */
+    private java.util.List<String> reachableDirectories() {
+        // Best-scoring hosts first (merit, no node type). The set is a
+        // LinkedHashSet so query order follows score: the most reliable / highest
+        // -capacity directories are tried first, and the 2-relay-agreement in
+        // resolveVia still governs which answer we trust.
+        java.util.LinkedHashSet<String> dirs = new java.util.LinkedHashSet<>();
+        for (String h : mPool.activeHostsByScore()) {
+            HostConnection hc = mPool.connection(h);
+            String m = hc == null ? null : hc.getTheirMlsAddress();
+            if (m != null && !m.isEmpty()) {
+                dirs.add(m);
+            }
+        }
+        if (!mlsAddress().isEmpty()) {
+            dirs.add(mlsAddress());
+        }
+        if (mOldMls != null && !mOldMls.isEmpty()) {
+            dirs.add(mOldMls);
+        }
+        return new ArrayList<>(dirs);
+    }
+
+    private void resolveStale(java.util.List<Contact> zStale, java.util.List<String> zDirs) {
+        for (Contact c : zStale) {
+            String fresh = resolveVia(c, zDirs);
+            if (fresh == null || fresh.equals(c.primaryAddress())) {
+                continue;
+            }
+            // Freshest address first; keep the rest as fallbacks. Do NOT bump
+            // lastSeen - a lookup is not hearing from them, and bumping it would
+            // stop us re-checking a still-moving contact.
+            java.util.List<String> merged = new ArrayList<>();
+            merged.add(fresh);
+            for (String a : c.addresses) {
+                if (!a.equals(fresh)) {
+                    merged.add(a);
+                }
+            }
+            c.setAddresses(merged);
+            saveContact(c);
+            fireContacts(c, false);
+            // Push our current info to them at the fresh address so THEIR cache of
+            // us updates too - this is what fixes mutual orphaning without a
+            // manual re-add on either side.
+            try {
+                introduce(fresh, false);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    /**
+     * Resolve a contact's current address SAFELY. A resolved address carries the
+     * per-host key we then ENCRYPT to, so a directory that lies about it can make
+     * us encrypt a message to an attacker's key. We therefore trust two things:
+     *
+     *  1. The contact's OWN advertised MLS ({@code c.mls}) - the contact chose
+     *     that directory, so a single answer from it is the classic trust model.
+     *  2. Otherwise, a relay we merely happen to use is NOT an authority on the
+     *     contact's key, so a relay answer is accepted ONLY when at least two
+     *     INDEPENDENT relays AGREE on it. A single malicious/compromised relay in
+     *     our pool then cannot redirect our traffic to a key it controls.
+     *
+     * Requiring agreement also fixes the "fastest stale answer wins" race: a lone
+     * out-of-date directory can no longer overwrite a good address.
+     */
+    private String resolveVia(Contact c, java.util.List<String> zRelayDirs) {
+        if (c.mls != null && !c.mls.isEmpty()) {
+            String a = tryResolve(c.mls, c.publicKey);
+            if (a != null) {
+                return a;                       // contact-vouched directory
+            }
+        }
+        java.util.Map<String, Integer> votes = new java.util.LinkedHashMap<>();
+        for (String dir : zRelayDirs) {
+            if (dir.equals(c.mls)) {
+                continue;                       // already tried above
+            }
+            String a = tryResolve(dir, c.publicKey);
+            if (a != null && votes.merge(a, 1, Integer::sum) >= 2) {
+                return a;                       // >=2 independent relays agree
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Resolve a bare identity key across a set of directories, accepting an address only when
+     * >=2 independently agree — the same anti-malice quorum as {@link #resolveVia}, but keyed
+     * by a public key rather than a Contact (used by the permanent-address fallback, B3). A
+     * single pool relay is not an authority, so one answer never wins; two agreeing do.
+     */
+    private String resolveKeyVia(String zTargetKey, java.util.List<String> zDirs) {
+        java.util.Map<String, Integer> votes = new java.util.LinkedHashMap<>();
+        for (String dir : zDirs) {
+            String a = tryResolve(dir, zTargetKey);
+            if (a != null && votes.merge(a, 1, Integer::sum) >= 2) {
+                return a;
+            }
+        }
+        return null;
+    }
+
+    private String tryResolve(String zDir, String zTargetKey) {
+        try {
+            com.eurobuddha.maxima.core.directory.MlsClient.Resolved r =
+                    mlsClient()
+                            .resolve(zDir, zTargetKey, SELFHEAL_TIMEOUT_MS, SELFHEAL_TIMEOUT_MS);
+            return r.ok() && r.address != null && !r.address.isEmpty() ? r.address : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+}

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:tag="l10n:text=l10n_chat_to_pay_address"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="TO THEIR PAY ADDRESS"
+        android:textSize="11sp"
+        android:alpha="0.7" />
+
+    <TextView
+        android:id="@+id/pay_to"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:textSize="12sp"
+        android:textIsSelectable="true" />
+
+    <TextView
+        android:tag="l10n:text=l10n_chat_pay_currency"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="CURRENCY"
+        android:textSize="11sp"
+        android:alpha="0.7" />
+    <RadioGroup
+        android:id="@+id/pay_currency"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <RadioButton
+            android:id="@+id/pay_minima"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="Minima" />
+        <RadioButton
+            android:id="@+id/pay_mxusd"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="18dp"
+            android:text="MxUSD" />
+    </RadioGroup>
+    <EditText
+        android:id="@+id/pay_amount"
+        android:tag="l10n:hint=l10n_chat_amount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:hint="Amount"
+        android:inputType="numberDecimal"
+        android:maxLines="1" />
+
+    <TextView
+        android:tag="l10n:text=l10n_chat_real_funds_any"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="This sends real funds from this node's wallet."
+        android:textSize="12sp"
+        android:alpha="0.7" />
+</LinearLayout>

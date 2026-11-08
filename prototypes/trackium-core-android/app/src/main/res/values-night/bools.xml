@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- dark theme -> light icons on dark system bars -->
+    <bool name="light_status_bar">false</bool>
+    <bool name="light_nav_bar">false</bool>
+</resources>

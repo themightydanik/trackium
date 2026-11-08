@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/core_surface"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:text="Package" android:tag="l10n:text=l10n_apps_package"
+        android:textAppearance="@style/TextAppearance.MinimaCore.Eyebrow" />
+
+    <TextView
+        android:id="@+id/app_info_package"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:textColor="@color/core_text"
+        android:textSize="13sp" />
+
+    <CheckBox
+        android:id="@+id/app_info_enabled"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Enabled" android:tag="l10n:text=l10n_wallet_bio_enabled"
+        android:textColor="@color/core_text"
+        android:textAppearance="@style/TextAppearance.MinimaCore.Body" />
+
+    <CheckBox
+        android:id="@+id/app_info_admin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Admin" android:tag="l10n:text=l10n_apps_admin"
+        android:textColor="@color/core_text"
+        android:textAppearance="@style/TextAppearance.MinimaCore.Body" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        android:background="@drawable/bg_token_tile"
+        android:text="Do NOT enable ADMIN unless you trust the App." android:tag="l10n:text=l10n_apps_admin_warning"
+        android:textAppearance="@style/TextAppearance.MinimaCore.Caption"
+        android:textColor="@color/status_warn" />
+</LinearLayout>

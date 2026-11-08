@@ -1,0 +1,109 @@
+{
+  "fixed": {
+    "Nothing to distribute.": "utxo.distributionNothing",
+    "Selected coins don't cover the distribution.": "utxo.distributionFunds",
+    "Distribute: final batch got no reply from the node in time — see 'posted?' in History.": "utxo.distributionFinalUnknown",
+    "Distribute complete.": "utxo.distributionComplete",
+    "timed out waiting for the change coin to confirm": "utxo.changeTimedOut",
+    "could not get a change address": "utxo.changeUnavailable",
+    "inputs spent — matching on-chain…": "utxo.inputsMatching",
+    "The node didn't answer in time and the coins are still unspent — not posted.": "utxo.unspentNotPosted",
+    "node reply timed out — awaiting settlement": "utxo.awaitingSettlement",
+    "Could not fetch an address.": "utxo.fetchAddressFailed",
+    "Consolidate → 1 coin": "utxo.mergeAction",
+    "A distribute job is already running.": "utxo.distributeBusy",
+    "wallet not enabled in Minima Core": "explorer.nodeRetry"
+  },
+  "patterns": [
+    {
+      "template": "Distribute: posting batch {0} ({1} addresses)…",
+      "key": "utxo.distributionBatch",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "Distribute: no reply from the node in time — waiting to see if batch {0} posted…",
+      "key": "utxo.distributionBatchUnknown",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Distribute aborted ({0} address(es) unfunded): {1}",
+      "key": "utxo.distributionAbortedCount",
+      "kinds": [
+        "integer",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Distribute couldn't start: {0}",
+      "key": "utxo.distributionStartFailed",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Distribute batch failed; retrying next block ({0}/{1})",
+      "key": "utxo.distributionBatchRetry",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "Distribute aborted: {0}",
+      "key": "utxo.distributionAborted",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "batch attempt failed: {0}",
+      "key": "utxo.batchAttemptFailed",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "batch {0} failed after {1} retries: {2}",
+      "key": "utxo.batchRetriesFailed",
+      "kinds": [
+        "integer",
+        "integer",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Not posted: these coins were spent by a different transaction ({0}).",
+      "key": "utxo.differentTransaction",
+      "kinds": [
+        "hex"
+      ]
+    },
+    {
+      "template": "Split → {0} coins",
+      "key": "utxo.splitAction",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Consolidate {0}",
+      "key": "utxo.consolidateAction",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Distribute batch {0} → {1} addrs",
+      "key": "utxo.distributeAction",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Token identity and amount share a bounded row; translated details wrap below them.
+     Tapping opens full coin detail and dragging retains the existing token order behavior. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:baselineAligned="false"
+    android:background="@color/core_surface"
+    android:foreground="?attr/selectableItemBackground"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="11dp">
+
+    <!-- token icon (identicon fallback, real icon loaded over) + web-validation badge -->
+    <FrameLayout
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/bg_token_tile">
+
+        <ImageView
+            android:id="@+id/balance_tokenicon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="Token icon" android:tag="l10n:description=l10n_core_wallet_token_icon" />
+
+        <ImageView
+            android:id="@+id/balance_tokenbadge"
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:layout_gravity="bottom|end"
+            android:visibility="gone"
+            android:contentDescription="Web validated" android:tag="l10n:description=l10n_core_wallet_web_validated" />
+    </FrameLayout>
+
+    <!-- Bounded text column: long translated summaries cannot steal the token name's width. -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="top"
+            android:baselineAligned="false">
+
+            <TextView
+                android:id="@+id/balance_tokenname"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="10dp"
+                android:breakStrategy="simple"
+                android:hyphenationFrequency="none"
+                android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong" />
+
+            <TextView
+                android:id="@+id/balance_tokenamount"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:breakStrategy="simple"
+                android:hyphenationFrequency="none"
+                android:textAlignment="viewEnd"
+                android:fontFeatureSettings="tnum"
+                android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/balance_breakdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textAppearance="@style/TextAppearance.MinimaCore.Caption"
+            android:textColor="@color/core_text_faint"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- full token id lives here for the adapter to populate, but is hidden in the compact row -->
+    <TextView
+        android:id="@+id/balance_tokenid"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+</LinearLayout>

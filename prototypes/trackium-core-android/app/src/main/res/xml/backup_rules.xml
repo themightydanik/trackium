@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Legacy (API < 31) Auto Backup rules.
+
+   NOTHING in this app may leave the device. allowBackup="false" already disables this, but the excludes are
+   explicit so the intent survives anyone flipping that flag back. What is at stake here:
+   the BIP39 seed phrase this app stores in cleartext (main_prefs "SEED"), and getFilesDir() —
+         which IS the Minima node's data directory: wallet.db and the node's private keys. Auto Backup was
+         uploading a spendable wallet to the user's cloud and could reconstitute a signing node on any phone
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="external" path="." />
+    <exclude domain="root" path="." />
+</full-backup-content>

@@ -1,0 +1,145 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ============================================================
+         Minima Core — brand theme (Material3, DayNight).
+         Colours resolve per-mode via values/ + values-night/ colors.
+         ============================================================ -->
+    <style name="Base.Theme.MinimaCore" parent="Theme.Material3.DayNight.NoActionBar">
+
+        <!-- brand roles -->
+        <item name="colorPrimary">@color/minima_orange</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorPrimaryContainer">@color/minima_orange</item>
+        <item name="colorOnPrimaryContainer">@color/on_primary</item>
+        <item name="colorSecondary">@color/minima_blue</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">@color/minima_blue</item>
+        <item name="colorOnSecondaryContainer">#FFFFFF</item>
+        <item name="colorError">@color/status_bad</item>
+
+        <!-- surfaces & text -->
+        <item name="android:colorBackground">@color/core_bg</item>
+        <item name="colorOnBackground">@color/core_text</item>
+        <item name="colorSurface">@color/core_surface</item>
+        <item name="colorOnSurface">@color/core_text</item>
+        <item name="colorSurfaceVariant">@color/core_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/core_text_mid</item>
+        <item name="colorSurfaceContainer">@color/core_surface</item>
+        <item name="colorSurfaceContainerHigh">@color/core_surface_variant</item>
+        <item name="colorOutline">@color/core_outline</item>
+        <item name="colorOutlineVariant">@color/core_outline</item>
+
+        <!-- default text/icon colours so un-styled views inherit the brand -->
+        <item name="android:textColorPrimary">@color/core_text</item>
+        <item name="android:textColorSecondary">@color/core_text_mid</item>
+        <item name="android:textColorHint">@color/core_text_faint</item>
+        <item name="colorControlNormal">@color/core_text_mid</item>
+        <item name="colorControlActivated">@color/minima_orange</item>
+
+        <!-- system bars -->
+        <item name="android:statusBarColor">@color/core_bg</item>
+        <item name="android:navigationBarColor">@color/core_bg</item>
+        <item name="android:windowBackground">@color/core_bg</item>
+        <item name="android:windowLightStatusBar">@bool/light_status_bar</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">@bool/light_nav_bar</item>
+
+        <!-- type -->
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="fontFamily">@font/manrope</item>
+
+        <!-- shape -->
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.MinimaCore.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.MinimaCore.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.MinimaCore.Large</item>
+
+        <!-- component defaults -->
+        <item name="tabStyle">@style/Widget.MinimaCore.Tabs</item>
+        <item name="materialButtonStyle">@style/Widget.MinimaCore.Button</item>
+        <item name="materialCardViewStyle">@style/Widget.MinimaCore.Card</item>
+        <item name="toolbarStyle">@style/Widget.MinimaCore.Toolbar</item>
+        <item name="editTextStyle">@style/Widget.MinimaCore.EditText</item>
+    </style>
+
+    <style name="Theme.MinimaCore" parent="Base.Theme.MinimaCore" />
+
+    <!-- kept: referenced by old layouts -->
+    <style name="MyToolbarStyle" parent="ThemeOverlay.AppCompat.ActionBar" />
+
+    <!-- ===================== shapes ===================== -->
+    <style name="ShapeAppearance.MinimaCore.Small" parent="ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerSize">12dp</item>
+    </style>
+    <style name="ShapeAppearance.MinimaCore.Medium" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerSize">16dp</item>
+    </style>
+    <style name="ShapeAppearance.MinimaCore.Large" parent="ShapeAppearance.Material3.LargeComponent">
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <!-- ===================== tabs ===================== -->
+    <style name="Widget.MinimaCore.Tabs" parent="Widget.Material3.TabLayout">
+        <item name="android:background">@color/core_surface</item>
+        <item name="tabIndicatorColor">@color/minima_orange</item>
+        <item name="tabIndicatorFullWidth">false</item>
+        <item name="tabIndicatorHeight">2.5dp</item>
+        <item name="tabSelectedTextColor">@color/minima_orange</item>
+        <item name="tabTextColor">@color/core_text_faint</item>
+        <item name="tabIconTint">@color/tab_icon_tint</item>
+        <item name="tabRippleColor">@color/minima_orange</item>
+        <item name="tabTextAppearance">@style/TextAppearance.MinimaCore.Tab</item>
+    </style>
+
+    <!-- ===================== buttons ===================== -->
+    <style name="Widget.MinimaCore.Button" parent="Widget.Material3.Button">
+        <item name="cornerRadius">13dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:paddingLeft">22dp</item>
+        <item name="android:paddingRight">22dp</item>
+        <item name="android:textAppearance">@style/TextAppearance.MinimaCore.Label</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="backgroundTint">@color/minima_orange</item>
+        <item name="android:textColor">@color/on_primary</item>
+    </style>
+
+    <style name="Widget.MinimaCore.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">13dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:textAppearance">@style/TextAppearance.MinimaCore.Label</item>
+        <item name="strokeColor">@color/core_outline</item>
+        <item name="android:textColor">@color/core_text</item>
+        <item name="rippleColor">@color/minima_orange</item>
+    </style>
+
+    <style name="Widget.MinimaCore.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textColor">@color/minima_orange</item>
+        <item name="android:textAppearance">@style/TextAppearance.MinimaCore.Label</item>
+    </style>
+
+    <!-- ===================== card ===================== -->
+    <style name="Widget.MinimaCore.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardBackgroundColor">@color/core_surface</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/core_outline</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="contentPadding">16dp</item>
+    </style>
+
+    <!-- ===================== toolbar ===================== -->
+    <style name="Widget.MinimaCore.Toolbar" parent="Widget.Material3.Toolbar">
+        <item name="android:background">@color/core_surface</item>
+        <item name="titleTextColor">@color/core_text</item>
+        <item name="titleTextAppearance">@style/TextAppearance.MinimaCore.Title</item>
+        <item name="android:elevation">0dp</item>
+    </style>
+
+    <!-- ===================== edit text ===================== -->
+    <style name="Widget.MinimaCore.EditText" parent="Widget.AppCompat.EditText">
+        <!-- Keep the app and its dismissal control visible with landscape keyboards. -->
+        <item name="android:imeOptions">flagNoExtractUi</item>
+        <item name="android:textColor">@color/core_text</item>
+        <item name="android:textColorHint">@color/core_text_faint</item>
+        <item name="android:fontFamily">@font/manrope</item>
+    </style>
+
+</resources>

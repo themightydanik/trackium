@@ -1,0 +1,34 @@
+{
+  "donor": {
+    "path": "/Users/eurobuddha/Projects/minima/apks/wallet",
+    "commit": "7802aba475679ed9fe04dce9c480e834248d98a8",
+    "version": "0.2.21",
+    "pinned_checkout": "build/localization/pinned-sources/wallet",
+    "live_checkout_observed": "0.2.22 at0b601b8f62d88f0948d8d72bbb565be515f4c7ed; new SweepFlow not adopted into the locked0.2.21 snapshot"
+  },
+  "counter_reuse": {
+    "path": "/Users/eurobuddha/Projects/minima/maxima/walletshared/com/eurobuddha/wallet/PrefsKeyUses.java",
+    "sha256": "3528db63134c838fd3adeb2d576c4d5d1728e2675dd4fd11e638545d5a10ffea",
+    "adaptations": [
+      "own mirror filenames",
+      "seed namespace supplied by vault using full hash of canonical base seed",
+      "reject negative counts and indices",
+      "classic capacity guard",
+      "omit unused all-namespace backup methods; existing vault snapshots retained"
+    ]
+  },
+  "node_classes": "39 of47 donor org.minima sources identical to upgraded node source;8 differences inspected. Imported library uses existing host minima.jar via compileOnly; tests use the same jar. WalletCore explicitly selects64x3. Donor transaction serialization and signature verification tests pass.",
+  "error_display_reuse": {
+    "sources": {
+      "/Users/eurobuddha/Projects/minima/maxima/build/account-import/chatshared/com/eurobuddha/maxima/app/i18n/SystemMessages.java": "3a54081a3b6c8304f3414e124d56feb83f9ae11ad6ec81d401ff6607166165ab",
+      "/Users/eurobuddha/Projects/minima/maxima/build/account-import/localization/android/test/com/eurobuddha/maxima/app/i18n/SystemMessagesTest.java": "34bc45e6b7366975d8d440a09b7fe9bcd7ab956db837879eaee7f5496d1a7d7a"
+    },
+    "adaptations": [
+      "wallet-only declared fixed failures and anchored templates",
+      "literal immutable captures",
+      "bounded diagnostic recursion",
+      "display boundaries only; exception/protocol strings remain unchanged"
+    ],
+    "manifest": "localization/wallet-errors.json"
+  }
+}

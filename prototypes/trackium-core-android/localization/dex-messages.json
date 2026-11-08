@@ -1,0 +1,1411 @@
+{
+  "fixed": {
+    "TRADE": "dex.trade",
+    "CHART": "dex.chart",
+    "TRADES": "dex.trades",
+    "ORDERS": "dex.orders",
+    "ASSETS": "dex.assets",
+    "MAKER": "dex.maker",
+    "NODE ✓": "dex.nodeReady",
+    "NODE NOT READY": "dex.nodeNotReady",
+    "CONNECTING…": "dex.connecting",
+    "Switch to light theme": "dex.themeLight",
+    "Switch to dark theme": "dex.themeDark",
+    "Finish the current transaction first — then switch": "dex.busyTheme",
+    "TRANSACTION IN PROGRESS": "dex.logTransaction",
+    "CHECKING ON-CHAIN": "dex.logChecking",
+    "ACTIVITY LOG": "dex.logTitle",
+    "A transaction is already in progress": "dex.busy",
+    "Receipt storage needs recovery. Preserve app data; do not retry trades.": "dex.receiptRecovery",
+    "Pair with your node first": "dex.pairFirst",
+    "Node connection changed. Wait for wallet verification before trading.": "dex.connectionChanged",
+    "Still reading your wallet identity — try again in a moment": "dex.identityLoading",
+    "Verifying wallet ownership — please wait": "dex.ownershipChecking",
+    "The order-book contract isn't registered on your node yet": "dex.contractNotReady",
+    "Could not read this balance. Tap to retry.": "dex.balanceRetry",
+    "Loading balance from MinimaCore…": "dex.balanceLoading",
+    "Connecting to MinimaCore…": "dex.nodeConnecting",
+    "The node has not confirmed the outcome of a previous write. It may still complete. New signing is paused. Check Orders, Tape and Assets, then use Assets → Resolve interrupted write.": "dex.writeUncertain",
+    "PAIRING…": "dex.connecting",
+    "Activity log": "dex.logTitle",
+    "Close": "language.close",
+    "The embedded node is unavailable. Open Minima Core from the menu and check its status, then retry.": "pools.nodeUnavailable",
+    "● syncing": "dex.syncing",
+    "● live": "dex.live",
+    "24h High": "dex.high24",
+    "24h Low": "dex.low24",
+    "24h Vol (MINIMA)": "dex.volume24",
+    "ORDER BOOK": "dex.orderBook",
+    "Price (MxUSD)": "dex.priceLabel",
+    "Amount (MINIMA)": "dex.amountLabel",
+    "Total": "dex.totalLabel",
+    "FILLING…": "dex.filling",
+    "BUY": "dex.buy",
+    "SELL": "dex.sell",
+    "Price (MxUSD per MINIMA)": "dex.priceHint",
+    "Total: —": "dex.totalUnknown",
+    "∞ GTC on": "dex.gtcOn",
+    "GTC off": "dex.gtcOff",
+    "Advanced ▾": "dex.advancedDown",
+    "Advanced ▴": "dex.advancedUp",
+    "Minimum left on the book after a partial fill": "dex.minimumRemainder",
+    "A buyer must leave at least this much resting, or take the whole order. It stops someone nibbling your order down to unsellable dust.": "dex.minimumHelp",
+    "BUY MINIMA": "dex.buyMinima",
+    "SELL MINIMA": "dex.sellMinima",
+    "A quote or transaction is already in progress": "dex.quoteBusy",
+    "Enter a price and amount": "dex.enterPriceAmount",
+    "Calculating quote…": "dex.quoting",
+    "A transaction started while quoting. Please quote again.": "dex.quoteChanged",
+    "Could not calculate this quote. Refresh and check the amounts.": "dex.quoteFailed",
+    "OPEN ORDERS": "dex.openOrders",
+    "no trades observed yet": "dex.noTrades",
+    "Size-weighted price of the best displayed bid and offer, including pool and limit liquidity": "dex.weightedPriceHelp",
+    "EXPIRED": "dex.expired",
+    "Expired at last check": "dex.expiredLastCheck",
+    "No open orders": "dex.noOpenOrders",
+    "Open orders are loading from MinimaCore.": "dex.waitingOrders",
+    "Saved order list — waiting for a fresh node and wallet check.": "dex.savedOrders",
+    "Order action unresolved — see its receipt above.": "dex.unresolvedOrder",
+    "Edit order": "dex.editOrder",
+    "Cancel order": "dex.cancelOrder",
+    "Receipt storage problem": "dex.receiptProblem",
+    "Stored receipts could not be read. Trading is paused; preserve app data for recovery.": "dex.receiptUnreadable",
+    "Not submitted — this attempt stopped before posting. No transaction was sent.": "dex.receiptNotSubmitted",
+    "Older order receipt: funding details were not saved. Its creation cannot yet be verified; check live orders and trade history.": "dex.receiptLegacy",
+    "Transaction intent saved; submission is not confirmed. Keep this receipt while recovery checks the chain.": "dex.receiptPrepared",
+    "time unavailable": "dex.timeUnavailable",
+    "15m": "dex.interval15",
+    "1H": "dex.interval1",
+    "4H": "dex.interval4",
+    "1D": "dex.intervalDay",
+    "Charts use this device's saved trade records. Recovery may add trades from history retained by your node; older or pruned transactions may be missing. Export records for their time basis and chain evidence.": "dex.chartNote",
+    "No trades observed yet — the tape fills as the network trades": "dex.chartEmpty",
+    "MY TRADES": "dex.myTrades",
+    "MARKET TAPE": "dex.marketTape",
+    "CORRECTIONS": "dex.corrections",
+    "No personal trade records yet.": "dex.personalEmpty",
+    "Rows awaiting recheck stay visible and are excluded from net totals.": "dex.recheckTotals",
+    "Wallet trade records; older rows may lack chain proof. Times use the inclusion block when verified; otherwise they show this device’s observation.": "dex.tradeTimes",
+    "EXPORT + RECONCILE": "dex.exportReconcile",
+    "Block time": "dex.blockTime",
+    "Observed": "dex.observed",
+    "TAKER": "dex.takerRole",
+    "BOOK": "dex.sourceBook",
+    "POOL": "dex.sourcePool",
+    "BOOK+POOL": "dex.sourceBoth",
+    "Legacy — not rechecked": "dex.legacyNotRechecked",
+    "Corrected earlier record — excluded from totals; see Corrections": "dex.correctedExcluded",
+    "Recheck required — excluded from totals": "dex.recheckExcluded",
+    "On-chain when checked": "dex.chainWhenChecked",
+    "Device-observed order-book records. New fills require a linked on-chain spend; older rows have not all been rechecked.": "dex.marketNote",
+    "No market trade records yet.": "dex.marketEmpty",
+    "YOU": "dex.you",
+    "RECEIPT CORRECTIONS": "dex.receiptCorrections",
+    "Earlier market and personal records are preserved here. Personal exports include the full correction evidence.": "dex.correctionsNote",
+    "No receipt corrections recorded.": "dex.correctionsEmpty",
+    "timestamp not recorded": "dex.timestampMissing",
+    "unknown": "dex.historyUnknown",
+    "Correction history could not be read. Keep app data for recovery.": "dex.correctionsUnreadable",
+    "Same TxPoW included in a different block": "dex.movedInclusion",
+    "Different included spender": "dex.changedSpender",
+    "First linked proof corrects a legacy record": "dex.legacyCorrected",
+    "Cancel": "common.cancel",
+    "Update": "atomixOtc.update",
+    "OPEN": "dex.openTab",
+    "OPERATIONS": "dex.operationsTab",
+    "GTC ∞": "dex.gtcLabel",
+    "expires": "dex.expiresLabel",
+    "age unavailable": "dex.ageMissing",
+    "MAKER RUNG — the published ladder owns this one": "dex.makerRung",
+    "EXPIRED — refundable to your wallet": "dex.expiredRefundable",
+    "Expired at last check — refresh before refunding": "dex.expiredRefresh",
+    "No fills yet": "dex.noFills",
+    "Rows awaiting recheck remain visible but are excluded from volume and P&L. Export for each row’s time basis and chain evidence.": "dex.tradePnlNote",
+    "EXPORT RECONCILIATION ZIP": "dex.exportZip",
+    "Export reconciliation ZIP": "dex.exportZip",
+    "Corrected — see Corrections": "dex.correctedShort",
+    "Recheck required": "dex.recheckShort",
+    "Saved order operations. Confirmations are from the last node check; these records do not add trade volume or P&L.": "dex.ownerNote",
+    "Saved operations could not be read. Preserve app data for recovery.": "dex.ownerUnreadable",
+    "Newest": "dex.newest",
+    "Newer": "dex.newer",
+    "Older": "dex.older",
+    "No completed operations saved yet. Older operations removed by previous builds are not available here.": "dex.ownerEmpty",
+    "No older operations on this page. Use Newest to refresh.": "dex.ownerPageEmpty",
+    "Order created": "dex.orderCreated",
+    "Order cancelled": "dex.orderCancelled",
+    "Price updated": "dex.priceUpdated",
+    "Order renewed": "dex.orderRenewed",
+    "Order refunded before update": "dex.refundedInstead",
+    "Order spent with payment before request": "dex.paidInstead",
+    "Saved order operation": "dex.ownerSaved",
+    "Previously verified · not found in latest node check": "dex.ownerMissing",
+    "Inclusion changed · reconciliation required": "dex.ownerMoved",
+    "Verification recorded · recheck pending": "dex.ownerPending",
+    "First observed": "dex.firstObserved",
+    "Edit order price": "dex.editPrice",
+    "New price (MxUSD per MINIMA)": "dex.newPriceHint",
+    "Connection or ownership changed. Reopen this order before editing.": "dex.editChanged",
+    "Bad price": "dex.badPrice",
+    "Reprice posted": "dex.repricePosted",
+    "Cancel sent — the order leaves the book when a block confirms it": "dex.cancelSent",
+    "No open orders in this snapshot": "dex.snapshotEmpty",
+    "Cancel all orders": "dex.cancelAllTitle",
+    "Cancel all & stop": "dex.cancelAllStop",
+    "Cancel them": "dex.cancelThem",
+    "Keep them": "dex.keepThem",
+    "Stop the maker and request withdrawal of its recorded orders? No open orders are visible in this snapshot, but a submission may still be in progress.": "dex.cancelEmptyBody",
+    "Connection changed or is not ready. Review the order list again.": "dex.cancelReview",
+    "Connection changed. Review the order list again.": "dex.cancelConnection",
+    "Maker withdrawal instructions retained. No orders were visible in this snapshot; check Orders for on-chain outcomes.": "dex.withdrawRetained",
+    "Connection changed. Remaining cancellation batches stopped; check retained receipts before retrying.": "dex.cancelBatchesStopped",
+    "Confirm buy": "dex.confirmBuy",
+    "Confirm sell": "dex.confirmSell",
+    "Execute": "dex.executeTrade",
+    "Trade still being checked": "dex.tradeCheckingTitle",
+    "Check now": "dex.checkNow",
+    "A trade is still being checked. Review ASSETS first.": "dex.tradeAlreadyChecking",
+    "Order request accepted · selecting wallet coins": "dex.orderSelecting",
+    "Order posted · checking its creation on-chain": "dex.orderPostedChecking",
+    "Node accepted the trade · updated receipt details could not be saved; recovery record retained": "dex.tradeUpdatedReceiptFailed",
+    "Trade outcome unknown — receipt retained. Review ASSETS.": "dex.tradeUnknown",
+    "Trade failed; pending-state update failed, so trading remains paused": "dex.tradeFailurePending",
+    "Trade found · verifying its inclusion block time before saving the receipt": "dex.tradeVerifyingTime",
+    "Trade receipt saved · pending-state update failed; trading remains paused": "dex.tradeCleanupFailed",
+    "Trade receipt could not be saved safely · pending evidence retained; trading remains paused": "dex.tradeReceiptFailed",
+    "Trade outcome unresolved — checking the chain. Review ASSETS before retrying.": "dex.tradeUnresolved",
+    "Trade outcome unresolved. The remaining limit order was not placed; the trade is still being checked.": "dex.restNotPlaced",
+    "Remaining limit order not placed — review the trade first": "dex.reviewBeforeRest",
+    "Buy request accepted · selecting wallet coins": "dex.selectingBuy",
+    "Sell request accepted · selecting wallet coins": "dex.selectingSell",
+    "Resolve interrupted write": "atomixRecovery.resolve",
+    "Keep paused": "atomixRecovery.keep",
+    "I restarted and checked": "pools.restartedChecked",
+    "Address copied": "wallet.addressCopied",
+    "OK": "common.ok",
+    "never": "nftWallet.never",
+    "SIGNING PAUSED": "dex.signingPaused",
+    "A node write lost its reply. It may have completed.": "dex.writeLostReply",
+    "TRADE STILL BEING CHECKED": "dex.tradeCheckingTitle",
+    "View submitted receipt and check again": "dex.reviewTradeReceipt",
+    "AVAILABLE TO TRADE": "dex.availableTrade",
+    "Waiting for a current book price.": "dex.waitingBookPrice",
+    "Waiting for wallet balances from MinimaCore.": "dex.waitingBalances",
+    "MINIMA · available to trade": "dex.minimaAvailable",
+    "MxUSD · available to trade": "dex.mxusdAvailable",
+    "RECEIVE": "dex.receive",
+    "Address not loaded": "dex.addressMissing",
+    "Tap to copy": "dex.tapCopy",
+    "Loading receive address from MinimaCore…": "dex.receiveLoading",
+    "NEED MxUSD?": "dex.needMxusd",
+    "MxUSD is the wrapped-USDT token on Minima. Bridge in at mxusd.global, or swap ERC20 USDT ↔ MxUSD with AtomiX.": "dex.bridgeHelp",
+    "No interrupted write to resolve": "dex.noWritePaused",
+    "Copy details": "dex.copyDetails",
+    "Command details unavailable for this older receipt.": "dex.olderWriteDetails",
+    "Safety pause cleared. Review your orders and balances.": "dex.writePauseCleared",
+    "The reviewed write changed, a write is still active, or the safety state could not be saved. Keep paused.": "pools.keepWritePaused",
+    "The maker could not be saved as disarmed. The safety pause remains; check storage and review again.": "dex.makerDisarmFailed",
+    "Trade export": "dex.exportTitle",
+    "Export is not ready yet": "dex.exportNotReady",
+    "An export is already being prepared or saved": "dex.exportBusy",
+    "Could not read the export snapshot; please try again": "dex.exportSnapshotFailed",
+    "Building export · optional explorer checks take up to 30 seconds…": "dex.exportBuilding",
+    "Saving trade export…": "dex.exportSaving",
+    "The previous export was interrupted. Its destination may be empty, partial or complete. Check the file before exporting again; no save will be repeated automatically.": "dex.exportInterrupted",
+    "Could not record the export session. No export was started; free storage and try again.": "dex.exportJournalFailed",
+    "Export preparation was cancelled when its screen closed.": "dex.exportScreenClosed",
+    "Another export worker is still running. Try again when it finishes.": "dex.exportWorkerBusy",
+    "Could not start the export. Source records are unchanged.": "dex.exportStartFailed",
+    "Could not record the save request. No destination was written; try again after freeing storage.": "dex.exportPickerJournalFailed",
+    "Could not open the save picker. Please export again.": "dex.exportPickerFailed",
+    "Export cancelled. No file was written by PandaDEX.": "dex.exportCancelled",
+    "The destination is not a document provider. No file was written.": "dex.exportInvalidProvider",
+    "Could not record the save request. The selected document was not written; please export again.": "dex.exportSaveJournalFailed",
+    "The export could not be completed. The destination may contain a partial file; check it and export to another destination.": "dex.exportPartial",
+    "Could not start saving. Check the destination and export again.": "dex.exportSaveStartFailed",
+    "Export status could not be cleared. Free storage and try again; source trade records are unchanged.": "dex.exportClearFailed",
+    "Could not open the prepared export": "dex.exportPreparedOpenFailed",
+    "price": "atomixMarket.price",
+    "mid": "atomixMarket.mid",
+    "step %": "atomixMarket.step",
+    "levels": "atomixMarket.levels",
+    "ask size": "atomixMarket.askSize",
+    "bid size": "atomixMarket.bidSize",
+    "skew ±%": "atomixMarket.skew",
+    "reprice ≥ %": "atomixMarket.reprice",
+    "none": "atomixMarket.none",
+    "MARKET MAKER": "dex.makerTitle",
+    "DISARMED": "dex.makerDisarmed",
+    "MY MARKET / LADDER": "dex.makerLadder",
+    "SPLIT FUNDS INTO 10 UTXOS": "dex.makerSplit",
+    "AUTO MARKET-MAKE — PEG TO MEXC": "dex.makerAutoPeg",
+    "Peg ladder to MEXC (auto-reprice)": "dex.makerPegSwitch",
+    "AUTO-FILL (mid · step % · levels, then ask/bid size — seeds the rungs; edit any rung after)": "dex.makerAutoFill",
+    "ASKS — you SELL MINIMA (higher price)": "dex.makerAsks",
+    "BIDS — you BUY MINIMA (lower price)": "dex.makerBids",
+    "ON-CHAIN STATUS": "dex.makerOnChain",
+    "Fetching MEXC price…": "dex.makerFetchPrice",
+    "PUBLISH LADDER": "dex.makerPublish",
+    "APPLY EDITS TO THE LIVE LADDER": "dex.makerApplyEdits",
+    "Waiting for the MEXC price — try again in a few seconds": "dex.makerWaitPrice",
+    "waiting for a MEXC price to apply that…": "dex.makerPendingEdit",
+    "Saved maker records could not be read. Keep app data for recovery; review live orders before taking action.": "dex.makerRecordsUnreadable",
+    "Peg needs a step %": "dex.makerPegStep",
+    "Set a MINIMA amount on at least one rung": "dex.makerNeedAmount",
+    "No levels set — add a bid or ask rung first": "dex.makerNoLevels",
+    "⚠ Your best bid ≥ best ask (crossed market)": "dex.makerCrossedToast",
+    "no maker records stored here — check Orders for live positions": "dex.makerNoRecords",
+    "waiting for the first cycle…": "dex.makerFirstCycle",
+    "MAKER PAUSED — RECORDS UNREADABLE": "dex.makerPausedUnreadable",
+    "MAKER PAUSED — SETTINGS CHANGED": "dex.makerPausedSettings",
+    "MAKER PAUSED — STORAGE ERROR": "dex.makerPausedStorage",
+    "QUOTING PAUSED — CHECK ORDERS": "dex.makerQuotingPaused",
+    "MAKER ENABLED": "dex.makerEnabled",
+    "MAKER ENABLED — WALLET/BOOK CHECK PENDING": "dex.makerEnabledPending",
+    "MAKER PAUSED — RECORDS RETAINED": "dex.makerPausedRetained",
+    "MAKER OFF": "dex.makerOff",
+    "WITHDRAW LADDER / RECORDED INTENT": "dex.makerWithdraw",
+    "no price feed": "dex.makerNoFeed",
+    "large price move unconfirmed — quoting paused": "dex.makerFeedQuarantined",
+    "feed stale — withdrawal needed": "dex.makerFeedStale",
+    "waiting to post — next cycle": "dex.makerWaitingPost",
+    "no order recorded — wallet/book check pending": "dex.makerNoOrderPending",
+    "order recorded — wallet/book check pending": "dex.makerOrderPending",
+    "original funding unknown — review before automatic repricing": "dex.makerFundingUnknown",
+    "funding differs from recorded intent — review this order": "dex.makerFundingDiffers",
+    "reprice requested — outcome not yet verified": "dex.makerRepricePending",
+    "no longer wanted — withdrawal still needed": "dex.makerWithdrawalNeeded",
+    "Your depth ladder for MINIMA / MxUSD  (price = MxUSD per MINIMA):\n•  ASKS — where YOU SELL MINIMA (higher).   BIDS — where YOU BUY (lower).\n•  Each rung is a separate on-chain order. Leave rows blank to skip them.": "dex.makerIntro",
+    "While pegged, the ladder regenerates around the MEXC mid (± step %, your size per rung) and reprices when the market moves ≥ your threshold. A stale feed widens quotes, then triggers a withdrawal request. Android can delay checks; orders remain tradeable until cancellation confirms. MEXC's MINIMA market is THIN — keep step % above its typical spread and rung sizes small; you auto-trade at these prices. Every adjustment is a transaction your phone does proof-of-work for.": "dex.makerPegHelp",
+    "Publish": "atomixMarket.publish",
+    "Funding split is confirming": "dex.makerSplitConfirming",
+    "Wait for the next block and balance refresh before publishing. The split outputs are not spendable yet.": "dex.makerSplitWait",
+    "No rungs to publish — set a price and size first": "dex.makerNoRungs",
+    "Not enough available funds": "dex.makerInsufficientTitle",
+    "Shrink the rung sizes or free up funds, then publish.": "dex.makerShrink",
+    "no asks": "dex.makerNoAsks",
+    "no bids": "dex.makerNoBids",
+    "Publish the ladder": "dex.makerPublishTitle",
+    "Not yet": "dex.makerNotYet",
+    "Split funds first": "dex.makerSplitFirst",
+    "Ladder publishing — posting the first rungs": "dex.makerPublishing",
+    "A transaction is already in flight": "dex.makerBusy",
+    "Withdraw the live ladder before splitting maker funding coins": "dex.makerWithdrawBeforeSplit",
+    "Split maker funding": "dex.makerSplitTitle",
+    "Split funds": "dex.makerSplitAction",
+    "Fetching your wallet address...": "dex.makerFetchAddress",
+    "Split failed - could not get your wallet address": "dex.makerSplitNoAddress",
+    "Could not get your wallet address": "dex.makerAddressFailed",
+    "Split submitted — waiting for spendable wallet coins": "dex.makerSplitSubmitted",
+    "Split outcome unknown — review Assets": "dex.makerSplitUnknown",
+    "Publish the ladder first": "dex.makerPublishFirst",
+    "Mid-adjustment — try again in a moment": "dex.makerAdjusting",
+    "No automatic edits available — review the rung statuses for positions that need attention": "dex.makerNoEdits",
+    "Apply edits to the live ladder": "dex.makerApplyTitle",
+    "Apply": "dex.makerApply",
+    "Applying ladder edits…": "dex.makerApplying",
+    "Finishing the current adjustment; withdrawal will then be attempted. Check Orders for confirmation.": "dex.makerWithdrawQueued",
+    "No ladder orders to withdraw": "dex.makerNothingWithdraw",
+    "Withdrawing the ladder — cancels leave the book as blocks confirm them": "dex.makerWithdrawing",
+    "Maker settings changed in another session. Reload and review them before saving again.": "dex.makerSettingsConflict",
+    "Maker settings could not be saved. Check available storage.": "dex.makerSaveFailed",
+    "PEGGED: prices track the MEXC mid and reprice when it moves past your threshold; your per-rung sizes are kept. If the feed goes stale the app widens its quotes, then requests withdrawal. Existing orders remain tradeable until cancellation confirms.": "dex.makerPeggedConsent",
+    "NOT pegged: the book gets YOUR exact prices — never repriced, never withdrawn, even if the price feed dies.": "dex.makerManualConsent",
+    "Rungs post ONE PER SIDE per cycle — each is an on-chain transaction your phone does proof-of-work for, and each one's change has to confirm before the next on that side can be funded — so a full ladder takes a few minutes to build and a rung may retry before it sticks. The Maker tab shows each rung's progress.": "dex.makerPostingConsent",
+    "Background checks are normally requested every 15 minutes. Android may delay or stop them, so automatic withdrawal is not a guaranteed price limit. Keep PandaDEX and MinimaCore running while monitoring the ladder; check Orders for confirmed cancellations.": "dex.makerBackgroundConsent",
+    "Rungs post one per side per cycle, so a large batch lands over a few minutes. The status panel shows each one.": "dex.makerEditTiming",
+    "Trade alerts": "dex.noticeAlerts",
+    "Order watcher": "dex.noticeWatcher",
+    "Watching the order book — keeping your GTC orders alive": "dex.noticeWatching",
+    "Order partially filled": "dex.noticePartial",
+    "Order filled": "dex.noticeFilled",
+    "Trade history needs attention": "dex.noticeHistory",
+    "Order watcher paused": "dex.noticeWatcherPaused",
+    "Order upkeep needs attention": "dex.noticeUpkeep",
+    "Order creation verified": "dex.noticeCreated",
+    "Trade complete": "dex.noticeComplete",
+    "A stored trade has conflicting inclusion evidence. Earlier evidence is retained while history reconciliation is pending.": "dex.historyConflict",
+    "Trade-history recovery is paused by a storage error. Saved candidates are retained; free device storage and reopen PandaDEX.": "dex.historyStoragePaused",
+    "Historical search progress could not be read. Existing receipts are retained.": "dex.historyReadFailed",
+    "Pool history addresses could not be read. Existing receipts are retained; this search will retry.": "dex.historyPoolReadFailed",
+    "Historical search progress could not be saved. Existing receipts are retained; this search will repeat.": "dex.historySaveFailed",
+    "Funding split confirmed — maker funds are sendable.": "dex.makerSplitConfirmed"
+  },
+  "patterns": [
+    {
+      "template": "{0} Export status could not be saved locally; check the destination after restarting.",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.exportStatusUnsaved"
+    },
+    {
+      "template": "Total: {0} MxUSD",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.totalValue"
+    },
+    {
+      "template": "last trade · {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.lastTradeAge"
+    },
+    {
+      "template": "BOOK {0}\nPOOL {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.bookPoolAmount"
+    },
+    {
+      "template": "POOL {0}",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.poolAmount"
+    },
+    {
+      "template": "{0}s ago",
+      "kinds": [
+        "integer"
+      ],
+      "key": "pools.secondsAgo"
+    },
+    {
+      "template": "{0} minute ago",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.minutesAgo"
+    },
+    {
+      "template": "{0} minutes ago",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.minutesAgo"
+    },
+    {
+      "template": "{0} hour ago",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.hoursAgo"
+    },
+    {
+      "template": "{0} hours ago",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.hoursAgo"
+    },
+    {
+      "template": "{0} day ago",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.daysAgo"
+    },
+    {
+      "template": "{0} days ago",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.daysAgo"
+    },
+    {
+      "template": "{0}s",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.clockSeconds"
+    },
+    {
+      "template": "{0}m {1}s",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.clockMinutes"
+    },
+    {
+      "template": "Cancel order · BUY {0} MINIMA @ {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.receiptCancelBUY"
+    },
+    {
+      "template": "Cancel order · SELL {0} MINIMA @ {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.receiptCancelSELL"
+    },
+    {
+      "template": "Update order · BUY {0} MINIMA @ {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.receiptUpdateBUY"
+    },
+    {
+      "template": "Update order · SELL {0} MINIMA @ {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.receiptUpdateSELL"
+    },
+    {
+      "template": "Place order · BUY {0} MINIMA @ {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.receiptPlaceBUY"
+    },
+    {
+      "template": "Place order · SELL {0} MINIMA @ {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.receiptPlaceSELL"
+    },
+    {
+      "template": "Node accepted submission · {0}. On-chain verification pending; receipt retained.",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.receiptSubmitted"
+    },
+    {
+      "template": "Submission requested · {0}. On-chain verification pending; receipt retained.",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.receiptPosting"
+    },
+    {
+      "template": "Submission outcome unknown · {0}. On-chain verification pending; receipt retained.",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.receiptUnknown"
+    },
+    {
+      "template": "✕  Cancel all {0} orders",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.cancelAllCount"
+    },
+    {
+      "template": "age {0} blk",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.ageBlocks"
+    },
+    {
+      "template": "age {0} blk at last check",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.ageAtCheck"
+    },
+    {
+      "template": "Rows {0} ({1} included)   ·   Volume {2} MINIMA",
+      "kinds": [
+        "integer",
+        "integer",
+        "number"
+      ],
+      "key": "dex.orderTradeVolume"
+    },
+    {
+      "template": "Notional {0} MxUSD",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.orderNotional"
+    },
+    {
+      "template": "P&L vs book mid {0} MxUSD",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.orderPnl"
+    },
+    {
+      "template": "P&L vs book mid +{0} MxUSD",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.orderPnlPositive"
+    },
+    {
+      "template": "Page {0} · {1} operations",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.ownerPage"
+    },
+    {
+      "template": "On-chain · {0} confirmations",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.ownerDepth"
+    },
+    {
+      "template": "Reprice failed: {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.repriceFailure"
+    },
+    {
+      "template": "Cancel failed: {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.cancelFailure"
+    },
+    {
+      "template": "Cancel sent for {0} order — each leaves the book when a block confirms it, and can still be filled until then",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.cancelBatchAccepted"
+    },
+    {
+      "template": "Cancel sent for {0} orders — each leaves the book when a block confirms it, and can still be filled until then",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.cancelBatchAccepted"
+    },
+    {
+      "template": "Cancel requests accepted for {0}; {1} requests failed or have unknown outcomes. Check Orders and retained receipts.",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.cancelBatchMixed"
+    },
+    {
+      "template": "Cancelling {0} of {1}…",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.cancellingProgress"
+    },
+    {
+      "template": "Buying {0} MINIMA now from {1} order",
+      "kinds": [
+        "number",
+        "integer"
+      ],
+      "key": "dex.sweepBuying"
+    },
+    {
+      "template": "Buying {0} MINIMA now from {1} orders",
+      "kinds": [
+        "number",
+        "integer"
+      ],
+      "key": "dex.sweepBuying"
+    },
+    {
+      "template": "Selling {0} MINIMA now from {1} order",
+      "kinds": [
+        "number",
+        "integer"
+      ],
+      "key": "dex.sweepSelling"
+    },
+    {
+      "template": "Selling {0} MINIMA now from {1} orders",
+      "kinds": [
+        "number",
+        "integer"
+      ],
+      "key": "dex.sweepSelling"
+    },
+    {
+      "template": "Buying {0} MINIMA now",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.quoteBuying"
+    },
+    {
+      "template": "Selling {0} MINIMA now",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.quoteSelling"
+    },
+    {
+      "template": "Avg price {0}  ·  {1} MxUSD",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.quoteAverage"
+    },
+    {
+      "template": "Effective {0}  ·  {1} MxUSD",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.quoteEffective"
+    },
+    {
+      "template": "BOOK {0} MINIMA / {1} MxUSD across {2} order",
+      "kinds": [
+        "number",
+        "number",
+        "integer"
+      ],
+      "key": "dex.quoteBook"
+    },
+    {
+      "template": "BOOK {0} MINIMA / {1} MxUSD across {2} orders",
+      "kinds": [
+        "number",
+        "number",
+        "integer"
+      ],
+      "key": "dex.quoteBook"
+    },
+    {
+      "template": "POOL {0} MINIMA / {1} MxUSD across {2} pool",
+      "kinds": [
+        "number",
+        "number",
+        "integer"
+      ],
+      "key": "dex.quotePool"
+    },
+    {
+      "template": "POOL {0} MINIMA / {1} MxUSD across {2} pools",
+      "kinds": [
+        "number",
+        "number",
+        "integer"
+      ],
+      "key": "dex.quotePool"
+    },
+    {
+      "template": "Price impact {0}%",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.quoteImpact"
+    },
+    {
+      "template": "Worst marginal {0}",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.quoteWorst"
+    },
+    {
+      "template": "  • BOOK {0} @ {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.quoteBookLeg"
+    },
+    {
+      "template": "  • BOOK {0} @ {1}  (partial)",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.quoteBookPartial"
+    },
+    {
+      "template": "  • {0} @ {1}  (partial)",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.quotePartial"
+    },
+    {
+      "template": "  • POOL {0} MINIMA / {1} MxUSD",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.quotePoolLeg"
+    },
+    {
+      "template": "Resting {0} MINIMA @ {1} as a limit order",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.quoteRest"
+    },
+    {
+      "template": "Order status: {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.orderStatus"
+    },
+    {
+      "template": "Trade failed — {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.tradeFailure"
+    },
+    {
+      "template": "Buy request accepted · selecting wallet coins for {0} pool(s) and {1} limit order(s)",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.selectingCompositeBuy"
+    },
+    {
+      "template": "Posted — waiting for a block to confirm your buy of {0} MINIMA",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.postedBuy"
+    },
+    {
+      "template": "Sell request accepted · selecting wallet coins for {0} pool(s) and {1} limit order(s)",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.selectingCompositeSell"
+    },
+    {
+      "template": "Posted — waiting for a block to confirm your sell of {0} MINIMA",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.postedSell"
+    },
+    {
+      "template": "{0}m ago",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.minutesAgo"
+    },
+    {
+      "template": "{0}h ago",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.hoursAgo"
+    },
+    {
+      "template": "sendable funds only, valued at book mid {0}",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.sendableMid"
+    },
+    {
+      "template": "in PandaDEX orders {0}",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.inOrders"
+    },
+    {
+      "template": "in saved PandaDEX orders {0}",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.inSavedOrders"
+    },
+    {
+      "template": "Could not prepare the export. Source records are unchanged. {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.exportPrepareFailed"
+    },
+    {
+      "template": "Export written and closed · {0}. For cloud destinations, check that the provider has finished uploading.",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.exportWritten"
+    },
+    {
+      "template": "{0} personal trade record · net {1} MINIMA · net {2} MxUSD",
+      "kinds": [
+        "integer",
+        "number",
+        "number"
+      ],
+      "key": "dex.exportSummary"
+    },
+    {
+      "template": "{0} personal trade records · net {1} MINIMA · net {2} MxUSD",
+      "kinds": [
+        "integer",
+        "number",
+        "number"
+      ],
+      "key": "dex.exportSummary"
+    },
+    {
+      "template": "⚠ Crossed — best bid {0} ≥ best ask {1}: you'd sell cheaper than you buy",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.makerCrossed"
+    },
+    {
+      "template": "BIDS  {0}\nASKS  {1}",
+      "kinds": [
+        "diagnostic",
+        "diagnostic"
+      ],
+      "key": "dex.makerPreview"
+    },
+    {
+      "template": "{0} lvl · best {1} · {2} M",
+      "kinds": [
+        "integer",
+        "number",
+        "number"
+      ],
+      "key": "dex.makerPreviewSide"
+    },
+    {
+      "template": "Interrupted create — review or withdraw this intent before publishing. Order {0}",
+      "kinds": [
+        "literal"
+      ],
+      "key": "dex.makerInterruptedCreate"
+    },
+    {
+      "template": "maker paused — {0} rung still recorded",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerPausedRungs"
+    },
+    {
+      "template": "maker paused — {0} rung still recorded, {1} with withdrawal instructions retained",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.makerPausedWithdrawals"
+    },
+    {
+      "template": "withdrawal instructions retained for {0} order — {1} seen in latest snapshot",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.makerCancelSeen"
+    },
+    {
+      "template": "withdrawal instructions retained for {0} order — {1} last seen; wallet/book check pending",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.makerCancelStale"
+    },
+    {
+      "template": "withdrawal instructions retained for {0} order — cancellation not proven by absence",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerCancelAbsent"
+    },
+    {
+      "template": "maker paused — {0} rungs still recorded",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerPausedRungs"
+    },
+    {
+      "template": "maker paused — {0} rungs still recorded, {1} with withdrawal instructions retained",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.makerPausedWithdrawals"
+    },
+    {
+      "template": "withdrawal instructions retained for {0} orders — {1} seen in latest snapshot",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.makerCancelSeen"
+    },
+    {
+      "template": "withdrawal instructions retained for {0} orders — {1} last seen; wallet/book check pending",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.makerCancelStale"
+    },
+    {
+      "template": "withdrawal instructions retained for {0} orders — cancellation not proven by absence",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerCancelAbsent"
+    },
+    {
+      "template": "feed {0} — quoting wider",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.makerFeedWider"
+    },
+    {
+      "template": "feed {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.makerFeedAge"
+    },
+    {
+      "template": "MEXC mid {0} · {1}",
+      "kinds": [
+        "number",
+        "diagnostic"
+      ],
+      "key": "dex.makerPegPrice"
+    },
+    {
+      "template": "MEXC: {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.makerPegState"
+    },
+    {
+      "template": "last seen {0} × {1} — wallet/book check pending",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.makerLastSeen"
+    },
+    {
+      "template": "not seen in this book snapshot ({0} blk since recorded)",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerAbsent"
+    },
+    {
+      "template": "not seen in this book snapshot ({0} blk since recorded) — review if still absent",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerAbsentReview"
+    },
+    {
+      "template": "less funding remains — {0} of {1} MINIMA locked",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.makerLessMinima"
+    },
+    {
+      "template": "less funding remains — {0} of {1} MxUSD locked",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.makerLessMxusd"
+    },
+    {
+      "template": "seen in latest book snapshot: {0} × {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.makerSeen"
+    },
+    {
+      "template": "This puts {0} orders on the book — {1} and {2}.",
+      "kinds": [
+        "integer",
+        "diagnostic",
+        "diagnostic"
+      ],
+      "key": "dex.makerPublishSummary"
+    },
+    {
+      "template": "Asks need {0} MINIMA — you have {1} sendable{2}.",
+      "kinds": [
+        "number",
+        "number",
+        "diagnostic"
+      ],
+      "key": "dex.makerLackMinima"
+    },
+    {
+      "template": "Bids need {0} MxUSD — you have {1} sendable{2}.",
+      "kinds": [
+        "number",
+        "number",
+        "diagnostic"
+      ],
+      "key": "dex.makerLackMxusd"
+    },
+    {
+      "template": "{0} ask locking {1} MINIMA",
+      "kinds": [
+        "integer",
+        "number"
+      ],
+      "key": "dex.makerAskCommitment"
+    },
+    {
+      "template": "{0} bid locking {1} MxUSD",
+      "kinds": [
+        "integer",
+        "number"
+      ],
+      "key": "dex.makerBidCommitment"
+    },
+    {
+      "template": "MINIMA funding looks thin: {0} coin for {1} ask rungs.",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.makerThinMinima"
+    },
+    {
+      "template": "MINIMA - {0} sendable, {1} coin",
+      "kinds": [
+        "number",
+        "integer"
+      ],
+      "key": "dex.makerFundingMinima"
+    },
+    {
+      "template": "MxUSD funding looks thin: {0} coin for {1} bid rungs.",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.makerThinMxusd"
+    },
+    {
+      "template": "MxUSD - {0} sendable, {1} coin",
+      "kinds": [
+        "number",
+        "integer"
+      ],
+      "key": "dex.makerFundingMxusd"
+    },
+    {
+      "template": "{0} asks locking {1} MINIMA",
+      "kinds": [
+        "integer",
+        "number"
+      ],
+      "key": "dex.makerAskCommitment"
+    },
+    {
+      "template": "{0} bids locking {1} MxUSD",
+      "kinds": [
+        "integer",
+        "number"
+      ],
+      "key": "dex.makerBidCommitment"
+    },
+    {
+      "template": "MINIMA funding looks thin: {0} coins for {1} ask rungs.",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.makerThinMinima"
+    },
+    {
+      "template": "MINIMA - {0} sendable, {1} coins",
+      "kinds": [
+        "number",
+        "integer"
+      ],
+      "key": "dex.makerFundingMinima"
+    },
+    {
+      "template": "MxUSD funding looks thin: {0} coins for {1} bid rungs.",
+      "kinds": [
+        "integer",
+        "integer"
+      ],
+      "key": "dex.makerThinMxusd"
+    },
+    {
+      "template": "MxUSD - {0} sendable, {1} coins",
+      "kinds": [
+        "number",
+        "integer"
+      ],
+      "key": "dex.makerFundingMxusd"
+    },
+    {
+      "template": " ({0} confirmed locked, {1} unconfirmed)",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.makerUnavailableBoth"
+    },
+    {
+      "template": " ({0} confirmed locked)",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.makerUnavailableLocked"
+    },
+    {
+      "template": " ({0} unconfirmed)",
+      "kinds": [
+        "number"
+      ],
+      "key": "dex.makerUnavailablePending"
+    },
+    {
+      "template": "Use split:{0} first to prepare funding coins, then wait for them to confirm before publishing.",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerSplitHint"
+    },
+    {
+      "template": "No sendable {0} to split",
+      "kinds": [
+        "literal"
+      ],
+      "key": "dex.makerNoSplitAmount"
+    },
+    {
+      "template": "Splitting {0} {1} into {2} wallet coins…",
+      "kinds": [
+        "number",
+        "literal",
+        "integer"
+      ],
+      "key": "dex.makerSplitting"
+    },
+    {
+      "template": "Split failed - {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.makerSplitFailed"
+    },
+    {
+      "template": "Split failed — {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.makerSplitFailed"
+    },
+    {
+      "template": "Split failed: {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.makerSplitFailed"
+    },
+    {
+      "template": "{0} Publishing was not started.",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.makerPublishNotStarted"
+    },
+    {
+      "template": "{0} No cancellation started; saved settings may still be enabled.",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.makerCancelNotStarted"
+    },
+    {
+      "template": "• {0} rung re-prices in place — one transaction each, funds never leave the book.",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerEditRelocks"
+    },
+    {
+      "template": "• {0} rung changes AMOUNT — locked funds can't be resized, so each is cancelled and reposted and leaves the book for a block or two.",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerEditReposts"
+    },
+    {
+      "template": "• {0} new rung posted.",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerEditCreates"
+    },
+    {
+      "template": "• {0} rung removed.",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerEditCancels"
+    },
+    {
+      "template": "• {0} rungs re-price in place — one transaction each, funds never leave the book.",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerEditRelocks"
+    },
+    {
+      "template": "• {0} rungs change AMOUNT — locked funds can't be resized, so each is cancelled and reposted and leaves the book for a block or two.",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerEditReposts"
+    },
+    {
+      "template": "• {0} new rungs posted.",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerEditCreates"
+    },
+    {
+      "template": "• {0} rungs removed.",
+      "kinds": [
+        "integer"
+      ],
+      "key": "dex.makerEditCancels"
+    },
+    {
+      "template": "Sold {0} MINIMA @ {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.noticeSold"
+    },
+    {
+      "template": "Sold {0} MINIMA @ {1} MxUSD",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.noticeSold"
+    },
+    {
+      "template": "Bought {0} MINIMA @ {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.noticeBought"
+    },
+    {
+      "template": "Bought {0} MINIMA @ {1} MxUSD",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.noticeBought"
+    },
+    {
+      "template": "Buy {0} MINIMA @ {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.noticeBuyOrder"
+    },
+    {
+      "template": "Sell {0} MINIMA @ {1}",
+      "kinds": [
+        "number",
+        "number"
+      ],
+      "key": "dex.noticeSellOrder"
+    },
+    {
+      "template": "{0}. Funds are confirming and will show as available shortly.",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.noticeConfirming"
+    },
+    {
+      "template": "✓ {0} — proceeds are confirming, see ASSETS",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.noticeProceeds"
+    },
+    {
+      "template": "{0} was created on-chain",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.noticeCreatedBody"
+    },
+    {
+      "template": "{0} — creation verified on-chain. Check Orders for its current status.",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.noticeCreatedStage"
+    },
+    {
+      "template": "Covenant check failed: {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "dex.noticeCovenantFailure"
+    },
+    {
+      "template": "Order @ {0} — {1}",
+      "kinds": [
+        "number",
+        "diagnostic"
+      ],
+      "key": "dex.noticeOrderError"
+    }
+  ]
+}

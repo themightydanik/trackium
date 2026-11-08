@@ -1,0 +1,163 @@
+{
+  "fixed": {
+    "Publishing your order…": "atomixMarket.publishing",
+    "Updating your order…": "atomixMarket.updating",
+    "Withdrawing your order…": "atomixMarket.withdrawing",
+    "✓ Order updated": "atomixMarket.updated",
+    "✓ Order withdrawn — removed from the book": "atomixMarket.withdrawn",
+    "✓ Order published — auto-refreshes every 30 min": "atomixMarket.published",
+    "Publish failed: Could not verify spendable funds. Order was not refreshed.": "atomixMarket.fundsUnverified",
+    "Update failed: Could not verify spendable funds. Order was not refreshed.": "atomixMarket.updateFundsUnverified"
+  },
+  "patterns": [
+    {
+      "template": "Fetching {0} price…",
+      "key": "atomixMarket.fetching",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "✗ {0} price unavailable — can't peg yet (no price)",
+      "key": "atomixMarket.pegUnavailable",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "✓ Order live — pegged to {0} (feed stale — defensive spread; auto-tightens when it recovers)",
+      "key": "atomixMarket.wide",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "✓ Order live — pegged to {0} (mid {1}), auto-reprices",
+      "key": "atomixMarket.pegged",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "✓ {0} feed recovered — pegged order is live again",
+      "key": "atomixMarket.feedRecovered",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "⚠ {0} feed lost — pegged order withdrawn until it recovers",
+      "key": "atomixMarket.feedLost",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Saved. {0} price unavailable — publishes when a price arrives.",
+      "key": "atomixMarket.waitPrice",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Publish failed: {0}",
+      "key": "atomixMarket.publishFailed",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Update failed: {0}",
+      "key": "atomixMarket.updateFailed",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Withdraw failed: {0}",
+      "key": "atomixMarket.withdrawFailed",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Book scan: {0}",
+      "key": "atomixMarket.scanFailed",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Withdrawing your {0} market…",
+      "key": "atomixMarket.withdrawingMarket",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0}: fetching…",
+      "key": "atomixMarket.oracleFetching",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0}: unavailable ({1})",
+      "key": "atomixMarket.oracleUnavailable",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "{0}: no price yet",
+      "key": "atomixMarket.oracleEmpty",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} mid {1}  (bid {2} / ask {3})  ·  {4}s ago  — STALE · defensive spread ×{5}",
+      "key": "atomixMarket.oracleBookStale",
+      "kinds": [
+        "literal",
+        "literal",
+        "literal",
+        "literal",
+        "integer",
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} mid {1}  ·  {2}s ago  — STALE · defensive spread ×{3}",
+      "key": "atomixMarket.oracleStale",
+      "kinds": [
+        "literal",
+        "literal",
+        "integer",
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} mid {1}  (bid {2} / ask {3})  ·  {4}s ago",
+      "key": "atomixMarket.oracleBook",
+      "kinds": [
+        "literal",
+        "literal",
+        "literal",
+        "literal",
+        "integer"
+      ]
+    },
+    {
+      "template": "{0} mid {1}  ·  {2}s ago",
+      "key": "atomixMarket.oracle",
+      "kinds": [
+        "literal",
+        "literal",
+        "integer"
+      ]
+    }
+  ]
+}

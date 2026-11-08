@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/backup_restore_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/core_surface"
+        app:titleTextColor="@color/core_text"
+        app:titleTextAppearance="@style/TextAppearance.MinimaCore.Title"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="?attr/actionBarTheme" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="40dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Restore from file"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Display"  android:tag="l10n:text=l10n_backup_restore" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Replaces this node's wallet and chain with the contents of a backup. The node stops when it finishes and you restart it."
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.3"  android:tag="l10n:text=l10n_backup_restore_intro" />
+
+            <TextView
+                android:id="@+id/backup_restore_gate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:padding="14dp"
+                android:background="@drawable/bg_token_tile"
+                android:accessibilityLiveRegion="polite"
+                android:visibility="gone"
+                android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong"
+                android:lineSpacingMultiplier="1.25" />
+
+            <TextView style="@style/FormLabel" android:text="Backup file"  android:tag="l10n:text=l10n_backup_backup_file" />
+
+            <LinearLayout
+                android:id="@+id/backup_restore_files"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/backup_restore_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="14dp"
+                android:background="@drawable/bg_token_tile"
+                android:visibility="gone"
+                android:text="No backup files in the node folder yet. Bring one in from this phone to restore it."
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.25"  android:tag="l10n:text=l10n_backup_empty" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/backup_restore_import"
+                style="@style/Widget.MinimaCore.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Bring a file in from this phone"  android:tag="l10n:text=l10n_backup_import" />
+
+            <TextView style="@style/FormLabel" android:text="Backup password"  android:tag="l10n:text=l10n_backup_backup_password" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/backup_restore_password"
+                    style="@style/FormField"
+                    android:saveEnabled="false"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:hint="the password used when it was made"  android:tag="l10n:hint=l10n_backup_restore_password_hint" />
+
+                <ImageButton
+                    android:id="@+id/backup_restore_password_eye"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_visibility"
+                    android:contentDescription="Show password" />
+            </LinearLayout>
+
+            <TextView style="@style/FormLabel" android:text="After restoring"  android:tag="l10n:text=l10n_backup_restore_after" />
+
+            <RadioGroup
+                android:id="@+id/backup_restore_mode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <RadioButton
+                    android:id="@+id/backup_restore_mode_local"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:textColor="@color/core_text"
+                    android:text="Use the backup as it is (it is recent)"  android:tag="l10n:text=l10n_backup_local_mode" />
+
+                <RadioButton
+                    android:id="@+id/backup_restore_mode_resync"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/core_text"
+                    android:text="Catch up to the chain tip from a MegaMMR node (it is old)"  android:tag="l10n:text=l10n_backup_resync_mode" />
+            </RadioGroup>
+
+            <LinearLayout
+                android:id="@+id/backup_restore_host_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView style="@style/FormLabel" android:text="MegaMMR node"  android:tag="l10n:text=l10n_restore_mega_node" />
+
+                <EditText
+                    android:id="@+id/backup_restore_host"
+                    style="@style/FormField"
+                    android:inputType="textUri"
+                    android:importantForAutofill="no"
+                    android:hint="host:port" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/backup_restore_go"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="24dp"
+                android:text="Restore this node"  android:tag="l10n:text=l10n_backup_restore_node" />
+
+            <TextView
+                android:id="@+id/backup_restore_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:accessibilityLiveRegion="polite"
+                android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

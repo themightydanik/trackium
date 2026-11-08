@@ -1,0 +1,16 @@
+{
+  "resolve": "atomixRecovery.resolve",
+  "body": "atomixRecovery.body",
+  "keep": "atomixRecovery.keep",
+  "checked": "atomixRecovery.checked",
+  "cleared": "atomixRecovery.cleared",
+  "still": "atomixRecovery.still",
+  "unknown": "atomixRecovery.unknown",
+  "write": "atomixRecovery.write",
+  "timeout": "atomixRecovery.timeout",
+  "incomplete": "atomixRecovery.incomplete",
+  "callback": "atomixRecovery.callback",
+  "stopped": "atomixRecovery.stopped",
+  "ago": "atomixRecovery.ago",
+  "command": "atomixRecovery.command"
+}

@@ -1,0 +1,11 @@
+{
+  "fixed": {
+    "Unbounded 'coins' on a busy address can build a giant reply that crashes the node AND this app (Binder ~1MB limit is uncatchable). Add depth: (start small, e.g. depth:4) or relevant:true.": "terminalIde.coinsWarning",
+    "'history' returns FULL txpow bodies (~14KB each; default max ~100) and can exceed the IPC limits — big replies crash the node/app. Use max:8 or less and page with offset:.": "terminalIde.historyWarning",
+    "'printtree' without depth: can return a huge tree. Add depth: (e.g. depth:10).": "terminalIde.treeWarning",
+    "could not open the chosen file": "terminalIde.fileOpen",
+    "cannot create the export folder": "terminalIde.exportFolder",
+    "The embedded node did not respond. Check its status in Minima Core.": "terminalIde.timeout"
+  },
+  "patterns": []
+}

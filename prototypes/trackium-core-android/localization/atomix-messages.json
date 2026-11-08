@@ -1,0 +1,238 @@
+{
+  "fixed": {
+    "AtomiX market watcher": "atomixNotice.watcher",
+    "Swap alerts": "atomixNotice.alerts",
+    "Market offline": "atomixNotice.offline",
+    "Minima Core isn't running — your published market will drop off the book. Tap to open it.": "atomixNotice.offlineBody",
+    "Waiting for Minima Core…": "atomixNotice.waiting",
+    "Market offline — waiting for Minima Core": "atomixNotice.offlineWaiting",
+    "Republishing your market…": "atomixNotice.republishing",
+    "HALTED — Minima key + ETH wallet do not match the node": "atomixNotice.haltBoth",
+    "HALTED — Minima key not owned by this node": "atomixNotice.haltMinima",
+    "HALTED — ETH wallet does not match the node seed": "atomixNotice.haltEth",
+    "Wallet mismatch — AtomiX halted": "atomixNotice.mismatchTitle",
+    "Your node's seed no longer matches AtomiX. New trades are stopped. Open AtomiX to review recovery details and rescue funds. Do not clear Pandamonium storage: it contains your shared node and wallets.": "atomixNotice.mismatchBody",
+    "Buy request received": "atomixNotice.buyRequest",
+    "Your pegged order is live again.": "atomixNotice.feedLive",
+    "Your pegged order was withdrawn for safety. It re-publishes automatically when the feed recovers.": "atomixNotice.feedLostBody",
+    "Swap complete": "atomixNotice.complete",
+    "Swap refunded": "atomixNotice.refunded",
+    "Waiting for the counterparty to reveal the secret": "atomixNotice.waitSecret",
+    "Secret revealed": "atomixNotice.secret",
+    "Claiming your side of the swap": "atomixNotice.claiming",
+    "Add ETH for gas": "atomixNotice.gas",
+    "Buy request declined": "atomixNotice.declined",
+    "OTC rejected": "atomixNotice.otcRejected",
+    "The counterparty ended the deal": "atomixNotice.otcEnded",
+    "OTC executing": "atomixNotice.otcExecuting",
+    "Counterparty locked — locking your side": "atomixNotice.otcLocked",
+    "OTC counter": "atomixNotice.otcCounter",
+    "OTC agreed": "atomixNotice.otcAgreed",
+    "OTC offer received": "atomixNotice.otcOffer",
+    "the counterparty locked their side but never claimed yours before the timeout": "atomixNotice.refundLocked",
+    "the counterparty never locked their side before the timeout": "atomixNotice.refundUnlocked",
+    "their USDT lock is too close to its timeout": "atomixNotice.nearTimeout",
+    "it didn't fit any level of your ladder (price, level size, or minimum)": "atomixNotice.ladderMismatch",
+    "Node returned no seedrandom — is the node write-enabled?": "atomixNotice.keyMissing",
+    "Node returned an invalid Ethereum key. Not using it.": "atomixNotice.keyInvalid",
+    "Ethereum key derivation failed. Retry when the node is ready.": "atomixNotice.keyFailed",
+    "still connecting": "atomixOtc.connecting",
+    "enter amount + price": "atomixOtc.enterTerms",
+    "not your turn": "atomixOtc.notYourTurn",
+    "OTC execute failed": "atomixOtc.executeFailed",
+    "Locked your side — waiting for the counterparty": "atomixOtc.lockedWaiting",
+    "OTC currency changed or is unknown; switch to the deal's market.": "atomixOtc.marketUnavailable",
+    "— (node didn't answer)": "atomixNotice.nodeNoAnswer",
+    "Could not create the trading identity. Retry when the node is ready.": "atomixNotice.identityFailed",
+    "Deal changed. Review the latest terms.": "atomixOtc.dealChanged",
+    "Enter a valid Ethereum address (0x + 40 hex characters).": "atomixSend.address",
+    "Enter a plain decimal amount.": "atomixSend.decimal",
+    "Enter an amount above zero.": "atomixSend.positive",
+    "Not enough ETH for that amount plus network gas — try Max.": "atomixSend.balance",
+    "That is more USDT than this wallet holds.": "atomixSend.tokenBalance",
+    "Sending USDT needs a little ETH for gas — fund the wallet with ETH first.": "atomixSend.gasBalance",
+    "Ethereum fee is outside the safe range. Review your RPC endpoint.": "atomixSend.feeCap",
+    "Wallet session changed. Review again.": "wallet.reviewAgain",
+    "Market changed; refresh and try again.": "atomixOperation.marketChanged",
+    "Submission outcome is unknown. The saved swap will be checked; do not create a replacement deal.": "atomixOtc.submissionUnknown",
+    "The swap lock was not submitted because recovery data could not be saved.": "atomixOtc.recoverySaveFailed"
+  },
+  "patterns": [
+    {
+      "template": "{0} market withdrawn — waiting for the price feed",
+      "key": "atomixNotice.withdrawn",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} market live — keeping it published",
+      "key": "atomixNotice.live",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Watching {0} swaps",
+      "key": "atomixNotice.watching",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "A buyer wants your {0} — finding their USDT lock, then locking.",
+      "key": "atomixNotice.buyer",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} feed recovered",
+      "key": "atomixNotice.feedRecovered",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} price feed lost",
+      "key": "atomixNotice.feedLost",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} market isn't landing on-chain",
+      "key": "atomixNotice.missingMarket",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} OTC offer isn't landing on-chain",
+      "key": "atomixNotice.missingOtc",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Your {0} market updates may be stuck in the node's Pending list — is the vault locked? Open Minima Core and check Pending.",
+      "key": "atomixNotice.pendingMarket",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Your {0} OTC offer may be stuck in the node's Pending list — is the vault locked? Open Minima Core and check Pending.",
+      "key": "atomixNotice.pendingOtc",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Can't lock your {0}",
+      "key": "atomixNotice.cantLock",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Locked your {0}",
+      "key": "atomixNotice.locked",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Withdrew your {0}",
+      "key": "atomixNotice.withdrew",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Claimed {0} {1} — confirmed on-chain",
+      "key": "atomixNotice.claimed",
+      "kinds": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "template": "Reclaimed {0} {1} — confirmed on-chain ({2})",
+      "key": "atomixNotice.reclaimed",
+      "kinds": [
+        "number",
+        "literal",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Reclaimed your tokens — {0}",
+      "key": "atomixNotice.reclaimReason",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "This swap needs about {0} more ETH for gas. Send ETH on Ethereum to {1}",
+      "key": "atomixNotice.gasAddress",
+      "kinds": [
+        "number",
+        "address"
+      ]
+    },
+    {
+      "template": "This swap needs about {0} more ETH for gas. Send ETH on Ethereum to this app's Ethereum wallet — open the Wallet tab to copy the address",
+      "key": "atomixNotice.gasWallet",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "{0} {1} @ {2} — your call",
+      "key": "atomixNotice.otcTerms",
+      "kinds": [
+        "number",
+        "literal",
+        "number"
+      ]
+    },
+    {
+      "template": "Wallet busy consolidating or locking coins. Retry after confirmation. Deal: {0}",
+      "key": "atomixNotice.busyDeal",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Consolidation in progress. Retry after confirmation. Deal: {0}",
+      "key": "atomixNotice.consolidatingDeal",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Can't fill deal — need {0} mxUSDT, only {1} free",
+      "key": "atomixNotice.fillShortfall",
+      "kinds": [
+        "number",
+        "number"
+      ]
+    },
+    {
+      "template": "mxUSDT too fragmented to lock {0} in one tx — consolidate your coins",
+      "key": "atomixNotice.fragmented",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "{0}. Open Wallet → Consolidate before accepting buys. Deal: {1}",
+      "key": "atomixNotice.consolidateError",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    }
+  ]
+}

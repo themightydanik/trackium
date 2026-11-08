@@ -1,0 +1,371 @@
+plugins {
+    alias(libs.plugins.android.application)
+}
+
+android {
+    namespace 'com.eurobuddha.minimacore'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "tech.trackium.core.prototype"
+        minSdk 28
+        targetSdk 35
+        // vc25: unifies the parallel 1.3.2/1.3.3 (vc23/24, Filez session) and 1.4.0/1.4.1
+        // (vc23/24, params session) release lines - same code, clashing codes. 1.4.2/vc25
+        // supersedes every installed variant so all devices get offered the update.
+        // vc34: truthful chain feedback - node errors come from the right key ("message",
+        // not just "error"), a posted txn says "mining" rather than "sent", and NEWBALANCE
+        // reaches the UI. Bump BEFORE building - a published versionCode is never reused.
+        // vc35: SECURITY - the bundled minima.jar carries the Wallet.signData fix. That method
+        // was the only unsynchronized mutator on Wallet and its read-modify-write of the key
+        // `uses` counter let two concurrent signers spend the SAME Winternitz leaf on different
+        // data, which leaks that leaf's private key. Confirmed in the wild (7 of 64 keys).
+        // vc36: SECURITY - allowBackup is off. getFilesDir() IS the node's data directory and main_prefs
+        // holds the BIP39 seed in cleartext, yet the manifest carried the scaffold default (allowBackup=true
+        // with NO rules attributes at all), so Android Auto Backup was uploading a spendable wallet and its
+        // private keys to the user's cloud - and a restore could reconstitute a signing node on any phone.
+        // Cloud backup and device transfer are both excluded now.
+        // vc39: FIX - the bundled minima.jar carries the Wallet.removeScript cache fix. Demoting a
+        // shared script with `newscript trackall:false` deleted only the DB row; the in-memory
+        // mAllTrackedAddress cache kept the address until restart, so a polluted node kept adopting
+        // EVERY stranger's coin at a shared covenant (e.g. the casino) into its relevant set every
+        // block. removeScript now clears the caches, so the demote takes effect immediately.
+        // vc40: full-precision balance wrapping and retained resync progress/restart feedback.
+        // vc41: keyboard-aware screen resizing and an explicit keyboard dismissal action.
+        // vc42: let the main overflow menu icon follow the light/dark theme.
+        // vc43: six-decimal wallet summaries; exact amounts remain in token/coin details.
+        // vc44: safe metadata downloads, lifecycle-safe startup/API, bounded coalesced reads and caching.
+        // vc45: PERF - the bundled minima.jar indexes txpow.timemilli and (isrelevant, timemilli),
+        // and gives getLatestTxPoW's query a WHERE clause so H2 will actually use that index.
+        // Those columns were unindexed while five hot statements sorted or filtered on them, so
+        // `SELECT * FROM txpow ORDER BY timemilli DESC` was a full table scan that dragged every
+        // row's txpowdata BLOB through the sort. Every TxPoWSqlDB method is synchronized, so one
+        // `history` call from any companion stalled all node DB reads - including the SINGLE-
+        // threaded IPC command executor. Measured on R58M307HEEN (2026-09-11, 500MB+ txpow store):
+        // all 1626 Long-monitor-contention mentions named TxPoWSqlDB, 506 holds by getLatestTxPoW
+        // blocking exists (299) and getTxPoW (210), longest hold 47.171s against a 30s
+        // NodeApi.READ_TIMEOUT_MS. See diag/README.md.
+        // The index alone was NOT enough: H2 refuses to use an index for a bare ORDER BY .. LIMIT
+        // with no WHERE, so the query carries a deliberate `timemilli > 0`. Verified on H2 2.1.214
+        // with 60k rows - 25,535 page reads as a tableScan vs 3,755 via the index.
+        // CREATE INDEX IF NOT EXISTS runs in createSQL(), so existing DBs index on next start -
+        // expect one slow first boot while it builds. No migration, no schema version.
+        // vc46: the node now watches its own database and says when it needs a resync.
+        // The 2026-09-11 incident ran for weeks with no signal at all - nothing in the app
+        // monitored anything, and the hourly Alarm only ever restarted a DEAD service, so a
+        // node that was alive and starving looked fine right up until companion apps began
+        // timing out. NodeHealth reads `status complete:true` at service start and on that
+        // same hourly tick. The store is the LEADING signal (txpow rows and bytes, total
+        // disk) because that is what actually grows; heap is only a backstop, and is a
+        // FRACTION of Runtime.maxMemory() (0.60 warn / 0.80 act) because heapgrowthlimit is
+        // 256m on some devices and 512m on others, so absolute MB do not travel. A verdict
+        // must hold for 10 minutes before it is reported, in both directions, so neither a
+        // spike nor one quiet sample can flip it. Healthy reference, measured on the zfold
+        // after its resync: disk 29.0 MB, txpowdb 10.1 MB / 2050 rows.
+        // WATCH/DEGRADED raise a notification that opens the resync screen. New opt-in
+        // switch "Resync automatically when unhealthy" (default OFF) will do it unattended -
+        // at most once a day, never while a transaction is waiting to be mined, and it falls
+        // over to another MegaMMR host only on a pre-flight failure, never after megammrsync
+        // has already deleted the databases. The resync screen now confirms before it runs,
+        // which it never did before. Wallet and seed are untouched throughout.
+        // vc47: FIX in vc46's own health check, caught by reading its first field log. The
+        // hourly Alarm both starts the service AND asks for a check, and starting a running
+        // service delivers onStartCommand, which asks again - so every tick sampled TWICE,
+        // 7ms apart, and wrote two identical lines to the Logs tab. Checks are now debounced
+        // to one a minute for every caller, not just that pair. The debounce also refuses to
+        // be fooled by the wall clock moving BACKWARDS (NTP correction, or the user changing
+        // the time): a naive now-minus-last goes negative, reads as "too soon", and would
+        // have silently suppressed every check until the clock caught up.
+        // vc48: the health check is driven by the node's own block heartbeat, not AlarmManager.
+        // Found on the Z Fold 7: six minutes after start its hourly Alarm had not fired ONCE -
+        // setInexactRepeating is subject to Doze and OEM battery management - so that device
+        // would have gone hours with no health check at all, and vc46/47 looked fine only
+        // because the alarm happened to fire promptly on the older Galaxy. A block arrives
+        // every ~50s while the node runs, so NEWBLOCK now asks for a check and the interval
+        // (15 min) does the scheduling by turning almost all of them away. The service-start
+        // and Alarm calls stay as belt and braces; they are debounced like everything else.
+        // vc65: upstream 1.1.2.31 merge ("block as key uses"). The bundled minima.jar is a FULL
+        // Gradle rebuild of our fork rebased onto upstream c2a54a2e4 (1.1.2.31-rex1): all eight
+        // of our core patches survive (MegaMMR OOM/streaming/watermarks, signData+sendsign
+        // Winternitz fixes, removeScript cache clear, txpow indexes, relevant-row ageing), plus
+        // a new capacity guard - signing past a key's size^depth now throws instead of wrapping
+        // to leaf 0 (one-time-key reuse). New "block" product flavor = NEW app
+        // (com.eurobuddha.minimablock, fresh installs only) that forces -blockaskeyuses -lowram
+        // like upstream 1.7; the classic flavor keeps the legacy key system and stays the app
+        // existing wallets run. Same seed produces DIFFERENT addresses across the two systems -
+        // that is why the block app is a separate SKU and never an update.
+        // vc66: FIX caught on-device - the IPC file-hand-off FileProvider declared the FIXED
+        // authority com.eurobuddha.minimacore.ipcresponses, so installing the block flavor next
+        // to classic failed with INSTALL_FAILED_CONFLICTING_PROVIDER. The authority now derives
+        // from the applicationId; companion apps are unaffected (they open the granted
+        // content:// URI from the intent, never the constant).
+        // vc67: code-review fixes. The bundled jar is 1.1.2.31-rex2: (1) -lowram nodes silently
+        // IGNORED the state: filter in coin searches (upstream regression, proven live - a
+        // non-matching state value returned every coin); the SQL-CoinDB path now fetches the
+        // full row for the check, so state searches and max:+state behave again. (2) An
+        // over-capacity key is refused BEFORE the block-keyuses counter is advanced and saved,
+        // so a retry loop no longer burns a UserDB write per refusal. App side: both flavors
+        // warn when another Minima node already holds port 11001 (classic + block cannot run
+        // together); the block flavor's restore pre-fills the key-uses floor and relabels the
+        // field (the node derives real uses from the chain tip). NOTE for the CLASSIC flavor:
+        // its first release from this branch ships the full 1.1.2.3->1.1.2.31 core jump and
+        // needs its own device soak before publishing - treat it as a major core upgrade, not
+        // a routine bump.
+        // vc68: independent merge review: safe companion routing and core regression fixes.
+        // vc81: the bundled minima.jar separates OWN-WALLET from TRACKED. `balance` (no address:)
+        // now totals only coins at this wallet's own simple addresses - newscript watch scripts
+        // (e.g. minimaWallet's 64 classic addresses) no longer inflate the node wallet's rows,
+        // amounts or coin counts. New `coins own:true` filter for companion apps (NFT wallet)
+        // that mean "the node's coins"; plain `coins relevant:true` still returns tracked coins
+        // for watch-style apps (minimaWallet).
+        // vc82: existing app icons in the Pandamonium sidebar.
+        // vc83: Pandamonium opens on Wallet; Node follows Logs.
+        // vc85: sleep hidden Pandamonium display work, preserving financial services.
+        // vc112: opt-in app-open lock (PIN + optional fingerprint/face) across all three flavours.
+        // A UI gate only - the node keeps running in its foreground service behind the lock; the
+        // seed stays where it is (main_prefs, allowBackup off). PIN verified via VaultCrypto
+        // (PBKDF2->AES-GCM sentinel), biometric via BiometricUnlock (AndroidKeyStore), both lifted
+        // from apks/wallet. Off by default; auto-lock delay default 1 min, configurable.
+        // vc113: explicit English, Chinese, Russian and Ukrainian selection across all bears.
+        // vc114: core notifications and retained main-screen controls follow the selected language.
+        // vc118: current four-language catalogue and reviewed AtomiX receipt/consent fixes.
+        // vc229: KeetChat/Parlons notifications get the pssst sound, vibration, a
+        // versioned channel, in-thread suppression and a "notifications off" banner.
+        // vc230: KeetChat gets its own channel and "keet" cheep; Parlons keeps pssst.
+        // vc231: delivered receipts (double tick when the peer stores it), contact names
+        // follow the sender until renamed by hand, keets sidecar 1.2.5 (mailbox push).
+        // vc232: delivered receipts go out on their own thread - a slow dial back to the
+        // sender must never delay the inbound notification (14 s seen on 2.0.35).
+        // vc233: keets sidecar 1.2.6 (direct dial races the mailbox, 1.5 s grace) and the chat
+        // inbox poll 5 s -> 1.5 s: a message shows within ~2 s of reaching the phone.
+        // vc234: notify and refresh the UI the instant a message is stored; acks and
+        // receipts follow afterwards (node commands serialise, 8 s stalls seen on 2.0.37).
+        // vc235: in-chat payments can be MxUSD as well as Minima (the wire always carried the token).
+        // vc263: the keets worklet gets the signed dynamic mailbox list (minima.jar from
+        // keets-android 4f7f479f83: KeetsMailboxList, -keetsmailboxurl). A new fleet mailbox
+        // joins by re-signing eurobuddha.com/keets/mailboxes.json - no app release needed.
+        // vc264: keets 1.3.2 - a media fetch re-dials a contact the swarm had given up on (file
+        // transfers sat at "transferring" for 25 min on the Fold, then flew once the topic's
+        // 10-min refresh re-dialed the sender); the file sheet shows the sidecar's own reason.
+        // vc265: keets 1.3.3 - stopping a transfer from before per-transfer storage no longer
+        // fails every 5 s forever (the delivery tick's stop loop seen on the Fold); Remove works.
+        // vc266: keets 1.3.4 (the fetch's topic refresh no longer runs ahead of the media deadline);
+        // file-delivery hello/complete re-sends back off 15 s -> 10 min while the peer is silent
+        // (three sealed mailbox messages every 15 s per pending file on the Fold); review pass.
+        // 2.1.0: the owner's minor bump for the keets file-transfer repair (2.0.68-2.0.70 work).
+        // 2.2.0: Keets transport switch (Startup Params) - off = classic Minima transport, no Chat tab.
+        // 2.2.1: SECURITY - IPC trust on first use: a package that once proved its identity (API 34+
+        // shareIdentity) must always prove it, so a spoofer holding leaked pairing ids is dropped.
+        // 2.2.13: SECURITY - bundled minima.jar (keets-android + txn write gate, core branch
+        // security/txn-write-gate-android-2026-11-07): a non-ADMIN companion can no longer list, export
+        // or edit transaction rows, or txnimport over an existing id. apks/wallet's path (txnimport new id ->
+        // txnbasics -> txnpost) is unchanged.
+        // 2.2.14: SECURITY - Pandamonium's built-in AtomiX and PandaPools get the 7 Nov review fixes: 32-byte hashlocks,
+        // the reveal window + secret-out marker, two ETH endpoints must agree, the MEXC peg guards, HTLC v1.3 for USDT-paid
+        // takes (both addresses scanned; asks as bal.m13); PandaPools collection/recovery/backup/interrupted-write fixes.
+        versionCode 1
+        versionName "0.1.0"
+
+        buildConfigField "boolean", "PANDAMONIUM", "false"
+        // PANDA_SHELL: Pandamonium-style tabs (Wallet/History/Apps/Chat/Node) + the embedded
+        // node-event feed History needs. True for block + pandamonium; false for classic.
+        // INVARIANT: any flavor with PANDAMONIUM=true MUST set PANDA_SHELL=true (the superapp
+        // host relies on the shell tab positions). A verifyPandaShellInvariant check below
+        // fails the build if that is ever violated.
+        buildConfigField "boolean", "PANDA_SHELL", "false"
+        // Brand line under the Node-screen "Minima Core" title ("" = none).
+        buildConfigField "String", "SHELL_BRAND", "\"\""
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    flavorDimensions = ["keymode"]
+    productFlavors {
+        classic {
+            dimension "keymode"
+            versionNameSuffix "-PandaBear"
+            // Existing app, existing users, legacy 64x3 keys. applicationId stays the
+            // defaultConfig com.eurobuddha.minimacore.
+            buildConfigField "boolean", "BLOCK_KEYUSES", "false"
+            // Node P2P port. Each bear listens on its own port so two bears on one phone (or one
+            // Wi-Fi) never collide; keets' loopback API is port+5. Overridable by -port in extra params.
+            buildConfigField "int", "NODE_PORT", "13001"
+        }
+        block {
+            dimension "keymode"
+            // NEW SKU - fresh installs only. Forces the upstream block-as-keyuses system
+            // (128x4 trees, keyuses = chain tip block). A classic seed restored here gets
+            // DIFFERENT addresses, so this is never shipped as an update to classic.
+            applicationId "tech.trackium.core.prototype"
+            versionNameSuffix "-TrackiumCorePrototype"
+            buildConfigField "boolean", "BLOCK_KEYUSES", "true"
+            // BlackBear mirrors Pandamonium's tab shell + History, minus the integrated DeFi apps.
+            buildConfigField "boolean", "PANDA_SHELL", "true"
+            buildConfigField "String", "SHELL_BRAND", "\"Trackium Core Prototype\""
+            buildConfigField "int", "NODE_PORT", "21001"
+        }
+        pandamonium {
+            dimension "keymode"
+            applicationId "tech.trackium.core.prototype.unused"
+            versionNameSuffix "-Pandamonium"
+            buildConfigField "boolean", "BLOCK_KEYUSES", "true"
+            buildConfigField "boolean", "PANDAMONIUM", "true"
+            buildConfigField "boolean", "PANDA_SHELL", "true"
+            buildConfigField "int", "NODE_PORT", "25001"
+        }
+    }
+
+    // BlackBear (block) and Pandamonium share the Pandamonium-style shell code (e.g. the History
+    // tab) that classic/PandaBear does not ship. One source set, added to both flavors, avoids
+    // duplicating those files per flavor.
+    sourceSets {
+        block.java.srcDirs += 'src/pandaShell/java'
+        pandamonium.java.srcDirs += 'src/pandaShell/java'
+    }
+
+    // Prototype uses a local debug key only; never read the Minima family release key.
+    buildTypes {
+        debug {
+            // Match the upstream worklet's verified ABIs. Bare Kit also contains
+            // x86, for which there is no pinned Keets addon set; never package it.
+            ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // keets/bare-kit ships a ~65MB runtime PER ABI. Release carries arm64-v8a only:
+            // 32-bit-only devices are overwhelmingly Android 9-, where the worklet is
+            // API-gated off anyway — they install and run classic-only (UnsatisfiedLinkError
+            // is caught). Debug keeps all ABIs for the emulator.
+            ndk { abiFilters 'arm64-v8a' }
+        }
+    }
+    // Reuse Atelier/Salon standalone packaging: JSch and jspecify duplicate
+    // these OSGi/dependency metadata entries; Android does not consume them.
+    packaging {
+        resources {
+            excludes += ['META-INF/versions/9/OSGI-INF/MANIFEST.MF', 'META-INF/DEPENDENCIES']
+        }
+    }
+
+    // Audit the integrated app code under the SDK configuration that actually ships.
+    lint { checkDependencies = true }
+
+    testOptions { unitTests.includeAndroidResources = true }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+// INVARIANT: PANDAMONIUM ⇒ PANDA_SHELL. The superapp host's tab positions come from
+// PANDA_SHELL; a flavor that turned PANDAMONIUM on without it would silently misposition tabs.
+// Fail the build rather than ship that.
+android.productFlavors.all { f ->
+    def pm = f.buildConfigFields['PANDAMONIUM']?.value
+    def ps = f.buildConfigFields['PANDA_SHELL']?.value
+    if (pm == 'true' && ps != 'true') {
+        throw new GradleException("Flavor '${f.name}': PANDAMONIUM=true requires PANDA_SHELL=true")
+    }
+}
+
+// Generated Keets inputs are not in Git. Every checkout prepares the pinned inputs
+// before assets/JNI merging or AAR transforms; Gradle --offline also governs Keets.
+def prepareKeets = tasks.register('prepareKeets', Exec) {
+    workingDir rootProject.projectDir
+    commandLine(['python3', 'scripts/prepare-keets.py'] +
+            (gradle.startParameter.offline ? ['--offline'] : []))
+}
+def verifyKeetsArtifacts = tasks.register('verifyKeetsArtifacts', Exec) {
+    dependsOn prepareKeets
+    workingDir rootProject.projectDir
+    commandLine 'python3', 'scripts/verify-keets-artifacts.py'
+}
+tasks.named('preBuild').configure { dependsOn verifyKeetsArtifacts }
+
+dependencies {
+
+    //H2 database
+    implementation 'com.h2database:h2:2.1.214'
+
+    //Bouncy Castle
+    implementation 'org.bouncycastle:bcpkix-jdk15on:1.69'
+
+    //Toolbar
+    implementation ("com.google.android.material:material:1.13.0")
+
+    //QR Code
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+
+    //SVG token icons (some Minima tokens carry inline/URL SVG art)
+    implementation 'com.caverock:androidsvg-aar:1.4'
+
+    //App-open lock: fingerprint/face unlock (the PIN is always the fallback)
+    implementation 'androidx.biometric:biometric:1.1.0'
+
+    implementation libs.appcompat
+    implementation libs.material
+    implementation libs.activity
+    implementation libs.constraintlayout
+    implementation files('libs/minima.jar')
+    // bare-kit: the mobile JS runtime hosting the keets sidecar worklet.
+    // NOT in git (~80MB) — scripts/fetch-bare-kit.sh builds it from the pinned release.
+    implementation files('libs/bare-kit.aar').builtBy(verifyKeetsArtifacts)
+    implementation project(':minimaapi')
+    blockImplementation project(':integrated-trackium')
+    implementation project(':localization')
+    // Parlons/Maxima transport core, vendored under maxima-core/ (MAX# contacts in Chat).
+    // The fork's node has NO Maxima - the app carries the clean-room core itself, like mininotes.
+    implementation project(':maxima-core')
+    testImplementation libs.junit
+    // Robolectric + json are shared so the (main-code) ChatFailureDialogTest runs for every
+    // flavor's unit tests, not just Pandamonium's. web3j stays Pandamonium-only (its tests need it).
+    testImplementation 'org.robolectric:robolectric:4.14.1'
+    testImplementation 'org.json:json:20240303'
+    testPandamoniumImplementation 'org.web3j:crypto:4.9.8'
+    testImplementation 'org.mockito:mockito-core:5.12.0'
+    androidTestImplementation libs.ext.junit
+    androidTestImplementation libs.espresso.core
+}
+
+// Feature code is linked only into Pandamonium; classic and block keep their existing contents.
+dependencies {
+    // BlackBear also ships History (its only integrated tab); no other integrated apps.
+    blockImplementation project(':integrated-history')
+}
+
+// Verify the packaged bytes, including code/data sections after Android strips symbols.
+android.applicationVariants.all { variant ->
+    def checkApk = tasks.register("verify${variant.name.capitalize()}KeetsApk", Exec) {
+        dependsOn variant.packageApplicationProvider
+        workingDir rootProject.projectDir
+        commandLine 'python3', 'scripts/verify-keets-artifacts.py', '--remove-invalid-apk', '--apk-dir',
+                layout.buildDirectory.dir("outputs/apk/${variant.flavorName}/${variant.buildType.name}").get().asFile.absolutePath
+    }
+    variant.assembleProvider.configure { dependsOn checkApk }
+}
+
+// Prototype SKU only: never build an upstream application ID or a release artifact.
+androidComponents { beforeVariants(selector().all()) { v -> v.enable = v.name == "blockDebug" } }
+android.signingConfigs.debug.storeFile = rootProject.file(".local/debug.keystore")
+def prototypeDebugKey = tasks.register('preparePrototypeDebugKey', Exec) {
+    def target = rootProject.file('.local/debug.keystore')
+    onlyIf { !target.exists() }
+    doFirst { target.parentFile.mkdirs() }
+    commandLine new File(System.getProperty('java.home'), 'bin/keytool').absolutePath,
+            '-genkeypair', '-keystore', target.absolutePath, '-storepass', 'android',
+            '-keypass', 'android', '-alias', 'androiddebugkey', '-keyalg', 'RSA',
+            '-keysize', '2048', '-validity', '10000', '-dname', 'CN=Android Debug,O=Android,C=US'
+}
+tasks.matching { it.name == 'validateSigningBlockDebug' }.configureEach { dependsOn prototypeDebugKey }
+
+// Keep the reviewed Android engine byte-for-byte; never silently substitute a fork.
+def verifyPrototypeEngine = tasks.register('verifyPrototypeEngine', Exec) {
+    workingDir rootProject.projectDir
+    commandLine 'python3', 'scripts/verify-prototype.py'
+}
+tasks.named('preBuild').configure { dependsOn verifyPrototypeEngine }

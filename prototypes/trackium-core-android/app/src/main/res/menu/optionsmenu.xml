@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item android:id="@+id/mainmenu_trackium" android:title="Open Trackium" app:showAsAction="ifRoom" />
+
+<!--    <item-->
+<!--        android:id="@+id/mainmenu_addpeer"-->
+<!--        android:orderInCategory="100"-->
+<!--        android:title="Add Peer"-->
+<!--        app:showAsAction="never" />-->
+
+    <item
+        android:id="@+id/mainmenu_logs"
+        android:orderInCategory="100"
+        android:title="@string/l10n_menu_logs"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/mainmenu_terminal"
+        android:orderInCategory="100"
+        android:title="@string/l10n_tab_terminal"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/mainmenu_backup"
+        android:orderInCategory="100"
+        android:title="@string/l10n_menu_backup"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/mainmenu_params"
+        android:orderInCategory="100"
+        android:title="@string/l10n_menu_params"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/mainmenu_locknow"
+        android:orderInCategory="100"
+        android:title="@string/l10n_menu_lock_now"
+        android:visible="false"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/mainmenu_applock"
+        android:orderInCategory="100"
+        android:title="@string/l10n_menu_app_lock"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/mainmenu_shutdown"
+        android:orderInCategory="100"
+        android:title="@string/l10n_menu_shutdown"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/mainmenu_wipeminima"
+        android:orderInCategory="100"
+        android:title="@string/l10n_menu_reset"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/mainmenu_screenshots"
+        android:orderInCategory="100"
+        android:title="@string/l10n_menu_screenshots"
+        android:checkable="true"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/mainmenu_battery"
+        android:orderInCategory="100"
+        android:title="@string/l10n_menu_battery"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/mainmenu_language"
+        android:orderInCategory="100"
+        android:title="@string/l10n_language_title"
+        app:showAsAction="never" />
+</menu>

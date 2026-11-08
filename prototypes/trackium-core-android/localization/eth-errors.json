@@ -1,0 +1,71 @@
+{
+  "fixed": {
+    "Node returned no seedrandom — is the node write-enabled?": "ethWallet.errorNoSeed",
+    "Node returned an all-zero key. Not using it.": "ethWallet.errorZeroKey",
+    "no decimals() — not an ERC20?": "ethWallet.errorNoDecimals",
+    "Wallet session changed. Review again.": "wallet.reviewAgain",
+    "Node returned an invalid Ethereum key. Not using it.": "atomixNotice.keyInvalid",
+    "Ethereum key derivation failed. Retry when the node is ready.": "atomixNotice.keyFailed"
+  },
+  "patterns": [
+    {
+      "template": "Node returned a malformed key ({0} chars, expected 64). Not using it.",
+      "key": "ethWallet.errorMalformedKey",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Key derivation failed: {0}",
+      "key": "ethWallet.errorDeriveFailed",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Refusing to sign: gas price {0} gwei exceeds the {1} gwei safety cap. Check your RPC endpoint.",
+      "key": "ethWallet.errorPriceCap",
+      "kinds": [
+        "number",
+        "number"
+      ]
+    },
+    {
+      "template": "Refusing to sign: gas limit {0} is outside the safe range (max {1}). Check your RPC endpoint.",
+      "key": "ethWallet.errorLimitCap",
+      "kinds": [
+        "literal",
+        "integer"
+      ]
+    },
+    {
+      "template": "send failed: {0}",
+      "key": "ethWallet.errorSendResult",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} failed on all RPCs: {1}",
+      "key": "ethWallet.errorAllRpc",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "ETH eth_call build error: {0}",
+      "key": "ethWallet.errorCallBuild",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "estimateGas build error: {0}",
+      "key": "ethWallet.errorEstimateBuild",
+      "kinds": [
+        "literal"
+      ]
+    }
+  ]
+}

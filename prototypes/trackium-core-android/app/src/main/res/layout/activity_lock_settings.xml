@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/locksettings_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/core_surface"
+        app:titleTextColor="@color/core_text"
+        app:titleTextAppearance="@style/TextAppearance.MinimaCore.Title"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="?attr/actionBarTheme" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/l10n_menu_app_lock" android:tag="l10n:text=l10n_menu_app_lock"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Display" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/l10n_lock_help"
+                android:tag="l10n:text=l10n_lock_help"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.3" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/lock_switch_enable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/l10n_lock_require_pin"
+                android:tag="l10n:text=l10n_lock_require_pin"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text" />
+
+            <LinearLayout
+                android:id="@+id/lock_options"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/lock_switch_bio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="@string/l10n_lock_use_biometric"
+                    android:tag="l10n:text=l10n_lock_use_biometric"
+                    android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                    android:textColor="@color/core_text" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/l10n_lock_biometric_help"
+                    android:tag="l10n:text=l10n_lock_biometric_help"
+                    android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                    android:textSize="12sp"
+                    android:textColor="@color/core_text_mid" />
+
+                <TextView style="@style/FormLabel" android:text="@string/l10n_lock_auto_lock"
+        android:tag="l10n:text=l10n_lock_auto_lock" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/lock_autolock"
+                    style="@style/Widget.MinimaCore.Button.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/l10n_lock_one_minute" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/l10n_lock_delay_help"
+                    android:tag="l10n:text=l10n_lock_delay_help"
+                    android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                    android:textSize="12sp"
+                    android:textColor="@color/core_text_mid" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/lock_change_pin"
+                    style="@style/Widget.MinimaCore.Button.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="@string/l10n_lock_change_pin"
+                    android:tag="l10n:text=l10n_lock_change_pin" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

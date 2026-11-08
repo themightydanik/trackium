@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/chat_backup_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/core_surface"
+        app:titleTextColor="@color/core_text"
+        app:titleTextAppearance="@style/TextAppearance.MinimaCore.Title"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="?attr/actionBarTheme" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="40dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Save chat backup"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Display"  android:tag="l10n:text=l10n_chatbak_export" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="One encrypted file with your keets chat address, your MAX# address, every chat contact and every message. Photos, voice notes and files are not included."
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.3"  android:tag="l10n:text=l10n_chatbak_intro" />
+
+            <TextView style="@style/FormLabel" android:text="Password"  android:tag="l10n:text=l10n_backup_password" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/chat_backup_password"
+                    style="@style/FormField"
+                    android:saveEnabled="false"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:hint="at least 8 characters"  android:tag="l10n:hint=l10n_chatbak_password_hint" />
+
+                <ImageButton
+                    android:id="@+id/chat_backup_password_eye"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_visibility"
+                    android:contentDescription="Show password" />
+            </LinearLayout>
+
+            <TextView style="@style/FormLabel" android:text="Confirm password"  android:tag="l10n:text=l10n_backup_confirm_password" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/chat_backup_confirm"
+                    style="@style/FormField"
+                    android:saveEnabled="false"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:hint="type it again"  android:tag="l10n:hint=l10n_backup_again_hint" />
+
+                <ImageButton
+                    android:id="@+id/chat_backup_confirm_eye"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_visibility"
+                    android:contentDescription="Show password" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:padding="14dp"
+                android:background="@drawable/bg_token_tile"
+                android:text="Anyone with this file and its password can read your chats and speak as you. Without the password the file cannot be opened."
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.25"  android:tag="l10n:text=l10n_chatbak_warning" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/chat_backup_save"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="24dp"
+                android:text="Save chat backup"  android:tag="l10n:text=l10n_chatbak_export" />
+
+            <TextView
+                android:id="@+id/chat_backup_save_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:accessibilityLiveRegion="polite"
+                android:textIsSelectable="true"
+                android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="40dp"
+                android:text="Restore chat backup"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Display"  android:tag="l10n:text=l10n_chatbak_restore" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Enter the backup's password, then choose the file. This phone takes over the chat addresses in the backup and the node restarts to load them."
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.3"  android:tag="l10n:text=l10n_chatbak_restore_intro" />
+
+            <TextView style="@style/FormLabel" android:text="Password"  android:tag="l10n:text=l10n_backup_password" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/chat_backup_restore_password"
+                    style="@style/FormField"
+                    android:saveEnabled="false"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:hint="at least 8 characters"  android:tag="l10n:hint=l10n_chatbak_password_hint" />
+
+                <ImageButton
+                    android:id="@+id/chat_backup_restore_password_eye"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_visibility"
+                    android:contentDescription="Show password" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/chat_backup_restore"
+                style="@style/Widget.MinimaCore.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="24dp"
+                android:text="Choose backup file"  android:tag="l10n:text=l10n_chatbak_choose" />
+
+            <TextView
+                android:id="@+id/chat_backup_restore_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:accessibilityLiveRegion="polite"
+                android:textIsSelectable="true"
+                android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

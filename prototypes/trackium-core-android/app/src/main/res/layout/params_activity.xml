@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/params_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/core_surface"
+        app:titleTextColor="@color/core_text"
+        app:titleTextAppearance="@style/TextAppearance.MinimaCore.Title"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="?attr/actionBarTheme" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Startup parameters" android:tag="l10n:text=l10n_params_heading"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Display" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Configure how the node starts. Changes take effect when the node restarts." android:tag="l10n:text=l10n_params_intro"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.3" />
+
+            <LinearLayout
+                android:id="@+id/params_classic_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/params_switch_classic"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="@string/classic_mode_title" android:tag="l10n:text=l10n_drawer_classic_mode"
+                    android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                    android:textColor="@color/core_text" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/classic_mode_description" android:tag="l10n:text=l10n_params_classic_body"
+                    android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                    android:textSize="12sp"
+                    android:textColor="@color/core_text_mid" />
+            </LinearLayout>
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/params_switch_server"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="Server mode (-server)" android:tag="l10n:text=l10n_params_server"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Accept incoming connections instead of client-only. Needs a reachable port (router forward / hotspot)." android:tag="l10n:text=l10n_params_server_body"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textSize="12sp"
+                android:textColor="@color/core_text_mid" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/params_switch_megammr"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="MegaMMR (-megammr)" android:tag="l10n:text=l10n_params_mega"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Keep the full Mega MMR so this node can serve seed resyncs. Uses significantly more RAM and storage." android:tag="l10n:text=l10n_params_mega_body"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textSize="12sp"
+                android:textColor="@color/core_text_mid" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/params_switch_rpc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Enable RPC (-rpcenable)" android:tag="l10n:text=l10n_params_rpc"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="HTTP RPC interface on port 11005. Anything that can reach the port can command this node, so it is never started without Basic auth: user minima, password below." android:tag="l10n:text=l10n_params_rpc_body"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textSize="12sp"
+                android:textColor="@color/core_text_mid" />
+
+            <LinearLayout
+                android:id="@+id/params_rpc_password_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView style="@style/FormLabel" android:text="RPC password" android:tag="l10n:text=l10n_params_rpc_password" />
+
+                <TextView
+                    android:id="@+id/params_rpc_password"
+                    style="@style/MonoBlock"
+                    android:padding="12dp"
+                    android:background="@drawable/bg_token_tile"
+                    android:textIsSelectable="true" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/params_rpc_password_copy"
+                    style="@style/Widget.MinimaCore.Button.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Copy RPC password" android:tag="l10n:text=l10n_params_copy_rpc" />
+            </LinearLayout>
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/params_switch_autoresync"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Resync automatically when unhealthy" android:tag="l10n:text=l10n_params_auto_resync"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Minima checks its own database hourly. Off, it tells you when a resync is needed. On, it rebuilds the chain itself, at most once a day and never while a transaction is waiting to be mined. Your wallet and seed phrase are never touched either way." android:tag="l10n:text=l10n_params_auto_resync_body"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textSize="12sp"
+                android:textColor="@color/core_text_mid" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/params_switch_keets"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Keets transport (-keets)" android:tag="l10n:text=l10n_params_keets"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="On: KeetChat and the peer-to-peer keets transport, as before. Off: no Hyperswarm sidecar, no DHT and no Chat tab - the node runs on the classic Minima transport only and uses less battery and RAM. Your chats and keets identity stay on the phone and return when you switch it back on. Applies after a restart." android:tag="l10n:text=l10n_params_keets_body"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textSize="12sp"
+                android:textColor="@color/core_text_mid" />
+
+            <TextView style="@style/FormLabel" android:text="Extra arguments (advanced)" android:tag="l10n:text=l10n_params_extra" />
+
+            <EditText
+                android:id="@+id/params_extra"
+                style="@style/FormField"
+                android:minLines="2"
+                android:gravity="top|start"
+                android:inputType="textMultiLine|textNoSuggestions"
+                android:hint="-p2pnodes host:port -txpowdbstore 3 …" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Space-separated flags passed to the node at boot. Wipe/seed flags (-clean, -genesis, -solo, -seed, -anyseed, -dbpassword) and app-managed flags (-data, -basefolder, -conf, -server, -isclient) are not allowed here." android:tag="l10n:text=l10n_params_extra_body"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textSize="12sp"
+                android:textColor="@color/core_text_mid" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/params_button_save"
+                style="@style/Widget.MinimaCore.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="20dp"
+                android:text="Save" android:tag="l10n:text=l10n_common_save" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/params_button_save_restart"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:text="Save &amp; Restart Node" android:tag="l10n:text=l10n_params_save_restart" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

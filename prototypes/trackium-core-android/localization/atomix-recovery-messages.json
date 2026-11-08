@@ -1,0 +1,51 @@
+{
+  "fixed": {
+    "A node write lost its reply and may have completed.": "atomixRecovery.unknown",
+    "A node write": "atomixRecovery.write"
+  },
+  "patterns": [
+    {
+      "template": "{0} got no reply within the 3 minute limit. The node may have been restarting or stalled; it may still have completed.",
+      "key": "atomixRecovery.timeout",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "{0} came back without a usable result, so whether it completed is unknown. The node answered, so restarting it will not help.",
+      "key": "atomixRecovery.incomplete",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "{0} replied, but AtomiX failed while handling the reply. The command most likely completed on the node.",
+      "key": "atomixRecovery.callback",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "{0} was started and AtomiX stopped before the reply was handled - most likely the app was killed in the background. Nothing was recorded either way, and the node was never at fault.",
+      "key": "atomixRecovery.stopped",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "{0} about {1} min ago",
+      "key": "atomixRecovery.ago",
+      "kinds": [
+        "diagnostic",
+        "integer"
+      ]
+    },
+    {
+      "template": "A '{0}' command",
+      "key": "atomixRecovery.command",
+      "kinds": [
+        "literal"
+      ]
+    }
+  ]
+}

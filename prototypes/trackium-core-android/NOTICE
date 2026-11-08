@@ -1,0 +1,15 @@
+Trackium Core Android technical prototype
+
+Derived from eurobuddha/minima-core-android (BlackBear / Pandamonium),
+which derives from the Minima Android/node projects. Original copyright
+and licence notices in the imported sources are retained. See LICENSE
+and docs/REUSE_AND_ENGINE_REVIEW.md for source pins and modified files.
+
+The native Trackium code is reused from themightydanik/trackium at its
+owner's request. That repository had no explicit distribution licence at
+the pinned revision; this notice makes no new third-party relicensing grant.
+
+This is not an official Minima, BlackBear or Pandamonium release. Product
+names and upstream icons remain subject to their owners' rights.
+Keets/native dependency redistribution clearance is incomplete; do not
+publish a release until the licence/notice inventory is resolved.

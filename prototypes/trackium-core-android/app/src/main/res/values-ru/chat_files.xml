@@ -1,0 +1,21 @@
+<resources>
+    <string name="chat_files_title">Передача файлов</string>
+    <string name="chat_files_attach">Файл (до 100 МБ)</string>
+    <string name="chat_files_open">Открыть передачу файла</string>
+    <string name="chat_files_limit">Выберите локальный файл до 100 МБ</string>
+    <string name="chat_files_failed">Не удалось передать файл. Нажмите «Продолжить».</string>
+    <string name="chat_files_storage">Удалите завершённую передачу, чтобы освободить место.</string>
+    <string name="chat_files_none">В этом чате нет сохранённых передач</string>
+    <string name="chat_files_save">Сохранить проверенный файл</string>
+    <string name="chat_files_remove">Удалить локальную копию</string>
+    <string name="chat_files_ready">Проверено, можно сохранить</string>
+    <string name="chat_files_working">Передача зашифрованного файла…</string>
+    <string name="chat_files_help">Скачайте или продолжите. Оба узла должны быть в сети. Данные передаются между участниками.</string>
+    <string name="chat_files_pause">Пауза</string>
+    <string name="chat_files_send">Отправить / продолжить</string>
+    <string name="chat_files_download">Скачать / продолжить</string>
+    <string name="chat_files_paused">Передача приостановлена</string>
+    <string name="chat_files_saved">Файл сохранён</string>
+    <string name="chat_files_incomplete">Подготовка прервана. Удалите эту локальную передачу и выберите файл заново.</string>
+    <string name="chat_files_contact">Контакт удалён. Добавьте его перед передачей файлов.</string>
+</resources>

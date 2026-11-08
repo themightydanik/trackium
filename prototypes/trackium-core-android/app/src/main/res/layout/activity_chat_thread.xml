@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/chat_thread_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/chat_thread_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/core_surface" />
+
+    <ListView
+        android:id="@+id/chat_msgs"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@null"
+        android:paddingTop="6dp"
+        android:clipToPadding="false"
+        android:stackFromBottom="true"
+        android:transcriptMode="normal" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical|bottom"
+        android:background="@color/core_surface"
+        android:padding="8dp">
+
+        <ImageButton
+            android:id="@+id/chat_attach"
+            android:tag="l10n:description=l10n_chat_attach"
+        android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_attach"
+            android:contentDescription="Attach"
+            app:tint="@color/core_text_mid"
+            xmlns:app="http://schemas.android.com/apk/res-auto" />
+
+        <EditText
+            android:id="@+id/chat_input"
+            android:tag="l10n:hint=l10n_chat_message"
+        android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/chat_input_bg"
+            android:paddingHorizontal="18dp"
+            android:paddingVertical="11dp"
+            android:hint="Message"
+            android:textColorHint="@color/core_text_faint"
+            android:textColor="@color/core_text"
+            android:inputType="textCapSentences|textMultiLine"
+            android:maxLines="5" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/chat_send"
+            android:tag="l10n:description=l10n_wallet_send"
+        android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:contentDescription="Send"
+            android:src="@drawable/ic_send"
+            app:fabSize="mini"
+            app:tint="@color/white"
+            app:backgroundTint="@color/minima_blue"
+            xmlns:app="http://schemas.android.com/apk/res-auto" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,496 @@
+{
+  "fixed": {
+    "Future Cash guardian stopped": "future.noticeStopped",
+    "It had no safe destination, so it could not rescue an at-risk stake. Open the app and pick where rescued funds should go.": "future.noticeStoppedBody",
+    "A collection keeps failing — check this node": "future.noticeCollectFailed",
+    "A stake was spent but the node couldn't confirm it reached your safe address — please verify it arrived.": "future.noticeUnverified",
+    "A sweep keeps failing — funds still on an exposed address. Is your vault unlocked?": "future.noticeSweepFailed",
+    "Future Cash: rescue is off": "future.noticeRescueOff",
+    "your safe destination is flagged as a REUSED address": "future.reasonReused",
+    "no safe destination is set": "future.reasonNoSafe",
+    "your safe destination is no longer usable": "future.reasonUnusable",
+    "Couldn't read keys from the embedded node. Check Minima Core’s status.": "future.errorNodeKeys",
+    "Could not read minimaWallet public audit keys. Unlock minimaWallet and retry.": "future.errorWalletKeys",
+    "The node returned an unreadable key row. Audit remains incomplete.": "future.errorUnreadableKey",
+    "This node reported no keys.": "future.errorNoKeys",
+    "minimaWallet changed during the audit. Run the audit again.": "future.errorWalletChanged",
+    "Could not reach the audit service. Check your connection and try again.": "future.errorAuditConnection",
+    "Your node's keys are locked, so it can't make a new address. Unlock your node (Vault), then try again.": "future.errorVaultLocked",
+    "The embedded node did not authorize the request. Check its status before retrying.": "future.errorAuthorization",
+    "Couldn't make a fresh address on this node.": "future.errorFreshAddress",
+    "Not a valid Mx address (must start with Mx).": "future.errorMx",
+    "That address belongs to THIS node. Use an EXTERNAL wallet (a different node/seed) with fresh keys.": "future.errorLocalDestination",
+    "Write did NOT persist (app storage is failing on this device).": "future.errorStorage",
+    "Stakes still pay out to this address — they'd land here when they mature and get stuck on the nulled key. Leave it live; the guardian keeps sweeping.": "future.errorRetireStakes",
+    "Address not found on this node.": "future.errorAddressMissing",
+    "Not an active default change address (already retired, or not one of yours).": "future.errorNotDefault",
+    "Unexpected script for a default address — not retiring.": "future.errorRetireScript",
+    "Couldn't check this address's coins right now — try again in a moment.": "future.errorCheckCoins",
+    "Couldn't check your change-address pool — try again.": "future.errorCheckChange",
+    "Retire didn't take effect — the address is still a default.": "future.errorRetireUnchanged",
+    "Invalid address.": "future.errorInvalidAddress",
+    "That isn't one of your signable addresses.": "future.errorNotSignable",
+    "This node has no signing key for that address — it can't be swept from here.": "future.errorMissingSigningKey",
+    "Destination equals the source address.": "future.errorSameDestination",
+    "Enter a positive amount.": "future.errorPositiveAmount",
+    "Pick a maturity time in the future.": "future.errorFutureTime",
+    "Payout address unresolved.": "future.errorPayoutUnresolved",
+    "Could not register the FutureCash contract.": "future.errorContract",
+    "Could not read the chain tip.": "future.errorChainTip",
+    "The embedded node did not authorize the request. Check its status before locking again.": "future.errorLockAuthorization",
+    "Not a valid coin id.": "future.errorCoinId",
+    "Stake not found — it may already be collected.": "future.errorStakeMissing",
+    "Not a FutureCash stake.": "future.errorNotFutureCash",
+    "That stake doesn't pay out to this node — it isn't yours to collect.": "future.errorNotYourStake",
+    "This stake pays out to an at-risk address — the Guardian rescues it with collect + sweep instead. Set up rescue on the Guardian tab.": "future.errorRiskyStake",
+    "Run a key audit first, then collect.": "future.errorAuditFirst",
+    "Refusing to spend a malformed coin id.": "future.errorMalformedCoin",
+    "This payment's destination looks malformed — refusing.": "future.errorMalformedDestination",
+    "This payment's token id looks malformed — refusing.": "future.errorMalformedToken",
+    "This payment's amount looks malformed — refusing.": "future.errorMalformedAmount",
+    "Refusing to post a zero-amount output — the coin's amount didn't parse.": "future.errorZeroOutput",
+    "Refusing to sign with a malformed public key.": "future.errorMalformedPublicKey",
+    "no reply from Minima Core": "future.errorNoReply",
+    "command failed": "future.errorCommandFailed",
+    "failed": "future.errorFailed",
+    "Minima Core didn't respond (at txncreate)": "future.errorStageTimeoutTxncreate",
+    "Couldn't read Minima Core's reply to txncreate — it may have succeeded. Check the Activity log before retrying.": "future.errorStageUnknownTxncreate",
+    "Minima Core didn't respond (at txninput)": "future.errorStageTimeoutTxninput",
+    "Couldn't read Minima Core's reply to txninput — it may have succeeded. Check the Activity log before retrying.": "future.errorStageUnknownTxninput",
+    "Minima Core didn't respond (at txnoutput)": "future.errorStageTimeoutTxnoutput",
+    "Couldn't read Minima Core's reply to txnoutput — it may have succeeded. Check the Activity log before retrying.": "future.errorStageUnknownTxnoutput",
+    "Minima Core didn't respond (at txnsign)": "future.errorStageTimeoutTxnsign",
+    "Couldn't read Minima Core's reply to txnsign — it may have succeeded. Check the Activity log before retrying.": "future.errorStageUnknownTxnsign",
+    "Minima Core didn't respond (at txnbasics)": "future.errorStageTimeoutTxnbasics",
+    "Couldn't read Minima Core's reply to txnbasics — it may have succeeded. Check the Activity log before retrying.": "future.errorStageUnknownTxnbasics",
+    "Minima Core didn't respond (at txnpost)": "future.errorStageTimeoutTxnpost",
+    "Couldn't read Minima Core's reply to txnpost — it may have succeeded. Check the Activity log before retrying.": "future.errorStageUnknownTxnpost",
+    "failed (at txncreate)": "future.errorStageFailedTxncreate",
+    "failed (at txninput)": "future.errorStageFailedTxninput",
+    "failed (at txnoutput)": "future.errorStageFailedTxnoutput",
+    "failed (at txnsign)": "future.errorStageFailedTxnsign",
+    "failed (at txnbasics)": "future.errorStageFailedTxnbasics",
+    "failed (at txnpost)": "future.errorStageFailedTxnpost",
+    "At-risk rescue DISABLED": "future.logRescueOff",
+    "At-risk rescue ENABLED": "future.logRescueOn",
+    "Safe destination re-checked and clean": "future.logSafeClean",
+    "Guardian stopped — no rescue destination is set, so it could not move an at-risk stake to safety. Set one on the Guardian tab and start it again.": "future.logGuardianStopped",
+    "Guardian started": "future.logGuardianStarted",
+    "Collect post failed": "future.logCollectFailed",
+    "Collect retry scheduled": "future.logCollectRetry",
+    "Can't sweep — no signing key for this address on this node": "future.logNoSigningKey",
+    "Sweep post failed": "future.logSweepFailed",
+    "Sweep abandoned — the collected coin was rolled back by a chain reorg; the stake will be collected again": "future.logSweepReorg",
+    "⚠️ ALERT: a collected stake was spent but NOT seen at your safe — check for key-reuse loss": "future.logMissingSafe",
+    "Sweep spent but UNVERIFIED — please check it arrived": "future.logSweepUnverified",
+    "Sweep retry scheduled": "future.logSweepRetry",
+    "Vault locked — rescue paused until you unlock it": "future.logVaultLocked",
+    "Repairing contract registration — this node was tracking every FutureCash/Maximize stake on the chain, not just yours": "future.logRepairContract",
+    "FutureCash contract address": "future.logContractAddress",
+    "Clean same-node destination set": "future.logCleanDestination",
+    "Safe address set (external), verified clean": "future.logExternalVerified",
+    "Safe address set (external) — reuse check UNVERIFIED, will re-check": "future.logExternalUnverified",
+    "Safe destination = a fresh same-node address": "future.logSameNode",
+    "Retired a reused default address — off the change rotation, kept watch-only": "future.logRetired",
+    "Couldn't sweep": "future.logCannotSweep",
+    "Unlock minimaWallet to rescue its reused-key payouts.": "future.walletRescueUnlock",
+    "Could not read the complete stake list. Refresh and retry.": "future.errorStakeScan",
+    "Could not read wallet addresses. Refresh and retry.": "future.errorWalletAddresses",
+    "Could not track minimaWallet addresses. Refresh and retry.": "future.errorWalletTracking",
+    "Could not export the payout coin. Refresh and retry.": "future.errorWalletExport",
+    "Could not prepare minimaWallet rescue. Unlock it, check key uses, and retry.": "future.errorWalletRescue"
+  },
+  "patterns": [
+    {
+      "template": "Audit: {0} at-risk address(es)",
+      "key": "future.logAudit",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Your SAFE destination is a REUSED address (signed {0}x) — rescuing there would move your money onto another exposed key. Set a fresh safe address.",
+      "key": "future.logBadSafe",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Guardian pass failed — will retry next block: {0}",
+      "key": "future.logPassFailed",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Detected FutureCash ({0})",
+      "key": "future.logDetected",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Detected FutureCash ({0}) [AT RISK]",
+      "key": "future.logDetectedRisk",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Collecting {0} [safe]",
+      "key": "future.logCollectSafe",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Collecting {0} [rescue]",
+      "key": "future.logCollectRescue",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Collected {0} [safe]",
+      "key": "future.logCollectedSafe",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Collected {0} [rescue → sweeping next]",
+      "key": "future.logCollectedRescue",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Collect still failing after {0} tries",
+      "key": "future.logCollectAttempts",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Queued {0} for sweep to safe",
+      "key": "future.logQueued",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Stranded {0}",
+      "key": "future.logStranded",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Sweeping {0}",
+      "key": "future.logSweeping",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Sweep still failing after {0} tries",
+      "key": "future.logSweepAttempts",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Secured {0}",
+      "key": "future.logSecured",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Rescue is OFF — {0}. At-risk stakes will be left locked in the contract (safe, but not collected) until you fix it.",
+      "key": "future.logRescueDisabled",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Locked {0} · matures block {1}",
+      "key": "future.logLocked",
+      "kinds": [
+        "number",
+        "integer"
+      ]
+    },
+    {
+      "template": "Manual collect posted: {0}",
+      "key": "future.logManualCollect",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Swept {0}",
+      "key": "future.logSwept",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Swept {0} coin(s) off a reused address",
+      "key": "future.logSweptCoins",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Swept {0} coin(s) off a reused address ({1} failed)",
+      "key": "future.logSweptCoinsPartial",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "stake:{0} | to:{1} — {2}",
+      "key": "future.logStakeError",
+      "kinds": [
+        "hex",
+        "address",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "coin:{0} | from:{1} — {2}",
+      "key": "future.logCoinFromError",
+      "kinds": [
+        "hex",
+        "address",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "coin:{0} | on:{1} — {2}",
+      "key": "future.logCoinOnError",
+      "kinds": [
+        "hex",
+        "address",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "coin:{0} | on retired:{1} — queued to sweep to safe",
+      "key": "future.logRetiredCoin",
+      "kinds": [
+        "hex",
+        "address"
+      ]
+    },
+    {
+      "template": "coin:{0} | from:{1} | to safe:{2}",
+      "key": "future.logCoinSafe",
+      "kinds": [
+        "hex",
+        "address",
+        "address"
+      ]
+    },
+    {
+      "template": "coin:{0} | from:{1} | to:{2}",
+      "key": "future.logCoinRoute",
+      "kinds": [
+        "hex",
+        "address",
+        "address"
+      ]
+    },
+    {
+      "template": "stake:{0} | to:{1}",
+      "key": "future.logStakeTo",
+      "kinds": [
+        "hex",
+        "address"
+      ]
+    },
+    {
+      "template": "stake:{0} | on:{1}",
+      "key": "future.logStakeOn",
+      "kinds": [
+        "hex",
+        "address"
+      ]
+    },
+    {
+      "template": "coin:{0} | on:{1}",
+      "key": "future.logCoinOn",
+      "kinds": [
+        "hex",
+        "address"
+      ]
+    },
+    {
+      "template": "coin:{0} | from:{1}",
+      "key": "future.logCoinFrom",
+      "kinds": [
+        "hex",
+        "address"
+      ]
+    },
+    {
+      "template": "coin:{0} | to:{1}",
+      "key": "future.logCoinTo",
+      "kinds": [
+        "hex",
+        "address"
+      ]
+    },
+    {
+      "template": "from:{0} | to:{1}",
+      "key": "future.logRoute",
+      "kinds": [
+        "address",
+        "address"
+      ]
+    },
+    {
+      "template": "to:{0}",
+      "key": "future.logTo",
+      "kinds": [
+        "address"
+      ]
+    },
+    {
+      "template": "address:{0}",
+      "key": "future.logAddress",
+      "kinds": [
+        "address"
+      ]
+    },
+    {
+      "template": "Collecting matured {0} — will sweep to safe",
+      "key": "future.noticeCollectRescue",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Collecting matured {0}",
+      "key": "future.noticeCollecting",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Collected {0} safely",
+      "key": "future.noticeCollected",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "A collected stake ({0}) was spent but did NOT reach your safe address. Your old key may be compromised — check now.",
+      "key": "future.noticeTaken",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "Secured {0} to your safe address",
+      "key": "future.noticeSecured",
+      "kinds": [
+        "number"
+      ]
+    },
+    {
+      "template": "The guardian can't move an at-risk stake to safety — {0}.",
+      "key": "future.noticeCannotRescue",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Couldn't reach the audit service ({0}).",
+      "key": "future.errorAuditService",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Couldn't make a fresh address on this node. ({0})",
+      "key": "future.errorFreshAddressDetail",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "That address has already signed {0} time(s) — its key is reused. Sweeping your rescued money there would move it onto another exposed key. Use a fresh address from a clean wallet.",
+      "key": "future.errorReusedDestination",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "This address still holds {0} coin(s). Sweep them to safety first (they're on an exposed key), then retire it.",
+      "key": "future.errorCoinsRemain",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Keep at least {0} change addresses. Restart your node to generate fresh clean ones, then retire more.",
+      "key": "future.errorKeepChange",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Not matured yet — unlocks at block {0} (now {1}).",
+      "key": "future.errorImmature",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "{0} (at txncreate)",
+      "key": "future.errorAtTxncreate",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} (at txninput)",
+      "key": "future.errorAtTxninput",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} (at txnoutput)",
+      "key": "future.errorAtTxnoutput",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} (at txnsign)",
+      "key": "future.errorAtTxnsign",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} (at txnbasics)",
+      "key": "future.errorAtTxnbasics",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} (at txnpost)",
+      "key": "future.errorAtTxnpost",
+      "kinds": [
+        "literal"
+      ]
+    }
+  ]
+}

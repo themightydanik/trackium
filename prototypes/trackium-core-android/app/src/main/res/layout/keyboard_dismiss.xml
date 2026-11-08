@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.button.MaterialButton xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/keyboard_dismiss"
+    style="@style/Widget.MinimaCore.Button.Text"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:layout_gravity="end|center_vertical"
+    android:minWidth="48dp"
+    android:minHeight="48dp"
+    android:paddingHorizontal="8dp"
+    android:text="@string/hide_keyboard" android:tag="l10n:text=l10n_keyboard_hide"
+    android:textSize="12sp"
+    android:visibility="gone" />

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:padding="20dp">
+
+    <ImageView
+        android:id="@+id/identity_qr"
+        android:tag="l10n:description=l10n_chat_qr_description"
+        android:layout_width="240dp"
+        android:layout_height="240dp"
+        android:contentDescription="Your address as a QR code" />
+
+    <!-- The FULL address, always: selectable, plus one-tap copy below -->
+    <TextView
+        android:id="@+id/identity_address"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:fontFamily="monospace"
+        android:textSize="12sp"
+        android:textIsSelectable="true"
+        android:gravity="center"
+        android:textColor="@color/core_text_mid" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/identity_copy"
+        android:tag="l10n:text=l10n_wallet_copy_address"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Copy address" />
+
+    <EditText
+        android:id="@+id/identity_name"
+        android:tag="l10n:hint=l10n_chat_display_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="Your display name"
+        android:inputType="textCapWords"
+        android:maxLines="1" />
+</LinearLayout>

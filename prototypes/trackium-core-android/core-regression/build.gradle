@@ -1,0 +1,9 @@
+plugins { id 'java' }
+java { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
+dependencies {
+    testImplementation files('../app/libs/minima.jar')
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'com.h2database:h2:2.1.214'
+    testImplementation 'org.bouncycastle:bcpkix-jdk15on:1.69'
+}
+test { maxParallelForks = 1 }

@@ -1,0 +1,18 @@
+{
+  "fixed": {
+    "The embedded node did not respond. Check its status in Minima Core.": "wallet.error.nodeTimeout",
+    "Node result unavailable. Outcome unknown.": "wallet.error.nodeUnknown",
+    "The embedded node is not running. No command was sent.": "vestr.transportStopped",
+    "Node connection is closed.": "vestr.transportClosed",
+    "Too many pending node requests. Nothing was sent.": "vestr.transportBusy",
+    "Node result was not received. Outcome remains unknown.": "vestr.transportNotReceived",
+    "Node request could not complete. Outcome remains unknown.": "vestr.transportRequestFailed",
+    "Node result is unavailable. Outcome remains unknown.": "vestr.transportResultUnavailable",
+    "Node request cancelled before execution. Nothing was sent.": "vestr.transportCancelled",
+    "Invalid node result. Outcome remains unknown.": "vestr.transportInvalid",
+    "Empty node command.": "vestr.unsafeContract",
+    "Node command is too large.": "vestr.unsafeContract",
+    "Unsafe command data. Nothing was sent to the node.": "vestr.unsafeContract"
+  },
+  "patterns": []
+}

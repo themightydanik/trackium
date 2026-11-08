@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/core_bg"
+    android:fillViewport="true"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:text="Token" android:tag="l10n:text=l10n_wallet_token"
+            android:textAppearance="@style/TextAppearance.MinimaCore.Eyebrow" />
+
+        <Spinner
+            android:id="@+id/wallet_send_tokens"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_token_tile"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:minHeight="48dp" />
+
+        <!-- what the selected token can actually spend, in full -->
+        <TextView
+            android:id="@+id/wallet_send_sendable"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:lineSpacingMultiplier="1.2"
+            android:textAppearance="@style/TextAppearance.MinimaCore.Caption"
+            android:textColor="@color/core_text_faint"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="6dp"
+            android:text="Amount" android:tag="l10n:text=l10n_history_amount"
+            android:textAppearance="@style/TextAppearance.MinimaCore.Eyebrow" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="bottom"
+            android:baselineAligned="false">
+
+            <EditText
+                android:id="@+id/wallet_send_amount"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:inputType="numberDecimal"
+                android:hint="0.0"
+                android:textColor="@color/core_text"
+                android:textColorHint="@color/core_text_faint"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/wallet_send_max"
+                style="@style/Widget.MinimaCore.Button.Outlined"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="44dp"
+                android:layout_marginStart="8dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="16dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="Max" android:tag="l10n:text=l10n_wallet_max" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="6dp"
+            android:text="To address" android:tag="l10n:text=l10n_send_to"
+            android:textAppearance="@style/TextAppearance.MinimaCore.Eyebrow" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="bottom"
+            android:baselineAligned="false">
+
+            <!-- full address, wraps rather than scrolls - a pasted or scanned Mx… must be
+                 visible end to end so it can be checked before sending -->
+            <EditText
+                android:id="@+id/wallet_send_address"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:inputType="textNoSuggestions|textMultiLine"
+                android:breakStrategy="simple"
+                android:hyphenationFrequency="none"
+                android:hint="Mx… or 0x…" android:tag="l10n:hint=l10n_send_address_hint"
+                android:textColor="@color/core_text"
+                android:textColorHint="@color/core_text_faint"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/wallet_send_scan"
+                style="@style/Widget.MinimaCore.Button.Outlined"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="44dp"
+                android:layout_marginStart="8dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="16dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="Scan" android:tag="l10n:text=l10n_send_scan;description=l10n_send_scan_description"
+                android:contentDescription="Scan a recipient address QR code" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/wallet_send_sendbutton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="52dp"
+            android:layout_marginTop="28dp"
+            android:text="Send Funds" android:tag="l10n:text=l10n_send_funds" />
+    </LinearLayout>
+</ScrollView>

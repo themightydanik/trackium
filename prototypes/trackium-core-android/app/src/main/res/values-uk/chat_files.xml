@@ -1,0 +1,21 @@
+<resources>
+    <string name="chat_files_title">Передавання файлів</string>
+    <string name="chat_files_attach">Файл (до 100 МБ)</string>
+    <string name="chat_files_open">Відкрити передавання файлу</string>
+    <string name="chat_files_limit">Виберіть локальний файл до 100 МБ</string>
+    <string name="chat_files_failed">Не вдалося передати файл. Натисніть «Продовжити».</string>
+    <string name="chat_files_storage">Видаліть завершене передавання, щоб звільнити місце.</string>
+    <string name="chat_files_none">У цьому чаті немає збережених передавань</string>
+    <string name="chat_files_save">Зберегти перевірений файл</string>
+    <string name="chat_files_remove">Видалити локальну копію</string>
+    <string name="chat_files_ready">Перевірено, можна зберегти</string>
+    <string name="chat_files_working">Передавання зашифрованого файлу…</string>
+    <string name="chat_files_help">Завантажте або продовжте. Обидва вузли мають бути в мережі. Дані передаються між учасниками.</string>
+    <string name="chat_files_pause">Пауза</string>
+    <string name="chat_files_send">Надіслати / продовжити</string>
+    <string name="chat_files_download">Завантажити / продовжити</string>
+    <string name="chat_files_paused">Передавання призупинено</string>
+    <string name="chat_files_saved">Файл збережено</string>
+    <string name="chat_files_incomplete">Підготовку перервано. Видаліть це локальне передавання та виберіть файл знову.</string>
+    <string name="chat_files_contact">Контакт видалено. Додайте його перед передаванням файлів.</string>
+</resources>

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/launcher_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <!-- kept for setSupportActionBar(); visually blended into the background -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/core_bg"
+        app:titleTextColor="@color/core_text">
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/launcher_language"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_gravity="end"
+            android:text="@string/l10n_language_title"
+            android:tag="l10n:text=l10n_language_title" />
+    </androidx.appcompat.widget.Toolbar>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingHorizontal="32dp">
+
+        <ImageView
+            android:id="@+id/launcher_mainicon"
+            android:src="@drawable/ic_minima"
+            android:layout_width="112dp"
+            android:layout_height="112dp"
+            android:contentDescription="Minima" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="26dp"
+            android:text="MINIMA CORE"
+            android:textColor="@color/core_text"
+            android:textFontWeight="800"
+            android:textSize="16sp"
+            android:letterSpacing="0.34"
+            android:fontFamily="@font/manrope" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center"
+            android:maxWidth="260dp"
+            android:text="@string/l10n_launcher_intro"
+            android:tag="l10n:text=l10n_launcher_intro"
+            android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+            android:textColor="@color/core_text_mid"
+            android:lineSpacingMultiplier="1.25" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingBottom="40dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/launcher_button_newwallet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="52dp"
+            android:text="@string/l10n_launcher_new_wallet"
+            android:tag="l10n:text=l10n_launcher_new_wallet" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/launcher_button_restore"
+            style="@style/Widget.MinimaCore.Button.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="52dp"
+            android:layout_marginTop="12dp"
+            android:text="@string/l10n_launcher_restore_wallet"
+            android:tag="l10n:text=l10n_launcher_restore_wallet" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/launcher_button_params"
+            style="@style/Widget.MinimaCore.Button.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="52dp"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            android:text="@string/l10n_menu_params"
+            android:tag="l10n:text=l10n_menu_params" />
+    </LinearLayout>
+
+</LinearLayout>

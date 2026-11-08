@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <package android:name="com.eurobuddha.minimacore" />
+    </queries>
+    <application>
+        <activity android:name="com.eurobuddha.history.MainActivity" android:exported="false" android:theme="@style/pm_history_Theme.Utxo" android:configChanges="locale|layoutDirection|screenLayout">
+            </activity>
+    </application>
+</manifest>

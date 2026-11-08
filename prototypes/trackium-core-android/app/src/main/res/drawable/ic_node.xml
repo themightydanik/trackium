@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Minima MediaKit: Assets/Icons svg/Node/Node.svg.
+     Original viewport and path preserved; tab_icon_tint supplies the state colours. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="25dp"
+    android:height="25dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    <path
+        android:fillColor="#16181C"
+        android:pathData="M100,0C44.77,0,0,44.77,0,100s44.77,100,100,100,100-44.77,100-100S155.23,0,100,0Z" />
+</vector>

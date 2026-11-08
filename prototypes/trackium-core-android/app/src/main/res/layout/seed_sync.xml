@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/sync_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/core_surface"
+        app:titleTextColor="@color/core_text"
+        app:titleTextAppearance="@style/TextAppearance.MinimaCore.Title"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="?attr/actionBarTheme" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/seed_sync_heading" android:text="Resync node"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Display" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:id="@+id/seed_sync_host_help" android:tag="l10n:text=l10n_resync_host_help" android:text="Choose a Minima MegaMMR node to resync from. Use the format host:port."
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.3" />
+
+            <TextView style="@style/FormLabel" android:id="@+id/seed_sync_host_label" android:tag="l10n:text=l10n_restore_mega_node" android:text="MegaMMR node" />
+
+            <EditText
+                android:id="@+id/seed_sync_host"
+                style="@style/FormField"
+                android:inputType="textUri"
+                android:importantForAutofill="no"
+                android:hint="host:port" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/seed_sync_proceed"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="28dp"
+                android:text="Resync Node" />
+
+            <TextView
+                android:id="@+id/seed_sync_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:accessibilityLiveRegion="polite"
+                android:text="Ready. Progress and the node’s output will appear here."
+                android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong" />
+
+            <ProgressBar
+                android:id="@+id/seed_sync_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="12dp"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/seed_sync_elapsed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Node output"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Caption" />
+
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/seed_sync_log_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="240dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_token_tile"
+                android:fillViewport="true"
+                android:scrollbars="vertical">
+                <TextView
+                    android:id="@+id/seed_sync_log"
+                    style="@style/MonoBlock"
+                    android:saveEnabled="false"
+                    android:padding="12dp"
+                    android:textIsSelectable="true" />
+            </androidx.core.widget.NestedScrollView>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/seed_sync_copy"
+                style="@style/Widget.MinimaCore.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:tag="l10n:text=l10n_resync_copy_log" android:text="Copy log" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/seed_sync_restart"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                android:tag="l10n:text=l10n_resync_restart" android:text="Restart node" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

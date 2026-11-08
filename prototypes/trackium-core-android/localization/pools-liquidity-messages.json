@@ -1,0 +1,25 @@
+{
+  "fixed": {
+    "Add liquidity": "pools.addLiquidity",
+    "Add": "terminalTxn.add",
+    "Migrate pool": "pools.migratePool",
+    "Migrate": "pools.lpMigrate",
+    "Withdraw": "atomixOtc.withdraw",
+    "Cancel": "pools.cancel",
+    "MINIMA to add": "pools.liquidityMinimaToAdd",
+    "e.g. 50": "pools.liquidityExample",
+    "Enter the MINIMA amount to add.": "pools.liquidityAddRequired",
+    "Adding liquidity…": "pools.liquidityAdding",
+    "New MINIMA reserve": "pools.liquidityNewMinima",
+    "Enter the new reserves.": "pools.liquidityReservesRequired",
+    "No node connection — try again in a moment.": "pools.liquidityNoNode",
+    "Couldn't read the pool's current reserves — refresh and try again.": "pools.liquidityReservesUnreadable",
+    "Migrating your pool…": "pools.liquidityMigrating",
+    "Withdraw all liquidity?": "pools.liquidityCloseTitle",
+    "Closing pool…": "pools.liquidityClosing",
+    "The pool moved — retrying with its current coin…": "pools.liquidityCloseRetry",
+    "No pools on record to collect from.": "pools.liquidityNoCollectPools",
+    "Collecting withdrawn funds to your wallet…": "pools.liquidityCollecting",
+    "No available, stateless coins to collect at your pool payout addresses.": "pools.liquidityNothingAvailable"
+  }
+}

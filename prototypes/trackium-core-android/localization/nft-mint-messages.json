@@ -1,0 +1,506 @@
+{
+  "fixed": {
+    "Token": "wallet.token",
+    "NFT": "nft.mint.nft",
+    "Collection": "nft.collection",
+    "Fungible. Name, ticker, decimals, description, icon URL, web validation, custom metadata.": "nft.mint.hubToken",
+    "1-of-1 or edition, decimals 0. Embed an image on-chain or point at a URL / IPFS.": "nft.mint.hubNft",
+    "State NFT collection": "nft.mint.stateCollection",
+    "One tokenid, 2–20 unique items. Per-item identity sealed in coin state — immutable even to you.": "nft.mint.hubState",
+    "COLLECTIONS": "nft.mint.collections",
+    "Mint token": "nft.mint.mintToken",
+    "Name *": "nft.mint.nameRequired",
+    "My token": "nft.mint.myToken",
+    "Amount *": "nft.mint.amountRequired",
+    "Decimals": "wallet.decimals",
+    "Ticker": "wallet.ticker",
+    "Description": "wallet.description",
+    "Max 255 characters": "nft.mint.maxDescription",
+    "Icon / image URL": "nft.mint.iconImageUrl",
+    "Web validation URL": "nft.mint.webUrl",
+    "https://…/token.txt  (host the tokenid there after minting)": "nft.mint.webHint",
+    "Burn (optional)": "wallet.burnOptional",
+    "+ Add metadata (key / value)": "nft.mint.addMetadata",
+    "Review & mint": "nft.mint.reviewToken",
+    "key": "nft.mint.key",
+    "value": "terminalTxn.valueHint",
+    "Enter a valid amount.": "vestr.validAmount",
+    "Amount must be greater than zero.": "vestr.positive",
+    "Amount is above the 1 trillion cap.": "nft.mint.trillionCap",
+    "Decimals must be 0–16.": "nft.mint.decimalsRange",
+    "Total supply must be a whole number.": "nft.mint.wholeSupply",
+    "Ticker is at most 5 characters.": "nft.mint.tickerLimit",
+    "Description is at most 255 characters.": "nft.mint.descriptionLimit",
+    "Icon URL must be a plain http(s) link.": "nft.mint.iconUrlInvalid",
+    "Web validation must be a plain https link.": "nft.mint.webUrlInvalid",
+    "Invalid burn amount.": "utxo.invalidBurn",
+    "Metadata may not contain quotes, backslashes or semicolons.": "nft.mint.metadataUnsafe",
+    "Name": "mail.name",
+    "Total supply": "nft.mint.supply",
+    "Not set": "nft.mint.notSet",
+    "None set": "nft.mint.noneSet",
+    "Icon URL": "nft.mint.iconUrl",
+    "Web validation": "wallet.webValidation",
+    "Burn": "explorer.burn",
+    "Mint this token?": "nft.mint.confirmToken",
+    "Mint →": "nft.mint.submitToken",
+    "Could not fetch the signing key — node offline?": "nft.mint.signingKeyMissing",
+    "Mint NFT": "nft.mint.mintNft",
+    "EMBED IMAGE": "nft.mint.embedImage",
+    "URL / IPFS": "nft.mint.urlIpfs",
+    "Image URL (URL mode)": "nft.mint.imageUrlMode",
+    "https://…  or  ipfs://…": "nft.mint.imageUrlHint",
+    "My NFT": "nft.mint.myNft",
+    "Editions *": "nft.mint.editionsRequired",
+    "Creator": "vestr.creator",
+    "your name": "nft.mint.yourName",
+    "Tell collectors what this is": "nft.mint.describeNft",
+    "External URL": "nftGallery.externalUrl",
+    "Signed as creator — always (the signature is your provenance)": "nft.mint.signedCreator",
+    "Review & mint NFT": "nft.mint.reviewNft",
+    "The NFT points at an external image URL (or ipfs://…).": "nft.mint.externalImage",
+    "Compressing…": "nft.mint.compressing",
+    "Could not read that image — try another, or a smaller one.": "nft.mint.imageUnreadable",
+    "Editions must be a whole number.": "nft.mint.wholeEditions",
+    "Editions must be 1–1,000,000.": "nft.mint.editionRange",
+    "External URL must be a plain http(s) link.": "nft.mint.externalUrlInvalid",
+    "Pick an image first (or switch to URL mode).": "nft.mint.pickFirst",
+    "Enter a plain image URL (https or ipfs, no spaces or quotes).": "nft.mint.imageUrlInvalid",
+    "Total to mint": "nft.mint.totalMint",
+    "Image": "nft.mint.image",
+    "Creator signature": "nft.mint.creatorSignature",
+    "yes — always (signtoken)": "nft.mint.alwaysSigned",
+    "Mint this NFT?": "nft.mint.confirmNft",
+    "Mint NFT →": "nft.mint.submitNft",
+    "New State NFT collection": "nft.mint.newCollection",
+    "A locked edition: one tokenid, each coin carrying a sealed identity. Once an item is stamped, nobody — you included — can alter it.": "nft.mint.lockedHelp",
+    "Collection name *": "nft.mint.collectionNameRequired",
+    "Items (2–20) *": "nft.mint.itemsRequired",
+    "Extension (url mode)": "nft.mint.extension",
+    "What is this collection?": "nft.mint.describeCollection",
+    "Item images": "nft.mint.itemImages",
+    "EMBED ON-CHAIN": "nft.mint.embedOnChain",
+    "URL BASE + INDEX": "nft.mint.urlIndex",
+    "Image base URL (item = base + index + ext)": "nft.mint.baseUrl",
+    "＋ Pick images for the empty slots": "nft.mint.pickEmpty",
+    "Set the item count (2–20) first.": "nft.mint.setCountFirst",
+    "⟳ Build image slots from the item count": "nft.mint.buildSlots",
+    "Collection icon": "nft.mint.collectionIcon",
+    "EMBED": "nft.mint.embed",
+    "External URL (optional)": "nft.mint.externalOptional",
+    "Web validation URL (optional)": "nft.mint.webOptional",
+    "Review & start mint": "nft.mint.reviewCollection",
+    "The wallet loads the icon from this URL.": "nft.mint.iconUrlHelp",
+    "Using item #1 by default · preparing a small copy for the token record…": "nft.mint.preparingIcon",
+    "Defaults to item #1's image · tap to choose a different one": "nft.mint.defaultIcon",
+    "Items must be 2–20 before building slots.": "nft.mint.slotRange",
+    "PICK IMAGE": "nft.mint.pickImage",
+    "Items must be 2–20.": "nft.mint.itemsRange",
+    "Items must be between 2 and 20.": "nft.mint.itemsBetween",
+    "URL mode needs a plain https base URL.": "nft.mint.baseInvalid",
+    "Bad extension.": "nft.mint.extensionInvalid",
+    "None — item #1 could not be shrunk to fit the icon budget": "nft.mint.iconCannotShrink",
+    "None — the wallet will show a generated identicon": "nft.mint.identicon",
+    "embedded (slimmed so every item signs and travels)": "nft.mint.slimIcon",
+    "none — dropped so every item signs (wallet shows the identicon)": "nft.mint.droppedIcon",
+    "Items": "nft.mint.items",
+    "Mode": "nft.mint.mode",
+    "embedded on-chain images": "nft.mint.embeddedImages",
+    "URL base + index": "nft.mint.urlBaseIndex",
+    "Images at": "nft.mint.imagesAt",
+    "Wallet icon": "nft.mint.walletIcon",
+    "Contract": "vestr.contract",
+    "SAMESTATE locked edition — immutable once stamped": "nft.mint.contractHelp",
+    "The mint runs in phases (CREATE → MOVE → SPLIT → STAMP), one transaction per step, driven by new blocks. It is resumable — you can close the app.": "nft.mint.pipeline",
+    "Start minting this collection?": "nft.mint.confirmCollection",
+    "Start mint →": "nft.mint.submitCollection",
+    "Fetching creator identity…": "nft.mint.fetchingCreator",
+    "Could not get a creator key from the node.": "nft.mint.creatorKeyMissing",
+    "CREATE": "nft.mint.createPhase",
+    "MOVE": "nft.mint.movePhase",
+    "SPLIT": "nft.mint.splitPhase",
+    "STAMP": "nft.mint.stampPhase",
+    "DONE": "terminalIde.done",
+    "NEEDIMAGES": "nft.mint.needImagesPhase",
+    "BURY": "nft.mint.buryPhase",
+    "BURIED": "nft.mint.buriedPhase",
+    "Stamping paused — an item is missing its image. Pick it below; stamping is irreversible, so the engine refuses to stamp an imageless item.": "nft.mint.pausedImages",
+    "ITEMS": "nft.mint.itemsHeading",
+    "✓ STAMPED": "nft.mint.stamped",
+    "queued": "nft.mint.queued",
+    "↻  Re-post the create transaction": "nft.mint.repostCreate",
+    "Re-post the create?": "nft.mint.repostQuestion",
+    "Only do this if the first create was definitely lost. If it later confirms too, you end up with TWO identical collections and no way to merge them — you would have to bury one.": "nft.mint.repostWarning",
+    "Wait longer": "nft.mint.waitLonger",
+    "Re-post": "nft.mint.repost",
+    "✝  Bury this entire collection": "nftWallet.buryCollection",
+    "Resume now": "nft.mint.resume",
+    "✓ Collection fully minted. The items live in your Gallery and Balances.": "nft.mint.fullyMinted",
+    "Images saved — stamping resumes on the next block.": "nft.mint.imagesSaved",
+    "Minting — building and mining the transaction…": "nft.mint.minting",
+    "Mint failed.": "nft.mint.mintFailed",
+    "Close": "language.close",
+    "View balances": "nft.mint.viewBalances",
+    "Minting consumes a small fraction of Minima and cannot be undone.": "nft.mint.irreversible",
+    "Back": "explorer.back",
+    "required.": "nft.mint.required",
+    "may not contain quotes, backslashes, semicolons or brackets.": "nft.mint.breakers",
+    "Working on it…": "nft.mint.working",
+    "Already working — a transaction is still in flight.": "nft.mint.busy",
+    "Waiting for you: an item still needs its image.": "nft.mint.needsImages",
+    "Not connected to Minima Core.": "nft.mint.notConnected",
+    "Nothing left to mint.": "nft.mint.nothingLeft",
+    "Paused — an item still needs its image": "nft.mint.pausedImageService",
+    "Minting stopped": "nft.mint.stopped",
+    "A collection can't be completed — its transactions exceed the chain's 64KB limit. Open the wallet for details.": "nft.mint.stoppedHelp",
+    "Minting finished": "nft.mint.finished",
+    "Your collection is fully stamped.": "nft.mint.finishedHelp",
+    "Finishing up…": "nft.mint.finishing",
+    "Minting your collection": "nft.mint.notificationTitle",
+    "Working…": "wallet.working",
+    "Minting in the background": "nft.mint.backgroundChannel",
+    "Mint updates": "nft.mint.updatesChannel",
+    "Mint engine idle": "nft.mint.idle",
+    "Tokencreate posted": "nft.mint.tokenPosted",
+    "Waiting for mint coin": "nft.mint.waitingCoin",
+    "malformed coin in reply - refusing to build a txn": "nft.mint.malformedCoin",
+    "Move pending": "nft.mint.movePending",
+    "Move posted": "nft.mint.movePosted",
+    "Waiting for split coins": "nft.mint.waitingSplit",
+    "Split pending": "nft.mint.splitPending",
+    "Split posted": "nft.mint.splitPosted",
+    "Waiting for blank unit coins": "nft.mint.waitingBlank",
+    "Stamp pending": "nft.mint.stampPending",
+    "Waiting for missing embedded images": "nft.mint.waitingImages",
+    "bad tokenid - refusing to build a command": "nft.mint.badToken",
+    "node reply too large this tick - will retry": "nft.mint.replyLarge",
+    "This collection cannot be completed.\n\nIts transactions exceed the 64KB chain limit, and the token record that causes it was fixed when the token was created — it cannot be edited or shrunk. Nothing further will be attempted.\n\nBury it below to clear it, or leave it: the coins are inert.": "nft.mint.stuckHelp",
+    "a sendable record": "nft.mint.sendableRecord",
+    "  ·  tap to copy": "nft.mint.copyHint",
+    "token": "wallet.token",
+    "nft": "nft.mint.nft",
+    "Token ID": "history.token",
+    "Collection details changed. Review the collection again before minting.": "nft.mint.reviewAgain",
+    "Some images were not saved. The mint changed or is busy; reopen the collection and retry the missing images.": "nft.mint.imagesNotSaved",
+    "Images saved.": "nft.mint.imagesSavedOnly",
+    "The mint changed or is busy. Reopen the collection and review it again.": "nft.mint.changedOrBusy"
+  },
+  "patterns": [
+    {
+      "template": "Name: {0}",
+      "key": "nft.mint.fieldName",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Ticker: {0}",
+      "key": "nft.mint.fieldTicker",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Description: {0}",
+      "key": "nft.mint.fieldDescription",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Creator: {0}",
+      "key": "nft.mint.fieldCreator",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Metadata row {0} has no key.",
+      "key": "nft.mint.metadataMissing",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "“{0}” is a reserved field — use the form inputs for it.",
+      "key": "nft.mint.reserved",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Record {0}B signed is past the split bound — smaller icon or shorter fields.",
+      "key": "nft.mint.recordBound",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Could not fetch the signing key: {0}",
+      "key": "nft.mint.keyFailure",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "Tap the square to pick an image — compressed and stored on-chain (≤{0} b64 chars).",
+      "key": "nft.mint.pickImageHelp",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Image ready — {0} base64 chars, stored on-chain.",
+      "key": "nft.mint.imageReady",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "embedded on-chain ({0} b64)",
+      "key": "nft.mint.embeddedSize",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Signed, this record is {0}B — past the limit for {1}. Use a smaller image or shorter text.",
+      "key": "nft.mint.signedLimit",
+      "kinds": [
+        "integer",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "{0} editions (must split)",
+      "key": "nft.mint.splitEditions",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Each item's image is compressed to ≤{0} base64 chars and sealed into its coin. Set the item count, then pick each image.",
+      "key": "nft.mint.itemImageHelp",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Embedded on-chain · {0} b64 · tap to change",
+      "key": "nft.mint.iconReady",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Using item #1, shrunk to {0} b64 for the token record · tap to choose a different icon",
+      "key": "nft.mint.iconDefaultReady",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Item #{0}",
+      "key": "nft.mint.itemNumber",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "All {0} images ready.",
+      "key": "nft.mint.allImages",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "{0} of {1} images ready — tap any slot (or “Pick images”) and select as many as you like; they fill the empty slots in order.",
+      "key": "nft.mint.imagesReady",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "Compressing {0} / {1}…",
+      "key": "nft.mint.compressProgress",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "Filled {0} slot(s) — {1} image(s) left over, there were no empty slots for them.",
+      "key": "nft.mint.leftovers",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "{0} of {1} slots filled — pick {2} more.",
+      "key": "nft.mint.slotsRemaining",
+      "kinds": [
+        "integer",
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "Item #{0} has no image yet — build slots and pick all {1} images first.",
+      "key": "nft.mint.missingItemImage",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "item #1's image, shrunk to {0} b64 for the token record",
+      "key": "nft.mint.shrunkIcon",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "That icon is too large ({0} of {1} chars). The token record travels with every transaction, so a big icon would make the collection unusable. Pick a simpler icon.",
+      "key": "nft.mint.iconTooLarge",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "Failed: {0}",
+      "key": "nft.mint.failed",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "engine: {0}",
+      "key": "nft.mint.engine",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "✓ {0} minted — it appears in Balances once confirmed.",
+      "key": "nft.mint.minted",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "{0} minted",
+      "key": "nft.mint.mintedTitle",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "The mint transaction is posted. Your new {0} appears in Balances (unconfirmed first) within a couple of blocks.",
+      "key": "nft.mint.mintedBody",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "{0} · stamped {1} of {2}",
+      "key": "nft.mint.serviceProgress",
+      "kinds": [
+        "literal",
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "Mint tick failed: {0}",
+      "key": "nft.mint.tickFailed",
+      "kinds": [
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "ambiguous mint: {0} tokens match",
+      "key": "nft.mint.ambiguous",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Waiting for tokencreate confirmation ({0}/{1} blocks)",
+      "key": "nft.mint.waitingCreate",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "The create transaction hasn't confirmed after {0} blocks. It may still land — re-post only if you're sure it was lost.",
+      "key": "nft.mint.createUnconfirmed",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "missing image for item #{0}",
+      "key": "nft.mint.missingImage",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Stamped item #{0}",
+      "key": "nft.mint.stampedItem",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "{0} embedded images still missing",
+      "key": "nft.mint.missingImages",
+      "kinds": [
+        "integer"
+      ]
+    },
+    {
+      "template": "Collection {0} -> {1}",
+      "key": "nft.mint.collectionPhase",
+      "kinds": [
+        "literal",
+        "diagnostic"
+      ]
+    },
+    {
+      "template": "unbalanced txn {0}",
+      "key": "nft.mint.unbalanced",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "record {0}B signed cannot split under the 64KB cap (metadata {1}B > {2}B) — shorter text or a hosted icon",
+      "key": "nft.mint.recordCannotSplit",
+      "kinds": [
+        "integer",
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "largest image {0}B exceeds the {1}B image budget the signed record leaves — smaller images or a lighter record",
+      "key": "nft.mint.imageBudget",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "  ·  {0} items",
+      "key": "nft.mint.rowItems",
+      "kinds": [
+        "integer"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+package com.eurobuddha.minimaapi;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+
+import java.util.Objects;
+
+public class MinimaAPIReceive extends BroadcastReceiver {
+
+    private MinimaAPI mMinimaAPI;
+
+    public MinimaAPIReceive(MinimaAPI zMinimaAPI){
+        super();
+
+        mMinimaAPI = zMinimaAPI;
+    }
+
+    @Override
+    public void onReceive(Context zContext, Intent zIntent) {
+
+        if (zIntent == null) return;
+
+        //What Action
+        String action = zIntent.getAction();
+
+        //Check is a Response message
+        String prefix = MinimaAPIMessages.prefixOfAction(action);
+        if (prefix != null && Objects.equals(action, MinimaAPIMessages.key(prefix, "RESPONSE"))) {
+
+            //Process the response..
+            mMinimaAPI.ResponseReceived(zIntent);
+
+        }else{
+            MinimaAPILogger.log("MinimaAPIReceive RECEIVED UNKNOWN action : "+action);
+        }
+    }
+}

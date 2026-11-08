@@ -1,0 +1,9 @@
+<resources>
+    <!-- Block flavor (com.eurobuddha.minimablock): forced -blockaskeyuses node. -->
+    <string name="app_name">Trackium Core</string>
+    <!-- Block mode: keys.maxuses is roughly the last block a key signed at, not a count toward exhaustion. -->
+    <string name="home_keyuses_label">Last key block</string>
+    <!-- Block mode: the node derives key uses from the chain tip; this value is only a safety floor. -->
+    <string name="restore_keyuses_label">Key uses (above every previously used index)</string>
+    <string name="restore_intro">Enter your seed phrase, key uses and the address of a Minima MegaMMR node.\n\nWARNING: this app uses the NEW block-as-key-uses key system. A seed from the classic MinimaCore app produces DIFFERENT addresses here — coins held on classic addresses will NOT appear. Sweep funds out of the classic app instead of restoring its seed here.\n\nFor a block-mode wallet restore, enter a key-use floor above every index previously used by that wallet. The current chain height alone does not prove that an index is unused. Stop the original wallet before restoring.</string>
+</resources>

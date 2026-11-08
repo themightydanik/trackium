@@ -1,0 +1,17 @@
+{
+  "Host on this device": "salonKeets.title",
+  "Host on this device · 24 MB": "salonKeets.button",
+  "Use this device": "salonKeets.use",
+  "This device (Keets)": "salonKeets.name",
+  "Keets ready — this device can host your Salon.": "salonKeets.ready",
+  "Your public Salon profile and media will be served from this phone through Keets. Keep your node running and connected. Viewers need Salon or a compatible Keets app. Your total profile allowance is 24 MB.": "salonKeets.confirm",
+  "Host your public profile and media on this phone through Keets. No hosting account needed. Keep your node running and connected for others to view it. Copies held by other users may remain available while you are offline.\n\nViewable in Salon and compatible Keets apps, not ordinary browsers. Photos sent privately are not uploaded here.\n\n24 MB total per profile, including media. Existing external links stay with their current hosts.": "salonKeets.help",
+  "Your hosted profile can use up to 24 MB, including its media. Remove some media or choose a smaller file.": "salonKeets.full",
+  "Update your Keets node to use Salon device hosting": "salonKeets.update",
+  "The media is unavailable. Its host may be offline; try again later.": "salonKeets.offline",
+  "Open Salon with your Keets node running": "salonKeets.running",
+  "Keets restarted. Try again.": "salonKeets.restart",
+  "Keets is starting. Try again shortly.": "salonKeets.starting",
+  "Public device hosting is not used for private photos. Connect Maxima or choose another host.": "salonKeets.private",
+  "Keets did not respond. Check that your node is running and try again.": "salonKeets.timeout"
+}

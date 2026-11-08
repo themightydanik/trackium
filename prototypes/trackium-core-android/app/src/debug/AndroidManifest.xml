@@ -1,0 +1,21 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name="com.eurobuddha.minimacore.testing.StartupHarnessActivity"
+            android:configChanges="locale|layoutDirection|screenLayout"
+            android:exported="false" />
+        <activity android:name="com.eurobuddha.minimacore.launcher.restore.SeedSyncHarnessActivity"
+            android:configChanges="locale|layoutDirection|screenLayout"
+            android:exported="false" />
+        <activity android:name="com.eurobuddha.minimacore.testing.TerminalHarnessActivity"
+            android:configChanges="locale|layoutDirection|screenLayout"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false" />
+        <activity android:name="com.eurobuddha.minimacore.testing.LogsHarnessActivity"
+            android:configChanges="locale|layoutDirection|screenLayout"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false" />
+        <activity android:name="com.eurobuddha.minimacore.testing.CoreViewsHarnessActivity"
+            android:configChanges="locale|layoutDirection|screenLayout"
+            android:exported="false" />
+    </application>
+</manifest>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ids referenced from shared code but only assigned to views in a flavour layout. Declaring
+  them here keeps R.id.* resolvable in every flavour; findViewById returns null where the
+  view is absent (classic/BlackBear), so the shared code guards on null.
+-->
+<resources>
+    <!-- Pandamonium wallet header: collapsible "Total balance" breakdown toggle -->
+    <item name="wallet_balance_header" type="id" />
+    <item name="wallet_balance_expand" type="id" />
+    <!-- Pandamonium wallet: drag-reorderable token list (RecyclerView replaces the ListView) -->
+    <item name="wallet_balance_recycler" type="id" />
+    <!-- The ListView id lives in the main layout only; declared here so shared BalanceView still
+         resolves R.id.wallet_balance_list in the Pandamonium variant (where the view is absent). -->
+    <item name="wallet_balance_list" type="id" />
+</resources>

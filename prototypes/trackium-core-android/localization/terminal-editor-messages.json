@@ -1,0 +1,66 @@
+{
+  "fixed": {
+    "@BLKNUM is unreliable on synced nodes — store a timeout in state and use @COINAGE instead.": "terminalEditor.blknum",
+    "NUMBER(SHA...) overflows on a 32-byte hash — truncate first: NUMBER(SUBSET(0 4 SHA3(...))).": "terminalEditor.hashOverflow",
+    "No RETURN statement — a script must RETURN TRUE to be spendable.": "terminalEditor.noReturn"
+  },
+  "patterns": [
+    {
+      "template": "Variable '{0}' contains an underscore — underscored names silently fail on-chain. Use flat names (e.g. '{1}').",
+      "key": "terminalEditor.underscore",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "Script is {0} chars — over the ~{1} char limit scripts are silently rejected on-chain. Minify variable names or use MAST.",
+      "key": "terminalEditor.sizeOver",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "Script is {0} chars — approaching the ~{1} char on-chain limit.",
+      "key": "terminalEditor.sizeNear",
+      "kinds": [
+        "integer",
+        "integer"
+      ]
+    },
+    {
+      "template": "{0} unclosed {1} block(s) — missing {2}.",
+      "key": "terminalEditor.unclosed",
+      "kinds": [
+        "integer",
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} extra {1}(s) without a matching {2}.",
+      "key": "terminalEditor.extra",
+      "kinds": [
+        "integer",
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} is not valid JSON: {1}",
+      "key": "terminalEditor.json",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "{0} values can't contain spaces or ';' (they'd break the node command line). Use hex/number values.",
+      "key": "terminalEditor.unsafe",
+      "kinds": [
+        "literal"
+      ]
+    }
+  ]
+}

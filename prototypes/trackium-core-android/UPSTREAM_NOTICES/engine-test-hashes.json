@@ -1,0 +1,30 @@
+{
+  "core-regression/src/test/java/org/minima/objects/CoinTests.java": {
+    "source": "test/org/minima/objects/CoinTests.java",
+    "sha256": "61eb820b54524dafe46bd73725019e7ee8e045bd50f7684731cdce0fbb57ebe6"
+  },
+  "core-regression/src/test/java/org/minima/objects/AddressTests.java": {
+    "source": "test/org/minima/objects/AddressTests.java",
+    "sha256": "f2bcf1900952c91d076e44235e0bc35a189ef444215f303f0febe7bf94fbfa58"
+  },
+  "core-regression/src/test/java/org/minima/objects/TransactionTests.java": {
+    "source": "test/org/minima/objects/TransactionTests.java",
+    "sha256": "9a8695307c362e24e588006e1a0db4c634db7d23b39480a40b09b63c401bf744"
+  },
+  "core-regression/src/test/java/org/minima/objects/base/MiniStringTests.java": {
+    "source": "test/org/minima/objects/base/MiniStringTests.java",
+    "sha256": "5cfd9495661c5009af0364d0d68f121c4ad9f8c18c3d8364b4b460d9a8c0e3f2"
+  },
+  "core-regression/src/test/java/org/minima/objects/base/MiniNumberTests.java": {
+    "source": "test/org/minima/objects/base/MiniNumberTests.java",
+    "sha256": "7a73c1941a02643a283736785d707ec7a7c2350e908166361faa99d9c441b9a8"
+  },
+  "core-regression/src/test/java/org/minima/objects/base/MiniByteTests.java": {
+    "source": "test/org/minima/objects/base/MiniByteTests.java",
+    "sha256": "d38efb1fd1b5b81804b69a749b14483d7b785d3c0a2302ce7798fbc77fc067b5"
+  },
+  "core-regression/src/test/java/org/minima/objects/base/MiniDataTests.java": {
+    "source": "test/org/minima/objects/base/MiniDataTests.java",
+    "sha256": "bfeab752e73e00e37b7dec560fb9e2cf3e4a3f2a3a48cc290ad3434935ec17d9"
+  }
+}

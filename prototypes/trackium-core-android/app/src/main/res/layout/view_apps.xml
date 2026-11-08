@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <!-- Internal | External. Hidden (External only) on builds with no integrated apps. -->
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/apps_tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:background="@color/core_bg"
+        app:tabMode="fixed"
+        app:tabGravity="fill"
+        app:tabIndicatorColor="@color/minima_blue"
+        app:tabSelectedTextColor="@color/core_text"
+        app:tabTextColor="@color/core_text_faint" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- Internal: our own integrated apps, switched on/off -->
+        <LinearLayout
+            android:id="@+id/apps_internal_pane"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="8dp"
+                android:text="Switch integrated apps on or off. Apps you turn off leave the app drawer until you turn them back on." android:tag="l10n:text=l10n_apps_internal_help"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Caption"
+                android:textColor="@color/core_text_faint" />
+
+            <ListView
+                android:id="@+id/apps_internal_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@color/core_bg"
+                android:divider="@color/core_outline"
+                android:dividerHeight="1dp"
+                android:scrollbars="none" />
+        </LinearLayout>
+
+        <!-- External: apps granted node access (unchanged behaviour) -->
+        <LinearLayout
+            android:id="@+id/apps_external_pane"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="8dp"
+                android:text="MiniDapps"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Eyebrow" />
+
+            <ListView
+                android:id="@+id/wallet_apps_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@color/core_bg"
+                android:divider="@color/core_outline"
+                android:dividerHeight="1dp"
+                android:scrollbars="none" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>

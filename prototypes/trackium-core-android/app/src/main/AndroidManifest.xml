@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- bare-kit declares minSdk 29; we stay 28 and gate the keets worklet on
+         Build.VERSION.SDK_INT >= 29 at runtime (KeetsWorklet). API 28 devices run
+         the node classic-only — nothing from bare-kit is touched there. -->
+    <uses-sdk tools:overrideLibrary="to.holepunch.bare.kit" />
+
+    <!-- Need Notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- Internet access -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Camera, Photos, input file -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- Network API -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Scan a recipient address QR on the Send screen. Declared explicitly rather than
+         inherited from the zxing library manifest. The camera is optional - the app is
+         fully usable without one, so this must not gate installs. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <!-- Wake Lock-->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- BOOT Message -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Battery Optimisation -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
+    <!-- Service Types for Android 14-->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<!--    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING"/>-->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
+    <!-- allowBackup=false is a FUND-SAFETY setting here, not a preference. With the scaffold default
+         (true + empty rules) Android Auto Backup uploaded this app's whole data directory to the user's
+         cloud and RESTORED it on reinstall — which both exfiltrates the data below and re-plants state a
+         reinstall is supposed to clear. A reinstall must be a true reset.
+         At stake: the BIP39 seed phrase this app stores in cleartext (main_prefs "SEED"), and getFilesDir() —
+         which IS the Minima node's data directory: wallet.db and the node's private keys. Auto Backup was
+         uploading a spendable wallet to the user's cloud and could reconstitute a signing node on any phone -->
+    <application
+        android:localeConfig="@xml/bear_locales"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:largeHeap="true"
+        android:persistent="true"
+        android:name=".MinimaApplication"
+        android:theme="@style/Theme.MinimaCore"
+        android:launchMode="singleInstance"
+        android:configChanges="keyboardHidden|orientation|screenSize"
+        tools:targetApi="31">
+
+        <!-- Launcher Activity-->
+        <activity android:configChanges="locale|layoutDirection|screenLayout"
+            android:name=".StartActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Launcher -->
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".launcher.LauncherActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".launcher.newwallet.NewWalletActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".launcher.newwallet.NewWalletRestoreActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".launcher.restore.RestoreWalletSyncActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".launcher.restore.SeedSyncServiceActivity"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.SeedSyncActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.views.terminal.TerminalActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.views.logs.LogsActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".chat.ChatThreadActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout"
+            android:name=".maxchat.MaxThreadActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false" />
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".chat.ChatImageActivity"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.ParamsActivity" android:windowSoftInputMode="adjustResize"></activity>
+
+        <!-- App-open lock (PIN + optional biometric). singleTop so repeated gate launches
+             do not stack; exported=false - it is reachable only from inside the app. -->
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".lock.LockActivity"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false" />
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".lock.LockSettingsActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false" />
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.backup.BackupActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.backup.BackupCreateActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.backup.RestoreFileActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.backup.VaultActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.backup.ChatBackupActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.views.send.SendActivity" android:windowSoftInputMode="adjustResize"></activity>
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.views.receive.ReceiveActivity" android:windowSoftInputMode="adjustResize"></activity>
+
+        <!-- Start the service -->
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".launcher.StartServiceActivity"></activity>
+
+
+        <!-- Main Activity-->
+        <activity android:configChanges="locale|layoutDirection|screenLayout" android:name=".main.MainActivity" android:windowSoftInputMode="adjustResize"></activity>
+
+        <!-- SERVICES -->
+        <service
+            android:name="com.eurobuddha.minimacore.service.MinimaService"
+            android:foregroundServiceType="specialUse"
+            android:enabled="true"
+            android:exported="false">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Requires a background connection to the Minima network to be always on"/>
+        </service>
+
+        <!-- Large IPC command responses are handed to the caller as a content:// file
+             (Intent extras cross the Binder ~1MB limit) - read access is granted
+             explicitly and only to the requesting package -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.ipcresponses"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/ipc_response_paths" />
+        </provider>
+
+        <!-- RECEIVERS -->
+        <receiver android:name=".service.BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Only our immutable explicit PendingIntents trigger hourly health checks/resync restarts. -->
+        <receiver android:name=".service.Alarm" android:exported="false"/>
+
+    </application>
+
+</manifest>

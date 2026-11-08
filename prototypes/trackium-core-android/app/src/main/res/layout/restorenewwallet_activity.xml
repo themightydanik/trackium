@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/restorewallet_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/core_surface"
+        app:titleTextColor="@color/core_text"
+        app:titleTextAppearance="@style/TextAppearance.MinimaCore.Title"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="?attr/actionBarTheme" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Restore wallet" android:tag="l10n:text=l10n_launcher_restore_wallet"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Display" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Type in your seed phrase to restore your wallet." android:tag="l10n:text=l10n_onboarding_enter_seed"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.3" />
+
+            <TextView style="@style/FormLabel" android:text="Seed phrase" android:tag="l10n:text=l10n_onboarding_seed_phrase" />
+
+            <EditText
+                android:id="@+id/restorewallet_seed"
+                style="@style/FormField"
+                android:minLines="2"
+                android:gravity="top|start"
+                android:inputType="textMultiLine"
+                android:hint="word one word two …" android:tag="l10n:hint=l10n_onboarding_seed_hint" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/restorewallet_button_check"
+                style="@style/Widget.MinimaCore.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:layout_marginTop="18dp"
+                android:text="Check Word List" android:tag="l10n:text=l10n_onboarding_check_words" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/restorewallet_button_proceed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
+                android:layout_marginTop="12dp"
+                android:text="Proceed" android:tag="l10n:text=l10n_common_proceed" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

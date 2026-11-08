@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/chatmenu_rename"
+        android:title="@string/l10n_chat_rename_contact"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/chatmenu_address"
+        android:title="@string/l10n_chat_view_address"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/chatmenu_clear"
+        android:title="@string/l10n_chat_delete_chat"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/chatmenu_delete"
+        android:title="@string/l10n_chat_delete_contact"
+        app:showAsAction="never" />
+</menu>

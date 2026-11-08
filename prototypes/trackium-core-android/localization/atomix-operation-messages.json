@@ -1,0 +1,174 @@
+{
+  "fixed": {
+    "Starting swap…": "atomixOperation.starting",
+    "✓ Swap started — leg 1 locked. Watching for the counterparty.": "atomixOperation.started",
+    "✓ Buy started, but the maker's contact key is missing — they may not see it.": "atomixOperation.missingContact",
+    "✓ Buy started — maker notified, watching.": "atomixOperation.notified",
+    "Wallet coins are being prepared — try the sell again after confirmation.": "atomixOperation.preparing",
+    "that market was just withdrawn — refreshing the book, try again in a moment": "atomixOperation.withdrawn",
+    "Trading currency changed; reopen Consolidate": "atomixOperation.changed",
+    "Wallet busy — wait for the current lock or consolidation": "atomixOperation.busy",
+    "At least 3 spendable coins are needed.": "atomixOperation.three",
+    "Coins are still confirming. Wait for 3 confirmations before another run.": "atomixOperation.confirm",
+    "Could not read the current block": "atomixOperation.noBlock",
+    "Market changed; refresh and try again.": "atomixOperation.marketChanged",
+    "Publish failed: Market changed; refresh and try again.": "atomixOperation.marketChanged",
+    "Update failed: Market changed; refresh and try again.": "atomixOperation.marketChanged",
+    "Withdraw failed: Market changed; refresh and try again.": "atomixOperation.marketChanged",
+    "Swap failed: Market changed; refresh and try again.": "atomixOperation.marketChanged",
+    "Book scan: Market changed; refresh and try again.": "atomixOperation.marketChanged"
+  },
+  "patterns": [
+    {
+      "template": "Sweep stopped — {0} of {1} parts done (part {2} failed: Market changed; refresh and try again.). Locked parts continue; unmatched auto-refund.",
+      "key": "atomixOperation.marketStopped",
+      "kinds": [
+        "literal",
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "Swap failed: {0}",
+      "key": "atomixOperation.failed",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Buy locked, but maker notify failed: {0}",
+      "key": "atomixOperation.notifyFailed",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "✓ Sweep done — {0} of {1} parts locked on-chain. Watching for counterparties.",
+      "key": "atomixOperation.doneLocked",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "✓ Sweep done — {0} of {1} parts sent. Watching for counterparties.",
+      "key": "atomixOperation.doneSent",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "Sweeping — locking part {0} of {1} (best price first)…",
+      "key": "atomixOperation.locking",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "Sweep stalled at part {0} (no response) — stopped. Locked parts continue; unmatched auto-refund.",
+      "key": "atomixOperation.stalled",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "✓ Part {0}/{1} lock sent — sending part {2}…",
+      "key": "atomixOperation.sending",
+      "kinds": [
+        "literal",
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "✓ Part {0}/{1} lock sent. Watching for counterparties.",
+      "key": "atomixOperation.sent",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "Sweep stalled confirming part {0} — stopped. Locked parts continue; unmatched auto-refund.",
+      "key": "atomixOperation.stalledConfirm",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "✓ Part {0}/{1} lock sent — confirming on-chain before the next part…",
+      "key": "atomixOperation.confirming",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "Sweep stopped — {0} of {1} parts done (part {2} failed: {3}). Locked parts continue; unmatched auto-refund.",
+      "key": "atomixOperation.stopped",
+      "kinds": [
+        "literal",
+        "literal",
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "✓ Part {0}/{1} locked in on-chain — starting part {2}…",
+      "key": "atomixOperation.next",
+      "kinds": [
+        "literal",
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "✓ Part {0}/{1} locked in on-chain.",
+      "key": "atomixOperation.locked",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "Sweep stopped — part {0}'s lock didn't confirm on-chain in time; no further parts started. That leg auto-refunds at its timelock; your other funds are untouched.",
+      "key": "atomixOperation.unconfirmed",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Coins: {0} · waiting for new coins to age 3 blocks. Retry at block {1}.",
+      "key": "atomixOperation.waitBlock",
+      "kinds": [
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "Submission could not be confirmed: {0}\nCheck your balance before retrying.",
+      "key": "atomixOperation.uncertain",
+      "kinds": [
+        "literal"
+      ]
+    },
+    {
+      "template": "Coins: {0} → {1} · waiting for new coins to age 3 blocks.\n\nTransaction: {2}",
+      "key": "atomixOperation.submitted",
+      "kinds": [
+        "literal",
+        "literal",
+        "literal"
+      ]
+    },
+    {
+      "template": "Refresh your balance after confirmation.\nTransaction: {0}",
+      "key": "atomixOperation.refresh",
+      "kinds": [
+        "literal"
+      ]
+    }
+  ]
+}

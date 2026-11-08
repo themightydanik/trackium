@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/backup_create_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/core_bg">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/core_surface"
+        app:titleTextColor="@color/core_text"
+        app:titleTextAppearance="@style/TextAppearance.MinimaCore.Title"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="?attr/actionBarTheme" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="40dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Create backup"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Display"  android:tag="l10n:text=l10n_backup_create" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Writes one encrypted .bak file holding this node's wallet, chain and archive. The node keeps running."
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.3"  android:tag="l10n:text=l10n_backup_create_intro" />
+
+            <TextView style="@style/FormLabel" android:text="File name"  android:tag="l10n:text=l10n_backup_filename" />
+
+            <EditText
+                android:id="@+id/backup_create_name"
+                style="@style/FormField"
+                android:inputType="text"
+                android:importantForAutofill="no"
+                android:hint="minima-backup.bak" />
+
+            <TextView style="@style/FormLabel" android:text="Password"  android:tag="l10n:text=l10n_backup_password" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/backup_create_password"
+                    style="@style/FormField"
+                    android:saveEnabled="false"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:hint="letters and numbers only"  android:tag="l10n:hint=l10n_backup_password_hint" />
+
+                <ImageButton
+                    android:id="@+id/backup_create_password_eye"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_visibility"
+                    android:contentDescription="Show password" />
+            </LinearLayout>
+
+            <TextView style="@style/FormLabel" android:text="Confirm password"  android:tag="l10n:text=l10n_backup_confirm_password" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/backup_create_confirm"
+                    style="@style/FormField"
+                    android:saveEnabled="false"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:hint="type it again"  android:tag="l10n:hint=l10n_backup_again_hint" />
+
+                <ImageButton
+                    android:id="@+id/backup_create_confirm_eye"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_visibility"
+                    android:contentDescription="Show password" />
+            </LinearLayout>
+
+            <!-- The node defaults an unset backup password to the literal word "minima"
+                 (backup.java). Saying so is the only thing standing between a user and an
+                 encrypted-in-name-only wallet file sitting in their Downloads folder. -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:padding="14dp"
+                android:background="@drawable/bg_token_tile"
+                android:text="This password is the only thing protecting your private keys inside the file. There is no way to recover the backup without it, and no way to reset it later."
+                android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+                android:textColor="@color/core_text_mid"
+                android:lineSpacingMultiplier="1.25"  android:tag="l10n:text=l10n_backup_password_warning" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/backup_create_go"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="24dp"
+                android:text="Create backup" />
+
+            <TextView
+                android:id="@+id/backup_create_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:accessibilityLiveRegion="polite"
+                android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong" />
+
+            <ProgressBar
+                android:id="@+id/backup_create_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="12dp"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/backup_create_detail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:visibility="gone"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Caption" />
+
+            <!-- Full path, selectable, never elided: this is the string the user needs in order
+                 to find or restore the file from anywhere else. -->
+            <TextView
+                android:id="@+id/backup_create_path"
+                style="@style/MonoBlock"
+                android:layout_marginTop="8dp"
+                android:padding="12dp"
+                android:background="@drawable/bg_token_tile"
+                android:textIsSelectable="true"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/backup_create_copy"
+                style="@style/Widget.MinimaCore.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                android:text="Copy full path"  android:tag="l10n:text=l10n_backup_copy_path" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/backup_create_export"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                android:text="Save a copy to this phone"  android:tag="l10n:text=l10n_backup_save_copy" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

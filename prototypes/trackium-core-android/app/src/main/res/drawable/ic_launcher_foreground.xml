@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bear launcher mark: a panda face with the official Minima M as the muzzle, inside the 66 dp
+     adaptive-icon safe circle. The pupil colour is @color/launcher_pupil, set per flavour
+     (PandaBear white, BlackBear Minima blue, Pandamonium orange). Generated geometry; the M path is
+     ic_minima.xml verbatim. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFF" android:pathData="M28.75,37.71 a8.97,8.97 0 1,0 17.94,0 a8.97,8.97 0 1,0 -17.94,0 Z"/>
+    <path android:fillColor="#08090B" android:pathData="M29.92,37.71 a7.8,7.8 0 1,0 15.60,0 a7.8,7.8 0 1,0 -15.60,0 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M33.11,37.71 a4.61,4.61 0 1,0 9.22,0 a4.61,4.61 0 1,0 -9.22,0 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M61.31,37.71 a8.97,8.97 0 1,0 17.94,0 a8.97,8.97 0 1,0 -17.94,0 Z"/>
+    <path android:fillColor="#08090B" android:pathData="M62.48,37.71 a7.8,7.8 0 1,0 15.60,0 a7.8,7.8 0 1,0 -15.60,0 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M65.67,37.71 a4.61,4.61 0 1,0 9.22,0 a4.61,4.61 0 1,0 -9.22,0 Z"/>
+    <path android:fillColor="#08090B" android:pathData="M28.45,55.47 a25.55,25.55 0 1,0 51.10,0 a25.55,25.55 0 1,0 -51.10,0 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M30.22,55.47 a23.78,23.78 0 1,0 47.56,0 a23.78,23.78 0 1,0 -47.56,0 Z"/>
+    <path android:fillColor="#08090B" android:pathData="M37.35,49.87 a7.53,7.53 0 1,0 15.06,0 a7.53,7.53 0 1,0 -15.06,0 Z"/>
+    <path android:fillColor="@color/launcher_pupil" android:pathData="M42.03,49.87 a2.85,2.85 0 1,0 5.70,0 a2.85,2.85 0 1,0 -5.70,0 Z"/>
+    <path android:fillColor="#08090B" android:pathData="M55.59,49.87 a7.53,7.53 0 1,0 15.06,0 a7.53,7.53 0 1,0 -15.06,0 Z"/>
+    <path android:fillColor="@color/launcher_pupil" android:pathData="M60.27,49.87 a2.85,2.85 0 1,0 5.70,0 a2.85,2.85 0 1,0 -5.70,0 Z"/>
+    <path android:fillColor="#08090B" android:pathData="M51.15,59.38 a2.85,2.85 0 1,0 5.70,0 a2.85,2.85 0 1,0 -5.70,0 Z"/>
+    <group android:translateX="46.95" android:translateY="63.11" android:scaleX="0.1342" android:scaleY="0.1342">
+        <path android:fillColor="#08090B" android:pathData="M84.16,26.77L79.52,48.44L73.58,22.29L52.79,13.38L47.17,39.59L42.21,8.86L21.42,0L0,100H22.71L29.27,69.27L34.23,100H56.98L62.56,73.8L68.5,100H91.21L105,35.63L84.16,26.77Z"/>
+    </group>
+</vector>

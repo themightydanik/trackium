@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One Backup & Recovery destination. Rows are added from BackupActivity as each screen lands,
+     so a feature that does not exist yet is simply absent rather than present and dead. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/bg_token_tile"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="16dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/backup_row_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong" />
+
+        <TextView
+            android:id="@+id/backup_row_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textAppearance="@style/TextAppearance.MinimaCore.Body"
+            android:textColor="@color/core_text_mid"
+            android:lineSpacingMultiplier="1.25" />
+    </LinearLayout>
+
+    <!-- Row action, e.g. Delete. GONE unless the host screen turns it on, so the hub's
+         navigation rows stay plain. -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/backup_row_action"
+        style="@style/Widget.MinimaCore.Button.Outlined"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:minWidth="0dp"
+        android:visibility="gone" />
+
+</LinearLayout>

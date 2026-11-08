@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- DARK theme overrides — Minima Core black grounds -->
+    <color name="core_bg">#0F1114</color>
+    <color name="core_surface">#16181C</color>
+    <color name="core_surface_variant">#1C2026</color>
+    <color name="core_outline">#262A31</color>
+    <color name="core_text">#F4F6F8</color>
+    <color name="core_text_mid">#9AA0A8</color>
+    <color name="core_text_faint">#5E646D</color>
+    <color name="on_primary">#FFFFFF</color>
+
+    <color name="status_good">#34C759</color>
+    <color name="status_warn">#FFB020</color>
+    <color name="status_bad">#FF5A3D</color>
+</resources>

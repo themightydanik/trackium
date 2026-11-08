@@ -1,0 +1,349 @@
+{
+  "fixed": {
+    "Activity log": "casino.activityLog",
+    "PLAY": "casino.play",
+    "HOUSE": "casino.house",
+    "MY BETS": "casino.myBets",
+    "Provably Fair On-Chain": "casino.provablyFair",
+    "Starting up…": "casino.starting",
+    "SND": "casino.sound",
+    "MUTE": "casino.mute",
+    "Sound on": "casino.soundOn",
+    "Sound off": "casino.soundOff",
+    "OPEN BETS": "casino.openBets",
+    "Pick a side and take a bet to play.": "casino.playHelp",
+    "No open bets right now.\nCreate one on the HOUSE tab.": "casino.noOpenBets",
+    "Your pick": "casino.yourPick",
+    "Taking…": "casino.taking",
+    "Take Bet": "casino.takeBet",
+    "Taking this bet — confirming on-chain…": "casino.takingConfirm",
+    "Identity not loaded yet": "casino.identityMissing",
+    "Taking bet… (generating secret, building tx)": "casino.takingBuild",
+    "Bet taken — confirming, then waiting for house reveal…": "casino.takenPending",
+    "BE THE HOUSE": "casino.beHouse",
+    "Lock funds and open a bet. Fair odds, zero edge.": "casino.houseHelp",
+    "Game": "casino.game",
+    "Create Bet": "casino.createBet",
+    "Enter a valid bet amount": "casino.validAmount",
+    "Generating secret & sending…": "casino.generating",
+    "Bet sent — confirming over the next few blocks…": "casino.createdPending",
+    "Coin Flip": "casino.coinFlip",
+    "Dice": "casino.dice",
+    "Roulette": "casino.roulette",
+    "Heads": "casino.heads",
+    "Tails": "casino.tails",
+    "FLIP": "casino.flipShort",
+    "DICE": "casino.diceShort",
+    "ROULETTE": "casino.rouletteShort",
+    "Switched to Minima": "casino.switchedMinima",
+    "Switched to USD (MxUSD) — keep a little Minima for network fees": "casino.switchedUsd",
+    "Node not ready — retrying…": "casino.nodeNotReady",
+    "Node not ready — retrying next block…": "casino.nodeRetryBlock",
+    "No activity yet.": "casino.noActivity",
+    "HISTORY": "utxo.history",
+    "Close": "language.close",
+    "The embedded node is unavailable. Open Minima Core from the menu and check its status, then retry.": "explorer.nodeRetry",
+    "The embedded node did not respond. Check its status in Minima Core.": "terminalIde.timeout",
+    "Auto-reveal & resolve. Keep Minima Core running and don't force-stop the casino, or a bet may stall (and time out) until you reopen.": "casino.autoHelp",
+    "No active bets.\nTake a bet on PLAY or open one on HOUSE.": "casino.noActive",
+    "YOU ARE THE HOUSE": "casino.roleHouse",
+    "YOU ARE THE PLAYER": "casino.rolePlayer",
+    "Waiting for a player to pick…": "casino.waitingPick",
+    "Open": "casino.phaseOpen",
+    "Taken": "casino.phaseTaken",
+    "Revealed": "casino.phaseRevealed",
+    "Open — waiting for a player to take it.": "casino.openStatus",
+    "Revealing house secret…": "casino.revealingHouse",
+    "Waiting for house to reveal…": "casino.waitingHouse",
+    "Waiting for player to resolve…": "casino.waitingPlayer",
+    "Resolving — paying out…": "casino.resolvingPayout",
+    "Timed out — you can claim the pot.": "casino.claimYours",
+    "Timed out — the counterparty can claim the pot.": "casino.claimTheirs",
+    "Cancelling…": "casino.cancelling",
+    "Bet cancelled. Funds returned.": "casino.cancelled",
+    "Resolving…": "casino.resolving",
+    "Resolve": "casino.resolve",
+    "Resolving automatically — please wait…": "casino.resolvingAuto",
+    "Claim Timeout": "casino.claimTimeout",
+    "Claiming…": "casino.claiming",
+    "Timeout claimed. Funds returned.": "casino.claimed",
+    "House": "casino.historyHouse",
+    "Player": "casino.historyPlayer",
+    "tap to continue": "casino.tapContinue",
+    "YOU WIN": "casino.youWin",
+    "YOU LOSE": "casino.youLose",
+    "Cancel": "common.cancel",
+    "Random failed": "casino.randomFailed",
+    "Hash failed": "casino.hashFailed",
+    "Bad hash": "casino.badHash",
+    "Could not save the bet secret — aborting to protect your funds": "casino.secretSaveFailed",
+    "House secret not found": "casino.houseSecretMissing",
+    "Player secret not found": "casino.playerSecretMissing",
+    "Invalid offer: keepalive skipped": "casino.offerInvalid",
+    "Offer keepalive blocked: house secret missing": "casino.renewSecretMissing",
+    "Renewal stopped: cancellation requested": "casino.renewCancelled",
+    "Only an untaken bet can be cancelled": "casino.cancelOnlyOpen",
+    "Could not save cancellation intent": "casino.cancelSaveFailed",
+    "Secret revealed": "casino.secretRevealed",
+    "Casino timeout claims": "casino.timeoutChannel",
+    "Casino background": "casino.backgroundChannel",
+    "Casino results": "casino.resultsChannel",
+    "Auto-revealing & resolving your bets": "casino.backgroundWatching",
+    "Send failed": "send.failed",
+    "house": "casino.historyHouse",
+    "player": "casino.historyPlayer"
+  },
+  "patterns": [
+    {
+      "template": "Create failed: {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "casino.createFailed"
+    },
+    {
+      "template": "Take failed: {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "casino.takeFailed"
+    },
+    {
+      "template": "{0} — waiting for confirmation…",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "casino.pendingWait"
+    },
+    {
+      "template": "{0} confirmed on-chain!",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "casino.pendingConfirmed"
+    },
+    {
+      "template": "{0} — still not seen after {1} blocks. Check Pending/stuck txns.",
+      "kinds": [
+        "diagnostic",
+        "integer"
+      ],
+      "key": "casino.pendingMissing"
+    },
+    {
+      "template": "{0} — confirming, {1} block elapsed (#{2})",
+      "kinds": [
+        "diagnostic",
+        "integer",
+        "integer"
+      ],
+      "key": "casino.pendingProgress"
+    },
+    {
+      "template": "{0} — confirming, {1} blocks elapsed (#{2})",
+      "kinds": [
+        "diagnostic",
+        "integer",
+        "integer"
+      ],
+      "key": "casino.pendingProgress"
+    },
+    {
+      "template": "{0} · Open My Bets →",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "casino.timeoutBanner"
+    },
+    {
+      "template": "{0}. Tap to open My Bets.",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "casino.timeoutNotice"
+    },
+    {
+      "template": "{0} timeout claim available ({1})",
+      "kinds": [
+        "integer",
+        "literal"
+      ],
+      "key": "casino.timeoutSummary"
+    },
+    {
+      "template": "{0} timeout claims available ({1})",
+      "kinds": [
+        "integer",
+        "literal"
+      ],
+      "key": "casino.timeoutSummary"
+    },
+    {
+      "template": "WON +{0} · {1} (rolled {2})",
+      "kinds": [
+        "literal",
+        "diagnostic",
+        "diagnostic"
+      ],
+      "key": "casino.wonResultLog"
+    },
+    {
+      "template": "WON +{0} · {1} (result {2})",
+      "kinds": [
+        "literal",
+        "diagnostic",
+        "diagnostic"
+      ],
+      "key": "casino.wonResultLog"
+    },
+    {
+      "template": "WON +{0} · {1} (settled by {2})",
+      "kinds": [
+        "literal",
+        "diagnostic",
+        "diagnostic"
+      ],
+      "key": "casino.wonSettledLog"
+    },
+    {
+      "template": "LOST -{0} · {1} (rolled {2})",
+      "kinds": [
+        "literal",
+        "diagnostic",
+        "diagnostic"
+      ],
+      "key": "casino.lostResultLog"
+    },
+    {
+      "template": "LOST -{0} · {1} (result {2})",
+      "kinds": [
+        "literal",
+        "diagnostic",
+        "diagnostic"
+      ],
+      "key": "casino.lostResultLog"
+    },
+    {
+      "template": "LOST -{0} · {1} (settled by {2})",
+      "kinds": [
+        "literal",
+        "diagnostic",
+        "diagnostic"
+      ],
+      "key": "casino.lostSettledLog"
+    },
+    {
+      "template": "Connected · {0}",
+      "kinds": [
+        "hex"
+      ],
+      "key": "casino.connected"
+    },
+    {
+      "template": "Send failed : {0}",
+      "kinds": [
+        "literal"
+      ],
+      "key": "casino.sendError"
+    },
+    {
+      "template": "Insufficient {0} (need {1})",
+      "kinds": [
+        "literal",
+        "number"
+      ],
+      "key": "casino.insufficient"
+    },
+    {
+      "template": "{0} failed : {1}",
+      "kinds": [
+        "command",
+        "literal"
+      ],
+      "key": "casino.commandFailedDetail"
+    },
+    {
+      "template": "{0} failed",
+      "kinds": [
+        "command"
+      ],
+      "key": "casino.commandFailed"
+    },
+    {
+      "template": "Offer keepalive: {0}",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "casino.keepaliveError"
+    },
+    {
+      "template": "Offer cancellation posted · {0}",
+      "kinds": [
+        "literal"
+      ],
+      "key": "casino.offerCancelledLog"
+    },
+    {
+      "template": "Open offer renewed · {0}",
+      "kinds": [
+        "literal"
+      ],
+      "key": "casino.offerRenewedLog"
+    },
+    {
+      "template": "{0} — house secret revealed, awaiting player resolve",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "casino.houseRevealedLog"
+    },
+    {
+      "template": "Created {0} bet ({1} · {2}:1)",
+      "kinds": [
+        "diagnostic",
+        "literal",
+        "integer"
+      ],
+      "key": "casino.createdLog"
+    },
+    {
+      "template": "Took {0} bet · picked {1}",
+      "kinds": [
+        "diagnostic",
+        "diagnostic"
+      ],
+      "key": "casino.tookLog"
+    },
+    {
+      "template": "{0} — waiting for player to resolve",
+      "kinds": [
+        "diagnostic"
+      ],
+      "key": "casino.revealedNotice"
+    },
+    {
+      "template": "You won +{0} {1}!",
+      "kinds": [
+        "number",
+        "literal"
+      ],
+      "key": "casino.wonNotice"
+    },
+    {
+      "template": "You lost -{0} {1}",
+      "kinds": [
+        "number",
+        "literal"
+      ],
+      "key": "casino.lostNotice"
+    },
+    {
+      "template": "{0} — rolled {1}",
+      "kinds": [
+        "diagnostic",
+        "diagnostic"
+      ],
+      "key": "casino.resultNotice"
+    }
+  ]
+}

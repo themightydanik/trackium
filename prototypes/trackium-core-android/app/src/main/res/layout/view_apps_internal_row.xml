@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@color/core_surface"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="13dp">
+
+    <ImageView
+        android:id="@+id/int_app_icon"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/bg_token_tile"
+        android:padding="6dp"
+        android:scaleType="fitCenter"
+        android:contentDescription="App icon" android:tag="l10n:description=l10n_apps_icon" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="13dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/int_app_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="name"
+            android:textAppearance="@style/TextAppearance.MinimaCore.BodyStrong" />
+
+        <TextView
+            android:id="@+id/int_app_state"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:text="state"
+            android:textAppearance="@style/TextAppearance.MinimaCore.Caption"
+            android:textColor="@color/core_text_faint" />
+    </LinearLayout>
+
+    <!-- Two independent choices per app: Hide (drawer) and Freeze (no background work). -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:orientation="vertical"
+        android:gravity="end">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:id="@+id/int_app_hide_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="Hide" android:tag="l10n:text=l10n_apps_hide"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Caption" />
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/int_app_switch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="Hide" android:tag="l10n:description=l10n_apps_hide" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:id="@+id/int_app_freeze_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="Freeze" android:tag="l10n:text=l10n_apps_freeze"
+                android:textAppearance="@style/TextAppearance.MinimaCore.Caption" />
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/int_app_freeze"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="Freeze" android:tag="l10n:description=l10n_apps_freeze" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
