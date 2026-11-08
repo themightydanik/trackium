@@ -56,11 +56,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '21.0.13+9'
-      - name: Install Android SDK packages
-        run: |
-          printf 'y\n%.0s' {1..100} > "$RUNNER_TEMP/sdk-licenses.txt"
-          sdkmanager --licenses < "$RUNNER_TEMP/sdk-licenses.txt" > /dev/null
-          sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'platform-tools' < "$RUNNER_TEMP/sdk-licenses.txt"
+      - name: Install checksum-pinned Android SDK tools and packages
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: scripts/setup-ci-android.sh
       - name: Fresh ephemeral debug identity
         working-directory: ${{ steps.project.outputs.directory }}
         run: |

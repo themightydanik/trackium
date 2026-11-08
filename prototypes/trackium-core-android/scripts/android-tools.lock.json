@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "command_line_tools": {
+    "revision": "16111833",
+    "url": "https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip",
+    "sha256": "0877a1d048fe4a24efe2eff536ca4223f7adeb58648bb81909d33c446918cfa8",
+    "publisher_sha1": "e025545c62a8e64c7559119566a569fb1dec5f60",
+    "publisher_metadata": "https://dl.google.com/android/repository/repository2-3.xml"
+  },
+  "packages": [
+    "platforms;android-36",
+    "build-tools;35.0.0",
+    "platform-tools"
+  ]
+}

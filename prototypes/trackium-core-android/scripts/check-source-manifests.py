@@ -44,6 +44,11 @@ def main():
     spec = importlib.util.spec_from_file_location('prepare', ROOT / 'scripts/prepare-keets.py')
     prepare = importlib.util.module_from_spec(spec); spec.loader.exec_module(prepare)
     prepare.validate_npm_lock(ROOT / 'scripts/keets-tools/package-lock.json')
+    android = json.loads((ROOT / 'scripts/android-tools.lock.json').read_text())
+    sdk_pin = android['command_line_tools']
+    require(sdk_pin['url'].startswith('https://dl.google.com/android/repository/'), 'Unexpected Android tools host')
+    require(bool(re.fullmatch('[0-9a-f]{64}', sdk_pin['sha256'])), 'Missing Android tools SHA256')
+    require(android['packages'] == ['platforms;android-36','build-tools;35.0.0','platform-tools'], 'SDK package set changed')
     print('Source commits, engine, original licence, wrapper, tools, downloads and regression provenance: PASS')
 
 if __name__ == '__main__':
