@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "canonical_repository": "https://github.com/themightydanik/trackium-core-android",
+  "canonical_ref": "feat/design-system-1-foundation",
+  "canonical_token_sha256": "9696c7ecd795a2436c3b5236ceaa42c8ab862b7cd6647d67b2681eec085c40db",
+  "owner_source_wordmark_sha256": "45e5273963ab4e7eb5d8318ad616616af344b388111365f9d84bdd40959409df",
+  "files": {
+    "design-system/tokens.json": "9696c7ecd795a2436c3b5236ceaa42c8ab862b7cd6647d67b2681eec085c40db",
+    "assets/v2/design-tokens.css": "f3e5ee82dba33c49d7b66ed0af9d3ec35c2e755c2d5c6dcede450c6fb20da58b",
+    "assets/v2/brand/mark.png": "d5642e0b797fef9118ff63999d97dcca03fbff8f3c6b129216eee670cbac9a8e",
+    "assets/v2/brand/app-32.png": "3e874a92a4d1c91c75e4dfc85ccb35f0f6c3bc5dfd37e6fca97822c6155fd56a",
+    "assets/v2/brand/app-48.png": "16696c8c3d366103f03a3ba23bb12650f4e25a057f26529e0248542aed1eefbc",
+    "assets/v2/brand/app-512.png": "6541df4c45efd289b3b36309ad42f0fd75ad86d1ded12f3d42463ea4dbfab734",
+    "assets/v2/brand/app-180.png": "3c76f798b01fe6b45af843487c3cf5fe30e97539b672c1fc72f63445091abb50",
+    "assets/v2/brand/app-192.png": "67999a1c1fe0ee90b259517c29e11bda969426541650129f8a59e4cb9979fa67"
+  },
+  "canonical_commit": "bdb8c9e2759c5bf8e98c4947c6729530ba3e680a"
+}

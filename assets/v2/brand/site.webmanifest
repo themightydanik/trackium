@@ -1,0 +1,22 @@
+{
+  "name": "Trackium Core \u00b7 Cargo workspace",
+  "short_name": "Trackium",
+  "start_url": "../../../index.html",
+  "display": "standalone",
+  "background_color": "#0B1220",
+  "theme_color": "#0B1220",
+  "icons": [
+    {
+      "src": "app-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "app-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
