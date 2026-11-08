@@ -19,6 +19,13 @@ export function proofConfig(env = process.env) {
     env.PROOF_ALLOW_MAINNET !== 'true'
   )
     throw new Error('Mainnet requires PROOF_ALLOW_MAINNET=true');
+  const profile = env.MINIMA_CORE_PROFILE ?? 'classic-1.0.49.4';
+  const versions = {
+    'classic-1.0.49.4': '1.0.49.4',
+    'blackbear-2.2.10': '1.1.2.31-euro4',
+    'trackium-core-1.1.2.31': '1.1.2.31'
+  };
+  if (!versions[profile]) throw new Error('unsupported MINIMA_CORE_PROFILE');
   return {
     mode,
     publisher,
@@ -36,7 +43,8 @@ export function proofConfig(env = process.env) {
     readerFile: env.MINIMA_READER_CREDENTIAL_FILE,
     caFile: env.MINIMA_RPC_CA_FILE,
     readerCaFile: env.MINIMA_READER_CA_FILE,
-    coreVersion: '1.0.49.4'
+    coreProfile: profile,
+    coreVersion: versions[profile]
   };
 }
 export async function credentials(file) {

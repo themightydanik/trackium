@@ -1,18 +1,26 @@
-# Minima Proof Engine v1 — Mainnet hardening and Local Core
+# Minima Proof Engine v1 — Native Android, Server Core and legacy MDS
 
 The engine extends the existing Free/Managed Gateway, immutable `cargo_events`, SHA-256 hash chain and `cargo_outbox`. Publication is **disabled by default**. It never sends an automatic backlog when live mode is enabled. Legacy MiniDapp/Rhino files and the raw GL110-GL path are unchanged.
 
 | Evidence level | Current state |
 | --- | --- |
-| Implemented | Server Core RPC publisher; foreground Local Core MDS adapter; signed manual file exchange; tenant ownership/approval/budgets; checkpoints; independent verifier; UI and CLI |
+| Implemented | Server Core RPC publisher; native BlackBear MinimaAPI Android publisher; optional classic MDS adapter; signed manual file exchange; tenant ownership/approval/budgets; checkpoints; independent verifier; UI and CLI |
 | Automated validation | PostgreSQL, mock Core RPC/MDS, desktop/Android-like browser capabilities, restart/ambiguity, permissions, tampering, limits, tenant/CSRF checks, existing browser/MDS/legacy regression |
-| Not live validated | Real desktop Core wallet signatures/Mainnet inclusion, Android Core/WebView permissions and file transfer, Android suspension/restart and device-specific WebCrypto/Web Locks support |
+| Not live validated | Real desktop Core wallet signatures/Mainnet inclusion, BlackBear IPC on a real Android device, real wallet signing and lifecycle recovery; legacy MDS WebView transfer |
 
 **No real Mainnet transaction was sent during development. Testnet is not a prerequisite.** The first real transaction is an explicit user operation on **Mainnet**, with a dedicated wallet/address and a small balance. This is not a production-readiness or globally synchronized-node claim.
 
-## One protocol, two publishers
+## Android BlackBear transport
 
-**Local Core** uses `MDS.cmd()` inside the installed Trackium MiniDapp. Signing stays in that desktop/Android node's built-in wallet. Gateway receives public artifacts/IDs; it has no wallet RPC credential, seed or private key. The workflow runs only while the MiniDapp is open. Closing Android WebView does not create an autonomous background publisher.
+**BlackBear has no MDS.** The primary Android integration is the standalone Kotlin APK in `apps/android`, using the actual public MinimaAPI SDK and explicit package-pinned Android IPC. See [Android installation, trust model, source pins and recovery](ANDROID_MINIMA_CORE.md). No `MDS.cmd`, DirectNodeApi, public wallet RPC or JavaScript wallet bridge is used for BlackBear.
+
+Migration **005_native_android.sql** adds immutable transport identity (`server_rpc`, `mds_legacy`, `android_minimaapi`) without changing deployed migrations. Existing local jobs become `mds_legacy` and cannot be converted into Android jobs. Native sessions use separate owner-approved 2-minute challenges and 15-minute read/publish credentials with per-request HMAC, audience, nonce and revocation. Enable them explicitly with `ENABLE_NATIVE_CLIENTS=true` and HTTPS `PUBLIC_ORIGIN`. They cannot approve events or change publisher policy. Existing HttpOnly browser sessions are unchanged.
+
+The independent Server reader remains mandatory. `MINIMA_CORE_PROFILE` explicitly selects its reviewed response version: `classic-1.0.49.4` (default), `blackbear-2.2.10` (`1.1.2.31-euro4`) or `trackium-core-1.1.2.31`. Android signed jobs independently require `blackbear-2.2.10`; a profile name is not evidence of live validation. Desktop Server publication remains independent of Android and uses private authenticated RPC.
+
+## One protocol, separate transports
+
+**Legacy Local Core (classic MDS only, NOT BlackBear)** uses `MDS.cmd()` inside a compatible classic Trackium MiniDapp. Signing stays in that node's built-in wallet. Gateway receives public artifacts/IDs; it has no wallet RPC credential, seed or private key. The workflow runs only while the MiniDapp is open. Closing Android WebView does not create an autonomous background publisher.
 
 **Server Core** uses private authenticated RPC on a separately trusted Core node and its built-in wallet. It can process explicitly approved events without a foreground UI. It is suitable for self-hosted Free and Managed deployment, with the same tenant boundaries. It never accepts arbitrary wallet commands from users.
 
@@ -22,7 +30,7 @@ Stop every older Gateway worker before upgrading; mixed old/new publishers or ro
 
 ## Official Core/MDS contract researched
 
-Source: official [minima-global/Minima commit 52542f25605a28a776e9b3b43b0808a05dceab01](https://github.com/minima-global/Minima/tree/52542f25605a28a776e9b3b43b0808a05dceab01), reporting **1.0.49.4**. Both publishers require that version before wallet preparation. Other versions must be reviewed rather than bypassing validation.
+Source: official [minima-global/Minima commit 52542f25605a28a776e9b3b43b0808a05dceab01](https://github.com/minima-global/Minima/tree/52542f25605a28a776e9b3b43b0808a05dceab01), reporting **1.0.49.4**. The classic Server/MDS profiles require that version before wallet preparation. BlackBear is researched separately in ANDROID_MINIMA_CORE.md. Other versions must be reviewed rather than bypassing validation.
 
 - [CommandRunner](https://github.com/minima-global/Minima/blob/52542f25605a28a776e9b3b43b0808a05dceab01/src/org/minima/system/commands/CommandRunner.java): registers transaction commands; `ALL_WRITE_COMMANDS` includes `txnsign`. READ MiniDapps get `status:false,pending:true,pendinguid` for that command; public MDS cannot queue it. Other transaction verbs are **not all classified WRITE** in this version. Thus a Core READ RPC/MDS label is not a substitute for our command whitelist and private transport.
 - [CMDcommand](https://github.com/minima-global/Minima/blob/52542f25605a28a776e9b3b43b0808a05dceab01/src/org/minima/system/mds/handler/CMDcommand.java): MDS passes the MiniDapp identity to CommandRunner. Desktop and Android use the same Java command path, not a hidden RPC bypass.

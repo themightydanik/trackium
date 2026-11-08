@@ -111,7 +111,7 @@ test(
           (
             await db.query('SELECT version FROM gateway_schema_migrations ORDER BY version')
           ).rows.map((r) => r.version),
-          [1, 2, 3, 4]
+          [1, 2, 3, 4, 5]
         );
         simulated = (
           await req('/v1/simulated-devices', {

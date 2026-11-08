@@ -1,0 +1,149 @@
+{
+  "pin": "daa16e50068dfa68bcef20efa81ad50be51bf0491385c380c89eb1812d8511e4",
+  "job": {
+    "issuer": {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "ZQMnEs7PcFBbc7cFYbfRWKNPMGQwvcZiPNyCoTiPw30",
+      "y": "lmywV2c1kF_VJRUK8OopYDb4L5CEIQEV5Psx-UiORR8"
+    },
+    "payload": {
+      "domain": "trackium:local-core:job:v1",
+      "schema_version": 1,
+      "job_id": "44444444-4444-4444-8444-444444444444",
+      "core_profile": "blackbear-2.2.10",
+      "expires_at": "2099-01-01T00:00:00.000Z",
+      "max_input": "0.01",
+      "max_attempts": 3,
+      "bundle": {
+        "proof": {
+          "id": "44444444-4444-4444-8444-444444444444",
+          "event_id": "11111111-1111-4111-8111-111111111111",
+          "shipment_id": "22222222-2222-4222-8222-222222222222",
+          "sequence": 1,
+          "publisher_kind": "local",
+          "publisher_transport": "android_minimaapi",
+          "mode": "live",
+          "chain_id": "0x00",
+          "publisher_address": "0xabababababababababababababababababababababababababababababababab",
+          "commitment": {
+            "domain": "trackium:cargo:minima-proof:v1",
+            "schema_version": 1,
+            "publish_mode": "live",
+            "chain_id": "0x00",
+            "publisher_address": "0xabababababababababababababababababababababababababababababababab",
+            "event_id": "11111111-1111-4111-8111-111111111111",
+            "shipment_id": "22222222-2222-4222-8222-222222222222",
+            "event_type": "shipment_created",
+            "sequence": 1,
+            "canonical_sha256": "1183329a2a76f2f3453b39f518ec1c629f3e5e54800682ebfb8de65c79ddc95f",
+            "previous_hash": null,
+            "source_trust": "synthetic"
+          },
+          "wire": "0x54524b500101c369d7a16c3fc91bb4c0eadf6f28ffd2faa2972678d05c0670c8944c92c3d649",
+          "txpow_id": null
+        },
+        "records": [
+          {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "tenant_id": "33333333-3333-4333-8333-333333333333",
+            "shipment_id": "22222222-2222-4222-8222-222222222222",
+            "event_type": "shipment_created",
+            "source_trust": "synthetic",
+            "sequence": 1,
+            "previous_hash": null,
+            "canonical_payload": "{\"event_id\":\"11111111-1111-4111-8111-111111111111\",\"event_time\":\"2026-11-07T12:00:00.000Z\",\"event_type\":\"shipment_created\",\"payload\":{\"label\":\"Вантаж 🚚\",\"temperature\":20.1},\"previous_hash\":null,\"schema_version\":1,\"sequence\":1,\"shipment_id\":\"22222222-2222-4222-8222-222222222222\",\"source_trust\":\"synthetic\",\"tenant_id\":\"33333333-3333-4333-8333-333333333333\"}",
+            "sha256": "1183329a2a76f2f3453b39f518ec1c629f3e5e54800682ebfb8de65c79ddc95f"
+          }
+        ]
+      }
+    },
+    "signature": "C/buHH/E8VPede4Yu0oRz6L8b9jhoz83wQ+U5q5JZPOgpJgWgn+TZ4boTizrg4ntv2fmjhQTME9LkN/HaUu25Q=="
+  },
+  "checkpoint": {
+    "issuer": {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "ZQMnEs7PcFBbc7cFYbfRWKNPMGQwvcZiPNyCoTiPw30",
+      "y": "lmywV2c1kF_VJRUK8OopYDb4L5CEIQEV5Psx-UiORR8"
+    },
+    "payload": {
+      "domain": "trackium:local-core:ack:v1",
+      "job_id": "44444444-4444-4444-8444-444444444444",
+      "wire": "0x54524b500101c369d7a16c3fc91bb4c0eadf6f28ffd2faa2972678d05c0670c8944c92c3d649",
+      "txpow_id": "0xefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+      "stage": "checkpoint",
+      "mined_sha256": "5a0737e8cbcfa24dcc118b0ab1e6d98bee17c57daa8a1686024159aae707ed6f"
+    },
+    "signature": "/+Op9NnP1+tQAz/T4P1TujkHPWkvY4G42ZhMY4bJGoMcozMW2sSQaQT+35K1zK+AGYFfCS1HMjKMaVeof/tPEQ=="
+  },
+  "confirmed": {
+    "issuer": {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "ZQMnEs7PcFBbc7cFYbfRWKNPMGQwvcZiPNyCoTiPw30",
+      "y": "lmywV2c1kF_VJRUK8OopYDb4L5CEIQEV5Psx-UiORR8"
+    },
+    "payload": {
+      "domain": "trackium:local-core:ack:v1",
+      "job_id": "44444444-4444-4444-8444-444444444444",
+      "wire": "0x54524b500101c369d7a16c3fc91bb4c0eadf6f28ffd2faa2972678d05c0670c8944c92c3d649",
+      "txpow_id": "0xefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+      "stage": "confirmed"
+    },
+    "signature": "5xzgESJO/C2EfU40z2JOo7DobddIvy+1SSv06/65Lg7en3RLqXN8zFJL8DWjAJqnIagWTrgzk7pHeego2tkvbw=="
+  },
+  "transaction": {
+    "transactionid": "0xcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+    "inputs": [
+      {
+        "address": "0xabababababababababababababababababababababababababababababababab",
+        "tokenid": "0x00",
+        "amount": "0.005"
+      }
+    ],
+    "outputs": [
+      {
+        "address": "0xabababababababababababababababababababababababababababababababab",
+        "tokenid": "0x00",
+        "amount": "0.001"
+      },
+      {
+        "address": "0xabababababababababababababababababababababababababababababababab",
+        "tokenid": "0x00",
+        "amount": "0.004"
+      }
+    ],
+    "state": [
+      {
+        "port": 250,
+        "data": "0x54524b500101c369d7a16c3fc91bb4c0eadf6f28ffd2faa2972678d05c0670c8944c92c3d649"
+      }
+    ]
+  },
+  "witness": {
+    "signatures": [
+      {}
+    ],
+    "scripts": [
+      {
+        "address": "0xabababababababababababababababababababababababababababababababab",
+        "script": "RETURN SIGNEDBY(0xacacacacacacacacacacacacacacacacacacacacacacacacacacacacacacacac)"
+      }
+    ]
+  },
+  "txpow": "0xefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+  "txid": "0xcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+  "mined": "0x1234",
+  "auth": {
+    "proof": "0x0101010101010101010101010101010101010101010101010101010101010101",
+    "challenge": "44444444-4444-4444-8444-444444444444",
+    "token": "trk_native_0202020202020202020202020202020202020202020202020202020202020202",
+    "time": "1794052800000",
+    "nonce": "03030303030303030303030303030303",
+    "body": "{\"text\":\"Вантаж\"}",
+    "path": "/v1/proofs/44444444-4444-4444-8444-444444444444/verify",
+    "key": "c14075881788ccd0e7b7b830031310788327f224aa6a58628b68c5899f1d58fc",
+    "mac": "5588ec6dd1d707d6bbcb9377d80ee14f1f989cce6049ffa802ede5b67cf03cbf"
+  }
+}

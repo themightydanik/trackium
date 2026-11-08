@@ -1,0 +1,14 @@
+{
+  "repository": "https://github.com/eurobuddha/minima-core-android",
+  "commit": "74206453dacbd5e00bf6a498474bdd77c9c59d63",
+  "upstream_path": "minimaapi/src/main/java/com/eurobuddha/minimaapi",
+  "license": "Apache-2.0",
+  "note": "Five public SDK Java files copied unchanged. DirectNodeApi and Ethereum modules excluded. NodeRoutingTest adapted only to use a read-only mock command.",
+  "sha256": {
+    "src/main/java/com/eurobuddha/minimaapi/MinimaAPILogger.java": "a2a66d6882cd08b3f30067d20abea6a203a77d44f046be631b0b8ffcf4beace5",
+    "src/main/java/com/eurobuddha/minimaapi/MinimaAPIMessages.java": "5d23a530b86c4fb49dfc6dedaefffadfe77e0019fd569cafab550b7438ca2586",
+    "src/main/java/com/eurobuddha/minimaapi/MinimaAPIReceive.java": "d8f2cbaa706ca02743fa3b4872104aad5d1ad2122631aa9824afae326f9e4a31",
+    "src/main/java/com/eurobuddha/minimaapi/MinimaAPIListener.java": "c9552433ca6dd734148dcad326bad1f15e15424501b3cf8ef3620ba32c3dd1aa",
+    "src/main/java/com/eurobuddha/minimaapi/MinimaAPI.java": "0b2fa04f6e57666b2f1d531daf8083e3719619898502e787c653c534b16bd061"
+  }
+}
