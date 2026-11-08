@@ -23,3 +23,10 @@ Review docs/design-system-1/brand-comparison.png and the before/after preview sc
 ## Remaining stages
 
 Android chrome/Node → unified navigation → native content → remaining Android modules → current Web redesign → full UX acceptance. None is started by this PR. Licensing/NOTICE, native16-KiB compatibility and phone/Mainnet/production Gateway/AOVX acceptance blockers remain separate. No public Release.
+
+### Web visual evidence
+
+Unauthenticated, no-demo local captures at 1440 and 390 CSS px; phone drawer fully opened. Before is repository main `ee384431f6e1d8c21240ee6cbcc1f9473b73555e`, after is this foundation. These demonstrate brand replacement, not a completed responsive/theme redesign.
+
+- [Desktop before](design-system-1/web-before-1440.png) / [after](design-system-1/web-after-1440.png)
+- [Phone before](design-system-1/web-before-390.png) / [after](design-system-1/web-after-390.png)
