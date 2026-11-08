@@ -1,0 +1,35 @@
+name: Design System foundation
+on:
+  push:
+    paths: &paths
+      - 'design-system/**'
+      - 'assets/v2/**'
+      - 'index.html'
+      - 'tools/check-design-system.py'
+      - 'tests/minidapp/**'
+      - '.github/workflows/design-foundation.yml'
+  pull_request:
+    paths: *paths
+permissions:
+  contents: read
+concurrency:
+  group: design-foundation-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Snapshot checks
+        run: python3 tools/check-design-system.py
+      - name: Browser tooling (development only)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/ui-tools" --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/ui-tools/node_modules/.bin/playwright" install --with-deps chromium
+          echo "NODE_PATH=$RUNNER_TEMP/ui-tools/node_modules" >> "$GITHUB_ENV"
+          echo "CHROMIUM_PATH=$(node -e "process.stdout.write(require('$RUNNER_TEMP/ui-tools/node_modules/playwright').chromium.executablePath())")" >> "$GITHUB_ENV"
+      - name: Existing and targeted browser tests
+        run: node --test tests/minidapp/core.test.cjs tests/minidapp/browser.test.cjs tests/minidapp/design-system.test.cjs

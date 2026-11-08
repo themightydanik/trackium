@@ -2632,3 +2632,6 @@ textarea.text-input {
 .server-shipment .form-actions .button {
   white-space: normal;
 }
+
+/* DS1 stage 1: owner mark only; current component/theme migration is a later PR. */
+.brand-mark > img { display:block; width:31px; height:36px; object-fit:contain; }
