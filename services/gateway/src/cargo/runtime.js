@@ -10,6 +10,7 @@ import { createSimulator, startWorker } from './simulator.js';
 import { createPairing, publicOrigin } from './pairing.js';
 import { createCargoApi } from './api.js';
 import { createWebHandler } from './web.js';
+import { createIngressGuard } from '../ingress.js';
 export function createRuntime(
   pool,
   config,
@@ -37,6 +38,7 @@ export function createRuntime(
   let stopWorker = async () => {};
   const gateway = createGateway({
     config,
+    ingressGuard: config.railwayTest ? createIngressGuard(config) : undefined,
     logger,
     journal: {
       async initialize() {

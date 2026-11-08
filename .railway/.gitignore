@@ -1,0 +1,4 @@
+node_modules/
+# Local CLI linkage and reviewed plans stay on the operator workstation.
+config.json
+*-plan.json

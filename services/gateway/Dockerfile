@@ -12,5 +12,6 @@ COPY --chown=node:node index.html mds.js icon.png /opt/trackium-ui/
 COPY --chown=node:node assets/v2 /opt/trackium-ui/assets/v2/
 ENV WEB_ROOT=/opt/trackium-ui
 USER node
-EXPOSE 8080 9000
+# Raw TCP is never advertised as a public deployment port.
+EXPOSE 8080
 CMD ["node", "src/server.js"]
