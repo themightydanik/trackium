@@ -55,6 +55,8 @@ Selected runtime dependency terms to preserve when redistributing:
 | Keets source/worklet and bundled native addons | Source revision and checksums pinned in `scripts/keets-dependencies.lock.json`; **licence clearance incomplete**, see below |
 | JUnit, Robolectric, Mockito, Kotlin/Gradle/Android build tools | Development/test dependencies, not automatically a runtime redistribution grant; preserve their respective notices in any distributed tooling |
 
+Stage-2 evidence supersedes the initial partial review below; see LICENSE_AUDIT.md for the sidecar MIT declaration and collected native package texts. Public-release blockers remain open.
+
 The downloaded pinned Keets source archive contains no root LICENSE file; GitHub licence endpoint for `eurobuddha/keets` returned 404. Its pinned prebuilt native addon/runtime bundle contains multiple third-party components. Checksum verification establishes bytes/provenance, **not licence permission**. A complete transitive native licence/NOTICE inventory and clarification of Keets source redistribution rights remain a blocker to a public release. No public release/repository is created by this task; the debug artifact is for the requested technical review. Do not label the entire APK Apache-licensed based only on the host root licence. Keep this limitation when moving the project.
 
 ## Unconfirmed functions

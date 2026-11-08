@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Trackium Core</string>
+    <string name="home_keyuses_label">密钥最后使用的区块</string>
+    <string name="restore_keyuses_label">密钥使用下限（高于所有曾用索引）</string>
+    <string name="restore_intro">请输入助记词、密钥使用次数和 Minima MegaMMR 节点地址。\n\n警告：本应用使用新的 block-as-key-uses 密钥系统。经典 MinimaCore 应用的助记词在此会生成不同的地址；经典地址上的资金不会显示。请在经典应用中转出资金，不要在此恢复其助记词。\n\n恢复区块模式钱包时，密钥使用下限必须高于该钱包曾使用的所有索引。当前链高度本身不能证明某个索引从未使用。恢复前请停止原钱包。</string>
+</resources>

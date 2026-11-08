@@ -1,47 +1,47 @@
-# Prototype validation
+# Validation — stage 2
 
-## Local automated checks
+Local environment: Linux, JDK 21.0.13+9, Gradle 8.11.1 with retained distribution checksum, AGP 8.10.1, Android SDK 36/build-tools 35.0.0. Debug version 0.2.0 / code 2. Run `scripts/ci-debug.sh` on committed clean source to reproduce the checks and provenance artifact bundle. No second concurrent Gradle test invocation is used.
 
-Environment: Linux cloud workspace, JDK 21.0.13, Gradle 8.11.1 (pinned wrapper SHA), AGP 8.10.1, SDK 36/build tools 35.0.0. Checks run on 2026-11-08.
+## Current local results
 
 | Check | Result |
 | --- | --- |
-| `:app:assembleBlockDebug` | PASS: one universal debug APK, exact pinned Keets bytes checked after packaging |
-| `:app:testBlockDebugUnitTest` | PASS: 197 tests, including inherited host lifecycle/IPC/security coverage |
-| `:integrated-trackium:testDebugUnitTest` | PASS: 14 tests (9 existing publisher/protocol, 4 adapter boundary tests, 1 locked Activity test) |
-| `:minimaapi:testDebugUnitTest` | PASS: 58 SDK routing/direct transport/protocol tests |
-| `:core-regression:test` | PASS: 27 tests against the preserved JAR (24 upstream object tests, 2 security regressions, 1 two-process startup/restart test) |
-| `scripts/test-keets-artifacts.py` | PASS: 19 tests |
-| `scripts/test-keets-preparation.py` | PASS: 9 tests |
-| `scripts/verify-prototype.py` | PASS: exact Eurobuddha JAR checksum; imported-file delta report |
-| `:integrated-trackium:lintDebug` | PASS: 0 errors, 3 warnings |
-| `:app:lintBlockDebug` | **FAIL**: 15 MissingTranslation errors and 7018 warnings in retained host/dependency resources. No lint suppression/baseline or abortOnError bypass added. The 15 errors are app_name and existing host mode/restore/key-use strings missing ru/uk/zh translations. |
-| `apksigner verify --verbose --print-certs` | PASS: APK v2 signature, independent CN=Android Debug certificate |
-| Merged APK manifest | Prototype ID, API 28 minimum/35 target, no sharedUserId; allowBackup=false; private node service, Trackium Activity and export provider |
+| Independent root extraction | PASS: initial tracked root tree matches PR #12 subtree `9186657ce49ca0476119f1c5c7836c33e37e0fca` exactly |
+| Source/engine/wrapper/download/tool/manifest pins | PASS, no engine or native pin substituted |
+| Captured licence evidence | PASS within recorded scope; release_blocked=true, --release refuses unresolved rights |
+| app:testBlockDebugUnitTest | PASS: 197 tests |
+| integrated-trackium:testDebugUnitTest | PASS: 14 tests |
+| minimaapi:testDebugUnitTest | PASS: 58 tests |
+| localization:testDebugUnitTest | PASS: 12 tests |
+| integrated-history:testDebugUnitTest | PASS: 19 tests |
+| core-regression:test | PASS: 27 tests against the exact shipped engine JAR |
+| maxima-core:test | NO-SOURCE: module retained, no test sources |
+| Python Keets artifact/preparation tests | PASS: 19 + 9 |
+| Python source/legal manifest guard regressions | PASS: 5 |
+| app:assembleBlockDebug / final Keets APK verification | PASS, real one-APK host + integrated Trackium |
+| app:lintBlockDebug | PASS: **0 errors**, 7018 warnings. All 15 previous MissingTranslation errors fixed with actual ru/uk/zh main/flavor translations |
+| integrated-trackium:lintDebug | PASS: 0 errors, 3 warnings |
+| APK signature and package | PASS: v2 signature, Android Debug identity; package tech.trackium.core.prototype, debuggable; generated key excluded from artifacts |
+| APK native page-size inspection | 21 ARM64 libraries have >=16-KiB PT_LOAD alignment; 2 retained libraries have 4-KiB alignment. 16-KiB-device acceptance blocked |
 
-The original host uses a separate runtime localisation module; its small app/flavor resource sets still trigger Android lint's missing-translation rules. The branding replacement touches app_name, while the other missing entries are retained upstream resources. These findings remain visible; a broad localisation cleanup is outside this integration.
+Total: **327 JVM/Robolectric + 33 Python tests**. Build evidence JSON records actual commit/JDK/run/APK/certificate hashes and test/lint totals. Do not manually copy a previous build hash into a new run's evidence. See CI_DEBUG_APK.md for Actions download and clean-source export rules. The source is ready for controlled phone testing, not phone-tested or public release-ready.
 
-## Real Android runtime test on a disposable emulator
+## What the tests establish
 
-A fresh **Android 9/API 28 x86_64** AOSP emulator was booted using software emulation (`-accel off`, no KVM). Only the prototype and its instrumentation APK were installed; no BlackBear wallet or external Trackium APK was installed/imported. No physical phone was available.
+- Original host lifecycle/IPC/authentication tests and SDK routing/direct-transport tests remain intact.
+- Trackium adapter rejects financial/private/parameterised/batched commands, background/locked/wrong-host access and late results after lock. Locked Activity avoids rendering encrypted/cached state.
+- Shipped engine tests retain synchronized signing/counter boundaries and privileged transaction inspection/write classification. OfflineNodeProbe verifies refusal to overwrite an unsigned scratch transaction as non-ADMIN without signing/mining/posting anything.
+- Two isolated JVM starts use the same disposable database and public key, validate block-as-key-uses/SQL low-RAM flags and complete clean shutdown. No peers/RPC/Mainnet publication or working wallet is involved.
+- History and localisation regression suites now also run in the common CI script.
+- Source/legal guards detect bad/missing checksums, unsafe paths and unresolved release clearance. They do not certify every transitive native licence or a full software supply-chain audit.
 
-`TrackiumCoreIntegrationTest` is opt-in and refuses non-emulator hardware, an unexpected package or an existing non-fixture wallet. The fresh phase creates a new disposable seed inside the emulator, never logs it, and configures offline node arguments only in that emulator's private preferences. Production source/default network parameters remain unchanged. Keets is off for this API 28 fixture, matching the upstream runtime limitation. No genesis, signing, mining, proof publication or Mainnet transaction occurs.
+## Preserved prototype #1 Android-runtime evidence
 
-Fresh phase: **PASS, 1 test (133.259 seconds)**. It verifies:
+PR #12's 0.1.0 prototype passed an opt-in disposable software Android 9/API 28 x86_64 emulator test: fresh phase 133.259 s, process-stop restart 116.074 s, final updated-APK restart with native UI engine-version assertion 105.933 s. That exercised actual host-service node, EmbeddedCorePort → DirectNodeApi → EmbeddedNodeTransport, private native navigation, forbidden-command refusal, Android Keystore state and public-key recovery. The offline chain correctly rejected balance when no tip existed.
 
-- Real host foreground-service node startup and block-as-key-uses/SQL low-RAM flags.
-- Actual `EmbeddedCorePort -> DirectNodeApi -> EmbeddedNodeTransport -> node` status read; no mocked backend in this test.
-- Preservation of the real offline balance error when there is no chain tip (no fake balance/genesis).
-- Pre-dispatch rejection of financial/private/batched commands and admin=false.
-- Android Keystore/AES-GCM state written/read via separate SecureStore instances.
-- Node-screen button opens the private Trackium Activity in the same package, then returns to host.
-- Runtime package manifest separation and disabled backup/private node service/provider.
+Those historical runs are not relabelled as physical-phone or new stage-2 runtime tests. Node/adapter implementation is unchanged in stage 2; only translated resources/version/build/CI/docs/legal evidence changed. Stage-2 phone execution, API 29+ Keets, Mainnet synchronisation, live Gateway pairing and OEM background/reboot behaviour remain NOT RUN pending PHONE_ACCEPTANCE.md.
 
-Restart phase: **PASS, 1 test (116.074 seconds)** on the same fixture after process stop; the public key and encrypted state survive. Final updated-APK restart phase: **PASS, 1 test (105.933 seconds)**, additionally verifying that the native UI displays the observed engine version. The JVM regression independently verifies **clean** node shutdown and two starts with the same database/public key. The Android fixture checks process-stop recovery; neither test signs or reuses a Winternitz leaf.
-
-### Reproduce on a new emulator only
-
-Create a **fresh disposable** API 28 x86_64 emulator with no wallets; choose its explicit serial. Never run this against a real phone or an emulator containing a valued wallet. Do not clear an existing wallet's data to satisfy the fixture. Build/install:
+To rerun existing opt-in instrumentation on a **new disposable emulator only**:
 
 ```sh
 ./gradlew --no-daemon :app:assembleBlockDebug :app:assembleBlockDebugAndroidTest
@@ -51,24 +51,4 @@ scripts/test-disposable-emulator.sh emulator-5554 fresh
 scripts/test-disposable-emulator.sh emulator-5554 restart
 ```
 
-The script never clears data. Fresh requires SEED_SET=false. Restart requires a marker written only by the successful fresh fixture; it force-stops only this prototype package. The fixture grants host storage permission on API 28 and exempts its foreground service from the disposable emulator's battery restrictions to avoid OS dialogs. This is test setup, not production permission auto-grant code. Native Trackium itself adds no permissions.
-
-The test does not compare/install a BlackBear APK. Separate installation compatibility follows distinct package ID, debug signing/storage/Keystore namespace and no sharedUserId; runtime coexistence with an installed BlackBear and concurrent use of default P2P port 21001 remains a manual acceptance item.
-
-## Still required before smartphone acceptance
-
-- Fresh phone installation, optional PIN/biometric enable/lock/unlock, background limits, force-stop and reboot; inspect system permissions and notification behaviour.
-- Real network synchronisation and peer diagnostics with disposable keys; API 29+ Keets testing, RAM/battery measurements.
-- Owner-controlled HTTPS Gateway native pairing, tenant isolation and cargos/devices/Proof reads with a dedicated test tenant. No owner tokens in logs/screenshots.
-- Wallet backup/recovery and transaction safety review in a separate disposable acceptance plan; no automatic financial actions are implemented here.
-- Resolve retained host lint/localisation findings and transitive Keets/native redistribution licence/notice clearance before public distribution.
-
-No public Mainnet, real Gateway pairing, physical tracker or working wallet claim is made by these tests.
-
-## Debug artifact
-
-Final local review artifact: `dist/trackium-core-0.1.0-debug.apk` (ignored by Git; no release upload).
-
-- SHA256: `66ca2ca2d6f13c2265c1827fb6ca478afb37f2ab6334e0261724b328c9299361`.
-- Debug signing certificate SHA256: `a2cc47b335637897c9a8ac8ad08ad75f01e31058d8f31c8ae5e3bf660b6fbcca`.
-- A fresh local build generates its own debug keystore, so the APK/certificate hash will differ on another machine. Verify your own build rather than treating this as a production signing identity.
+The fixture refuses real hardware, unexpected package or existing non-fixture wallet; it never clears data. Do not use it on a physical phone. No automated phone connection, Gateway credentials, boot-port override, production seed, wallet migration, funds transfer or Mainnet transaction occurs in CI. The parent PR/source remain intact until actual target-repository migration and CI are verified.

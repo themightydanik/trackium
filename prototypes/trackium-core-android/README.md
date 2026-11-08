@@ -1,46 +1,38 @@
-# Trackium Core Android — prototype #1
+# Trackium Core Android
 
-One APK containing the BlackBear-derived Minima node and the existing native Trackium UI, integrated through Pandamonium's internal library API. Technical debug prototype; no public release or migrated wallet. Application ID: `tech.trackium.core.prototype`, version `0.1.0` (code 1).
+Standalone technical prototype: one APK with the preserved BlackBear-derived Minima node and native Trackium, integrated through Pandamonium's internal Android library API. Current debug version **0.2.0 / code 2**, application ID **tech.trackium.core.prototype**. No second APK, WebView, MDS substitution or automatic wallet migration.
 
-This directory is a **standalone project** staged in `themightydanik/trackium` because `themightydanik/trackium-core-android` was unavailable when checked. Move the entire directory, including `gradle/`, `scripts/`, `sources.lock.json`, `LICENSE`, and notices, to the root of that repository when it is created. No sibling Trackium/Gateway build is required. Do not copy generated keystores, local.properties, build outputs or SDKs. No new public repository or release is created by this change.
+The intended GitHub repository `themightydanik/trackium-core-android` is not yet accessible. The complete root project is prepared locally and mirrored temporarily in the main Trackium repository's separate `feat/trackium-core-android-stage2` branch under `prototypes/trackium-core-android`. [Exact transfer commands](docs/REPOSITORY_TRANSFER.md) preserve the verified PR #12 tree and keep PR #12/source intact. No new repository, public Release, backend copy, Gateway deployment or automatic merge is created.
 
-## Build
+## Build and verify
 
-Install JDK 21, Python 3, an Android SDK with platform 36/build-tools 35.0.0/platform-tools, and accept the Android SDK licences. Set `JAVA_HOME` and `ANDROID_HOME` for your machine (or ignored `local.properties` with `sdk.dir=...`).
-
-```sh
-./gradlew --no-daemon :app:assembleBlockDebug
-./gradlew --no-daemon :app:testBlockDebugUnitTest :integrated-trackium:testDebugUnitTest :minimaapi:testDebugUnitTest :core-regression:test
-./gradlew --no-daemon :app:lintBlockDebug :integrated-trackium:lintDebug
-python3 scripts/verify-prototype.py
-```
-
-Gradle downloads the pinned wrapper/dependencies. Keets preparation downloads the pinned Node build tool, source and bare-kit artifacts into `KEETS_CACHE_DIR` (default Gradle home) and verifies their checksums. TLS certificate verification remains enabled; on a corporate proxy, trust the organisation CA in your local Java/Node stores, never disable TLS checks or commit a CA/private key. `--offline` requires a populated cache. Existing Keets verification is also run against the packaged APK.
-
-Only `blockDebug` is enabled. A local debug keystore is generated in ignored `.local/`; its standard Android debug passwords are not production credentials. It is independent of BlackBear's production signing keys. No release signing configuration is supplied. ABIs: arm64-v8a, armeabi-v7a and x86_64 (the pinned Keets native artifact set); no unsupported x86.
-
-Output: `app/build/outputs/apk/block/debug/app-block-debug.apk`. Keets makes the universal debug APK roughly 220 MB. It requires Android 9/API 28 or later. On API 28 the upstream runtime guard disables Keets, leaving the classic node transport; block key mode and low-RAM storage remain enabled. API 29+ Keets runtime/device compatibility still needs acceptance tests.
-
-## Install and use
-
-Use a disposable emulator or a test phone with **no funds**. Verify the downloaded APK checksum and signature before installing:
+Requirements: JDK 21.0.13+9, Android SDK platform 36/build tools 35.0.0/platform-tools and accepted SDK licences; Python 3, curl, tar and unzip. Set JAVA_HOME and ANDROID_HOME (or ignored local.properties sdk.dir). Use a writable KEETS_CACHE_DIR if the default Gradle cache is unavailable.
 
 ```sh
-apksigner verify --verbose --print-certs app/build/outputs/apk/block/debug/app-block-debug.apk
-adb -s YOUR_TEST_SERIAL install app/build/outputs/apk/block/debug/app-block-debug.apk
-adb -s YOUR_TEST_SERIAL shell am start -n tech.trackium.core.prototype/com.eurobuddha.minimacore.StartActivity
+# Source must be committed/clean for APK provenance export.
+scripts/ci-debug.sh
 ```
 
-Create a new disposable wallet in the host onboarding. Do not import BlackBear keys, seed phrases, wallet databases or production backups. The new package has its own UID/storage; Android does not replace BlackBear or the standalone `tech.trackium.cargo` APK. There is no sharedUserId or automatic import. Verify the package ID in Android's install dialog.
+The same script is used by [GitHub Actions](.github/workflows/trackium-core-debug.yml): source/checksum/legal evidence checks, all JVM/Robolectric/Python tests, host/Trackium lint, `assembleBlockDebug`, pinned native APK verification and debug-signature verification. Output: `dist/trackium-core-debug.apk`, SHA256SUMS, certificate report, build-evidence.json and licence-audit.json. Raw Gradle output remains `app/build/outputs/apk/block/debug/app-block-debug.apk`. [Download/CI instructions](docs/CI_DEBUG_APK.md).
 
-The initial **Trackium Core / Node** screen shows the node, network/synchronisation observations and upstream settings. Tap **Open Trackium** or its toolbar menu item. Trackium opens as a private native Activity in this same APK. Its Dashboard/Core screens observe the embedded node; errors while starting, stopped or locked require an explicit retry. Returning to the host leaves the node's foreground service running. Optional host PIN/biometric lock and screenshot protection apply to Trackium too.
+Only blockDebug is enabled. A temporary/local standard Android debug key is generated in ignored `.local/`; CI never caches/uploads it and removes it after the job. Separate runs have different signing identities/hashes: reproducible build procedure does **not** mean byte-identical signed APKs or cross-run update compatibility. No production signing credentials are used.
 
-Gateway settings start empty. To test business data, use an existing HTTPS Gateway and its established tenant/owner-controlled native pairing flow; review the displayed origin and scopes before confirming on the owner side. Tokens are stored through the reused Android Keystore/AES-GCM `SecureStore`, not in URLs, logs or source. Do not paste owner provisioning credentials into screenshots/issues. Trackium can read existing cargos/devices/Proof records after pairing; no AOVX readings are fabricated. No Gateway, Railway or PostgreSQL changes are needed or included.
+Gradle wrapper/source/engine/Keets/toolchain/native checksums and TLS certificate checks remain enabled. Behind a corporate proxy, trust the organisation CA locally; never disable TLS or commit CA/private keys. Keets uses pinned Node/npm and verified source/runtime caches. An offline build requires pre-populating those caches.
 
-Proof wallet publication, signed job reservation, address creation and all financial commands are unavailable in this prototype, including after enabling any saved standalone-client setting. Wallet/backup tools remain in the trusted host UI; do not use them with real funds for prototype acceptance.
+## Controlled phone test
 
-**Coexistence limit:** installation/data are isolated from BlackBear, but both retain BlackBear's existing default P2P port 21001. Do not run both nodes simultaneously with default ports. Stop the other test node first; a collision should show the upstream diagnostic. This change intentionally does not alter network parameters.
+Read [docs/PHONE_ACCEPTANCE.md](docs/PHONE_ACCEPTANCE.md) before installing. Use a test phone with fresh empty keys; no BlackBear seed import, real funds, signing, transfers or Mainnet proof publication. APK is ~220 MiB, min API 28, target API 35, arm64-v8a/armeabi-v7a/x86_64. First acceptance requires **4096-byte memory pages**; two pinned ARM64 dependencies are not confirmed compatible with 16-KiB pages. API 28 runs classic transport with upstream Keets runtime gating; API 29+ Keets needs device acceptance.
 
-## Validation and limitations
+Both this prototype and BlackBear retain default P2P port **21001**. Never run both nodes concurrently during tests; stop one without deleting its data. Separate package/UID/storage/Keystore means no replacement of BlackBear or the existing standalone Trackium APK. Actual co-install/OEM/reboot behaviour remains in the phone checklist.
 
-See [architecture](docs/TRACKIUM_CORE_ARCHITECTURE.md), [reuse/security/licences](docs/REUSE_AND_ENGINE_REVIEW.md), [test instructions and evidence](docs/VALIDATION.md) and [source pins](sources.lock.json). Smartphone, public Mainnet sync, physical tracker ingestion, wallet spending/recovery and production Gateway acceptance remain separate stages. A successful build or offline node test does not establish those properties.
+Open Trackium from the initial Node screen's button/menu. It is a private Activity in the host process. The adapter allows exact status/balance/network/peers/block observations only, follows foreground/unlocked lifecycle and rejects financial/private/batched commands before dispatch. Publication/job reservation is hard-disabled regardless of saved switches. Host Wallet/Terminal/backup remain privileged upstream features; the whole host is not a read-only wallet.
+
+Gateway origin/tenant start empty. Use only a test HTTPS tenant and owner-confirmed native pairing; owner credentials stay on the operator's trusted computer, never in APK/logs/Actions. Android Keystore/AES-GCM protects Trackium state. No Gateway/Railway/PostgreSQL/AOVX changes are included.
+
+## Evidence and limits
+
+Local stage-2 build: **327 JVM/Robolectric tests and 33 Python tests pass; host lint 0 errors/7018 warnings; Trackium lint 0 errors/3 warnings**. All 15 MissingTranslation errors fixed through ru/uk/zh strings, without suppressions. [Lint/security/API review](docs/LINT_REVIEW.md) documents remaining dependency TLS, receiver API, storage, wake-lock and native compatibility findings.
+
+[Architecture](docs/TRACKIUM_CORE_ARCHITECTURE.md), [engine/reuse review](docs/REUSE_AND_ENGINE_REVIEW.md), [validation](docs/VALIDATION.md) and [source pins](sources.lock.json) describe the retained engine and tests. Prior prototype #1 emulator tests demonstrated real node/adapter/native navigation and state recovery; no physical phone or public Mainnet acceptance is claimed for stage 2.
+
+**Public release is blocked:** [licence audit](docs/LICENSE_AUDIT.md) captures MIT/Apache/ISC evidence and all 21 native package licence texts, but Keets grant/attribution, native transitive/runtime notices and explicit Trackium distribution terms remain unresolved. Green CI and downloadable debug review artifacts do not clear these blockers. No GitHub Release or Play publication is performed.

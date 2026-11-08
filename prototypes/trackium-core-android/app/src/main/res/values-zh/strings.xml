@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Minima Core</string>
+    <string name="hide_keyboard">隐藏键盘</string>
+    <string name="home_keyuses_label">密钥使用次数</string>
+    <string name="restore_keyuses_label">密钥使用次数</string>
+    <string name="restore_intro">请输入助记词、密钥使用次数和 Minima MegaMMR 节点地址。</string>
+    <string name="startup_params_title">启动参数</string>
+    <string name="classic_mode_title">经典模式</string>
+    <string name="block_mode_title">区块模式</string>
+    <string name="classic_mode_description">开启：移除 -lowram 和 -blockaskeyuses。关闭（默认）：启用这两个参数。重启后生效；经典模式会使用更多内存。\n\n现有密钥、地址和使用计数保持不变。新建或通过助记词恢复的密钥使用所选模式；不同模式会从同一助记词生成不同的地址。恢复前请选择钱包原来的模式。切换回区块模式后，经典密钥可能无法签名。</string>
+    <string name="keyuses_classic_caption">密钥使用次数</string>
+    <string name="keyuses_block_caption">密钥最后使用的区块</string>
+</resources>

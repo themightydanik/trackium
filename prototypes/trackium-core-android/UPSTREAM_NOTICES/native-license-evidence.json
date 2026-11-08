@@ -1,0 +1,323 @@
+{
+  "schema": 1,
+  "collection_date": "2026-11-08",
+  "source_revision": "b99bce1bf0c558061f3444deadf853ef5f60147c",
+  "source_lock_sha256": "87d948ba4cb73c6bf5b18b50933ea37bcbb1fe6dc0def6b80d267e2192d143ae",
+  "native_packages": [
+    {
+      "path": "node_modules/bare-dns",
+      "name": "bare-dns",
+      "version": "2.3.0",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-dns/-/bare-dns-2.3.0.tgz",
+      "integrity": "sha512-OC/4TI8FRaEQEMxLW/2FWOUFEWOxzEKDCgPDhdm+884NeySv4f/QYL4WvDcHr14/M9P3uEVqBaqMiFm/H+BsLQ==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-dns.2.3.0.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-dns-2.3.0/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-fs",
+      "name": "bare-fs",
+      "version": "4.4.7",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-fs/-/bare-fs-4.4.7.tgz",
+      "integrity": "sha512-huJQxUWc2d1T+6dxnC/FoYpBgEHzJp33mYZqFtQqTTPPyP9xPvmjC16VpR4wTte4ZKd5VxkFAcfDYi51iwWMcg==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-fs.4.4.7.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-fs-4.4.7/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-hrtime",
+      "name": "bare-hrtime",
+      "version": "2.1.2",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-hrtime/-/bare-hrtime-2.1.2.tgz",
+      "integrity": "sha512-ePu0axonbewvuUv9TFqjfvnZTaw+mL4JNx1q79dw8T3DIQEjqHs+pXyj92ghepa8K14KLtX3GdUuAVB+faaGDw==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-hrtime.2.1.2.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-hrtime-2.1.2/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-inspect",
+      "name": "bare-inspect",
+      "version": "3.1.10",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-inspect/-/bare-inspect-3.1.10.tgz",
+      "integrity": "sha512-Qu01XZNTIT2/bS9k7c6A3OXuAzBnWwDCejGri76BUltdFqVe6Et/IxVOSSbcDpreSSWwqQ5pAu/bxFE6hPDWRQ==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-inspect.3.1.10.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-inspect-3.1.10/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-os",
+      "name": "bare-os",
+      "version": "3.9.3",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-os/-/bare-os-3.9.3.tgz",
+      "integrity": "sha512-fF4Q7QsyKVF5Rj0qvI8BgUNjqzC2JvQlpTaPLjVJVxYVUX5Zr9un+y3w1HmA4nNKdFmRBT8z/WmrjvXzXVerKQ==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-os.3.9.3.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-os-3.9.3/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-pipe",
+      "name": "bare-pipe",
+      "version": "4.3.1",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-pipe/-/bare-pipe-4.3.1.tgz",
+      "integrity": "sha512-3P4MYTgOys1Bbz5dgWzwfroNOOl8x1zWJHTHVlwsojThhV/uJPRf+qFrYYBOnI0vQiJJLJtHlw8a4Osj/kcsJQ==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-pipe.4.3.1.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-pipe-4.3.1/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-signals",
+      "name": "bare-signals",
+      "version": "4.2.0",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-signals/-/bare-signals-4.2.0.tgz",
+      "integrity": "sha512-fNHMOdQIlYuTvMB3Oh9Apk99hLKn351+Ir8vz+khiPTcOqIyGG4uWWjdLTzxWdYGsA0eT+We3y0K74hjj2nq7A==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-signals.4.2.0.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-signals-4.2.0/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-tty/node_modules/bare-signals",
+      "name": "bare-signals",
+      "version": "5.0.0",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-signals/-/bare-signals-5.0.0.tgz",
+      "integrity": "sha512-8Gn8bBFUh2AUCJ9wWWFjSGWIo1HIUSIQnXRJGSm/f7GCDMqsuJhRmR1dT+HtDaDBkeu2l8Koxt2JLurfJ5yHVw==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-signals.5.0.0.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-signals-5.0.0/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-tcp",
+      "name": "bare-tcp",
+      "version": "2.0.4",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-tcp/-/bare-tcp-2.0.4.tgz",
+      "integrity": "sha512-Xv0DgOwG0zZwmckY43aRs2iOGewkgXlsBu0oWv3h7Y7sGl8a2tyNe4frxYWRRN3N09SwUJZtid1RSW315MDXmg==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-tcp.2.0.4.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-tcp-2.0.4/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-http1/node_modules/bare-tcp",
+      "name": "bare-tcp",
+      "version": "2.6.1",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-tcp/-/bare-tcp-2.6.1.tgz",
+      "integrity": "sha512-8f8UFP7O27gIGaVWJPysQ2am8LSD6YCuVSbnTbOrQjUD0RkWEZexvi2Q66P99MLxSephlyjoU0mLxWmozRJMnA==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-tcp.2.6.1.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-tcp-2.6.1/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-tty",
+      "name": "bare-tty",
+      "version": "5.2.1",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-tty/-/bare-tty-5.2.1.tgz",
+      "integrity": "sha512-vH9ggdu6q+HilCKcYCfSzwuN2QaR4+gGP+JiYN5zKMhMI6tKeKnZMCuE/AJoF9lbSo0FriPdZoKA5bO2b0Mk3w==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-tty.5.2.1.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-tty-5.2.1/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-type",
+      "name": "bare-type",
+      "version": "1.4.0",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-type/-/bare-type-1.4.0.tgz",
+      "integrity": "sha512-6anDbVGruQLK8m6zxlCPNkUuxXnzChT1aOmJbFRjEGn8MWZqviFP6vGi9NAnG8aRXyRAfXIGLlBJwYGa4Ylcug==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-type.1.4.0.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-type-1.4.0/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/bare-url",
+      "name": "bare-url",
+      "version": "2.5.4",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/bare-url/-/bare-url-2.5.4.tgz",
+      "integrity": "sha512-Gxa7UVWBr0/edU1b+TJhn/AZvMQUj9OGspvYsaTYQrAbZA4BOTZGL3LiZxvD+CeMlDH4juwD84+eTAp/bLYW5g==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libbare-url.2.5.4.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/bare-url-2.5.4/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/crc-native",
+      "name": "crc-native",
+      "version": "1.1.8",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/crc-native/-/crc-native-1.1.8.tgz",
+      "integrity": "sha512-R/RYbD8lhG5M1k0iLX49tJdwHM0ipevJPpZw2Wk7b4EShyvx2P0uaq79xyRpcknjiVGiUfjFA8Gyy0mOlhABvw==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libcrc-native.1.1.8.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/crc-native-1.1.8/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/fs-native-extensions",
+      "name": "fs-native-extensions",
+      "version": "1.5.1",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/fs-native-extensions/-/fs-native-extensions-1.5.1.tgz",
+      "integrity": "sha512-abjiHKkYdcH5M9ikBEJb0MKb/fEpPtZx/yfLHzTptvUAoiFayX0tIe0BTLBU4SAoRyjZLzA0dP1Rn2p0+QRyVg==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libfs-native-extensions.1.5.1.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/fs-native-extensions-1.5.1/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/quickbit-native",
+      "name": "quickbit-native",
+      "version": "2.4.9",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/quickbit-native/-/quickbit-native-2.4.9.tgz",
+      "integrity": "sha512-qATuRZw3TN5JajRZs02SlolPLutmUJ4kpxF7ZWdbLnWu0Ifl0XVD9H44JdT1T+HvRDdC9fZinXticJJ7+BR7hg==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libquickbit-native.2.4.9.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/quickbit-native-2.4.9/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/rabin-native",
+      "name": "rabin-native",
+      "version": "2.0.0",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/rabin-native/-/rabin-native-2.0.0.tgz",
+      "integrity": "sha512-x1BlYdIWh+nk9G0scvxyscrYiDPJ7vQZepqqPlVUSInIko1Zxooi8cm6lzBghEGI9aN3DXiunC8FXLgy6kke3Q==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/librabin-native.2.0.0.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/rabin-native-2.0.0/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/simdle-native",
+      "name": "simdle-native",
+      "version": "1.3.9",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/simdle-native/-/simdle-native-1.3.9.tgz",
+      "integrity": "sha512-Isc8sP4OiiIU0mpslD4GHEnR0VQWvR/54WN7YtwEDkNdTJVWtpmvsSvsgRlw5BNGxdYXlVRegdnrSu10H/PhvA==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libsimdle-native.1.3.9.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/simdle-native-1.3.9/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/corestore/node_modules/sodium-native",
+      "name": "sodium-native",
+      "version": "4.3.3",
+      "declared_license": "MIT",
+      "resolved": "https://registry.npmjs.org/sodium-native/-/sodium-native-4.3.3.tgz",
+      "integrity": "sha512-OnxSlN3uyY8D0EsLHpmm2HOFmKddQVvEMmsakCrXUzSd8kjjbzL413t4ZNF3n0UxSwNgwTyUvkmZHTfuCeiYSw==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libsodium-native.4.3.3.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/sodium-native-4.3.3/LICENSE",
+          "sha256": "d22e9fb4f2f5653f94293ca187811d1c115e3a79dc4f8c26707f37d5e477224a"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/sodium-native",
+      "name": "sodium-native",
+      "version": "5.1.0",
+      "declared_license": "MIT",
+      "resolved": "https://registry.npmjs.org/sodium-native/-/sodium-native-5.1.0.tgz",
+      "integrity": "sha512-3RxgyWyJlhTsABPnJVpCI5CoTDANZTqqFrEPqr+kjfnRaBihpVtMUE3yTF40ukdoB1APXeoBNKF3MzZAIHg39g==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libsodium-native.5.1.0.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/sodium-native-5.1.0/LICENSE",
+          "sha256": "d22e9fb4f2f5653f94293ca187811d1c115e3a79dc4f8c26707f37d5e477224a"
+        }
+      ]
+    },
+    {
+      "path": "node_modules/udx-native",
+      "name": "udx-native",
+      "version": "1.21.3",
+      "declared_license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/udx-native/-/udx-native-1.21.3.tgz",
+      "integrity": "sha512-2rUrocAjI2/0ijFqb0E3R6PH3AoH+o5ZhaL3lGm/bHCRGaqPnGhywTOMPM2ByYEXscsZsj5svhmSbY1ogxGGbg==",
+      "native_output_arm64": "app/src/main/jniLibs/arm64-v8a/libudx-native.1.21.3.so",
+      "legal_files": [
+        {
+          "file": "UPSTREAM_NOTICES/licenses/npm/udx-native-1.21.3/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    }
+  ]
+}

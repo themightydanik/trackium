@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "release_blocked": true,
+  "blockers": [
+    {
+      "id": "KEETS-NOTICES",
+      "detail": "Sidecar declares MIT, but the pinned source archive contains no licence/NOTICE texts; confirm scope and original copyright/attribution."
+    },
+    {
+      "id": "NATIVE-TRANSITIVE",
+      "detail": "21 native package licences collected, but vendored C/C++ dependencies and the prebuilt runtime need a complete binary-to-source/NOTICE inventory (including libsodium, libuv, V8/ICU and libc++ where actually linked)."
+    },
+    {
+      "id": "RUNTIME-PREBUILD",
+      "detail": "Bare Kit v2.5.5 root Apache licence is retained; the prebuild ZIP/AAR has no full native NOTICE inventory or verified build provenance."
+    },
+    {
+      "id": "TRACKIUM-GRANT",
+      "detail": "The source Trackium repository has no explicit distribution licence at its pin. Owner-authorized prototype reuse does not establish a general third-party licence."
+    }
+  ]
+}

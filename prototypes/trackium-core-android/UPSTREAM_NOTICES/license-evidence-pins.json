@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "review_date": "2026-11-08",
+  "bare_kit_tag": "v2.5.5",
+  "bare_kit_tag_object": "e8a2642d236baabf895e7c18153261cc0b0fcb5d",
+  "files": {
+    "UPSTREAM_NOTICES/keets-sidecar-package.json": "b1c464ab78f1c6d599b330fbc851dabed379f55ab4e8e5c161951c2719e26142",
+    "UPSTREAM_NOTICES/keets-sidecar-package-lock.json": "87d948ba4cb73c6bf5b18b50933ea37bcbb1fe6dc0def6b80d267e2192d143ae",
+    "UPSTREAM_NOTICES/licenses/bare-kit-v2.5.5-LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  }
+}

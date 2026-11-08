@@ -163,8 +163,8 @@ android {
         // 2.2.14: SECURITY - Pandamonium's built-in AtomiX and PandaPools get the 7 Nov review fixes: 32-byte hashlocks,
         // the reveal window + secret-out marker, two ETH endpoints must agree, the MEXC peg guards, HTLC v1.3 for USDT-paid
         // takes (both addresses scanned; asks as bal.m13); PandaPools collection/recovery/backup/interrupted-write fixes.
-        versionCode 1
-        versionName "0.1.0"
+        versionCode 2
+        versionName "0.2.0"
 
         buildConfigField "boolean", "PANDAMONIUM", "false"
         // PANDA_SHELL: Pandamonium-style tabs (Wallet/History/Apps/Chat/Node) + the embedded

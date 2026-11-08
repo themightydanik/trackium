@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Minima Core</string>
+    <string name="hide_keyboard">Приховати клавіатуру</string>
+    <string name="home_keyuses_label">Використання ключа</string>
+    <string name="restore_keyuses_label">Використання ключа</string>
+    <string name="restore_intro">Введіть seed-фразу, кількість використань ключа та адресу вузла Minima MegaMMR.</string>
+    <string name="startup_params_title">Параметри запуску</string>
+    <string name="classic_mode_title">Класичний режим</string>
+    <string name="block_mode_title">Блоковий режим</string>
+    <string name="classic_mode_description">Увімкнено: прибирає -lowram і -blockaskeyuses. Вимкнено (типово): вмикає обидва параметри. Застосовується після перезапуску; класичний режим використовує більше оперативної пам’яті.\n\nНаявні ключі, адреси та лічильники використань зберігаються. Нові ключі й ключі, відновлені із seed-фрази, використовують вибраний режим, який створює різні адреси з однієї seed-фрази. Перед відновленням виберіть початковий режим гаманця. Класичні ключі можуть втратити можливість підпису після повернення в блоковий режим.</string>
+    <string name="keyuses_classic_caption">Використання ключа</string>
+    <string name="keyuses_block_caption">Останній блок ключа</string>
+</resources>
