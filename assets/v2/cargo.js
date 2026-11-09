@@ -4,7 +4,14 @@
   const escape = (value) =>
     String(value == null ? '' : value).replace(
       /[&<>"']/g,
-      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+      (c) =>
+        ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        })[c]
     );
   const icons = {
     dashboard:
@@ -36,13 +43,13 @@
     (icons[name] || icons.devices) +
     '</svg>';
   const pages = [
-    ['dashboard', 'Dashboard'],
+    ['dashboard', 'Overview'],
     ['shipments', 'Shipments'],
     ['devices', 'Devices'],
     ['map', 'Live Map'],
     ['events', 'Events'],
     ['proofs', 'Proofs'],
-    ['settings', 'Settings / Gateway']
+    ['settings', 'Settings']
   ];
   const client = new TrackiumGateway.GatewayClient();
   const state = {
@@ -59,6 +66,7 @@
   };
   const server = TrackiumServer.create(() => render());
   const serverViews = {};
+  let navigationKey = null;
   let renderedIdentity = null;
   let renderedPage = null;
   window.TrackiumExchangeRequest = async function (id, input) {
@@ -752,46 +760,108 @@
   }
   function render() {
     const current = page();
-    const identity = server.state.connected ? server.state.session?.tenant_id + '/' + server.state.session?.audience + '/' + server.state.session?.expires_at : 'unpaired';
-    if(renderedIdentity!==null && renderedIdentity!==identity)for(const key of Object.keys(serverViews))delete serverViews[key];
-    const sameContext = renderedIdentity === identity && renderedPage === current;
-    const draft = sameContext ? [...$('#main').querySelectorAll('input,select,textarea')].filter(el=>!['password','file','hidden'].includes(el.type)).map(el=>({key:el.id || el.name,value:el.value,checked:el.checked,type:el.type})) : [];
-    const active=document.activeElement;
-    const focus=sameContext && active?.closest('#main') ? {key:active.id || active.name,start:active.selectionStart,end:active.selectionEnd} : null;
-    const y=sameContext ? window.scrollY : 0;
-    function restoreView() {
-      for(const saved of draft) {
-        const el=[...$('#main').querySelectorAll('input,select,textarea')].find(e=>(e.id || e.name)===saved.key && (e.type!=='radio'||e.value===saved.value));
-        if(el) {if(saved.type==='checkbox'||saved.type==='radio')el.checked=saved.checked;else el.value=saved.value;}
-      }
-      if(focus) {const el=[...$('#main').querySelectorAll('input,select,textarea,button')].find(e=>(e.id || e.name)===focus.key);if(el){el.focus({preventScroll:true});if(typeof focus.start==='number'&&el.setSelectionRange)try{el.setSelectionRange(focus.start,focus.end)}catch(_){}}}
-      if(sameContext)window.scrollTo(0,y);
-      renderedIdentity=identity;renderedPage=current;
+    const identity = server.state.connected
+      ? server.state.session?.tenant_id +
+        '/' +
+        server.state.session?.audience +
+        '/' +
+        server.state.session?.expires_at
+      : 'unpaired';
+    if (renderedIdentity !== null && renderedIdentity !== identity)
+      for (const key of Object.keys(serverViews)) delete serverViews[key];
+    const changedIdentity = renderedIdentity !== null && renderedIdentity !== identity;
+    if (changedIdentity) {
+      $('#detail-dialog').close();
+      $('#dialog-content').innerHTML = '';
     }
-    $('#navigation').innerHTML = pages
-      .map(
-        ([id, label]) =>
-          '<a href="#' +
-          id +
-          '" class="nav-item ' +
-          (current === id ? 'active' : '') +
-          '" ' +
-          (current === id ? 'aria-current="page"' : '') +
-          '>' +
-          icon(id) +
-          '<span>' +
-          label +
-          '</span>' +
-          (id === 'shipments' && state.demo ? '<span class="nav-count">3</span>' : '') +
-          '</a>'
-      )
-      .join('');
+    if (!changedIdentity && renderedPage && renderedPage !== current)
+      (serverViews[renderedPage] ||= {}).scroll = window.scrollY;
+    const sameContext = renderedIdentity === identity && renderedPage === current;
+    const draft = sameContext
+      ? [...$('#main').querySelectorAll('input,select,textarea')]
+          .filter((el) => !['password', 'file', 'hidden'].includes(el.type))
+          .map((el) => ({
+            key: el.id || el.name,
+            value: el.value,
+            checked: el.checked,
+            type: el.type
+          }))
+      : [];
+    const active = document.activeElement;
+    const focus =
+      sameContext && active?.closest('#main')
+        ? {
+            key: active.id || active.name,
+            action: active.dataset?.serverAction,
+            record: active.dataset?.serverId,
+            title: active.getAttribute('title'),
+            start: active.selectionStart,
+            end: active.selectionEnd
+          }
+        : null;
+    const y = sameContext ? window.scrollY : serverViews[current]?.scroll || 0;
+    TrackiumComponents.beforeRender(changedIdentity);
+    function restoreView() {
+      for (const saved of draft) {
+        const el = [...$('#main').querySelectorAll('input,select,textarea')].find(
+          (e) => (e.id || e.name) === saved.key && (e.type !== 'radio' || e.value === saved.value)
+        );
+        if (el) {
+          if (saved.type === 'checkbox' || saved.type === 'radio') el.checked = saved.checked;
+          else el.value = saved.value;
+        }
+      }
+      if (focus) {
+        const el = [
+          ...$('#main').querySelectorAll('input,select,textarea,button,a,[tabindex]')
+        ].find((e) =>
+          focus.key
+            ? (e.id || e.name) === focus.key
+            : focus.action
+              ? e.dataset.serverAction === focus.action && e.dataset.serverId === focus.record
+              : focus.title && e.getAttribute('title') === focus.title
+        );
+        if (el) {
+          el.focus({ preventScroll: true });
+          if (typeof focus.start === 'number' && el.setSelectionRange)
+            try {
+              el.setSelectionRange(focus.start, focus.end);
+            } catch (_) {}
+        }
+      }
+      window.scrollTo(0, y);
+      renderedIdentity = identity;
+      renderedPage = current;
+    }
+    if (navigationKey !== current + '/' + state.demo) {
+      navigationKey = current + '/' + state.demo;
+      $('#navigation').innerHTML = pages
+        .map(
+          ([id, label]) =>
+            '<a href="#' +
+            id +
+            '" class="nav-item ' +
+            (current === id ? 'active' : '') +
+            '" ' +
+            (current === id ? 'aria-current="page"' : '') +
+            '>' +
+            icon(id) +
+            '<span>' +
+            label +
+            '</span>' +
+            (id === 'shipments' && state.demo ? '<span class="nav-count">3</span>' : '') +
+            '</a>'
+        )
+        .join('');
+    }
     $('#breadcrumb').textContent = pages.find((p) => p[0] === current)[1];
     $('#demo-toggle').setAttribute('aria-checked', String(state.demo));
     $('#demo-banner').hidden = !state.demo;
     $('#workspace-label').textContent = state.demo
       ? 'Demo · synthetic data'
-      : server.state.connected ? 'Tenant workspace · authenticated snapshot' : 'Local workspace · not paired';
+      : server.state.connected
+        ? 'Tenant workspace · authenticated snapshot'
+        : 'Local workspace · not paired';
     document.title = pages.find((p) => p[0] === current)[1] + ' · Trackium Core';
     const views = {
       dashboard,
@@ -804,24 +874,45 @@
     };
     $('#main').setAttribute('aria-busy', String(state.loading || server.state.loading));
     $('.connection-pill').innerHTML =
-      '<span></span>' + (server.state.connected ? (server.state.data ? 'Tenant session · snapshot' : 'Session verified · loading') : 'Not paired');
+      '<span></span>' +
+      (server.state.connected
+        ? server.state.data
+          ? 'Authenticated · snapshot'
+          : 'Session verified · loading'
+        : 'Not paired');
     const serverBanner = $('#server-banner');
     serverBanner.hidden = !server.state.connected || state.demo;
     if (server.state.enabled && !state.demo) {
       $('#main').innerHTML = server.state.connected
         ? TrackiumServerView.render(current, server.state, serverViews[current] || {})
-        : header(
-            'GATEWAY WORKSPACE',
-            'Connect with tenant-owner approval.',
-            'This page runs on the Gateway origin. No Minima UID or owner API key is accepted as browser identity.'
-          ) + TrackiumServerView.pairing(server.state);
+        : TrackiumComponents.connection(server.state) +
+          (server.state.phase === 'checking' ? '' : TrackiumServerView.pairing(server.state)) +
+          TrackiumAppearance.form();
+      if (server.state.connected && server.state.data)
+        TrackiumComponents.mountMap(server.state.data, current);
+      restoreView();
+      return;
+    }
+    if (!server.state.enabled && !state.demo && current !== 'settings') {
+      $('#main').innerHTML =
+        TrackiumComponents.connection({
+          phase: 'unpaired',
+          error:
+            'Gateway not paired. Open the HTTPS Gateway workspace configured in Settings; pairing happens on its own origin.'
+        }) +
+        '<section class="panel server-content"><h2>' +
+        escape(pages.find((p) => p[0] === current)[1]) +
+        '</h2><p>' +
+        (current === 'proofs' ? 'No blockchain proofs published. ' : '') +
+        'No authenticated records are loaded in this standalone workspace.</p><a class="button primary" href="#settings">Configure Gateway</a></section>';
       restoreView();
       return;
     }
     $('#main').innerHTML = state.loading
       ? '<div class="loading-state" role="status"><span class="spinner"></span><h2>Loading synthetic workspace…</h2><p>Demo snapshot only. No Gateway request.</p></div>'
       : views[current]();
-    if(current==='settings')$('#main').insertAdjacentHTML('afterbegin',TrackiumAppearance.form());
+    if (current === 'settings')
+      $('#main').insertAdjacentHTML('afterbegin', TrackiumAppearance.form());
     restoreView();
   }
   async function demo(enabled) {
@@ -855,7 +946,8 @@
     }, 3500);
   }
   function openDialog(content) {
-    if(!$('#detail-dialog').open && document.activeElement?.id)dialogAnchor={id:document.activeElement.id};
+    if (!$('#detail-dialog').open && document.activeElement?.id)
+      dialogAnchor = { id: document.activeElement.id };
     $('#dialog-content').innerHTML =
       '<button class="dialog-close icon-button" data-action="close-dialog" aria-label="Close details">×</button>' +
       content;
@@ -990,20 +1082,41 @@
       target.disabled = true;
       try {
         const id = target.dataset.serverId;
-        dialogAnchor={action:serverAction,record:id};
+        dialogAnchor = { action: serverAction, record: id };
+        if (serverAction === 'transition:cancelled' && target.dataset.confirmed !== 'true') {
+          openDialog(
+            '<h2 id="dialog-title">Cancel this shipment?</h2><p>This changes the shipment lifecycle on the Gateway. Existing permissions remain required.</p><div class="form-actions"><button class="button secondary" data-action="close-dialog">Keep shipment</button><button class="button primary" data-server-action="transition:cancelled" data-confirmed="true" data-server-id="' +
+              escape(id) +
+              '">Confirm cancellation</button></div>'
+          );
+          return;
+        }
+        if (target.dataset.confirmed === 'true') $('#detail-dialog').close();
         if (serverAction.startsWith('view-')) {
-          const html=TrackiumServerView.detail(serverAction.slice(5),id,server.state.data);
-          if(html)openDialog(html);
+          const html = TrackiumServerView.detail(
+            serverAction.slice(5),
+            id,
+            server.state.data,
+            server.state.verifications,
+            server.state.updated
+          );
+          if (html) openDialog(html);
+        } else if (serverAction === 'reconnect') await server.restore();
+        else if (serverAction.startsWith('page-')) {
+          const [, kind, direction] = serverAction.split('-');
+          await server.turnPage(kind, direction);
         } else if (serverAction === 'refresh') await server.refresh();
         else if (serverAction === 'claim') await server.claim();
         else if (serverAction === 'disconnect') await server.disconnect();
         else if (serverAction === 'publisher-preflight') {
           const result = await server.request('/v1/proof-publisher/preflight', 'POST', {});
-          openDialog(TrackiumServerView.observation('Core readiness observation',result));
+          openDialog(TrackiumServerView.observation('Core readiness observation', result));
         } else if (serverAction === 'local-job') {
           const packet = await server.request('/v1/proofs/' + id + '/local-job');
           const url = URL.createObjectURL(
-              new Blob([JSON.stringify(packet, null, 2)], { type: 'application/json' })
+              new Blob([JSON.stringify(packet, null, 2)], {
+                type: 'application/json'
+              })
             ),
             link = document.createElement('a');
           link.href = url;
@@ -1014,8 +1127,15 @@
           setTimeout(() => URL.revokeObjectURL(url), 1000);
         } else if (serverAction === 'proof-verify') {
           const result = await server.request('/v1/proofs/' + id + '/verify', 'POST', {});
+          if (server.state.connected) {
+            server.state.verifications[id] = {
+              result,
+              at: new Date().toISOString()
+            };
+            render();
+          }
           openDialog(
-            '<h2>Fresh node verification</h2><p>' +
+            '<h2 id="dialog-title">Fresh node verification</h2><p>' +
               escape(
                 result.verified
                   ? 'Verified against the configured node at this time'
@@ -1034,7 +1154,9 @@
         } else if (serverAction === 'proof-export') {
           const bundle = await server.request('/v1/proofs/' + id + '/bundle');
           const url = URL.createObjectURL(
-            new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
+            new Blob([JSON.stringify(bundle, null, 2)], {
+              type: 'application/json'
+            })
           );
           const link = document.createElement('a');
           link.href = url;
@@ -1141,7 +1263,8 @@
             $('#server-form-error').textContent = error.message;
           });
       } catch (error) {
-        $('#server-form-error').textContent = 'Enter a name and valid numeric coordinates for each route stop.';
+        $('#server-form-error').textContent =
+          'Enter a name and valid numeric coordinates for each route stop.';
       }
       return;
     }
@@ -1165,9 +1288,15 @@
     }
   });
   document.addEventListener('input', function (event) {
-    if(event.target.id==='server-search') {
-      const view=serverViews[page()] ||= {};view.query=event.target.value;
-      const position=event.target.selectionStart;render();const field=$('#server-search');field.focus();field.setSelectionRange(position,position);return;
+    if (event.target.id === 'server-search') {
+      const view = (serverViews[page()] ||= {});
+      view.query = event.target.value;
+      const position = event.target.selectionStart;
+      render();
+      const field = $('#server-search');
+      field.focus();
+      field.setSelectionRange(position, position);
+      return;
     }
     if (event.target.id === 'workspace-search') {
       const position = event.target.selectionStart;
@@ -1179,21 +1308,37 @@
     }
   });
   document.addEventListener('change', function (event) {
-    if(event.target.id==='server-filter') {const view=serverViews[page()] ||= {};view.filter=event.target.value;render();$('#server-filter').focus();return;}
+    if (['server-sort', 'server-order'].includes(event.target.id)) {
+      const view = (serverViews[page()] ||= {});
+      view[event.target.id === 'server-sort' ? 'sort' : 'order'] = event.target.value;
+      const id = event.target.id;
+      render();
+      document.getElementById(id).focus();
+      return;
+    }
+    if (event.target.id === 'server-filter') {
+      const view = (serverViews[page()] ||= {});
+      view.filter = event.target.value;
+      render();
+      $('#server-filter').focus();
+      return;
+    }
     if (event.target.id === 'event-filter') {
       state.eventFilter = event.target.value;
       render();
       $('#event-filter').focus();
     }
   });
+  window.addEventListener('offline', render);
+  window.addEventListener('online', render);
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   window.addEventListener('hashchange', () => {
     state.query = '';
     closeMenu();
-    dialogAnchor=null;
+    dialogAnchor = null;
     $('#detail-dialog').close();
     render();
-    $('#main').focus();
-    window.scrollTo(0, 0);
+    $('#main').focus({ preventScroll: true });
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && $('#sidebar').classList.contains('open')) {
@@ -1219,10 +1364,18 @@
       }
     }
   });
-  $('#detail-dialog').addEventListener('close',()=>{
-    const anchor=dialogAnchor;dialogAnchor=null;
-    const target=anchor?.id?document.getElementById(anchor.id):anchor?[...document.querySelectorAll('[data-server-action]')].find(el=>el.dataset.serverAction===anchor.action&&el.dataset.serverId===anchor.record):null;
-    (target || $('#main')).focus({preventScroll:true});
+  $('#detail-dialog').addEventListener('close', () => {
+    const anchor = dialogAnchor;
+    dialogAnchor = null;
+    const target = anchor?.id
+      ? document.getElementById(anchor.id)
+      : anchor
+        ? [...document.querySelectorAll('[data-server-action]')].find(
+            (el) =>
+              el.dataset.serverAction === anchor.action && el.dataset.serverId === anchor.record
+          )
+        : null;
+    (target || $('#main')).focus({ preventScroll: true });
   });
   $('#detail-dialog').addEventListener('click', (event) => {
     if (event.target === $('#detail-dialog')) $('#detail-dialog').close();
@@ -1251,7 +1404,9 @@ document.addEventListener('submit', async function (event) {
     const response = await window.TrackiumExchangeRequest(proofId, input);
     const packet = response.ack ?? response;
     const url = URL.createObjectURL(
-        new Blob([JSON.stringify(packet, null, 2)], { type: 'application/json' })
+        new Blob([JSON.stringify(packet, null, 2)], {
+          type: 'application/json'
+        })
       ),
       link = document.createElement('a');
     link.href = url;

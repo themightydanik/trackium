@@ -15,6 +15,7 @@
     <link rel="manifest" href="assets/v2/brand/site.webmanifest" />
     <script src="assets/v2/appearance.js"></script>
     <link rel="stylesheet" href="assets/v2/design-tokens.css" />
+    <link rel="stylesheet" href="assets/v2/leaflet.css" />
     <link rel="stylesheet" href="assets/v2/cargo.css" />
     <script defer src="mds.js"></script>
     <script defer src="assets/v2/gateway-client.js"></script>
@@ -23,6 +24,9 @@
     <script defer src="assets/v2/demo-data.js"></script>
     <script defer src="assets/v2/server-client.js"></script>
     <script defer src="assets/v2/server-workspace.js"></script>
+    <script defer src="assets/v2/leaflet.js"></script>
+    <script defer src="assets/v2/world-map.js"></script>
+    <script defer src="assets/v2/workspace-components.js"></script>
     <script defer src="assets/v2/workspace-ui.js"></script>
     <script defer src="assets/v2/cargo.js"></script>
   </head>
@@ -35,7 +39,12 @@
         </button>
         <a class="brand" href="#dashboard" aria-label="Trackium Cargo home"
           ><span class="brand-mark"
-            ><img src="assets/v2/brand/mark.png" width="31" height="36" alt="" aria-hidden="true" /></span
+            ><img
+              src="assets/v2/brand/mark.png"
+              width="31"
+              height="36"
+              alt=""
+              aria-hidden="true" /></span
           ><span>Trackium Core<span class="brand-sub">LOGISTICS WORKSPACE</span></span></a
         >
         <div class="workspace-card">
@@ -95,7 +104,8 @@
         <div id="server-banner" class="demo-banner" hidden>
           <strong>AUTHENTICATED GATEWAY</strong
           ><span
-            >Tenant-scoped session · source trust stays visible · publication follows owner policy</span
+            >Tenant-scoped session · source trust stays visible · publication follows owner
+            policy</span
           >
         </div>
         <main id="main" tabindex="-1"></main>
