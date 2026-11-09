@@ -209,7 +209,7 @@ test(
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.locator('#navigation a[href="#events"]').click();
     await page.waitForFunction(() =>
-      document.querySelector('tbody')?.textContent.includes('checkpoint_reached')
+      document.querySelector('.ux-timeline')?.textContent.includes('checkpoint_reached')
     );
     assert.match(await page.locator('#main').innerText(), /synthetic/);
     await page.locator('#navigation a[href="#proofs"]').click();
