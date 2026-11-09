@@ -60,6 +60,13 @@ test('all routes: five viewports, Light/Dark/System, keyboard and 200% text', as
       await page.getByRole('heading', { name: 'Synthetic fixture sensor', exact: true }).waitFor();
       assert.equal(await page.locator('.ux-chart').count(), 3);
       await page.keyboard.press('Escape');
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('#detail-dialog').open &&
+          document.activeElement?.dataset.serverAction === 'view-device',
+        null,
+        { timeout: 2000 }
+      );
       assert.equal(
         await page
           .locator('[data-server-action=view-device]')

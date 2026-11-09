@@ -182,7 +182,9 @@ application: there is no new bundler/framework build. Final run/results are
 linked from the PR. Existing tests remain; the intentional map accessible name/role expectation changes from schematic image
 to geographic region, and the event label expectation follows the readable
 checkpoint reached label. The first CI attempt found compact 200% heading overflow
-and the old event label expectation; both were corrected before the final retry.
+and the old event label expectation; both were corrected. A subsequent focus assertion was made to wait for the
+asynchronous dialog close event before asserting the same focus requirement.
+Only concrete failures prompted CI retries; no checks were disabled.
 
 | Remaining manual acceptance / blocker | Android | Web | Evidence boundary |
 |---|---|---|---|
