@@ -18,3 +18,13 @@ for mode in ['dark','light']:
   assert '--tc-'+name+': '+value+';' in css,(mode,key)
 index=(R/'index.html').read_text();assert 'assets/v2/brand/mark.png' in index and 'assets/v2/design-tokens.css' in index
 print('DS1 snapshot hashes, semantic role mappings and owner mark reference: PASS')
+
+# Locally served map dependencies: locked bytes, reviewed redistribution licences.
+v=json.loads((R/'tools/web-vendor-lock.json').read_text())
+for f,sha in v['files'].items():
+ assert hashlib.sha256((R/f).read_bytes()).hexdigest()==sha,f
+assert v['leaflet']['license']=='BSD-2-Clause' and v['natural_earth']['license']=='public domain'
+print('Pinned map assets and licence declarations: PASS')
+
+assert j['header_mark']['sha256']==j['files']['assets/v2/brand/mark.png']
+assert re.fullmatch('[0-9a-f]{40}',j['header_mark']['commit'])

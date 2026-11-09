@@ -4,6 +4,12 @@
   function create(onChange) {
     const state = {
       enabled,
+      phase: enabled ? 'checking' : 'unpaired',
+      pages: {
+        shipments: { cursor: null, previous: [], next: null },
+        devices: { cursor: null, previous: [], next: null }
+      },
+      verifications: {},
       connected: false,
       loading: false,
       session: null,
@@ -19,7 +25,13 @@
     function change() {
       onChange(state);
     }
-    function clear(message = '') {
+    function clear(message = '', phase = 'unpaired') {
+      state.phase = phase;
+      state.pages = {
+        shipments: { cursor: null, previous: [], next: null },
+        devices: { cursor: null, previous: [], next: null }
+      };
+      state.verifications = {};
       state.loading = false;
       state.connected = false;
       state.session = null;
@@ -56,10 +68,15 @@
       if (!res.ok) {
         if (res.status === 401 && requestVersion === generation) {
           generation++;
-          clear('Session expired or revoked. Reconnect to continue.');
+          clear(
+            'Session expired or revoked. Reconnect to continue.',
+            state.connected ? 'expired' : 'unpaired'
+          );
           change();
         }
-        throw new Error(data.error || 'Gateway request failed');
+        const error = new Error(data.error || 'Gateway request failed');
+        error.status = res.status;
+        throw error;
       }
       return data;
     }
@@ -73,8 +90,18 @@
       try {
         const session = await request('/v1/session');
         const [shipments, devices, simulations, publisher] = await Promise.all([
-          request('/v1/shipments?limit=25'),
-          request('/v1/devices?limit=25'),
+          request(
+            '/v1/shipments?limit=25' +
+              (state.pages.shipments.cursor
+                ? '&cursor=' + encodeURIComponent(state.pages.shipments.cursor)
+                : '')
+          ),
+          request(
+            '/v1/devices?limit=25' +
+              (state.pages.devices.cursor
+                ? '&cursor=' + encodeURIComponent(state.pages.devices.cursor)
+                : '')
+          ),
           request('/v1/simulations'),
           request('/v1/proof-publisher')
         ]);
@@ -97,6 +124,9 @@
         );
         if (version !== generation || serial !== refreshSerial) return;
         state.session = session;
+        state.phase = 'available';
+        state.pages.shipments.next = shipments.next_cursor || null;
+        state.pages.devices.next = devices.next_cursor || null;
         csrf = session.csrf;
         state.data = {
           shipments: details,
@@ -114,7 +144,12 @@
       } catch (e) {
         if (version !== generation || serial !== refreshSerial) return;
         generation++;
-        clear('Gateway unavailable. Loaded data cleared; nothing is shown as live.');
+        clear(
+          e.status === 403
+            ? 'This session is not authorized for the workspace. Ask the owner to review its scopes.'
+            : 'Gateway unavailable. Loaded data cleared; nothing is shown as live.',
+          e.status === 403 ? 'forbidden' : 'unavailable'
+        );
         change();
       }
       if (state.connected) timer = setTimeout(refresh, 3000);
@@ -132,7 +167,14 @@
           csrf = session.csrf;
           await refresh();
         } catch (e) {
-          clear('Pair this browser with your tenant to load Gateway data.');
+          clear(
+            e.status === 401
+              ? 'Pair this browser with your tenant to load Gateway data.'
+              : e.status === 403
+                ? 'This session is not authorized for the workspace. Ask the owner to review its scopes.'
+                : 'Gateway unavailable. Check the connection and try again.',
+            e.status === 401 ? 'unpaired' : e.status === 403 ? 'forbidden' : 'unavailable'
+          );
           change();
         }
       },
@@ -142,6 +184,7 @@
         const result = await request('/v1/pairing/challenges', 'POST', {
           tenant_id: tenant
         });
+        state.phase = 'pairing';
         state.challenge = result;
         state.error = '';
         change();
@@ -178,6 +221,16 @@
       },
       async mutate(path, input = {}) {
         await request(path, 'POST', input);
+        await refresh();
+      },
+      async turnPage(kind, direction) {
+        if (!['shipments', 'devices'].includes(kind) || state.loading) return;
+        const p = state.pages[kind];
+        if (direction === 'next' && p.next) {
+          p.previous.push(p.cursor);
+          p.cursor = p.next;
+        } else if (direction === 'previous' && p.previous.length) p.cursor = p.previous.pop();
+        else return;
         await refresh();
       },
       refresh

@@ -199,8 +199,8 @@ test(
     );
     await page.locator('#navigation a[href="#map"]').click();
     await page
-      .getByRole('img', {
-        name: 'Schematic Gateway routes and last reported positions, not navigation'
+      .getByRole('region', {
+        name: 'Geographic routes and last reported positions'
       })
       .waitFor();
     assert.match(await page.locator('#main').innerText(), /30.52/);
@@ -209,7 +209,7 @@ test(
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.locator('#navigation a[href="#events"]').click();
     await page.waitForFunction(() =>
-      document.querySelector('.ux-timeline')?.textContent.includes('checkpoint_reached')
+      document.querySelector('.ux-timeline')?.textContent.includes('checkpoint reached')
     );
     assert.match(await page.locator('#main').innerText(), /synthetic/);
     await page.locator('#navigation a[href="#proofs"]').click();
