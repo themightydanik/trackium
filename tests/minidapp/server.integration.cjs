@@ -199,8 +199,8 @@ test(
     );
     await page.locator('#navigation a[href="#map"]').click();
     await page
-      .getByRole('img', {
-        name: 'Schematic Gateway routes and last reported positions, not navigation'
+      .getByRole('region', {
+        name: 'Geographic routes and last reported positions'
       })
       .waitFor();
     assert.match(await page.locator('#main').innerText(), /30.52/);

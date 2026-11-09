@@ -1,4 +1,4 @@
-name: Design System foundation
+name: MiniDapp UI regression
 on:
   push:
     branches: [main]
@@ -7,6 +7,8 @@ on:
       - 'assets/v2/**'
       - 'index.html'
       - 'tools/check-design-system.py'
+      - 'tools/web-vendor-lock.json'
+      - 'tools/LEAFLET-LICENSE.txt'
       - 'tests/minidapp/**'
       - '.github/workflows/design-foundation.yml'
   pull_request:
@@ -42,6 +44,9 @@ jobs:
           node-version: '22'
       - run: npm ci
         working-directory: services/gateway
+      - name: Static web build checks (no bundler)
+        run: |
+          for file in assets/v2/*.js; do node --check "$file"; done
       - name: Snapshot checks
         run: python3 tools/check-design-system.py
       - name: Browser tooling (development only)
@@ -51,4 +56,4 @@ jobs:
           echo "NODE_PATH=$RUNNER_TEMP/ui-tools/node_modules" >> "$GITHUB_ENV"
           echo "CHROMIUM_PATH=$(node -e "process.stdout.write(require('$RUNNER_TEMP/ui-tools/node_modules/playwright').chromium.executablePath())")" >> "$GITHUB_ENV"
       - name: Existing and targeted browser tests
-        run: node --test tests/minidapp/core.test.cjs tests/minidapp/browser.test.cjs tests/minidapp/design-system.test.cjs tests/minidapp/unified-ux.test.cjs tests/minidapp/server.integration.cjs
+        run: node --test tests/minidapp/core.test.cjs tests/minidapp/browser.test.cjs tests/minidapp/design-system.test.cjs tests/minidapp/unified-ux.test.cjs tests/minidapp/complete-ux.test.cjs tests/minidapp/server.integration.cjs
