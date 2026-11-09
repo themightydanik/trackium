@@ -179,8 +179,10 @@ The single final Web CI round runs all existing tests plus this coverage, the
 real ephemeral PostgreSQL owner-pairing/simulator/restart/Proof integration,
 static JS syntax checks and DS1/vendor checksum checks. This is a static web
 application: there is no new bundler/framework build. Final run/results are
-linked from the PR. Existing tests remain; only the intentional map accessible
-name/role expectation changes from schematic image to geographic region.
+linked from the PR. Existing tests remain; the intentional map accessible name/role expectation changes from schematic image
+to geographic region, and the event label expectation follows the readable
+checkpoint reached label. The first CI attempt found compact 200% heading overflow
+and the old event label expectation; both were corrected before the final retry.
 
 | Remaining manual acceptance / blocker | Android | Web | Evidence boundary |
 |---|---|---|---|
