@@ -18,7 +18,9 @@ export function createWebHandler({ webEnabled, webRoot }) {
     const relative = url.pathname.slice('/app/'.length) || 'index.html';
     if (
       !['index.html', 'mds.js', 'icon.png'].includes(relative) &&
-      !/^assets\/v2\/[a-z0-9-]+\.(js|css)$/.test(relative)
+      !/^assets\/v2\/[a-z0-9-]+\.(js|css)$/.test(relative) &&
+      !/^assets\/v2\/brand\/(mark|app-(32|48|180|192|512))\.png$/.test(relative) &&
+      relative !== 'assets/v2/brand/site.webmanifest'
     ) {
       res.writeHead(404);
       res.end();
@@ -33,7 +35,9 @@ export function createWebHandler({ webEnabled, webRoot }) {
             ? 'text/javascript; charset=utf-8'
             : relative.endsWith('.css')
               ? 'text/css; charset=utf-8'
-              : 'image/png',
+              : relative.endsWith('.webmanifest')
+                ? 'application/manifest+json'
+                : 'image/png',
         'cache-control': 'no-store',
         'x-content-type-options': 'nosniff',
         'referrer-policy': 'no-referrer',

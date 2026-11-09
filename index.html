@@ -3,16 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="referrer" content="no-referrer" />
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
-    <title>Trackium Cargo · Operations workspace</title>
+    <title>Trackium Core · Logistics workspace</title>
     <link rel="icon" type="image/png" sizes="32x32" href="assets/v2/brand/app-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="assets/v2/brand/app-180.png" />
     <link rel="manifest" href="assets/v2/brand/site.webmanifest" />
+    <script src="assets/v2/appearance.js"></script>
     <link rel="stylesheet" href="assets/v2/design-tokens.css" />
     <link rel="stylesheet" href="assets/v2/cargo.css" />
     <script defer src="mds.js"></script>
@@ -22,6 +23,7 @@
     <script defer src="assets/v2/demo-data.js"></script>
     <script defer src="assets/v2/server-client.js"></script>
     <script defer src="assets/v2/server-workspace.js"></script>
+    <script defer src="assets/v2/workspace-ui.js"></script>
     <script defer src="assets/v2/cargo.js"></script>
   </head>
   <body>
@@ -34,7 +36,7 @@
         <a class="brand" href="#dashboard" aria-label="Trackium Cargo home"
           ><span class="brand-mark"
             ><img src="assets/v2/brand/mark.png" width="31" height="36" alt="" aria-hidden="true" /></span
-          ><span>trackium<span class="brand-sub">CARGO WORKSPACE</span></span></a
+          ><span>Trackium Core<span class="brand-sub">LOGISTICS WORKSPACE</span></span></a
         >
         <div class="workspace-card">
           <span class="workspace-icon">C</span>
@@ -56,7 +58,7 @@
           </div>
           <div class="sidebar-footer">
             <span class="avatar">TC</span>
-            <div>Trackium Cargo<small>Foundation v2.0</small></div>
+            <div>Trackium Core<small>Unified workspace</small></div>
           </div>
         </div>
       </aside>
@@ -93,14 +95,14 @@
         <div id="server-banner" class="demo-banner" hidden>
           <strong>AUTHENTICATED GATEWAY</strong
           ><span
-            >Server Simulation is synthetic · Preview is separate · no blockchain publication</span
+            >Tenant-scoped session · source trust stays visible · publication follows owner policy</span
           >
         </div>
         <main id="main" tabindex="-1"></main>
         <footer class="main-footer">
           <span
-            >Trackium Cargo <span class="footer-separator">/</span> Visibility with provenance</span
-          ><span>No blockchain proofs published</span>
+            >Trackium Core <span class="footer-separator">/</span> Visibility with provenance</span
+          ><span>Publication requires existing owner policy</span>
         </footer>
       </div>
     </div>
