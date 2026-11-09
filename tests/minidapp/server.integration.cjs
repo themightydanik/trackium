@@ -82,6 +82,12 @@ test(
       await admin.end();
     });
     await start();
+    for (const asset of ['mark.png', 'app-32.png', 'site.webmanifest']) {
+      const response = await fetch(origin + '/app/assets/v2/brand/' + asset);
+      assert.equal(response.status, 200, 'approved brand asset is served');
+      assert.match(response.headers.get('content-type'), asset.endsWith('.png') ? /image\/png/ : /manifest\+json/);
+    }
+    assert.equal((await fetch(origin + '/app/assets/v2/brand/private.txt')).status, 404);
     // Issue owner credential in the trusted test process, never inside Chromium.
     const { provisionTenant } = await import(
       path.join(ROOT, 'services/gateway/src/telemetry/service.js')
@@ -203,7 +209,7 @@ test(
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.locator('#navigation a[href="#events"]').click();
     await page.waitForFunction(() =>
-      document.querySelector('tbody')?.textContent.includes('checkpoint_reached')
+      document.querySelector('.ux-timeline')?.textContent.includes('checkpoint_reached')
     );
     assert.match(await page.locator('#main').innerText(), /synthetic/);
     await page.locator('#navigation a[href="#proofs"]').click();

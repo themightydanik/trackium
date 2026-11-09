@@ -30,3 +30,70 @@ Unauthenticated, no-demo local captures at 1440 and 390 CSS px; phone drawer ful
 
 - [Desktop before](design-system-1/web-before-1440.png) / [after](design-system-1/web-after-1440.png)
 - [Phone before](design-system-1/web-before-390.png) / [after](design-system-1/web-after-390.png)
+
+## Update 4 — unified MiniDapp implementation
+
+Prerequisites are merged: Android PR #6 and Web foundation PR #16. The canonical
+DS1 token/brand snapshot is preserved; no alternative palette or Android project
+is introduced here. Android logo/navigation cosmetics are a separate requested
+Android change and are not replaced with generated artwork in this Web PR.
+
+The authenticated `/app/` workspace now provides:
+
+- Dashboard: loaded shipment/device/Proof/event counts, recent events and route overview.
+- Shipments: snapshot search/filter, shipment cards, checkpoint/condition details,
+  existing authorized lifecycle actions and a structured draft-route editor.
+- Devices: responsive table/cards, measured telemetry, missing-reading states,
+  provenance and device/history details. A real zero remains zero.
+- Live Map: existing route coordinates and last reported GPS on an explicitly
+  schematic map; no fabricated position, external tile provider or navigation claim.
+- Events: searchable recorded timeline and evidence details; outbox delivery is
+  distinguished from blockchain confirmation.
+- Proofs: human-readable evidence states, existing Verify/export actions and
+  collapsed publisher policy/Local Core exchange controls.
+- Gateway Settings: System/Light/Dark appearance, origin/tenant/session information
+  and existing session revocation. Owner-approved pairing remains unchanged.
+
+Shared DS1 surfaces, controls, focus states, cards, empty/loading feedback and
+responsive sidebar/drawer serve these pages. Polling retains focused search and
+public form drafts in memory within the same session/page; credentials are never
+persisted by this presentation layer. Refresh timestamps and snapshot limits are
+visible. Existing auth, CSRF, scopes, tenant isolation, publication policies and
+all HTTP API contracts remain authoritative and unchanged.
+
+The sole Gateway serving change is a precise allowlist for the already reviewed
+brand PNGs/webmanifest. This fixes missing branding under `/app/`; it does not
+expose arbitrary repository files or introduce an API.
+
+### Review captures
+
+These are local Chromium captures using **explicitly synthetic browser fixtures**,
+not real Gateway, blockchain, AOVX or phone acceptance. No production token is used.
+
+- [Dashboard, desktop dark](update4/dashboard-1440.png)
+- [Shipments, desktop light](update4/shipments-1440.png)
+- [Devices, phone light](update4/devices-390.png)
+- [Proofs, phone dark](update4/proofs-390.png)
+- [Gateway Settings, tablet dark](update4/settings-900.png)
+
+### Validation and remaining scope
+
+Two targeted browser tests passed during implementation: seven authenticated
+pages at compact/desktop widths, theme choice, structured evidence/missing values,
+input/focus retention across polling and draft stop editing. Final CI runs the
+complete MiniDapp browser/core/snapshot checks, real ephemeral PostgreSQL owner
+pairing/simulator/restart integration, and existing Gateway deployment checks.
+The PR records the resulting run URLs and any actual failures; previous Android
+or foundation CI is not evidence for this change.
+
+Current API capabilities are intentionally not extended: only the first 25
+shipments/devices and bounded per-record history are loaded and searched. Server
+pagination already exists; a fuller browsing UI can consume its existing cursors
+in a separate functional update. A geographic basemap/provider and live transport
+are separate integrations. Full-text cross-tenant-safe server search or richer
+aggregate/stream APIs would require a separately scoped backend change if desired.
+
+Manual acceptance remains: a real owner-approved HTTPS Gateway session, physical
+AOVX telemetry, phone/tablet browsers and assistive technology. No Mainnet
+publication, financial operation, real tracker measurement or production readiness
+is inferred from these fixtures or CI. Existing licensing/release blockers remain.

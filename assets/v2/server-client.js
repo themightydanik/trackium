@@ -20,6 +20,7 @@
       onChange(state);
     }
     function clear(message = '') {
+      state.loading = false;
       state.connected = false;
       state.session = null;
       state.data = null;
@@ -67,6 +68,8 @@
       clearTimeout(timer);
       const version = generation,
         serial = ++refreshSerial;
+      state.loading = true;
+      change();
       try {
         const session = await request('/v1/session');
         const [shipments, devices, simulations, publisher] = await Promise.all([
@@ -104,6 +107,7 @@
           proofMode: proofs[0]?.engine_mode ?? 'disabled',
           publisher
         };
+        state.loading = false;
         state.updated = new Date().toISOString();
         state.error = '';
         change();

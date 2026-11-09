@@ -1,6 +1,7 @@
 name: Design System foundation
 on:
   push:
+    branches: [main]
     paths: &paths
       - 'design-system/**'
       - 'assets/v2/**'
@@ -19,10 +20,28 @@ jobs:
   verify:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: trackium
+          POSTGRES_DB: trackium_test
+          POSTGRES_PASSWORD: ci-only-not-a-deployment-secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U trackium -d trackium_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://trackium:ci-only-not-a-deployment-secret@127.0.0.1:5432/trackium_test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - run: npm ci
+        working-directory: services/gateway
       - name: Snapshot checks
         run: python3 tools/check-design-system.py
       - name: Browser tooling (development only)
@@ -32,4 +51,4 @@ jobs:
           echo "NODE_PATH=$RUNNER_TEMP/ui-tools/node_modules" >> "$GITHUB_ENV"
           echo "CHROMIUM_PATH=$(node -e "process.stdout.write(require('$RUNNER_TEMP/ui-tools/node_modules/playwright').chromium.executablePath())")" >> "$GITHUB_ENV"
       - name: Existing and targeted browser tests
-        run: node --test tests/minidapp/core.test.cjs tests/minidapp/browser.test.cjs tests/minidapp/design-system.test.cjs
+        run: node --test tests/minidapp/core.test.cjs tests/minidapp/browser.test.cjs tests/minidapp/design-system.test.cjs tests/minidapp/unified-ux.test.cjs tests/minidapp/server.integration.cjs
