@@ -12,6 +12,8 @@ const MAX_TAIL_ANALYSIS_OFFSETS = 256;
 const MAX_VALUE_FREQUENCIES = 8;
 const MAX_RANGE_DETAILS = 64;
 const MAX_DIFFERENCE_SAMPLES = 64;
+const MAX_TAIL_GROUP_DETAILS = 100;
+const MAX_TAIL_GROUP_COMPARISONS = 100;
 
 function hexAt(body, offset, length) {
   return body.subarray(offset, offset + length).toString('hex');
@@ -146,15 +148,20 @@ function analyzeTelemetryTails(records) {
   }
 
   const sortedGroups = [...grouped.entries()].sort((a, b) => a[0] - b[0]);
-  const groups = sortedGroups.map(([bodyLength, groupRecords]) => summarizeTailGroup(bodyLength, groupRecords));
+  const selectedGroups = sortedGroups.slice(0, MAX_TAIL_GROUP_DETAILS);
+  const groups = selectedGroups.map(([bodyLength, groupRecords]) => summarizeTailGroup(bodyLength, groupRecords));
   const comparisons = [];
+  let totalComparisonCount = 0;
   for (let left = 0; left < sortedGroups.length; left += 1) {
     for (let right = left + 1; right < sortedGroups.length; right += 1) {
+      totalComparisonCount += 1;
+      if (comparisons.length >= MAX_TAIL_GROUP_COMPARISONS ||
+          left >= selectedGroups.length || right >= selectedGroups.length) continue;
       comparisons.push(compareTailGroups(
-        sortedGroups[left][0],
-        sortedGroups[right][0],
-        sortedGroups[left][1],
-        sortedGroups[right][1]
+        selectedGroups[left][0],
+        selectedGroups[right][0],
+        selectedGroups[left][1],
+        selectedGroups[right][1]
       ));
     }
   }
@@ -162,10 +169,14 @@ function analyzeTelemetryTails(records) {
   return {
     packetCount: records.length,
     groupCount: groups.length,
+    totalGroupCount: sortedGroups.length,
+    omittedGroupCount: Math.max(0, sortedGroups.length - groups.length),
     maxAnalyzedOffsets: MAX_TAIL_ANALYSIS_OFFSETS,
     maxFrequencyValuesPerOffset: MAX_VALUE_FREQUENCIES,
+    maxGroupDetails: MAX_TAIL_GROUP_DETAILS,
     groups,
     comparisons,
+    omittedComparisonCount: Math.max(0, totalComparisonCount - comparisons.length),
     note: 'All offsets and byte values are raw observations. No tail field names, units, coordinates, or protocol semantics are inferred.'
   };
 }
