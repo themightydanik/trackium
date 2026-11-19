@@ -158,6 +158,19 @@ export function createGateway({ journal, config, logger = console, requestHandle
     const onListening = () => { server.off('error', onError); resolve(); };
     server.once('error', onError);
     server.once('listening', onListening);
+    if (server === tcp) {
+      try {
+        const report = await diagnosePortConflict(port);
+        (logger.info ?? console.info).call(logger, 'tcp port listen boundary:', JSON.stringify({
+          phase: 'immediately_before_server_listen',
+          serverListening: server.listening,
+          serverAddress: server.address(),
+          report
+        }));
+      } catch (diagnosticError) {
+        (logger.warn ?? console.warn).call(logger, 'tcp port listen boundary diagnostics unavailable:', diagnosticError.message);
+      }
+    }
     server.listen(port, config.host ?? '0.0.0.0');
   });
   const close = server => new Promise((resolve, reject) => {
