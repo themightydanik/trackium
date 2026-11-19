@@ -122,6 +122,7 @@ function parseObservedTelemetryExtensions(tail) {
   let wifiList = null;
   let batteryInformation = null;
   let deviceGeneralInformation = null;
+  let assistantInformation = null;
   const opaqueExtensions = [];
 
   while (offset + 2 <= tail.length) {
@@ -232,6 +233,31 @@ function parseObservedTelemetryExtensions(tail) {
         valueLength: valueRaw.length,
         matchesObservedEnvelope: valueRaw.length === 29
       };
+    } else if (tag === 0xf9) {
+      // The workbook's observed mask 0x000f enables four fields whose
+      // documented raw widths total 16 bytes after the two-byte mask.
+      // Keep all values opaque; only split this exact observed envelope.
+      const maskRaw = Buffer.from(valueRaw.subarray(0, 2));
+      const mask = valueRaw.length >= 2 ? valueRaw.readUInt16BE(0) : null;
+      const matchesObservedEnvelope = valueRaw.length === 18 &&
+        declaredLength === 18 &&
+        mask === 0x000f;
+      if (matchesObservedEnvelope) {
+        assistantInformation = {
+          format: 'observed-tag-length-value',
+          tag,
+          declaredLength,
+          matchesObservedEnvelope: true,
+          maskRaw,
+          mask,
+          gnssAgeRaw: Buffer.from(valueRaw.subarray(2, 6)),
+          accOnTimeRaw: Buffer.from(valueRaw.subarray(6, 10)),
+          hdopRaw: Buffer.from(valueRaw.subarray(10, 12)),
+          gnssTimeRaw: Buffer.from(valueRaw.subarray(12, 18))
+        };
+      } else {
+        opaqueExtensions.push({ ...envelope, matchesObservedEnvelope: false });
+      }
     } else {
       opaqueExtensions.push({ ...envelope, matchesObservedEnvelope: null });
     }
@@ -246,6 +272,7 @@ function parseObservedTelemetryExtensions(tail) {
     wifiList,
     batteryInformation,
     deviceGeneralInformation,
+    assistantInformation,
     opaqueExtensions,
     unparsedTail,
     unparsedTailHex: unparsedTail.toString('hex'),
