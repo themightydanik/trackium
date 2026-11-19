@@ -52,8 +52,9 @@ the order present in the workbook example and GL110-GL captures:
   ASCII only when the declared length is complete and every byte is printable.
 
 The tag mapping is based on the workbook's `0x0200` sample and the observed
-GL110-GL packets. No MCC, MNC, cell ID, LAC, RSSI, firmware subcomponents,
-units, or other record semantics are inferred. Any bytes after these recognized
+GL110-GL packets. The base-station byte slices follow the workbook's named
+field boundaries, but their numeric encodings and measurement scales are not
+interpreted. Any bytes after these recognized
 blocks remain in `observedExtensions.unparsedTail` and the original
 `remainingBody` is preserved unchanged. Malformed or truncated blocks are
 not consumed and do not invalidate the enclosing structurally decoded frame.
