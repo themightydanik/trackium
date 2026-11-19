@@ -94,12 +94,36 @@ function parseGeneralQueryResponse(body) {
   };
 }
 
+function parseObservedTlvField(bytes, expectedTag, expectedValueLength) {
+  const raw = Buffer.from(bytes);
+  const tag = raw.length >= 1 ? raw[0] : null;
+  const declaredLength = raw.length >= 2 ? raw[1] : null;
+  const valueRaw = Buffer.from(raw.subarray(2));
+  const matchesObservedEnvelope = raw.length === expectedValueLength + 2 &&
+    tag === expectedTag &&
+    declaredLength === expectedValueLength &&
+    valueRaw.length === declaredLength;
+
+  return {
+    format: 'observed-tag-length-value',
+    tag,
+    declaredLength,
+    valueRaw,
+    valueHex: valueRaw.toString('hex'),
+    valueByte: matchesObservedEnvelope && expectedValueLength === 1 ? valueRaw[0] : null,
+    matchesObservedEnvelope
+  };
+}
+
 function parseBasicInformation(body) {
   // The workbook defines these fixed fields through GNSS count. Later fields are
   // model/configuration dependent; retain them as opaque bytes until decoded.
   requireLength(body, 40, 0x0200);
   const timestampBcd = Buffer.from(body.subarray(22, 28));
   const remainingBody = Buffer.from(body.subarray(40));
+  const mileageField = parseObservedTlvField(body.subarray(28, 34), 0x01, 4);
+  const cellularSignalField = parseObservedTlvField(body.subarray(34, 37), 0x30, 1);
+  const gnssSatellitesField = parseObservedTlvField(body.subarray(37, 40), 0x31, 1);
   return {
     alarm: body.readUInt32BE(0),
     status: body.readUInt32BE(4),
@@ -113,6 +137,9 @@ function parseBasicInformation(body) {
     mileageRaw: readUInt48BE(body, 28),
     cellularSignalRaw: Buffer.from(body.subarray(34, 37)),
     gnssSatellitesRaw: Buffer.from(body.subarray(37, 40)),
+    mileageField,
+    cellularSignalField,
+    gnssSatellitesField,
     remainingBody,
     diagnostics: {
       bodyLength: body.length,

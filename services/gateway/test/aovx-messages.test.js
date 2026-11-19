@@ -70,8 +70,39 @@ test('parses the documented 0x0200 fixed telemetry prefix and preserves opaque t
   assert.equal(parsed.data.longitudeRaw, 0x06fc5dc0);
   assert.deepEqual(parsed.data.timestampBcd, Buffer.from('210928172305', 'hex'));
   assert.equal(parsed.data.mileageRaw, 0x010400000000);
+  assert.equal(parsed.data.mileageField.matchesObservedEnvelope, true);
+  assert.equal(parsed.data.mileageField.tag, 0x01);
+  assert.equal(parsed.data.mileageField.declaredLength, 4);
+  assert.equal(parsed.data.mileageField.valueHex, '00000000');
+  assert.equal(parsed.data.mileageField.valueByte, null);
+  assert.equal(parsed.data.cellularSignalField.matchesObservedEnvelope, true);
+  assert.equal(parsed.data.cellularSignalField.tag, 0x30);
+  assert.equal(parsed.data.cellularSignalField.valueByte, 0x16);
+  assert.equal(parsed.data.gnssSatellitesField.matchesObservedEnvelope, true);
+  assert.equal(parsed.data.gnssSatellitesField.tag, 0x31);
+  assert.equal(parsed.data.gnssSatellitesField.valueByte, 0x07);
   assert.equal(parsed.data.remainingBody.length, 36);
   assert.deepEqual(parsed.data.remainingBody, Buffer.alloc(36, 0xa5));
+});
+
+test('preserves unexpected 0x0200 tagged-field envelopes without interpreting them', () => {
+  const body = Buffer.from(
+    '00000000000000000000000000000000000000000000000000000000010400000000990116310107',
+    'hex'
+  );
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.alloc(6),
+    sequenceNumber: 1,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
+  assert.equal(parsed.data.cellularSignalField.matchesObservedEnvelope, false);
+  assert.equal(parsed.data.cellularSignalField.tag, 0x99);
+  assert.equal(parsed.data.cellularSignalField.declaredLength, 1);
+  assert.equal(parsed.data.cellularSignalField.valueHex, '16');
+  assert.equal(parsed.data.cellularSignalField.valueByte, null);
 });
 
 test('keeps unimplemented messages opaque and rejects truncated known messages', () => {
