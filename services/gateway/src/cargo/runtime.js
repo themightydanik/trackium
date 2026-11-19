@@ -12,6 +12,8 @@ import { createPairing, publicOrigin } from './pairing.js';
 import { createCargoApi } from './api.js';
 import { createWebHandler } from './web.js';
 import { createIngressGuard } from '../ingress.js';
+import { diagnosePortConflict } from '../port-diagnostics.js';
+
 export function createRuntime(
   pool,
   config,
@@ -44,12 +46,24 @@ export function createRuntime(
     logger,
     journal: {
       async initialize() {
+        const checkpoint = async (phase) => {
+          if (config.tcpEnabled === false) return;
+          try {
+            const report = await diagnosePortConflict(config.tcpPort);
+            logger.info('tcp port runtime checkpoint:', JSON.stringify({ ...report, phase }));
+          } catch (err) {
+            logger.warn('tcp port runtime checkpoint unavailable:', phase, err.message);
+          }
+        };
+        await checkpoint('journal_initialize_started');
         await initialize(pool);
         await migrate(pool);
         await proofs.initialize();
+        await checkpoint('database_and_proof_initialization_complete');
         if (worker && config.proofs?.mode !== 'disabled')
           stopProofWorker = startProofWorker(proofs, logger);
         if (worker && config.simulatorEnabled) stopWorker = startWorker(simulator, logger);
+        await checkpoint('background_workers_started');
       },
       persistPacket: (packet) => persistPacket(packet, pool),
       checkReady: () => pool.query('SELECT 1'),
