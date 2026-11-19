@@ -265,7 +265,7 @@ test('AOVX mode reassembles split binary frames and journals exact validated wir
   assert.deepEqual(f.packets, [frame]);
 });
 
-test('AOVX mode extracts coalesced frames and rejects invalid checksums before journaling', { timeout: 3000 }, async t => {
+test('AOVX mode extracts coalesced frames and captures checksum mismatches for later analysis', { timeout: 3000 }, async t => {
   const f = await fixture(t, { tcpProtocol: 'aovx' });
   const make = sequenceNumber => encodeAovxFrame({
     messageId: 0x0200,
@@ -286,7 +286,7 @@ test('AOVX mode extracts coalesced frames and rejects invalid checksums before j
   const bad = await f.connect();
   bad.socket.end(invalid);
   await bad.ended;
-  assert.deepEqual(f.packets, [first, second]);
+  assert.deepEqual(f.packets, [first, second, invalid]);
 });
 
 test('TCP protocol defaults to raw and rejects unknown modes', () => {

@@ -1,28 +1,38 @@
 # AOVX Gateway ingress mode
 
-The Gateway now supports an explicit TCP protocol selection:
+The Gateway supports explicit TCP protocol selection:
 
-- `TCP_PROTOCOL=raw` (default): preserves the existing synthetic newline-delimited raw-capture behavior.
-- `TCP_PROTOCOL=aovx`: uses the AOVX TCP stream framer, validates the generic frame envelope, body length and XOR checksum, then journals the exact original wire frame (including delimiters and escape bytes).
+- `TCP_PROTOCOL=raw` (default): existing synthetic newline-delimited raw capture.
+- `TCP_PROTOCOL=aovx`: reassembles AOVX frames, validates delimiters, escaping and declared body length, then journals the exact original wire frame.
 
-The mode is selected at process startup. It does not auto-detect protocols. Never point a device at a raw-mode listener expecting binary AOVX frames.
+## Checksum status is provisional
+
+The generic workbook says a checksum is present and must be verified, but its extracted examples conflict:
+
+| Message | Workbook checksum | XOR over unescaped header + body | Result |
+|---|---:|---:|---|
+| `0x0102` authentication | `0x3E` | `0x3E` | match |
+| `0x0100` registration | `0x48` | `0x1C` | mismatch |
+| `0x8100` registration response | `0x3F` | `0xBD` | mismatch |
+
+XOR is therefore an **unconfirmed candidate**, not an authoritative AOVX checksum algorithm. The decoder reports `checksumStatus` as `xor-match` or `xor-mismatch`. Its default `observe` policy accepts either status after structural validation. The opt-in `require-xor-match` policy is intended only for controlled fixtures.
+
+The encoder still emits the XOR candidate for synthetic tests. Do not use it to construct production commands until checksum behavior is confirmed against the original workbook and real GL110-GL traffic.
 
 ## Deliberate scope boundary
 
-This is not yet a GL110-GL V1.2 integration claim. The AOVX mode does not parse `0x0200` telemetry, process registration/authentication, construct or send `0x8001` acknowledgements, map a device ID to a tenant, or apply per-device authorization. It is a validated binary-frame capture path only. Keep the TCP listener behind a private network/firewall until device identity and tenant authorization are implemented.
+This is not yet a GL110-GL V1.2 integration claim. AOVX mode does not parse `0x0200` telemetry, process registration/authentication, construct or send `0x8001` acknowledgements, map device IDs to tenants, or apply per-device authorization. It is a structurally validated binary-frame capture path only. Keep the TCP listener behind a private network/firewall until identity, authentication and tenant authorization exist.
 
-The default remains `raw`, so existing local synthetic workflows and the Railway test profile are unchanged. Railway test config explicitly disables TCP as before.
+The mode is selected at startup and does not auto-detect protocols. The default remains `raw`.
 
 ## Configure
-
-In Compose, set:
 
 ```dotenv
 TCP_PROTOCOL=aovx
 ```
 
-Then recreate the Gateway container. `/readyz` reports `aovx-frame-capture-only` when this mode is active, and `raw-capture-only` otherwise.
+Recreate the Gateway container. `/readyz` reports `aovx-frame-capture-only` in this mode and `raw-capture-only` otherwise.
 
 ## Validation
 
-Gateway tests exercise split TCP chunks, multiple coalesced frames, escaped delimiter bytes, exact raw-wire persistence, invalid-checksum rejection and the unchanged default raw mode. Physical GL110-GL compatibility still requires captured device traffic and manufacturer confirmation of the exact firmware profile.
+Tests cover split TCP chunks, coalesced frames, escaping, exact raw-wire persistence, structural rejection and checksum-mismatch observation. Physical GL110-GL compatibility still requires captured device traffic and manufacturer confirmation of the exact firmware profile.

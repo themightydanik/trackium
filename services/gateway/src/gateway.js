@@ -24,7 +24,12 @@ export function createGateway({ journal, config, logger = console, requestHandle
     socket.setTimeout(config.socketTimeoutMs);
     const onFrame = payload => {
         if (config.tcpProtocol === 'aovx') {
-          try { decodeAovxFrame(payload); }
+          try {
+            const decoded = decodeAovxFrame(payload);
+            if (!decoded.checksumMatchesXor) {
+              logger.warn('AOVX frame captured with checksum mismatch against unconfirmed XOR candidate');
+            }
+          }
           catch (err) {
             logger.warn('invalid AOVX frame:', err.message);
             socket.destroy();

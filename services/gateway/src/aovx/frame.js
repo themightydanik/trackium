@@ -5,7 +5,7 @@ const ESCAPED_ESCAPE = 0x01;
 const HEADER_LENGTH = 12;
 const MIN_FRAME_LENGTH = HEADER_LENGTH + 1;
 
-/** XOR checksum over the unescaped message header and body. */
+/** Candidate XOR checksum; workbook samples do not yet confirm it universally. */
 export function aovxChecksum(bytes) {
   let checksum = 0;
   for (const byte of bytes) checksum ^= byte;
@@ -40,12 +40,19 @@ export function escapeAovxPayload(bytes) {
   return Buffer.from(output);
 }
 
-export function decodeAovxFrame(wireFrame) {
+/**
+ * Decode the generic AOVX envelope.
+ * "observe" reports the XOR-candidate comparison without rejecting the frame.
+ * "require-xor-match" is opt-in and intended only for controlled fixtures.
+ */
+export function decodeAovxFrame(wireFrame, { checksumPolicy = 'observe' } = {}) {
+  if (!['observe', 'require-xor-match'].includes(checksumPolicy)) {
+    throw new TypeError('checksumPolicy must be observe or require-xor-match');
+  }
   const wire = Buffer.from(wireFrame);
   if (wire.length < 2 || wire[0] !== FLAG || wire[wire.length - 1] !== FLAG) {
     throw new Error('AOVX frame must begin and end with 0x7E');
   }
-
   const packet = unescapeAovxPayload(wire.subarray(1, -1));
   if (packet.length < MIN_FRAME_LENGTH) throw new Error('AOVX frame is shorter than its header and checksum');
 
@@ -58,33 +65,28 @@ export function decodeAovxFrame(wireFrame) {
   }
 
   const receivedChecksum = packet[packet.length - 1];
-  const calculatedChecksum = aovxChecksum(packet.subarray(0, -1));
-  if (receivedChecksum !== calculatedChecksum) {
-    throw new Error(`AOVX checksum mismatch: expected 0x${calculatedChecksum.toString(16).padStart(2, '0')}, received 0x${receivedChecksum.toString(16).padStart(2, '0')}`);
+  const calculatedXorChecksum = aovxChecksum(packet.subarray(0, -1));
+  const checksumMatchesXor = receivedChecksum === calculatedXorChecksum;
+  if (!checksumMatchesXor && checksumPolicy === 'require-xor-match') {
+    throw new Error(`AOVX XOR-candidate checksum mismatch: calculated 0x${calculatedXorChecksum.toString(16).padStart(2, '0')}, received 0x${receivedChecksum.toString(16).padStart(2, '0')}`);
   }
-
   return {
-    messageId,
-    properties,
-    bodyLength,
+    messageId, properties, bodyLength,
     deviceIdBcd: Buffer.from(packet.subarray(4, 10)),
     sequenceNumber: packet.readUInt16BE(10),
     body: Buffer.from(packet.subarray(HEADER_LENGTH, -1)),
     checksum: receivedChecksum,
+    checksumAlgorithm: 'unconfirmed-xor-candidate',
+    checksumMatchesXor,
+    checksumStatus: checksumMatchesXor ? 'xor-match' : 'xor-mismatch',
     raw: packet
   };
 }
 
 export function encodeAovxFrame({ messageId, deviceIdBcd, sequenceNumber, body = Buffer.alloc(0), properties = 0 }) {
-  if (!Number.isInteger(messageId) || messageId < 0 || messageId > 0xffff) {
-    throw new TypeError('messageId must be an unsigned 16-bit integer');
-  }
-  if (!Number.isInteger(sequenceNumber) || sequenceNumber < 0 || sequenceNumber > 0xffff) {
-    throw new TypeError('sequenceNumber must be an unsigned 16-bit integer');
-  }
-  if (!Number.isInteger(properties) || properties < 0 || properties > 0xffff) {
-    throw new TypeError('properties must be an unsigned 16-bit integer');
-  }
+  if (!Number.isInteger(messageId) || messageId < 0 || messageId > 0xffff) throw new TypeError('messageId must be an unsigned 16-bit integer');
+  if (!Number.isInteger(sequenceNumber) || sequenceNumber < 0 || sequenceNumber > 0xffff) throw new TypeError('sequenceNumber must be an unsigned 16-bit integer');
+  if (!Number.isInteger(properties) || properties < 0 || properties > 0xffff) throw new TypeError('properties must be an unsigned 16-bit integer');
   const device = Buffer.from(deviceIdBcd);
   const payload = Buffer.from(body);
   if (device.length !== 6) throw new TypeError('deviceIdBcd must contain exactly 6 bytes');
@@ -97,11 +99,7 @@ export function encodeAovxFrame({ messageId, deviceIdBcd, sequenceNumber, body =
   device.copy(packet, 4);
   packet.writeUInt16BE(sequenceNumber, 10);
   payload.copy(packet, HEADER_LENGTH);
+  // Retained for synthetic fixtures only; production checksum algorithm is unconfirmed.
   packet[packet.length - 1] = aovxChecksum(packet.subarray(0, -1));
-
-  return Buffer.concat([
-    Buffer.from([FLAG]),
-    escapeAovxPayload(packet),
-    Buffer.from([FLAG])
-  ]);
+  return Buffer.concat([Buffer.from([FLAG]), escapeAovxPayload(packet), Buffer.from([FLAG])]);
 }
