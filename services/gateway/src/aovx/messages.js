@@ -115,12 +115,80 @@ function parseObservedTlvField(bytes, expectedTag, expectedValueLength) {
   };
 }
 
+function parseObservedLengthPrefixedExtension(bytes, expectedTag, validateValue) {
+  const raw = Buffer.from(bytes);
+  const tag = raw.length >= 1 ? raw[0] : null;
+  const declaredLength = raw.length >= 2 ? raw[1] : null;
+  const hasCompleteValue = declaredLength !== null && raw.length >= declaredLength + 2;
+  const valueRaw = Buffer.from(raw.subarray(2, hasCompleteValue ? declaredLength + 2 : undefined));
+  const matchesObservedEnvelope = tag === expectedTag &&
+    hasCompleteValue &&
+    validateValue(valueRaw);
+
+  return {
+    format: 'observed-tag-length-value',
+    tag,
+    declaredLength,
+    valueRaw,
+    valueHex: valueRaw.toString('hex'),
+    matchesObservedEnvelope,
+    consumedLength: matchesObservedEnvelope ? declaredLength + 2 : 0
+  };
+}
+
+function parseObservedTelemetryExtensions(tail) {
+  let offset = 0;
+  let baseStationInformation = null;
+  let deviceFirmwareVersion = null;
+
+  if (tail[0] === 0xf0) {
+    const field = parseObservedLengthPrefixedExtension(
+      tail,
+      0xf0,
+      value => value.length > 0 && value.length % 13 === 0
+    );
+    baseStationInformation = {
+      ...field,
+      recordLength: 13,
+      recordCount: field.matchesObservedEnvelope ? field.valueRaw.length / 13 : null,
+      recordsHex: field.matchesObservedEnvelope
+        ? Array.from({ length: field.valueRaw.length / 13 }, (_, index) =>
+          field.valueRaw.subarray(index * 13, (index + 1) * 13).toString('hex'))
+        : []
+    };
+    offset += field.consumedLength;
+  }
+
+  if (offset < tail.length && tail[offset] === 0xf2) {
+    const field = parseObservedLengthPrefixedExtension(
+      tail.subarray(offset),
+      0xf2,
+      value => value.length > 0 && value.every(byte => byte >= 0x20 && byte <= 0x7e)
+    );
+    deviceFirmwareVersion = {
+      ...field,
+      valueAscii: field.matchesObservedEnvelope ? field.valueRaw.toString('ascii') : null
+    };
+    offset += field.consumedLength;
+  }
+
+  const unparsedTail = Buffer.from(tail.subarray(offset));
+  return {
+    baseStationInformation,
+    deviceFirmwareVersion,
+    unparsedTail,
+    unparsedTailHex: unparsedTail.toString('hex'),
+    parsedLength: offset
+  };
+}
+
 function parseBasicInformation(body) {
   // The workbook defines these fixed fields through GNSS count. Later fields are
   // model/configuration dependent; retain them as opaque bytes until decoded.
   requireLength(body, 40, 0x0200);
   const timestampBcd = Buffer.from(body.subarray(22, 28));
   const remainingBody = Buffer.from(body.subarray(40));
+  const observedExtensions = parseObservedTelemetryExtensions(remainingBody);
   const mileageField = parseObservedTlvField(body.subarray(28, 34), 0x01, 4);
   const cellularSignalField = parseObservedTlvField(body.subarray(34, 37), 0x30, 1);
   const gnssSatellitesField = parseObservedTlvField(body.subarray(37, 40), 0x31, 1);
@@ -140,6 +208,7 @@ function parseBasicInformation(body) {
     mileageField,
     cellularSignalField,
     gnssSatellitesField,
+    observedExtensions,
     remainingBody,
     diagnostics: {
       bodyLength: body.length,
