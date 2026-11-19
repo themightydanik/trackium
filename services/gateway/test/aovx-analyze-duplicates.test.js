@@ -32,6 +32,16 @@ function changeStatusOnly(frameHex, status) {
   return Buffer.concat([Buffer.from([0x7e]), decoded, Buffer.from([0x7e])]).toString('hex');
 }
 
+function changeStatusAndAlarm(frameHex, status) {
+  const wire = Buffer.from(changeStatusOnly(frameHex, status), 'hex');
+  const decoded = wire.subarray(1, -1);
+  decoded[12] ^= 0x01;
+  let checksum = 0;
+  for (const byte of decoded.subarray(0, -1)) checksum ^= byte;
+  decoded[decoded.length - 1] = checksum;
+  return wire.toString('hex');
+}
+
 test('detects a repeated F6 sample whose only frame changes are status and checksum', () => {
   const first = packet();
   const second = { raw_payload_hex: changeStatusOnly(first.raw_payload_hex, '10040000') };
@@ -43,21 +53,23 @@ test('detects a repeated F6 sample whose only frame changes are status and check
   assert.equal(result.statusOnlyAndChecksumGroups, 1);
   assert.equal(result.groupsWithOtherStatusByteChanges, 0);
   assert.deepEqual(result.groups[0].statusValues, ['10040000', '90780000']);
-  assert.deepEqual(result.groups[0].comparisonDetails[0].changedOffsets, [16, 17, 233]);
+  assert.deepEqual(result.groups[0].comparisonDetails[0].changedOffsets, [16, 17, 68]);
   assert.equal(result.groups[0].comparisonDetails[0].onlyStatusAndChecksum, true);
 });
 
-test('reports changes outside status and checksum separately', () => {
+test('separates status variants that also change other frame bytes', () => {
   const first = packet();
-  const changed = Buffer.from(first.raw_payload_hex, 'hex');
-  // Alter a non-status body byte without repairing checksum; analysis observes raw differences.
-  changed[1 + 12 + 22] ^= 0x01;
-  const result = analyzeAovxDuplicateSamples({
-    packets: [first, { raw_payload_hex: changed.toString('hex') }]
-  });
+  const second = {
+    raw_payload_hex: changeStatusAndAlarm(first.raw_payload_hex, '10040000')
+  };
+  const result = analyzeAovxDuplicateSamples({ packets: [first, second] });
 
   assert.equal(result.repeatedSampleGroupCount, 1);
-  assert.equal(result.groupsWithMultipleStatuses, 0);
+  assert.equal(result.groupsWithMultipleStatuses, 1);
+  assert.equal(result.statusOnlyAndChecksumGroups, 0);
+  assert.equal(result.groupsWithOtherStatusByteChanges, 1);
+  assert.deepEqual(result.groups[0].comparisonDetails[0].changedOffsets, [12, 16, 17, 68]);
+  assert.equal(result.groups[0].comparisonDetails[0].onlyStatusAndChecksum, false);
 });
 
 test('counts exact duplicate frames without exposing device identifiers', () => {
@@ -69,7 +81,7 @@ test('counts exact duplicate frames without exposing device identifiers', () => 
   assert.equal(JSON.stringify(result).includes(DEVICE.toString('hex')), false);
 });
 
-test('keeps different devices and different F6 values in separate sample groups', () => {
+test('keeps different F6 values in separate sample groups', () => {
   const first = packet();
   const otherSensor = packet({ temperature: '0105' });
   const result = analyzeAovxDuplicateSamples({ packets: [first, otherSensor] });
