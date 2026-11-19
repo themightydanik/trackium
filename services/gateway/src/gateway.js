@@ -158,7 +158,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
     const onListening = () => { server.off('error', onError); resolve(); };
     server.once('error', onError);
     server.once('listening', onListening);
-    if (server === tcp) {
+    if (server === tcp && Number.isInteger(port) && port > 0) {
       try {
         const report = await diagnosePortConflict(port);
         (logger.info ?? console.info).call(logger, 'tcp port listen boundary:', JSON.stringify({
