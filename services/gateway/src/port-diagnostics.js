@@ -41,11 +41,8 @@ export async function diagnosePortConflict(port, { procRoot = '/proc' } = {}) {
         const target = await readlink(fdDir + '/' + fd).catch(() => null);
         const inode = target?.startsWith('socket:[') && target.endsWith(']') ? target.slice(8, -1) : null;
         if (!inode || !wanted.has(inode)) continue;
-        const [cmdline, comm] = await Promise.all([
-          readText(procRoot + '/' + entry.name + '/cmdline'),
-          readText(procRoot + '/' + entry.name + '/comm')
-        ]);
-        owners.push({ pid, fd, command: cmdline?.split(String.fromCharCode(0)).join(' ').trim() || comm?.trim() || null });
+        const comm = await readText(procRoot + '/' + entry.name + '/comm');
+        owners.push({ pid, fd, command: comm?.trim() || null });
       }
     }
   }
