@@ -2,7 +2,7 @@ import { proofConfig } from './proofs/config.js';
 function integer(env, name, fallback, max = 2147483647) {
   const value = env[name] ?? String(fallback);
   if (
-    !/^\\d+$/.test(value) ||
+    !/^\d+$/.test(value) ||
     !Number.isSafeInteger(Number(value)) ||
     Number(value) < 1 ||
     Number(value) > max
