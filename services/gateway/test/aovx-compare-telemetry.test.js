@@ -8,7 +8,7 @@ const DEVICE_B = Buffer.from('123456789012', 'hex');
 
 function packet({ timestamp, sequenceNumber, device = DEVICE_A, status = '10000000',
   latitude = '00000000', longitude = '00000000', altitude = '0000',
-  speed = '0000', direction = '0000', temperature = '00f0', humidity = '02a0' }) {
+  speed = '0000', direction = '0000', temperature = '00f0', humidity = '02a0', dataType = 0x00 }) {
   const body = Buffer.alloc(56);
   Buffer.from(status, 'hex').copy(body, 4);
   Buffer.from(latitude, 'hex').copy(body, 8);
@@ -17,7 +17,7 @@ function packet({ timestamp, sequenceNumber, device = DEVICE_A, status = '100000
   Buffer.from(speed, 'hex').copy(body, 18);
   Buffer.from(direction, 'hex').copy(body, 20);
   Buffer.from(timestamp, 'hex').copy(body, 22);
-  Buffer.from([0xf6, 0x0e, 0x00, 0x0f]).copy(body, 40);
+  Buffer.from([0xf6, 0x0e, dataType, 0x0f]).copy(body, 40);
   Buffer.from('0011', 'hex').copy(body, 44); // light
   Buffer.from(temperature, 'hex').copy(body, 46);
   Buffer.from(humidity, 'hex').copy(body, 48);
@@ -81,4 +81,14 @@ test('excludes malformed frames and telemetry without a parsed F6 extension', ()
 test('rejects invalid capture shapes and excessive packet counts', () => {
   assert.throws(() => compareAovxTelemetry({}), /packets array/);
   assert.throws(() => compareAovxTelemetry({ packets: Array(5001).fill({}) }), /exceeds/);
+});
+
+test('does not compare across different F6 data types', () => {
+  const result = compareAovxTelemetry({ packets: [
+    packet({ timestamp: '261119090000', sequenceNumber: 1, dataType: 0x00 }),
+    packet({ timestamp: '261119090100', sequenceNumber: 2, dataType: 0x10, temperature: '00f1' })
+  ] });
+
+  assert.equal(result.transitions.transitionCount, 0);
+  assert.equal(result.transitions.incomparableBoundaryCount, 1);
 });
