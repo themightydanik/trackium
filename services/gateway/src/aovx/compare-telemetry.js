@@ -33,6 +33,47 @@ function summarizeFieldValues(records, fieldName, source) {
   };
 }
 
+function emptyPairs() {
+  const pairs = {};
+  for (const sensorName of SENSOR_FIELDS) {
+    pairs[sensorName] = {};
+    for (const fixedName of FIXED_FIELDS) {
+      pairs[sensorName][fixedName] = {
+        comparableTransitions: 0,
+        bothChanged: 0,
+        sensorOnlyChanged: 0,
+        fixedOnlyChanged: 0,
+        neitherChanged: 0
+      };
+    }
+  }
+  return pairs;
+}
+
+function mergeDeviceTransitions(summaries) {
+  const changeCoOccurrence = emptyPairs();
+  const transitions = [];
+  let transitionCount = 0;
+  for (const summary of summaries) {
+    transitionCount += summary.transitionCount;
+    transitions.push(...summary.transitions);
+    for (const sensorName of SENSOR_FIELDS) {
+      for (const fixedName of FIXED_FIELDS) {
+        const target = changeCoOccurrence[sensorName][fixedName];
+        const source = summary.changeCoOccurrence[sensorName][fixedName];
+        for (const key of Object.keys(target)) target[key] += source[key];
+      }
+    }
+  }
+  return {
+    transitionCount,
+    transitionsOmitted: Math.max(0, transitionCount - transitions.length),
+    transitions: transitions.slice(0, MAX_TRANSITION_DETAILS),
+    changeCoOccurrence,
+    note: 'Co-occurrence counts describe adjacent observations within each device only. They do not establish causation or identify sensor units or physical meaning.'
+  };
+}
+
 function buildTransitions(records) {
   const pairs = {};
   for (const sensorName of SENSOR_FIELDS) {
@@ -187,7 +228,7 @@ export function compareAovxTelemetry(document) {
     fieldValues.fixed[name] = summarizeFieldValues(records, name, 'fixed');
   }
 
-  const combinedTransitions = buildTransitions(records);
+  const combinedTransitions = mergeDeviceTransitions(deviceSummaries);
   return {
     packetCount: document.packets.length,
     invalidCount,
