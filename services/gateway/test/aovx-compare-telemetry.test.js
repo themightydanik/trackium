@@ -58,8 +58,9 @@ test('does not compare adjacent samples across device boundaries', () => {
 
   assert.equal(result.deviceCount, 2);
   assert.equal(result.perDeviceTransitionCount, 0);
-  assert.equal(result.transitions.transitionCount, 1);
-  assert.equal(result.transitions.changeCoOccurrence.temperatureRaw.speed.comparableTransitions, 1);
+  assert.equal(result.transitions.transitionCount, 0);
+  assert.equal(result.transitions.incomparableBoundaryCount, 0);
+  assert.equal(result.transitions.changeCoOccurrence.temperatureRaw.speed.comparableTransitions, 0);
 });
 
 test('excludes malformed frames and telemetry without a parsed F6 extension', () => {
