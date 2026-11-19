@@ -115,12 +115,55 @@ function parseObservedTlvField(bytes, expectedTag, expectedValueLength) {
   };
 }
 
+function parseObservedVariableBlocks(bytes) {
+  const blocks = [];
+  let offset = 0;
+
+  while (offset + 2 <= bytes.length) {
+    const tag = bytes[offset];
+    const declaredLength = bytes[offset + 1];
+    const valueStart = offset + 2;
+    const valueEnd = valueStart + declaredLength;
+    if (valueEnd > bytes.length) break;
+
+    const valueRaw = Buffer.from(bytes.subarray(valueStart, valueEnd));
+    const block = { offset, tag, declaredLength, valueRaw, valueHex: valueRaw.toString('hex') };
+
+    if (tag === 0xf0 && declaredLength > 0 && declaredLength % 13 === 0) {
+      block.baseStationRecords = [];
+      for (let start = 0; start < valueRaw.length; start += 13) {
+        const record = valueRaw.subarray(start, start + 13);
+        block.baseStationRecords.push({
+          offset: start,
+          mccRaw: Buffer.from(record.subarray(0, 2)),
+          mccHex: record.subarray(0, 2).toString('hex'),
+          mncRaw: Buffer.from(record.subarray(2, 4)),
+          mncHex: record.subarray(2, 4).toString('hex'),
+          cellIdRaw: Buffer.from(record.subarray(4, 8)),
+          cellIdHex: record.subarray(4, 8).toString('hex'),
+          lacRaw: Buffer.from(record.subarray(8, 12)),
+          lacHex: record.subarray(8, 12).toString('hex'),
+          rssiRaw: record[12]
+        });
+      }
+    } else if (tag === 0xf2) {
+      block.valueAscii = asciiOrNull(valueRaw);
+    }
+
+    blocks.push(block);
+    offset = valueEnd;
+  }
+
+  const unparsed = Buffer.from(bytes.subarray(offset));
+  return { blocks, parsedLength: offset, unparsedOffset: offset, unparsedRaw: unparsed, unparsedHex: unparsed.toString('hex') };
+}
 function parseBasicInformation(body) {
   // The workbook defines these fixed fields through GNSS count. Later fields are
   // model/configuration dependent; retain them as opaque bytes until decoded.
   requireLength(body, 40, 0x0200);
   const timestampBcd = Buffer.from(body.subarray(22, 28));
   const remainingBody = Buffer.from(body.subarray(40));
+  const variableBlockDiagnostics = parseObservedVariableBlocks(remainingBody);
   const mileageField = parseObservedTlvField(body.subarray(28, 34), 0x01, 4);
   const cellularSignalField = parseObservedTlvField(body.subarray(34, 37), 0x30, 1);
   const gnssSatellitesField = parseObservedTlvField(body.subarray(37, 40), 0x31, 1);
@@ -141,6 +184,8 @@ function parseBasicInformation(body) {
     cellularSignalField,
     gnssSatellitesField,
     remainingBody,
+    variableBlocks: variableBlockDiagnostics.blocks,
+    unparsedVariableData: variableBlockDiagnostics.unparsedRaw,
     diagnostics: {
       bodyLength: body.length,
       fixedPrefixLength: 40,
@@ -156,6 +201,12 @@ function parseBasicInformation(body) {
         mileageRaw: { offset: 28, length: 6 },
         cellularSignalRaw: { offset: 34, length: 3 },
         gnssSatellitesRaw: { offset: 37, length: 3 }
+      },
+      variableBlocks: {
+        offset: 40,
+        parsedLength: variableBlockDiagnostics.parsedLength,
+        unparsedOffset: 40 + variableBlockDiagnostics.unparsedOffset,
+        unparsedHex: variableBlockDiagnostics.unparsedHex
       },
       remainingBody: {
         offset: 40,
