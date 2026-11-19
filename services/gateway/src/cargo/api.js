@@ -25,7 +25,26 @@ export function createCargoApi({
     try {
       const url = new URL(req.url, 'http://gateway.invalid'),
         path = url.pathname;
-      const aovxDevice = /^\/internal\/aovx\/devices(?:\/([0-9a-fA-F]{12}))?$/.exec(path);
+      if (path === '/internal/aovx/packets') {
+        const expected = config.aovxObservationsToken;
+        if (!expected) throw new ApiError(404, 'not found');
+        if (req.method !== 'GET') throw new ApiError(405, 'method not allowed');
+        const supplied = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1] ?? '';
+        const a = Buffer.from(supplied), b = Buffer.from(expected);
+        if (a.length !== b.length || !timingSafeEqual(a, b)) throw new ApiError(401, 'operator authentication required');
+        for (const key of url.searchParams.keys())
+          if (!['limit', 'before', 'device_id'].includes(key) || url.searchParams.getAll(key).length !== 1)
+            throw new ApiError(400, 'unsupported query parameter');
+        const rawLimit = url.searchParams.get('limit') ?? '25';
+        if (!/^\\d+$/.test(rawLimit) || Number(rawLimit) < 1 || Number(rawLimit) > 50)
+          throw new ApiError(400, 'limit must be 1..50');
+        return reply(res, 200, await aovxObservations.packets({
+          limit: Number(rawLimit),
+          before: url.searchParams.get('before') ?? undefined,
+          deviceId: url.searchParams.get('device_id') ?? undefined
+        }));
+      }
+      const aovxDevice = /^\\/internal\\/aovx\\/devices(?:\\/([0-9a-fA-F]{12}))?$/.exec(path);
       if (aovxDevice) {
         const expected = config.aovxObservationsToken;
         if (!expected) throw new ApiError(404, 'not found');

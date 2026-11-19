@@ -54,4 +54,24 @@ test('AOVX observations API is disabled by default and protected by a dedicated 
   assert.equal((await fetch(base + '/internal/aovx/devices', {
     method: 'POST', headers: { authorization: 'Bearer ' + token }
   })).status, 405);
+  await db.query(`INSERT INTO gateway_packets
+    (transport, remote_address, raw_payload, sha256, aovx_message_id,
+     aovx_device_id_bcd, aovx_sequence_number, aovx_checksum_status,
+     aovx_parse_status)
+    VALUES ('tcp', '127.0.0.1', decode('7e0102', 'hex'), repeat('a', 64),
+      258, '221042214328', 7, 'xor-mismatch', 'parsed'),
+      ('tcp', '127.0.0.1', decode('7e0200', 'hex'), repeat('b', 64),
+      512, '221042214328', 8, 'xor-mismatch', 'parsed')`);
+  const packets = await fetch(base + '/internal/aovx/packets?limit=1&device_id=221042214328', {
+    headers: { authorization: 'Bearer ' + token }
+  });
+  assert.equal(packets.status, 200);
+  const packetPage = await packets.json();
+  assert.equal(packetPage.packets.length, 1);
+  assert.equal(packetPage.packets[0].raw_payload_hex, '7e0200');
+  assert.equal(packetPage.packets[0].aovx_message_id, 512);
+  assert.equal(packetPage.next_cursor !== null, true);
+  assert.equal((await fetch(base + '/internal/aovx/packets', {
+    headers: { authorization: 'Bearer wrong' }
+  })).status, 401);
 });

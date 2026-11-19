@@ -36,3 +36,33 @@ test('AOVX observations list rejects invalid page sizes', async () => {
   await assert.rejects(service.list(0), { status: 400 });
   await assert.rejects(service.list(201), { status: 400 });
 });
+
+test('AOVX packet reads are bounded, newest-first and optionally device-filtered', async () => {
+  let call;
+  const service = createAovxObservations({ async query(sql, values) {
+    call = { sql, values };
+    return { rows: [
+      { id: '12', raw_payload_hex: '7e', payload_bytes: 1 },
+      { id: '11', raw_payload_hex: '7d', payload_bytes: 1 },
+      { id: '10', raw_payload_hex: '7e', payload_bytes: 1 }
+    ] };
+  }});
+  const page = await service.packets({ limit: 2, before: '20', deviceId: '221042214328' });
+  assert.deepEqual(call.values, ['20', '221042214328', 3]);
+  assert.match(call.sql, /ORDER BY id DESC LIMIT \$3/);
+  assert.deepEqual(page.packets.map(x => x.id), ['12', '11']);
+  assert.equal(page.next_cursor, '11');
+  assert.deepEqual(await service.packets({ limit: 2 }), {
+    packets: [{ id: '12', raw_payload_hex: '7e', payload_bytes: 1 }, { id: '11', raw_payload_hex: '7d', payload_bytes: 1 }],
+    next_cursor: '11'
+  });
+});
+
+test('AOVX packet reads reject invalid bounds and cursors', async () => {
+  const service = createAovxObservations({ async query() { throw new Error('must not query'); } });
+  await assert.rejects(service.packets({ limit: 0 }), { status: 400 });
+  await assert.rejects(service.packets({ limit: 51 }), { status: 400 });
+  await assert.rejects(service.packets({ before: '0' }), { status: 400 });
+  await assert.rejects(service.packets({ before: '1;DROP TABLE gateway_packets' }), { status: 400 });
+  await assert.rejects(service.packets({ deviceId: 'bad' }), { status: 400 });
+});

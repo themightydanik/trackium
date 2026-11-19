@@ -63,6 +63,23 @@ The operator API remains on the private HTTP listener. Compose passes
 disabled. If enabled, use a generated 32–512 character URL-safe secret and
 access the HTTP API only through localhost or an administrative tunnel.
 
+## Read-only raw packet inspection
+
+The protected operator API also exposes recent AOVX frames:
+
+- `GET /internal/aovx/packets?limit=25`
+- `GET /internal/aovx/packets?limit=25&device_id=<12-hex-device-id>`
+- `GET /internal/aovx/packets?limit=25&before=<packet-id>`
+
+Use the same `Authorization: Bearer <token>` header as the device-observations
+API. Pages are newest-first, capped at 50 packets, and use the last returned
+packet ID as `next_cursor` for the next older page. Each item includes the
+original frame as lowercase `raw_payload_hex`, its SHA-256, receive time,
+remote address, parser metadata and payload length. Payload hex is capped at
+64 KiB per frame; `payload_truncated` indicates when a larger stored payload
+was clipped. The endpoint is read-only and operator-wide. Keep it private and
+never place the token in a URL, browser bundle, or logs.
+
 The Gateway still sends no registration responses, ACKs, commands, or
 configuration. Checksum validation remains unconfirmed, and the generic GAL
 workbook is not proof of GL110-GL V1.2 compatibility.
