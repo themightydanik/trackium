@@ -71,7 +71,7 @@ export function createAovxStreamFramer({ maxFrameBytes = 4096, onFrame, onError 
     },
 
     remainingBytes() {
-      return inFrame ? length + 1 : 0;
+      return inFrame && length > 0 ? length + 1 : 0;
     },
 
     discard() {
