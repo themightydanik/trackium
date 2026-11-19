@@ -151,12 +151,9 @@ function analyzeTelemetryTails(records) {
   const selectedGroups = sortedGroups.slice(0, MAX_TAIL_GROUP_DETAILS);
   const groups = selectedGroups.map(([bodyLength, groupRecords]) => summarizeTailGroup(bodyLength, groupRecords));
   const comparisons = [];
-  let totalComparisonCount = 0;
-  for (let left = 0; left < sortedGroups.length; left += 1) {
-    for (let right = left + 1; right < sortedGroups.length; right += 1) {
-      totalComparisonCount += 1;
-      if (comparisons.length >= MAX_TAIL_GROUP_COMPARISONS ||
-          left >= selectedGroups.length || right >= selectedGroups.length) continue;
+  const totalComparisonCount = (sortedGroups.length * (sortedGroups.length - 1)) / 2;
+  for (let left = 0; left < selectedGroups.length && comparisons.length < MAX_TAIL_GROUP_COMPARISONS; left += 1) {
+    for (let right = left + 1; right < selectedGroups.length && comparisons.length < MAX_TAIL_GROUP_COMPARISONS; right += 1) {
       comparisons.push(compareTailGroups(
         selectedGroups[left][0],
         selectedGroups[right][0],
@@ -168,7 +165,8 @@ function analyzeTelemetryTails(records) {
 
   return {
     packetCount: records.length,
-    groupCount: groups.length,
+    groupCount: sortedGroups.length,
+    reportedGroupCount: groups.length,
     totalGroupCount: sortedGroups.length,
     omittedGroupCount: Math.max(0, sortedGroups.length - groups.length),
     maxAnalyzedOffsets: MAX_TAIL_ANALYSIS_OFFSETS,
