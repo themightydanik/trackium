@@ -102,7 +102,7 @@ test('adds byte-offset diagnostics and a BCD digit view without interpreting uni
   assert.equal(parsed.data.diagnostics.remainingBody.hex, body.subarray(40).toString('hex'));
   assert.equal(parsed.data.diagnostics.remainingBody.chunks[0].offset, 40);
   assert.equal(parsed.data.diagnostics.remainingBody.chunks[0].offsetHex, '0x28');
-  assert.match(parsed.data.diagnostics.remainingBody.chunks[0].ascii, /AOVX-GM110-GL-EXT/);
+  assert.match(parsed.data.diagnostics.remainingBody.chunks.map(chunk => chunk.ascii).join(''), /AOVX-GM110-GL-EXT/);
 });
 
 test('does not expose a BCD digit view when timestamp bytes contain invalid nibbles', () => {
