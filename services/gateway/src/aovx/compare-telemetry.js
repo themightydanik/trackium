@@ -50,23 +50,6 @@ function emptyPairs() {
   return pairs;
 }
 
-function emptyPairs() {
-  const pairs = {};
-  for (const sensorName of SENSOR_FIELDS) {
-    pairs[sensorName] = {};
-    for (const fixedName of FIXED_FIELDS) {
-      pairs[sensorName][fixedName] = {
-        comparableTransitions: 0,
-        bothChanged: 0,
-        sensorOnlyChanged: 0,
-        fixedOnlyChanged: 0,
-        neitherChanged: 0
-      };
-    }
-  }
-  return pairs;
-}
-
 function mergeDeviceTransitions(summaries) {
   const changeCoOccurrence = emptyPairs();
   const transitions = [];
