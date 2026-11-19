@@ -40,7 +40,7 @@ export async function diagnosePortConflict(port, { procRoot = '/proc' } = {}) {
       for (const fd of fds) {
         const target = await readlink(fdDir + '/' + fd).catch(() => null);
         const match = target?.match(/^socket:\\[(\\d+)\\]$/);
-        if (!match || !wanted.has(match[1])) continue;
+        if (!inode || !wanted.has(inode)) continue;
         const [cmdline, comm] = await Promise.all([
           readText(procRoot + '/' + entry.name + '/cmdline'),
           readText(procRoot + '/' + entry.name + '/comm')
