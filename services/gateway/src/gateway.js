@@ -3,6 +3,49 @@ import http from 'node:http';
 import { createLineFramer } from './framing.js';
 import { createAovxStreamFramer } from './aovx/stream-framer.js';
 import { decodeAovxFrame } from './aovx/frame.js';
+import { parseAovxMessage } from './aovx/messages.js';
+
+function jsonSafe(value) {
+  if (Buffer.isBuffer(value)) return { encoding: 'hex', value: value.toString('hex') };
+  if (Array.isArray(value)) return value.map(jsonSafe);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, jsonSafe(item)]));
+  }
+  return value;
+}
+
+function inspectAovxFrame(payload, logger) {
+  const decoded = decodeAovxFrame(payload);
+  if (!decoded.checksumMatchesXor) {
+    logger.warn('AOVX frame captured with checksum mismatch against unconfirmed XOR candidate');
+  }
+
+  try {
+    const parsed = parseAovxMessage(decoded);
+    return {
+      messageId: decoded.messageId,
+      deviceIdBcd: decoded.deviceIdBcd.toString('hex'),
+      sequenceNumber: decoded.sequenceNumber,
+      checksumStatus: decoded.checksumStatus,
+      parseStatus: parsed.data.parsing === 'not-implemented' ? 'opaque' : 'parsed',
+      parseError: null,
+      parsedPayload: jsonSafe(parsed.data)
+    };
+  } catch (err) {
+    // Semantic parsing is observational: preserve the structurally valid raw
+    // frame even when a known message body is truncated or not yet understood.
+    logger.warn('AOVX message body parse failed; preserving raw frame:', err.message);
+    return {
+      messageId: decoded.messageId,
+      deviceIdBcd: decoded.deviceIdBcd.toString('hex'),
+      sequenceNumber: decoded.sequenceNumber,
+      checksumStatus: decoded.checksumStatus,
+      parseStatus: 'error',
+      parseError: String(err.message).slice(0, 1000),
+      parsedPayload: null
+    };
+  }
+}
 
 // The injected journal keeps TCP lifecycle tests independent of PostgreSQL.
 export function createGateway({ journal, config, logger = console, requestHandler, assetHandler, ingressGuard }) {
@@ -23,44 +66,41 @@ export function createGateway({ journal, config, logger = console, requestHandle
     };
     socket.setTimeout(config.socketTimeoutMs);
     const onFrame = payload => {
-        if (config.tcpProtocol === 'aovx') {
-          try {
-            const decoded = decodeAovxFrame(payload);
-            if (!decoded.checksumMatchesXor) {
-              logger.warn('AOVX frame captured with checksum mismatch against unconfirmed XOR candidate');
-            }
-          }
-          catch (err) {
-            logger.warn('invalid AOVX frame:', err.message);
-            socket.destroy();
-            return false;
-          }
-        }
-        if (stopping || session.failed || pendingFrames >= config.maxPendingFrames ||
-            pendingBytes + payload.length > config.maxPendingBytes) {
+      let aovx = null;
+      if (config.tcpProtocol === 'aovx') {
+        try {
+          aovx = inspectAovxFrame(payload, logger);
+        } catch (err) {
+          logger.warn('invalid AOVX frame:', err.message);
           socket.destroy();
           return false;
         }
-        pendingFrames++;
-        pendingBytes += payload.length;
-        session.pending++;
-        socket.pause();
-        session.chain = session.chain.then(async () => {
-          // Never write later frames from this connection after a journal failure.
-          if (!session.failed) await journal.persistPacket({ payload, remoteAddress: socket.remoteAddress });
-        }).catch(err => {
-          session.failed = true;
-          logger.error('journal write failed', err.message);
-          socket.destroy();
-        }).finally(() => {
-          pendingFrames--;
-          pendingBytes -= payload.length;
-          session.pending--;
-          if (!socket.destroyed && !stopping && session.pending === 0) socket.resume();
-          release();
-        });
-        return true;
-      };
+      }
+      if (stopping || session.failed || pendingFrames >= config.maxPendingFrames ||
+          pendingBytes + payload.length > config.maxPendingBytes) {
+        socket.destroy();
+        return false;
+      }
+      pendingFrames++;
+      pendingBytes += payload.length;
+      session.pending++;
+      socket.pause();
+      session.chain = session.chain.then(async () => {
+        // Never write later frames from this connection after a journal failure.
+        if (!session.failed) await journal.persistPacket({ payload, remoteAddress: socket.remoteAddress, aovx });
+      }).catch(err => {
+        session.failed = true;
+        logger.error('journal write failed', err.message);
+        socket.destroy();
+      }).finally(() => {
+        pendingFrames--;
+        pendingBytes -= payload.length;
+        session.pending--;
+        if (!socket.destroyed && !stopping && session.pending === 0) socket.resume();
+        release();
+      });
+      return true;
+    };
     const framer = config.tcpProtocol === 'aovx'
       ? createAovxStreamFramer({ maxFrameBytes: config.maxFrameBytes, onError: err => {
           logger.warn('AOVX stream framing failed:', err.message);
