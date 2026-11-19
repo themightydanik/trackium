@@ -307,3 +307,36 @@ test('TCP protocol defaults to raw and rejects unknown modes', () => {
   assert.equal(readConfig({ DATABASE_URL: 'postgres://unused', TCP_PROTOCOL: 'aovx' }).tcpProtocol, 'aovx');
   assert.throws(() => readConfig({ DATABASE_URL: 'postgres://unused', TCP_PROTOCOL: 'mqtt' }), /TCP_PROTOCOL/);
 });
+
+test('logs TCP and HTTP listener lifecycle with distinct server types and ports', { timeout: 3000 }, async t => {
+  const events = [];
+  const logger = {
+    info(message, detail) { events.push({ message, detail: JSON.parse(detail) }); },
+    warn() {},
+    error() {}
+  };
+  const gateway = createGateway({
+    logger,
+    config: {
+      ...readConfig({ DATABASE_URL: 'postgres://unused' }),
+      host: '127.0.0.1',
+      tcpPort: 0,
+      httpPort: 0
+    },
+    journal: { async initialize() {}, async close() {} }
+  });
+  await gateway.start();
+  t.after(() => gateway.shutdown());
+
+  const starts = events.filter(event => event.message === 'gateway server listen starting:');
+  const listening = events.filter(event => event.message === 'gateway server listening:');
+  assert.deepEqual(starts.map(event => event.detail.serverType), ['tcp', 'http']);
+  assert.deepEqual(listening.map(event => event.detail.serverType), ['tcp', 'http']);
+  assert.equal(starts[0].detail.port, 0);
+  assert.equal(starts[1].detail.port, 0);
+  assert.equal(listening[0].detail.serverListening, true);
+  assert.equal(listening[1].detail.serverListening, true);
+  assert.equal(typeof listening[0].detail.serverAddress.port, 'number');
+  assert.equal(typeof listening[1].detail.serverAddress.port, 'number');
+});
+
