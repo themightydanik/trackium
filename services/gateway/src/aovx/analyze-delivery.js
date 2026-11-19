@@ -6,6 +6,7 @@ import { decodeAovxFrame } from './frame.js';
 import { parseAovxMessage } from './messages.js';
 
 const MAX_PACKETS = 5000;
+const MAX_FRAME_HEX_LENGTH = 131072;
 const MAX_DETAILS = 200;
 
 function decodeBcdTimestamp(hex) {
@@ -51,8 +52,10 @@ export function analyzeAovxDelivery(document) {
     const item = document.packets[index];
     try {
       const hex = item?.raw_payload_hex;
-      if (typeof hex !== 'string' || hex.length < 4 || hex.length % 2 ||
-          !/^[0-9a-f]+$/i.test(hex)) throw new Error('invalid raw_payload_hex');
+      if (typeof hex !== 'string' || hex.length < 4 || hex.length > MAX_FRAME_HEX_LENGTH ||
+          hex.length % 2 || !/^[0-9a-f]+$/i.test(hex)) {
+        throw new Error('raw_payload_hex must be a bounded even-length hexadecimal frame');
+      }
       const wire = Buffer.from(hex, 'hex');
       const frame = decodeAovxFrame(wire);
       if (frame.messageId !== 0x0200) continue;
