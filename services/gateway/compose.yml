@@ -14,6 +14,7 @@ services:
       TCP_PORT: 9000
       TCP_PROTOCOL: ${TCP_PROTOCOL:-raw}
       HTTP_PORT: 8080
+      AOVX_OBSERVATIONS_TOKEN: ${AOVX_OBSERVATIONS_TOKEN:-}
       ENABLE_WEB_WORKSPACE: ${ENABLE_WEB_WORKSPACE:-false}
       ENABLE_NATIVE_CLIENTS: ${ENABLE_NATIVE_CLIENTS:-false}
       ENABLE_SERVER_SIMULATOR: ${ENABLE_SERVER_SIMULATOR:-false}
@@ -22,7 +23,8 @@ services:
       PROOF_MODE: ${PROOF_MODE:-disabled}
       ENABLE_FIXTURE_ADAPTER: ${ENABLE_FIXTURE_ADAPTER:-false}
     ports:
-      - "127.0.0.1:9000:9000"
+      # Keep HTTP private. TCP can be deliberately bound to a public interface for a device pilot.
+      - "${TCP_BIND_ADDRESS:-127.0.0.1}:9000:9000"
       - "127.0.0.1:8080:8080"
     depends_on:
       db:
