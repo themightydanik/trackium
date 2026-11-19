@@ -2,6 +2,7 @@ import { createNativeSessions } from './native-session.js';
 import { createProofService, startProofWorker } from '../proofs/service.js';
 import { createGateway } from '../gateway.js';
 import { initialize, persistPacket } from '../journal.js';
+import { createAovxObservations } from '../aovx/observations.js';
 import { migrate } from '../telemetry/migrate.js';
 import { createTelemetryService } from '../telemetry/service.js';
 import { createTelemetryApi } from '../telemetry/api.js';
@@ -22,6 +23,7 @@ export function createRuntime(
   const simulator = createSimulator(pool, shipments, { enabled: config.simulatorEnabled });
   const pairing = createPairing(pool, config);
   const proofs = createProofService(pool, config.proofs, proofDependencies);
+  const aovxObservations = createAovxObservations(pool);
   let stopProofWorker = async () => {};
   const native = createNativeSessions(pool, config);
   const authenticate = (req) =>
@@ -64,11 +66,12 @@ export function createRuntime(
       shipments,
       simulator,
       pairing,
+      aovxObservations,
       config,
       telemetryApi,
       logger
     }),
     assetHandler: createWebHandler(config)
   });
-  return { gateway, shipments, telemetry, simulator, pairing, proofs, native };
+  return { gateway, shipments, telemetry, simulator, pairing, proofs, native, aovxObservations };
 }
