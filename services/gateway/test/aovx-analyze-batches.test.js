@@ -5,7 +5,7 @@ import { analyzeAovxDeliveryBatches } from '../src/aovx/analyze-batches.js';
 
 const DEVICE = Buffer.from('944063243931', 'hex');
 
-function packet({ id, receivedAt, status = 0x90780000, sequence = 1 } = {}) {
+function packet({ id, receivedAt, status = 0x90780000, sequence = 1, device = DEVICE } = {}) {
   const body = Buffer.alloc(40);
   body.writeUInt32BE(status, 4);
   Buffer.from('261119183551', 'hex').copy(body, 22);
@@ -14,7 +14,7 @@ function packet({ id, receivedAt, status = 0x90780000, sequence = 1 } = {}) {
     received_at: receivedAt,
     raw_payload_hex: encodeAovxFrame({
       messageId: 0x0200,
-      deviceIdBcd: DEVICE,
+      deviceIdBcd: device,
       sequenceNumber: sequence,
       body
     }).toString('hex')
@@ -60,4 +60,19 @@ test('validates capture shape, packet bounds, and batch threshold', () => {
   assert.throws(() => analyzeAovxDeliveryBatches({}), /packets array/);
   assert.throws(() => analyzeAovxDeliveryBatches({ packets: Array(5001).fill({}) }), /exceeds/);
   assert.throws(() => analyzeAovxDeliveryBatches({ packets: [] }, { batchGapMinutes: 0 }), /batchGapMinutes/);
+});
+
+test('calculates receive intervals and batch boundaries independently per device', () => {
+  const otherDevice = Buffer.from('123456789012', 'hex');
+  const result = analyzeAovxDeliveryBatches({ packets: [
+    packet({ receivedAt: '2026-11-19T15:00:00.000Z' }),
+    packet({ receivedAt: '2026-11-19T15:01:00.000Z', device: otherDevice }),
+    packet({ receivedAt: '2026-11-19T15:02:00.000Z', sequence: 2 }),
+    packet({ receivedAt: '2026-11-19T15:03:00.000Z', device: otherDevice, sequence: 2 })
+  ] });
+  assert.equal(result.batchCount, 2);
+  assert.equal(result.receiveIntervals.sampleCount, 2);
+  assert.equal(result.receiveIntervals.medianSeconds, 120);
+  assert.equal(JSON.stringify(result).includes('944063243931'), false);
+  assert.equal(JSON.stringify(result).includes('123456789012'), false);
 });
