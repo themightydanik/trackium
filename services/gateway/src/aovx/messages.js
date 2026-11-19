@@ -122,6 +122,7 @@ function parseObservedTelemetryExtensions(tail) {
   let wifiList = null;
   let batteryInformation = null;
   let deviceGeneralInformation = null;
+  let sensorInformation = null;
   let assistantInformation = null;
   const opaqueExtensions = [];
 
@@ -233,6 +234,72 @@ function parseObservedTelemetryExtensions(tail) {
         valueLength: valueRaw.length,
         matchesObservedEnvelope: valueRaw.length === 29
       };
+    } else if (tag === 0xf6) {
+      // Workbook layout: one-byte data type, one-byte field mask, then the
+      // selected raw sensor fields in bit order. Only accept an exact length.
+      const sensorFieldDefinitions = [
+        { bit: 0, name: 'lightRaw', length: 2 },
+        { bit: 1, name: 'temperatureRaw', length: 2 },
+        { bit: 2, name: 'humidityRaw', length: 2 },
+        { bit: 3, name: 'accelerometerRaw', length: 6 },
+        { bit: 4, name: 'limitsRaw', length: 10 },
+        { bit: 5, name: 'barRaw', length: 2 },
+        { bit: 6, name: 'reserved2Raw', length: 2 },
+        { bit: 7, name: 'reserved3Raw', length: 2 }
+      ];
+      const dataType = valueRaw.length >= 1 ? valueRaw[0] : null;
+      const fieldMask = valueRaw.length >= 2 ? valueRaw[1] : null;
+      const expectedValueLength = fieldMask === null ? null :
+        2 + sensorFieldDefinitions.reduce((total, field) =>
+          total + ((fieldMask & (1 << field.bit)) !== 0 ? field.length : 0), 0);
+      const matchesObservedEnvelope = expectedValueLength !== null &&
+        valueRaw.length === expectedValueLength &&
+        declaredLength === expectedValueLength;
+
+      if (matchesObservedEnvelope) {
+        const fields = {};
+        let fieldOffset = 2;
+        const enabledFields = [];
+        for (const field of sensorFieldDefinitions) {
+          if ((fieldMask & (1 << field.bit)) === 0) continue;
+          fields[field.name] = Buffer.from(valueRaw.subarray(fieldOffset, fieldOffset + field.length));
+          enabledFields.push(field.name);
+          fieldOffset += field.length;
+        }
+        const dataTypeDescriptions = {
+          0: 'periodic-sampling',
+          1: 'low-battery-trigger',
+          2: 'motion-trigger',
+          3: 'shock-trigger',
+          4: 'light-trigger',
+          5: 'over-temperature-and-humidity-trigger',
+          6: 'over-temperature-trigger',
+          7: 'over-humidity-trigger',
+          8: 'reserved',
+          9: 'bluetooth-sensor-connection-trigger',
+          10: 'enter-flight-mode',
+          11: 'flight-sampling',
+          12: 'exit-flight-mode',
+          13: 'external-probe-over-temperature-trigger',
+          75: 'ota-upgrade-start',
+          76: 'ota-upgrade-succeeded',
+          77: 'ota-upgrade-failed'
+        };
+        sensorInformation = {
+          format: 'observed-tag-length-value',
+          tag,
+          declaredLength,
+          matchesObservedEnvelope: true,
+          dataTypeRaw: dataType,
+          dataTypeDescription: dataTypeDescriptions[dataType] ?? (dataType >= 14 && dataType <= 74 ? 'reserved' : null),
+          fieldMaskRaw: Buffer.from([fieldMask]),
+          fieldMask,
+          enabledFields,
+          fields
+        };
+      } else {
+        opaqueExtensions.push({ ...envelope, matchesObservedEnvelope: false });
+      }
     } else if (tag === 0xf9) {
       // The workbook's observed mask 0x000f enables four fields whose
       // documented raw widths total 16 bytes after the two-byte mask.
@@ -272,6 +339,7 @@ function parseObservedTelemetryExtensions(tail) {
     wifiList,
     batteryInformation,
     deviceGeneralInformation,
+    sensorInformation,
     assistantInformation,
     opaqueExtensions,
     unparsedTail,
