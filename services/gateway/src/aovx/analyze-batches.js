@@ -71,6 +71,7 @@ export function analyzeAovxDeliveryBatches(document, options = {}) {
       const status = frame.body.length >= 8 ? frame.body.readUInt32BE(4) : 0;
       records.push({
         inputIndex: index,
+        deviceKey: frame.deviceIdBcd.toString('hex'),
         receivedAt,
         receivedMs,
         deliveryMode: (status & 0x80000000) !== 0 ? 'buffered' : 'realtime',
@@ -90,36 +91,54 @@ export function analyzeAovxDeliveryBatches(document, options = {}) {
     .sort((left, right) => left.receivedMs - right.receivedMs || left.inputIndex - right.inputIndex);
   const intervals = [];
   const batches = [];
-  for (let recordIndex = 0; recordIndex < chronological.length; recordIndex += 1) {
-    const record = chronological[recordIndex];
-    const previous = chronological[recordIndex - 1];
-    if (previous) intervals.push((record.receivedMs - previous.receivedMs) / 1000);
-
-    const currentBatch = batches.at(-1);
-    const gapSeconds = currentBatch
-      ? (record.receivedMs - currentBatch.lastReceivedMs) / 1000
-      : null;
-    if (!currentBatch || gapSeconds * 1000 > gapMs) {
-      batches.push({
-        batchNumber: batches.length + 1,
-        firstReceivedMs: record.receivedMs,
-        lastReceivedMs: record.receivedMs,
-        packetCount: 0,
-        bufferedCount: 0,
-        realtimeCount: 0,
-        interArrivalSeconds: []
-      });
-    }
-    const batch = batches.at(-1);
-    if (batch.packetCount > 0) {
-      batch.interArrivalSeconds.push((record.receivedMs - batch.lastReceivedMs) / 1000);
-    }
-    batch.packetCount += 1;
-    batch[record.deliveryMode === 'buffered' ? 'bufferedCount' : 'realtimeCount'] += 1;
-    batch.lastReceivedMs = record.receivedMs;
-    record.batchNumber = batch.batchNumber;
+  const deviceStreams = new Map();
+  for (const record of chronological) {
+    if (!deviceStreams.has(record.deviceKey)) deviceStreams.set(record.deviceKey, []);
+    deviceStreams.get(record.deviceKey).push(record);
   }
-
+  for (const stream of deviceStreams.values()) {
+    let previous = null;
+    let currentBatch = null;
+    for (const record of stream) {
+      if (previous) intervals.push((record.receivedMs - previous.receivedMs) / 1000);
+      const gapSeconds = currentBatch
+        ? (record.receivedMs - currentBatch.lastReceivedMs) / 1000
+        : null;
+      if (!currentBatch || gapSeconds * 1000 > gapMs) {
+        currentBatch = {
+          internalId: batches.length + 1,
+          deviceKey: record.deviceKey,
+          firstReceivedMs: record.receivedMs,
+          lastReceivedMs: record.receivedMs,
+          packetCount: 0,
+          bufferedCount: 0,
+          realtimeCount: 0,
+          interArrivalSeconds: []
+        };
+        batches.push(currentBatch);
+      }
+      if (currentBatch.packetCount > 0) {
+        currentBatch.interArrivalSeconds.push((record.receivedMs - currentBatch.lastReceivedMs) / 1000);
+      }
+      currentBatch.packetCount += 1;
+      currentBatch[record.deliveryMode === 'buffered' ? 'bufferedCount' : 'realtimeCount'] += 1;
+      currentBatch.lastReceivedMs = record.receivedMs;
+      record.internalBatchId = currentBatch.internalId;
+      previous = record;
+    }
+  }
+  batches.sort((left, right) =>
+    left.firstReceivedMs - right.firstReceivedMs ||
+    left.lastReceivedMs - right.lastReceivedMs
+  );
+  const batchNumbers = new Map();
+  batches.forEach((batch, index) => {
+    batch.batchNumber = index + 1;
+    batchNumbers.set(batch.internalId, batch.batchNumber);
+  });
+  for (const record of chronological) {
+    record.batchNumber = batchNumbers.get(record.internalBatchId);
+  }
   const hashGroups = new Map();
   for (const record of chronological) {
     if (!hashGroups.has(record.frameHash)) hashGroups.set(record.frameHash, []);
@@ -139,6 +158,21 @@ export function analyzeAovxDeliveryBatches(document, options = {}) {
     modeCounts: { buffered: batch.bufferedCount, realtime: batch.realtimeCount },
     interArrival: summarizeIntervals(batch.interArrivalSeconds)
   }));
+  const deviceBatchStreams = new Map();
+  for (const batch of batches) {
+    if (!deviceBatchStreams.has(batch.deviceKey)) deviceBatchStreams.set(batch.deviceKey, []);
+    deviceBatchStreams.get(batch.deviceKey).push(batch);
+  }
+  const batchGapIntervals = [];
+  for (const stream of deviceBatchStreams.values()) {
+    for (let index = 1; index < stream.length; index += 1) {
+      batchGapIntervals.push({
+        afterBatch: stream[index - 1].batchNumber,
+        beforeBatch: stream[index].batchNumber,
+        gapSeconds: Math.round((stream[index].firstReceivedMs - stream[index - 1].lastReceivedMs) / 1000)
+      });
+    }
+  }
 
   return {
     packetCount: document.packets.length,
@@ -150,11 +184,7 @@ export function analyzeAovxDeliveryBatches(document, options = {}) {
     chronologicalPacketCount: chronological.length,
     batchCount: batches.length,
     receiveIntervals: summarizeIntervals(intervals),
-    batchGapIntervals: batches.slice(1).map((batch, index) => ({
-      afterBatch: index + 1,
-      beforeBatch: index + 2,
-      gapSeconds: Math.round((batch.firstReceivedMs - batches[index].lastReceivedMs) / 1000)
-    })),
+    batchGapIntervals,
     repeatedFrameSummary: {
       repeatedFrameGroupCount: repeatedGroups.length,
       repeatedObservationCount: repeatedGroups.reduce((sum, group) => sum + group.length, 0),
