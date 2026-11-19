@@ -203,6 +203,58 @@ test('parses observed Wi-Fi records and battery fields while keeping device iden
 });
 
 
+test('parses the observed F9 mask 0x000f into opaque workbook-aligned fields', () => {
+  const assistantValue = Buffer.from('000f00000000000000000000000000000000', 'hex');
+  const tail = Buffer.concat([
+    Buffer.from([0xf9, assistantValue.length]),
+    assistantValue
+  ]);
+  const body = Buffer.concat([Buffer.alloc(40), tail]);
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.alloc(6),
+    sequenceNumber: 1,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
+  const assistant = parsed.data.observedExtensions.assistantInformation;
+
+  assert.equal(assistant.matchesObservedEnvelope, true);
+  assert.equal(assistant.mask, 0x000f);
+  assert.deepEqual(assistant.gnssAgeRaw, Buffer.alloc(4));
+  assert.deepEqual(assistant.accOnTimeRaw, Buffer.alloc(4));
+  assert.deepEqual(assistant.hdopRaw, Buffer.alloc(2));
+  assert.deepEqual(assistant.gnssTimeRaw, Buffer.alloc(6));
+  assert.equal(parsed.data.observedExtensions.opaqueExtensions.length, 0);
+  assert.equal(parsed.data.observedExtensions.unparsedTail.length, 0);
+});
+
+
+test('keeps F9 opaque when its mask or observed length does not match', () => {
+  const unknownMask = Buffer.from('001000000000000000000000000000000000', 'hex');
+  const tail = Buffer.concat([
+    Buffer.from([0xf9, unknownMask.length]),
+    unknownMask
+  ]);
+  const body = Buffer.concat([Buffer.alloc(40), tail]);
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.alloc(6),
+    sequenceNumber: 1,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
+
+  assert.equal(parsed.data.observedExtensions.assistantInformation, null);
+  assert.equal(parsed.data.observedExtensions.opaqueExtensions.length, 1);
+  assert.equal(parsed.data.observedExtensions.opaqueExtensions[0].tag, 0xf9);
+  assert.equal(parsed.data.observedExtensions.opaqueExtensions[0].matchesObservedEnvelope, false);
+  assert.equal(parsed.data.observedExtensions.unparsedTail.length, 0);
+});
+
+
 test('does not consume malformed observed variable extensions', () => {
   const tail = Buffer.from('f00c0102030405060708090a0b0cf2234142', 'hex');
   const body = Buffer.concat([Buffer.alloc(40), tail]);
