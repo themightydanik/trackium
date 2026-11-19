@@ -8,7 +8,7 @@ See [Gateway integration and server simulation](../../docs/GATEWAY_SHIPMENTS_SIM
 
 ## Run locally
 
-For the single-instance Railway HTTPS test deployment, private PostgreSQL, safe owner provisioning and native Android pairing, see [Railway deployment](../../docs/RAILWAY_DEPLOYMENT.md). That profile disables raw TCP and all Minima publication. `PORT` overrides `HTTP_PORT`; `ENABLE_TCP_RECEIVER=false` disables the TCP listener (enabled by default for existing local workflows).
+For the single-instance Railway HTTPS test deployment, private PostgreSQL, safe owner provisioning and native Android pairing, see [Railway deployment](../../docs/RAILWAY_DEPLOYMENT.md). That profile disables raw TCP and all Minima publication. `PORT` overrides `HTTP_PORT`; `ENABLE_TCP_RECEIVER=false` disables the TCP listener (enabled by default for existing local workflows). `TCP_PROTOCOL=raw` preserves the legacy newline receiver; set `TCP_PROTOCOL=aovx` to enable binary AOVX frame extraction and envelope/checksum validation.
 
 From `services/gateway`, with Docker Engine and Docker Compose v2 installed:
 
@@ -25,7 +25,7 @@ For native development, use Node.js >=22, run `npm ci`, set `DATABASE_URL` (perc
 
 ## Receiver behavior and limits
 
-- Temporary LF (`0x0a`) framing supports fragmented and coalesced TCP chunks. LF is removed, all other bytes (including CR) are preserved, and empty frames are ignored. An unterminated suffix is discarded on disconnect; it never carries into a new connection.
+- With `TCP_PROTOCOL=raw` (default), temporary LF (`0x0a`) framing supports fragmented and coalesced TCP chunks. LF is removed, all other bytes (including CR) are preserved, and empty frames are ignored. An unterminated suffix is discarded on disconnect; it never carries into a new connection.
 - Complete accepted frames are written sequentially **within each connection**, including after client disconnect. There is no total arrival order across clients, and identity IDs/timestamps are not a cross-client ordering guarantee.
 - A database write failure closes that client and skips its later queued frames. Other clients and new connections can continue. There is no automatic retry, deduplication or exactly-once guarantee; a connection/query failure can leave the commit result uncertain.
 - Backpressure pauses socket reads while its accepted frames drain. Global pending-frame and pending-payload-byte budgets include in-flight writes, including those belonging to disconnected clients. Exceeding a limit closes the client and stops parsing that chunk; previously accepted frames still drain unless a database write fails.
@@ -38,7 +38,8 @@ Native environment settings (positive integers, rejected when invalid):
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `TCP_PORT` / `HTTP_PORT` | `9000` / `8080` | Listener ports, 1–65535 |
-| `MAX_FRAME_BYTES` | `65536` | Maximum payload per line, up to 16 MiB |
+| `TCP_PROTOCOL` | `raw` | `raw` (legacy LF) or `aovx` (binary frame validation) |
+| `MAX_FRAME_BYTES` | `65536` | Maximum raw payload or complete AOVX wire frame, up to 16 MiB |
 | `MAX_CONNECTIONS` | `100` | Connected or draining TCP sessions |
 | `MAX_PENDING_FRAMES` | `100` | Global queued and in-flight frame budget |
 | `MAX_PENDING_BYTES` | `8388608` | Global queued and in-flight payload byte budget |
@@ -51,7 +52,7 @@ See [Minima Proof Engine](../../docs/MINIMA_PROOF_ENGINE.md) for additive migrat
 
 ## Limitations and next protocol work
 
-- This is NOT a verified AOVX GL110-GL parser. Real binary packet framing, firmware-specific validation, device acknowledgements, authentication, provisioning and MQTT are not implemented. Arbitrary bytes in a synthetic line are preserved, but embedded LF splits that line.
+- `TCP_PROTOCOL=aovx` enables `0x7E` binary stream framing plus generic envelope length/checksum validation and stores exact complete wire frames in the raw journal. It does NOT parse telemetry, perform registration/authentication, send device ACKs, bind device IDs to tenants or verify GL110-GL V1.2 firmware compatibility. MQTT is not implemented. In `raw` mode, arbitrary bytes are preserved except LF, which is the frame delimiter.
 - Do not expose TCP 9000 publicly before implementing protocol authentication, tenant binding, network controls and rate limiting. Telemetry API routes require scoped tenant credentials; the raw TCP receiver still has no device authentication, TLS or tenant binding. Retention policy is not implemented.
 - The journal stores raw packets and a SHA-256 transport fingerprint. This is separate from the versioned cargo commitment (also SHA-256) and Minima object identifiers (SHA3-256). Optional server proof publication is documented separately; Integritas and Android integration remain outside this implementation.
 - Disk usage is unbounded. PostgreSQL needs backups, monitoring and restore verification. Process crashes, forced shutdowns, overload and ambiguous database errors can lose or duplicate data on resend; no delivery assurance is claimed.

@@ -39,8 +39,11 @@ export function readConfig(env = process.env) {
         (env.ENABLE_FIXTURE_ADAPTER ?? 'false') !== 'false')
       throw new Error('Railway test forbids publication, simulation and fixture ingestion');
   }
+  const tcpProtocol = env.TCP_PROTOCOL ?? 'raw';
+  if (!['raw', 'aovx'].includes(tcpProtocol)) throw new Error('TCP_PROTOCOL must be raw or aovx');
   return {
     railwayTest,
+    tcpProtocol,
     proofs: proofConfig(env),
     nativeEnabled: env.ENABLE_NATIVE_CLIENTS === 'true',
     webEnabled: env.ENABLE_WEB_WORKSPACE === 'true',
