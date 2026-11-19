@@ -33,27 +33,32 @@ export async function diagnosePortConflict(port, { procRoot = '/proc' } = {}) {
   if (wanted.size) {
     const entries = await readdir(procRoot, { withFileTypes: true }).catch(() => []);
     for (const entry of entries) {
-      if (!entry.isDirectory() || !/^\\d+$/.test(entry.name)) continue;
+      if (!entry.isDirectory() || !/^[0-9]+$/.test(entry.name)) continue;
       const pid = Number(entry.name);
       const fdDir = procRoot + '/' + entry.name + '/fd';
       const fds = await readdir(fdDir).catch(() => []);
       for (const fd of fds) {
         const target = await readlink(fdDir + '/' + fd).catch(() => null);
-        const match = target?.match(/^socket:\\[(\\d+)\\]$/);
+        const inode = target?.startsWith('socket:[') && target.endsWith(']') ? target.slice(8, -1) : null;
         if (!inode || !wanted.has(inode)) continue;
         const [cmdline, comm] = await Promise.all([
           readText(procRoot + '/' + entry.name + '/cmdline'),
           readText(procRoot + '/' + entry.name + '/comm')
         ]);
-        owners.push({ pid, fd, command: cmdline?.replace(/\\0/g, ' ').trim() || comm?.trim() || null });
+        owners.push({ pid, fd, command: cmdline?.split(String.fromCharCode(0)).join(' ').trim() || comm?.trim() || null });
       }
     }
   }
   return {
-    event: 'tcp_port_conflict_diagnostics', port, pid: process.pid, ppid: process.ppid,
-    hostname: process.env.HOSTNAME || null, networkNamespace: namespace,
+    event: 'tcp_port_conflict_diagnostics',
+    port,
+    pid: process.pid,
+    ppid: process.ppid,
+    hostname: process.env.HOSTNAME || null,
+    networkNamespace: namespace,
     procNetReadable: { tcp: tcp !== null, tcp6: tcp6 !== null },
-    listeners, owners,
+    listeners,
+    owners,
     ownerScan: wanted.size ? 'completed_with_permission_limits' : 'not_needed_no_listener_found'
   };
 }
