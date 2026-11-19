@@ -105,6 +105,40 @@ test('preserves unexpected 0x0200 tagged-field envelopes without interpreting th
   assert.equal(parsed.data.cellularSignalField.valueByte, null);
 });
 
+test('parses documented 0x0200 variable block envelopes and base-station records', () => {
+  const baseStation = Buffer.from('00ff000301b784210000686997', 'hex');
+  const firmware = Buffer.from('AOVX_GM110-GL_H1.2_FX095B10004R00C7616P02_V2.0.9:v05', 'ascii');
+  const tail = Buffer.concat([
+    Buffer.from([0xf0, baseStation.length]), baseStation,
+    Buffer.from([0xf2, firmware.length]), firmware,
+    Buffer.from([0xf4, 3, 0xaa, 0xbb, 0xcc])
+  ]);
+  const body = Buffer.concat([Buffer.alloc(40), tail]);
+  const parsed = parseAovxMessage({ messageId: 0x0200, deviceIdBcd: Buffer.alloc(6), sequenceNumber: 1, bodyLength: body.length, checksumStatus: 'not-evaluated', body });
+  assert.equal(parsed.data.variableBlocks.length, 3);
+  assert.equal(parsed.data.variableBlocks[0].tag, 0xf0);
+  assert.equal(parsed.data.variableBlocks[0].baseStationRecords.length, 1);
+  assert.equal(parsed.data.variableBlocks[0].baseStationRecords[0].mccHex, '00ff');
+  assert.equal(parsed.data.variableBlocks[0].baseStationRecords[0].mncHex, '0003');
+  assert.equal(parsed.data.variableBlocks[0].baseStationRecords[0].cellIdHex, '01b78421');
+  assert.equal(parsed.data.variableBlocks[0].baseStationRecords[0].lacHex, '00006869');
+  assert.equal(parsed.data.variableBlocks[0].baseStationRecords[0].rssiRaw, 0x97);
+  assert.equal(parsed.data.variableBlocks[1].tag, 0xf2);
+  assert.equal(parsed.data.variableBlocks[1].valueAscii, firmware.toString('ascii'));
+  assert.equal(parsed.data.variableBlocks[2].tag, 0xf4);
+  assert.equal(parsed.data.variableBlocks[2].valueHex, 'aabbcc');
+  assert.equal(parsed.data.unparsedVariableData.length, 0);
+});
+
+test('preserves an incomplete variable-block suffix without rejecting telemetry', () => {
+  const tail = Buffer.from([0xf0, 0x0d, 0x01, 0x02]);
+  const body = Buffer.concat([Buffer.alloc(40), tail]);
+  const parsed = parseAovxMessage({ messageId: 0x0200, deviceIdBcd: Buffer.alloc(6), sequenceNumber: 1, bodyLength: body.length, checksumStatus: 'not-evaluated', body });
+  assert.equal(parsed.data.variableBlocks.length, 0);
+  assert.equal(parsed.data.unparsedVariableData.toString('hex'), tail.toString('hex'));
+  assert.equal(parsed.data.diagnostics.variableBlocks.unparsedOffset, 40);
+});
+
 test('keeps unimplemented messages opaque and rejects truncated known messages', () => {
   const unknown = parseAovxMessage({ messageId: 0x0900, body: Buffer.from([1, 2]), deviceIdBcd: Buffer.alloc(6), sequenceNumber: 1, bodyLength: 2 });
   assert.deepEqual(unknown.data.rawBody, Buffer.from([1, 2]));
