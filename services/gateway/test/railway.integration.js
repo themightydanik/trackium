@@ -97,8 +97,8 @@ test('Railway process: upgrade 001–005, owner pairing, PostgreSQL persistence 
       child = spawn(process.execPath, ['src/server.js'], {
         cwd: new URL('../', import.meta.url),
         // Deliberately minimal: no inherited Minima RPC credentials or flags.
-        env: { PATH: process.env.PATH, DATABASE_URL: connection.href, PORT: String(httpPort),
-          HTTP_PORT: String(await port()), DEPLOYMENT_PROFILE: 'railway-test',
+        env: { PATH: process.env.PATH, DATABASE_URL: connection.href, PORT: String(await port()),
+          HTTP_PORT: String(httpPort), DEPLOYMENT_PROFILE: 'railway-test',
           ENABLE_TCP_RECEIVER: 'false', ENABLE_NATIVE_CLIENTS: 'true',
           ENABLE_WEB_WORKSPACE: String(webEnabled), PUBLIC_ORIGIN: 'https://gateway.test',
           ENABLE_SERVER_SIMULATOR: 'false', ENABLE_FIXTURE_ADAPTER: 'false',
