@@ -8,7 +8,8 @@
     "test": "node --test test/*.test.js",
     "test:integration": "node --test test/*.integration.js",
     "telemetry:admin": "node src/telemetry/admin.js",
-    "aovx:analyze": "node src/aovx/analyze-capture.js"
+    "aovx:analyze": "node src/aovx/analyze-capture.js",
+    "aovx:delivery": "node src/aovx/analyze-delivery.js"
   },
   "dependencies": {
     "pg": "^8.13.1"
