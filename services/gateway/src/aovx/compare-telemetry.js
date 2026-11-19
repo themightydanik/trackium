@@ -70,7 +70,7 @@ function mergeDeviceTransitions(summaries) {
   return {
     transitionCount,
     incomparableBoundaryCount,
-    transitionsOmitted: Math.max(0, transitionCount - transitions.length),
+    transitionsOmitted: Math.max(0, transitionCount - Math.min(transitions.length, MAX_TRANSITION_DETAILS)),
     transitions: transitions.slice(0, MAX_TRANSITION_DETAILS),
     changeCoOccurrence,
     note: 'Co-occurrence counts describe adjacent observations within each device and matching F6 data type/mask only. They do not establish causation or identify sensor units or physical meaning.'
