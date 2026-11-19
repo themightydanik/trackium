@@ -12,6 +12,8 @@ import { createPairing, publicOrigin } from './pairing.js';
 import { createCargoApi } from './api.js';
 import { createWebHandler } from './web.js';
 import { createIngressGuard } from '../ingress.js';
+import { diagnosePortConflict } from '../port-diagnostics.js';
+
 export function createRuntime(
   pool,
   config,
@@ -44,12 +46,27 @@ export function createRuntime(
     logger,
     journal: {
       async initialize() {
+        const checkpoint = async (phase) => {
+          // Port 0 asks the OS for an ephemeral port and is used by integration
+          // tests; it is not a fixed listener target worth inspecting.
+          if (config.tcpEnabled === false || !Number.isInteger(config.tcpPort) || config.tcpPort <= 0)
+            return;
+          try {
+            const report = await diagnosePortConflict(config.tcpPort);
+            (logger.info ?? console.info).call(logger, 'tcp port runtime checkpoint:', JSON.stringify({ ...report, phase }));
+          } catch (err) {
+            (logger.warn ?? console.warn).call(logger, 'tcp port runtime checkpoint unavailable:', phase, err.message);
+          }
+        };
+        await checkpoint('journal_initialize_started');
         await initialize(pool);
         await migrate(pool);
         await proofs.initialize();
+        await checkpoint('database_and_proof_initialization_complete');
         if (worker && config.proofs?.mode !== 'disabled')
           stopProofWorker = startProofWorker(proofs, logger);
         if (worker && config.simulatorEnabled) stopWorker = startWorker(simulator, logger);
+        await checkpoint('background_workers_started');
       },
       persistPacket: (packet) => persistPacket(packet, pool),
       checkReady: () => pool.query('SELECT 1'),
