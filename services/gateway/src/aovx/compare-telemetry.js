@@ -50,31 +50,7 @@ function emptyPairs() {
   return pairs;
 }
 
-function mergeDeviceTransitions(summaries) {
-  const changeCoOccurrence = emptyPairs();
-  const transitions = [];
-  let transitionCount = 0;
-  for (const summary of summaries) {
-    transitionCount += summary.transitionCount;
-    transitions.push(...summary.transitions);
-    for (const sensorName of SENSOR_FIELDS) {
-      for (const fixedName of FIXED_FIELDS) {
-        const target = changeCoOccurrence[sensorName][fixedName];
-        const source = summary.changeCoOccurrence[sensorName][fixedName];
-        for (const key of Object.keys(target)) target[key] += source[key];
-      }
-    }
-  }
-  return {
-    transitionCount,
-    transitionsOmitted: Math.max(0, transitionCount - transitions.length),
-    transitions: transitions.slice(0, MAX_TRANSITION_DETAILS),
-    changeCoOccurrence,
-    note: 'Co-occurrence counts describe adjacent observations within each device only. They do not establish causation or identify sensor units or physical meaning.'
-  };
-}
-
-function buildTransitions(records) {
+function emptyPairs() {
   const pairs = {};
   for (const sensorName of SENSOR_FIELDS) {
     pairs[sensorName] = {};
@@ -88,12 +64,48 @@ function buildTransitions(records) {
       };
     }
   }
+  return pairs;
+}
 
+function mergeDeviceTransitions(summaries) {
+  const changeCoOccurrence = emptyPairs();
+  const transitions = [];
+  let transitionCount = 0;
+  let incomparableBoundaryCount = 0;
+  for (const summary of summaries) {
+    transitionCount += summary.transitionCount;
+    incomparableBoundaryCount += summary.incomparableBoundaryCount;
+    transitions.push(...summary.transitions);
+    for (const sensorName of SENSOR_FIELDS) {
+      for (const fixedName of FIXED_FIELDS) {
+        const target = changeCoOccurrence[sensorName][fixedName];
+        const source = summary.changeCoOccurrence[sensorName][fixedName];
+        for (const key of Object.keys(target)) target[key] += source[key];
+      }
+    }
+  }
+  return {
+    transitionCount,
+    incomparableBoundaryCount,
+    transitionsOmitted: Math.max(0, transitionCount - transitions.length),
+    transitions: transitions.slice(0, MAX_TRANSITION_DETAILS),
+    changeCoOccurrence,
+    note: 'Co-occurrence counts describe adjacent observations within each device and matching F6 data type/mask only. They do not establish causation or identify sensor units or physical meaning.'
+  };
+}
+
+function buildTransitions(records) {
+  const pairs = emptyPairs();
   const details = [];
   let transitionCount = 0;
+  let incomparableBoundaryCount = 0;
   for (let index = 1; index < records.length; index += 1) {
     const previous = records[index - 1];
     const current = records[index];
+    if (previous.dataTypeRaw !== current.dataTypeRaw || previous.fieldMask !== current.fieldMask) {
+      incomparableBoundaryCount += 1;
+      continue;
+    }
     transitionCount += 1;
     const changedSensorFields = SENSOR_FIELDS.filter(name =>
       previous.sensorFields[name] !== undefined &&
@@ -132,10 +144,11 @@ function buildTransitions(records) {
 
   return {
     transitionCount,
+    incomparableBoundaryCount,
     transitionsOmitted: Math.max(0, transitionCount - details.length),
     transitions: details,
     changeCoOccurrence: pairs,
-    note: 'Co-occurrence counts describe adjacent observations only. They do not establish causation or identify sensor units or physical meaning.'
+    note: 'Co-occurrence counts describe adjacent observations only when F6 data type and field mask match. They do not establish causation or identify sensor units or physical meaning.'
   };
 }
 
@@ -241,7 +254,8 @@ export function compareAovxTelemetry(document) {
     chronologicalBasis: 'BCD digit string order within each device; no timezone or elapsed-time assumption',
     fieldValues,
     transitions: combinedTransitions,
-    perDeviceTransitionCount: deviceSummaries.reduce((sum, item) => sum + item.transitionCount, 0),\n    invalidBcdTimestampCount: deviceSummaries.reduce((sum, item) => sum + item.invalidBcdTimestampCount, 0),
+    perDeviceTransitionCount: deviceSummaries.reduce((sum, item) => sum + item.transitionCount, 0),
+    invalidBcdTimestampCount: deviceSummaries.reduce((sum, item) => sum + item.invalidBcdTimestampCount, 0),
     note: 'Fixed telemetry and F6 sensor values are compared as raw hexadecimal bytes. Records with invalid BCD timestamps are excluded from chronological comparisons. No units, scales, signedness, byte order, coordinates, or causal relationships are inferred.'
   };
 }
