@@ -170,7 +170,8 @@ function parseObservedTelemetryExtensions(tail) {
           })
         };
       } else {
-        opaqueExtensions.push({ ...envelope, matchesObservedEnvelope: false });
+        baseStationInformation = { ...envelope, matchesObservedEnvelope: false };
+        break;
       }
     } else if (tag === 0xf2) {
       const matchesObservedEnvelope = valueRaw.length > 0 &&
