@@ -154,6 +154,23 @@ function parseObservedTelemetryExtensions(tail) {
       recordsHex: field.matchesObservedEnvelope
         ? Array.from({ length: field.valueRaw.length / 13 }, (_, index) =>
           field.valueRaw.subarray(index * 13, (index + 1) * 13).toString('hex'))
+        : [],
+      records: field.matchesObservedEnvelope
+        ? Array.from({ length: field.valueRaw.length / 13 }, (_, index) => {
+          const record = field.valueRaw.subarray(index * 13, (index + 1) * 13);
+          return {
+            offset: index * 13,
+            mccRaw: Buffer.from(record.subarray(0, 2)),
+            mccHex: record.subarray(0, 2).toString('hex'),
+            mncRaw: Buffer.from(record.subarray(2, 4)),
+            mncHex: record.subarray(2, 4).toString('hex'),
+            cellIdRaw: Buffer.from(record.subarray(4, 8)),
+            cellIdHex: record.subarray(4, 8).toString('hex'),
+            lacRaw: Buffer.from(record.subarray(8, 12)),
+            lacHex: record.subarray(8, 12).toString('hex'),
+            rssiRaw: record[12]
+          };
+        })
         : []
     };
     offset += field.consumedLength;
