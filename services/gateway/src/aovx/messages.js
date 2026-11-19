@@ -115,27 +115,6 @@ function parseObservedTlvField(bytes, expectedTag, expectedValueLength) {
   };
 }
 
-function parseObservedLengthPrefixedExtension(bytes, expectedTag, validateValue) {
-  const raw = Buffer.from(bytes);
-  const tag = raw.length >= 1 ? raw[0] : null;
-  const declaredLength = raw.length >= 2 ? raw[1] : null;
-  const hasCompleteValue = declaredLength !== null && raw.length >= declaredLength + 2;
-  const valueRaw = Buffer.from(raw.subarray(2, hasCompleteValue ? declaredLength + 2 : undefined));
-  const matchesObservedEnvelope = tag === expectedTag &&
-    hasCompleteValue &&
-    validateValue(valueRaw);
-
-  return {
-    format: 'observed-tag-length-value',
-    tag,
-    declaredLength,
-    valueRaw,
-    valueHex: valueRaw.toString('hex'),
-    matchesObservedEnvelope,
-    consumedLength: matchesObservedEnvelope ? declaredLength + 2 : 0
-  };
-}
-
 function parseObservedTelemetryExtensions(tail) {
   let offset = 0;
   let baseStationInformation = null;
