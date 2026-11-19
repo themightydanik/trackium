@@ -39,7 +39,7 @@ export function readConfig(env = process.env) {
         (env.ENABLE_FIXTURE_ADAPTER ?? 'false') !== 'false')
       throw new Error('Railway test forbids publication, simulation and fixture ingestion');
   }
-  const aovxObservationsToken = env.AOVX_OBSERVATIONS_TOKEN;
+  const aovxObservationsToken = env.AOVX_OBSERVATIONS_TOKEN || undefined;
   if (aovxObservationsToken !== undefined && (typeof aovxObservationsToken !== 'string' || aovxObservationsToken.length < 32 || aovxObservationsToken.length > 512 || !/^[A-Za-z0-9._~-]+$/.test(aovxObservationsToken))) throw new Error('AOVX_OBSERVATIONS_TOKEN must be 32..512 URL-safe characters');
   const tcpProtocol = env.TCP_PROTOCOL ?? 'raw';
   if (!['raw', 'aovx'].includes(tcpProtocol)) throw new Error('TCP_PROTOCOL must be raw or aovx');

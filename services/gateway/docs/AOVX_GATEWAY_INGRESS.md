@@ -34,6 +34,35 @@ Do not expose the operator token in browser code, logs, URLs, or client apps.
 Prefer access through a private network or administrative tunnel. Rotate the
 token by replacing the deployment secret and restarting Gateway.
 
+## Controlled physical-device pilot
+
+The Compose profile keeps both HTTP and TCP on loopback by default. To accept
+a tracker connection from a mobile network, set:
+
+```dotenv
+TCP_PROTOCOL=aovx
+TCP_BIND_ADDRESS=0.0.0.0
+```
+
+Then recreate the Gateway and allow inbound **TCP only** on port 9000 in the
+host firewall. Keep HTTP 8080 and PostgreSQL private; do not publish either
+port. Verify the effective mapping with `docker compose config` before
+starting the service. Use a temporary pilot window and close the firewall
+rule again afterwards.
+
+**Important security boundary:** the current AOVX ingress is an unauthenticated
+binary capture listener. It does not yet authenticate a device, bind it to a
+tenant, verify the checksum algorithm, or establish GL110-GL V1.2 compatibility.
+A publicly reachable listener can therefore receive arbitrary traffic and
+consume bounded Gateway resources. Do not treat a packet or observed device ID
+as proof of identity. Keep the pilot isolated, monitor logs and database
+growth, and do not use this as a production endpoint.
+
+The operator API remains on the private HTTP listener. Compose passes
+`AOVX_OBSERVATIONS_TOKEN` into the container; leave it empty to keep the API
+disabled. If enabled, use a generated 32–512 character URL-safe secret and
+access the HTTP API only through localhost or an administrative tunnel.
+
 The Gateway still sends no registration responses, ACKs, commands, or
 configuration. Checksum validation remains unconfirmed, and the generic GAL
 workbook is not proof of GL110-GL V1.2 compatibility.
