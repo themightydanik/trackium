@@ -1,5 +1,6 @@
 import net from 'node:net';
 import http from 'node:http';
+import { diagnosePortConflict } from './port-diagnostics.js';
 import { createLineFramer } from './framing.js';
 import { createAovxStreamFramer } from './aovx/stream-framer.js';
 import { decodeAovxFrame } from './aovx/frame.js';
@@ -142,7 +143,18 @@ export function createGateway({ journal, config, logger = console, requestHandle
   api.headersTimeout = 5000;
 
   const listen = (server, port) => new Promise((resolve, reject) => {
-    const onError = err => { server.off('listening', onListening); reject(err); };
+    const onError = err => {
+      server.off('listening', onListening);
+      if (err.code === 'EADDRINUSE') {
+        void diagnosePortConflict(port).then(report => {
+          logger.error('bind conflict diagnostics:', JSON.stringify(report));
+        }).catch(diagnosticError => {
+          logger.error('bind conflict diagnostics failed:', diagnosticError.message);
+        }).finally(() => reject(err));
+        return;
+      }
+      reject(err);
+    };
     const onListening = () => { server.off('error', onError); resolve(); };
     server.once('error', onError);
     server.once('listening', onListening);
