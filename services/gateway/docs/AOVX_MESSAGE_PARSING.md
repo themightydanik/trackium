@@ -17,6 +17,11 @@ envelope has been structurally decoded.
   scaling, timezone, coordinate or unit assumptions. Remaining bytes are kept
   opaque because optional/model-dependent fields vary by configuration.
 
+The `0x0200` workbook example declares a 76-byte body. Its parser test checks
+the documented 40-byte fixed prefix and uses a synthetic 36-byte opaque tail;
+that test is not a complete captured wire-frame fixture and is not a GL110
+device fixture.
+
 Other message IDs, including `0x0900`, `0x0104`, `0x8103` and `0x8104`,
 remain opaque until their layouts are implemented from verified fixtures.
 

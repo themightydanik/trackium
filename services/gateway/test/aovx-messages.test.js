@@ -8,7 +8,6 @@ const AUTHENTICATION = Buffer.from('7e0102000c2210422143280002323231303432323134
 const REGISTRATION_RESPONSE = Buffer.from('7e8100000f22104221432800010001003232313034323231343332383f7e', 'hex');
 const ACK = Buffer.from('7e8001000522104221432800010001020000b97e', 'hex');
 const QUERY_RESPONSE = Buffer.from('7e0001000522104221432800010004020000b97e', 'hex');
-const BASIC_INFORMATION = Buffer.from('7e0200004c221042214328000a00000000000000000301e611be06fc5dc0004100000000210928172305010400000000300116310107f00d000000005dbb00007e', 'hex');
 
 test('parses registration fields without assigning model identity semantics', () => {
   const parsed = parseAovxMessage(decodeAovxFrame(REGISTRATION));
@@ -47,8 +46,24 @@ test('parses documented 0x0001 query response', () => {
   assert.equal(parsed.data.result, 0);
 });
 
-test('parses fixed 0x0200 telemetry prefix and retains model-dependent tail', () => {
-  const parsed = parseAovxMessage(decodeAovxFrame(BASIC_INFORMATION));
+test('parses the documented 0x0200 fixed telemetry prefix and preserves opaque tail', () => {
+  // The workbook's sample declares a 76-byte body. Exercise the documented
+  // 40-byte fixed prefix directly and use a synthetic opaque tail; this is not
+  // represented as a complete captured wire frame or a GL110 fixture.
+  const fixedPrefix = Buffer.from(
+    '000000000000000301e611be06fc5dc0004100000000210928172305010400000000300116310107',
+    'hex'
+  );
+  const body = Buffer.concat([fixedPrefix, Buffer.alloc(36, 0xa5)]);
+  assert.equal(body.length, 76);
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.from('221042214328', 'hex'),
+    sequenceNumber: 10,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
   assert.equal(parsed.data.alarm, 0);
   assert.equal(parsed.data.status, 3);
   assert.equal(parsed.data.latitudeRaw, 0x01e611be);
@@ -56,6 +71,7 @@ test('parses fixed 0x0200 telemetry prefix and retains model-dependent tail', ()
   assert.deepEqual(parsed.data.timestampBcd, Buffer.from('210928172305', 'hex'));
   assert.equal(parsed.data.mileageRaw, 0x010400000000);
   assert.equal(parsed.data.remainingBody.length, 36);
+  assert.deepEqual(parsed.data.remainingBody, Buffer.alloc(36, 0xa5));
 });
 
 test('keeps unimplemented messages opaque and rejects truncated known messages', () => {
