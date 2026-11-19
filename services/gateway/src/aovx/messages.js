@@ -60,12 +60,11 @@ function parseGeneralResponse(body) {
 }
 
 function parseGeneralQueryResponse(body) {
-  if (body.length !== 7) throw new Error(`AOVX 0x0001 body must be 7 bytes, received ${body.length}`);
+  if (body.length !== 5) throw new Error(`AOVX 0x0001 body must be 5 bytes, received ${body.length}`);
   return {
     responseSequenceNumber: body.readUInt16BE(0),
     correspondingDeviceMessageId: body.readUInt16BE(2),
-    result: body[4],
-    reserved: Buffer.from(body.subarray(5))
+    result: body[4]
   };
 }
 

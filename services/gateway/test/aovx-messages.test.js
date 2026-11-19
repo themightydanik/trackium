@@ -6,7 +6,8 @@ import { parseAovxMessage } from '../src/aovx/messages.js';
 const REGISTRATION = Buffer.from('7e01000026221042214328000100000000414f5658000000000000000000000000000000000000000000000000000000000000487e', 'hex');
 const AUTHENTICATION = Buffer.from('7e0102000c22104221432800023232313034323231343332383e7e', 'hex');
 const REGISTRATION_RESPONSE = Buffer.from('7e8100000f22104221432800010001003232313034323231343332383f7e', 'hex');
-const ACK = Buffer.from('7e8001000522104221432800010001000200b97e', 'hex');
+const ACK = Buffer.from('7e8001000522104221432800010001020000b97e', 'hex');
+const QUERY_RESPONSE = Buffer.from('7e0001000522104221432800010004020000b97e', 'hex');
 const BASIC_INFORMATION = Buffer.from('7e0200004c221042214328000a00000000000000000301e611be06fc5dc0004100000000210928172305010400000000300116310107f00d000000005dbb00007e', 'hex');
 
 test('parses registration fields without assigning model identity semantics', () => {
@@ -35,8 +36,15 @@ test('parses registration response reply sequence, result and authentication cod
 test('parses server general ACK body', () => {
   const parsed = parseAovxMessage(decodeAovxFrame(ACK));
   assert.equal(parsed.data.responseSequenceNumber, 1);
-  assert.equal(parsed.data.responseMessageId, 0x0100);
-  assert.equal(parsed.data.result, 2);
+  assert.equal(parsed.data.responseMessageId, 0x0200);
+  assert.equal(parsed.data.result, 0);
+});
+
+test('parses documented 0x0001 query response', () => {
+  const parsed = parseAovxMessage(decodeAovxFrame(QUERY_RESPONSE));
+  assert.equal(parsed.data.responseSequenceNumber, 4);
+  assert.equal(parsed.data.correspondingDeviceMessageId, 0x0200);
+  assert.equal(parsed.data.result, 0);
 });
 
 test('parses fixed 0x0200 telemetry prefix and retains model-dependent tail', () => {
