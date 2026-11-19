@@ -27,9 +27,9 @@ export function createCargoApi({
         path = url.pathname;
       const aovxDevice = /^\/internal\/aovx\/devices(?:\/([0-9a-fA-F]{12}))?$/.exec(path);
       if (aovxDevice) {
-        if (req.method !== 'GET') throw new ApiError(405, 'method not allowed');
         const expected = config.aovxObservationsToken;
         if (!expected) throw new ApiError(404, 'not found');
+        if (req.method !== 'GET') throw new ApiError(405, 'method not allowed');
         const supplied = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1] ?? '';
         const a = Buffer.from(supplied), b = Buffer.from(expected);
         if (a.length !== b.length || !timingSafeEqual(a, b)) throw new ApiError(401, 'operator authentication required');

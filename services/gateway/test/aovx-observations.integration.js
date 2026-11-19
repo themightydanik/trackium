@@ -16,7 +16,7 @@ test('AOVX observations API is disabled by default and protected by a dedicated 
   await admin.query('CREATE SCHEMA ' + schema);
   const db = new pg.Pool({ connectionString: url, options: '-c search_path=' + schema });
   const config = {
-    ...readConfig({ DATABASE_URL: url, AOVX_OBSERVATIONS_TOKEN: token }),
+    ...readConfig({ DATABASE_URL: url }),
     host: '127.0.0.1', tcpPort: 0, httpPort: 0
   };
   const runtime = createRuntime(db, config, { worker: false, logger: silent });
@@ -33,6 +33,8 @@ test('AOVX observations API is disabled by default and protected by a dedicated 
      registration_message_seen_at, authentication_message_seen_at)
     VALUES ('221042214328', now(), now(), 3, 258, 7, 'xor-mismatch', 'parsed', now(), now())`);
   const base = config.publicOrigin;
+  assert.equal((await fetch(base + '/internal/aovx/devices')).status, 404);
+  config.aovxObservationsToken = token;
   assert.equal((await fetch(base + '/internal/aovx/devices')).status, 401);
   assert.equal((await fetch(base + '/internal/aovx/devices', {
     headers: { authorization: 'Bearer wrong' }
