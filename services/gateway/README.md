@@ -38,7 +38,7 @@ Native environment settings (positive integers, rejected when invalid):
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `TCP_PORT` / `HTTP_PORT` | `9000` / `8080` | Listener ports, 1–65535 |\n| `TCP_PROTOCOL` | `raw` | `raw` (legacy LF) or `aovx` (binary frame validation) |
-| `MAX_FRAME_BYTES` | `65536` | Maximum payload per line, up to 16 MiB |
+| `MAX_FRAME_BYTES` | `65536` | Maximum raw payload or complete AOVX wire frame, up to 16 MiB |
 | `MAX_CONNECTIONS` | `100` | Connected or draining TCP sessions |
 | `MAX_PENDING_FRAMES` | `100` | Global queued and in-flight frame budget |
 | `MAX_PENDING_BYTES` | `8388608` | Global queued and in-flight payload byte budget |
@@ -51,7 +51,7 @@ See [Minima Proof Engine](../../docs/MINIMA_PROOF_ENGINE.md) for additive migrat
 
 ## Limitations and next protocol work
 
-- `TCP_PROTOCOL=aovx` enables `0x7E` binary stream framing plus generic envelope length/checksum validation and stores exact complete wire frames in the raw journal. It does NOT parse telemetry, perform registration/authentication, send device ACKs, bind device IDs to tenants or verify GL110-GL V1.2 firmware compatibility. MQTT is not implemented. Arbitrary bytes in a synthetic line are preserved, but embedded LF splits that line.
+- `TCP_PROTOCOL=aovx` enables `0x7E` binary stream framing plus generic envelope length/checksum validation and stores exact complete wire frames in the raw journal. It does NOT parse telemetry, perform registration/authentication, send device ACKs, bind device IDs to tenants or verify GL110-GL V1.2 firmware compatibility. MQTT is not implemented. In `raw` mode, arbitrary bytes are preserved except LF, which is the frame delimiter.
 - Do not expose TCP 9000 publicly before implementing protocol authentication, tenant binding, network controls and rate limiting. Telemetry API routes require scoped tenant credentials; the raw TCP receiver still has no device authentication, TLS or tenant binding. Retention policy is not implemented.
 - The journal stores raw packets and a SHA-256 transport fingerprint. This is separate from the versioned cargo commitment (also SHA-256) and Minima object identifiers (SHA3-256). Optional server proof publication is documented separately; Integritas and Android integration remain outside this implementation.
 - Disk usage is unbounded. PostgreSQL needs backups, monitoring and restore verification. Process crashes, forced shutdowns, overload and ambiguous database errors can lose or duplicate data on resend; no delivery assurance is claimed.

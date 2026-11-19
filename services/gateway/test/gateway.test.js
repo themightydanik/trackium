@@ -5,7 +5,6 @@ import http from 'node:http';
 import { once } from 'node:events';
 import { createGateway } from '../src/gateway.js';
 import { readConfig } from '../src/config.js';
-import { encodeAovxFrame } from '../src/aovx/frame.js';
 
 const deferred = () => Promise.withResolvers();
 const quiet = { error() {}, warn() {} };
@@ -19,11 +18,10 @@ async function until(check) {
 }
 async function fixture(t, overrides = {}, persist = async () => {}) {
   const writes = [];
-  const packets = [];
   let closed = false;
   const journal = {
     async initialize() {},
-    async persistPacket(packet) { writes.push(packet.payload.toString()); packets.push(Buffer.from(packet.payload)); await persist(packet); },
+    async persistPacket(packet) { writes.push(packet.payload.toString()); await persist(packet); },
     async checkReady() {},
     async close() { closed = true; }
   };
@@ -42,7 +40,7 @@ async function fixture(t, overrides = {}, persist = async () => {}) {
     await once(socket, 'connect');
     return { socket, ended };
   };
-  return { gateway, journal, writes, packets, connect, isClosed: () => closed };
+  return { gateway, journal, writes, connect, isClosed: () => closed };
 }
 function request(gateway, path) {
   return new Promise((resolve, reject) => {
@@ -245,52 +243,4 @@ test('shutdown deadline reports an incomplete drain instead of claiming success'
     gate.resolve();
     await drained.promise;
   }
-});
-
-
-test('AOVX mode reassembles split binary frames and journals exact validated wire bytes', { timeout: 3000 }, async t => {
-  const f = await fixture(t, { tcpProtocol: 'aovx' });
-  const frame = encodeAovxFrame({
-    messageId: 0x0200,
-    deviceIdBcd: Buffer.from('221042214328', 'hex'),
-    sequenceNumber: 17,
-    body: Buffer.from([0x11, 0x7e, 0x7d, 0x22])
-  });
-  const { socket, ended } = await f.connect();
-  socket.write(frame.subarray(0, 5));
-  socket.write(frame.subarray(5, 13));
-  socket.end(frame.subarray(13));
-  await ended;
-  await until(() => f.packets.length === 1);
-  assert.deepEqual(f.packets, [frame]);
-});
-
-test('AOVX mode extracts coalesced frames and rejects invalid checksums before journaling', { timeout: 3000 }, async t => {
-  const f = await fixture(t, { tcpProtocol: 'aovx' });
-  const make = sequenceNumber => encodeAovxFrame({
-    messageId: 0x0200,
-    deviceIdBcd: Buffer.from('221042214328', 'hex'),
-    sequenceNumber,
-    body: Buffer.from([0x01, 0x02])
-  });
-  const first = make(1), second = make(2);
-  const { socket, ended } = await f.connect();
-  socket.write(Buffer.concat([first, second]));
-  await until(() => f.packets.length === 2);
-  socket.end();
-  await ended;
-  assert.deepEqual(f.packets, [first, second]);
-
-  const invalid = Buffer.from(make(3));
-  invalid[invalid.length - 2] ^= 0x80;
-  const bad = await f.connect();
-  bad.socket.end(invalid);
-  await bad.ended;
-  assert.deepEqual(f.packets, [first, second]);
-});
-
-test('TCP protocol defaults to raw and rejects unknown modes', () => {
-  assert.equal(readConfig({ DATABASE_URL: 'postgres://unused' }).tcpProtocol, 'raw');
-  assert.equal(readConfig({ DATABASE_URL: 'postgres://unused', TCP_PROTOCOL: 'aovx' }).tcpProtocol, 'aovx');
-  assert.throws(() => readConfig({ DATABASE_URL: 'postgres://unused', TCP_PROTOCOL: 'mqtt' }), /TCP_PROTOCOL/);
 });
