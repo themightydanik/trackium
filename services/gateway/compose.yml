@@ -12,6 +12,7 @@ services:
       # No password interpolation in a URI: symbols such as @, / and # are valid.
       DATABASE_URL: postgres://db/trackium
       TCP_PORT: 9000
+      TCP_PROTOCOL: ${TCP_PROTOCOL:-raw}
       HTTP_PORT: 8080
       ENABLE_WEB_WORKSPACE: ${ENABLE_WEB_WORKSPACE:-false}
       ENABLE_NATIVE_CLIENTS: ${ENABLE_NATIVE_CLIENTS:-false}

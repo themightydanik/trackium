@@ -1,6 +1,8 @@
 import net from 'node:net';
 import http from 'node:http';
 import { createLineFramer } from './framing.js';
+import { createAovxStreamFramer } from './aovx/stream-framer.js';
+import { decodeAovxFrame } from './aovx/frame.js';
 
 // The injected journal keeps TCP lifecycle tests independent of PostgreSQL.
 export function createGateway({ journal, config, logger = console, requestHandler, assetHandler, ingressGuard }) {
@@ -20,10 +22,15 @@ export function createGateway({ journal, config, logger = console, requestHandle
       if (session.closed && session.pending === 0) sessions.delete(session);
     };
     socket.setTimeout(config.socketTimeoutMs);
-    const framer = createLineFramer({
-      maxFrameBytes: config.maxFrameBytes,
-      onError: () => socket.destroy(),
-      onFrame: payload => {
+    const onFrame = payload => {
+        if (config.tcpProtocol === 'aovx') {
+          try { decodeAovxFrame(payload); }
+          catch (err) {
+            logger.warn('invalid AOVX frame:', err.message);
+            socket.destroy();
+            return false;
+          }
+        }
         if (stopping || session.failed || pendingFrames >= config.maxPendingFrames ||
             pendingBytes + payload.length > config.maxPendingBytes) {
           socket.destroy();
@@ -48,8 +55,13 @@ export function createGateway({ journal, config, logger = console, requestHandle
           release();
         });
         return true;
-      }
-    });
+      };
+    const framer = config.tcpProtocol === 'aovx'
+      ? createAovxStreamFramer({ maxFrameBytes: config.maxFrameBytes, onError: err => {
+          logger.warn('AOVX stream framing failed:', err.message);
+          socket.destroy();
+        }, onFrame })
+      : createLineFramer({ maxFrameBytes: config.maxFrameBytes, onError: () => socket.destroy(), onFrame });
     socket.on('data', chunk => { if (!framer.push(chunk)) socket.destroy(); });
     socket.on('timeout', () => socket.destroy());
     socket.on('error', err => logger.warn('tcp connection error:', err.message));
@@ -79,7 +91,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
       ok &&= !stopping;
     }
     res.writeHead(ok ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-    res.end(JSON.stringify({ status: ok ? 'ok' : 'not_ready', service: 'trackium-gateway', mode: 'raw-capture-only' }));
+    res.end(JSON.stringify({ status: ok ? 'ok' : 'not_ready', service: 'trackium-gateway', mode: config.tcpProtocol === 'aovx' ? 'aovx-frame-capture-only' : 'raw-capture-only' }));
   });
   api.requestTimeout = 10000;
   api.headersTimeout = 5000;
