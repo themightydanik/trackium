@@ -25,7 +25,7 @@ export function createCargoApi({
     try {
       const url = new URL(req.url, 'http://gateway.invalid'),
         path = url.pathname;
-      const aovxDevice = /^\\/internal\\/aovx\\/devices(?:\\/([0-9a-fA-F]{12}))?$/.exec(path);
+      const aovxDevice = /^\/internal\/aovx\/devices(?:\/([0-9a-fA-F]{12}))?$/.exec(path);
       if (aovxDevice) {
         if (req.method !== 'GET') throw new ApiError(405, 'method not allowed');
         const expected = config.aovxObservationsToken;
