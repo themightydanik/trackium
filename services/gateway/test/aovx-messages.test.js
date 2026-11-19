@@ -139,6 +139,27 @@ test('parses observed 0x0200 base-station and firmware envelopes while preservin
   assert.deepEqual(extensions.unparsedTail, unknownTail);
 });
 
+
+test('exposes workbook-aligned raw base-station field slices', () => {
+  const record = Buffer.from('00ff000301b784210000686997', 'hex');
+  const tail = Buffer.concat([Buffer.from([0xf0, record.length]), record]);
+  const body = Buffer.concat([Buffer.alloc(40), tail]);
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.alloc(6),
+    sequenceNumber: 1,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
+  const fields = parsed.data.observedExtensions.baseStationInformation.records[0];
+  assert.equal(fields.mccHex, '00ff');
+  assert.equal(fields.mncHex, '0003');
+  assert.equal(fields.cellIdHex, '01b78421');
+  assert.equal(fields.lacHex, '00006869');
+  assert.equal(fields.rssiRaw, 0x97);
+});
+
 test('does not consume malformed observed variable extensions', () => {
   const tail = Buffer.from('f00c0102030405060708090a0b0cf2234142', 'hex');
   const body = Buffer.concat([Buffer.alloc(40), tail]);
