@@ -20,10 +20,11 @@ async function until(check) {
 async function fixture(t, overrides = {}, persist = async () => {}) {
   const writes = [];
   const packets = [];
+  const records = [];
   let closed = false;
   const journal = {
     async initialize() {},
-    async persistPacket(packet) { writes.push(packet.payload.toString()); packets.push(Buffer.from(packet.payload)); await persist(packet); },
+    async persistPacket(packet) { writes.push(packet.payload.toString()); packets.push(Buffer.from(packet.payload)); records.push(packet); await persist(packet); },
     async checkReady() {},
     async close() { closed = true; }
   };
@@ -42,7 +43,7 @@ async function fixture(t, overrides = {}, persist = async () => {}) {
     await once(socket, 'connect');
     return { socket, ended };
   };
-  return { gateway, journal, writes, packets, connect, isClosed: () => closed };
+  return { gateway, journal, writes, packets, records, connect, isClosed: () => closed };
 }
 function request(gateway, path) {
   return new Promise((resolve, reject) => {
@@ -247,7 +248,6 @@ test('shutdown deadline reports an incomplete drain instead of claiming success'
   }
 });
 
-
 test('AOVX mode reassembles split binary frames and journals exact validated wire bytes', { timeout: 3000 }, async t => {
   const f = await fixture(t, { tcpProtocol: 'aovx' });
   const frame = encodeAovxFrame({
@@ -263,30 +263,43 @@ test('AOVX mode reassembles split binary frames and journals exact validated wir
   await ended;
   await until(() => f.packets.length === 1);
   assert.deepEqual(f.packets, [frame]);
+  assert.equal(f.records[0].aovx.messageId, 0x0200);
+  assert.equal(f.records[0].aovx.parseStatus, 'error');
+  assert.equal(f.records[0].aovx.parseError.includes('at least 40'), true);
 });
 
-test('AOVX mode extracts coalesced frames and captures checksum mismatches for later analysis', { timeout: 3000 }, async t => {
+test('AOVX semantic parse errors never discard a structurally valid raw frame', { timeout: 3000 }, async t => {
   const f = await fixture(t, { tcpProtocol: 'aovx' });
-  const make = sequenceNumber => encodeAovxFrame({
+  const frame = encodeAovxFrame({
     messageId: 0x0200,
     deviceIdBcd: Buffer.from('221042214328', 'hex'),
-    sequenceNumber,
+    sequenceNumber: 18,
     body: Buffer.from([0x01, 0x02])
   });
-  const first = make(1), second = make(2);
   const { socket, ended } = await f.connect();
-  socket.write(Buffer.concat([first, second]));
-  await until(() => f.packets.length === 2);
-  socket.end();
+  socket.end(frame);
   await ended;
-  assert.deepEqual(f.packets, [first, second]);
+  await until(() => f.records.length === 1);
+  assert.deepEqual(f.packets, [frame]);
+  assert.equal(f.records[0].aovx.parseStatus, 'error');
+  assert.equal(f.records[0].aovx.parsedPayload, null);
+});
 
-  const invalid = Buffer.from(make(3));
-  invalid[invalid.length - 2] ^= 0x80;
-  const bad = await f.connect();
-  bad.socket.end(invalid);
-  await bad.ended;
-  assert.deepEqual(f.packets, [first, second, invalid]);
+test('AOVX mode parses known messages and keeps unknown message bodies opaque', { timeout: 3000 }, async t => {
+  const f = await fixture(t, { tcpProtocol: 'aovx' });
+  const body = Buffer.from('000000000000000301e611be06fc5dc0004100000000210928172305010400000000300116310107', 'hex');
+  const known = encodeAovxFrame({ messageId: 0x0200, deviceIdBcd: Buffer.from('221042214328', 'hex'), sequenceNumber: 19, body });
+  const unknown = encodeAovxFrame({ messageId: 0x7777, deviceIdBcd: Buffer.from('221042214328', 'hex'), sequenceNumber: 20, body: Buffer.from([0xde, 0xad]) });
+  const { socket, ended } = await f.connect();
+  socket.end(Buffer.concat([known, unknown]));
+  await ended;
+  await until(() => f.records.length === 2);
+  assert.equal(f.records[0].aovx.parseStatus, 'parsed');
+  assert.equal(f.records[0].aovx.parsedPayload.latitudeRaw, 0x01e611be);
+  assert.equal(f.records[0].aovx.parsedPayload.timestampBcd.encoding, 'hex');
+  assert.equal(f.records[0].aovx.checksumStatus, 'xor-match');
+  assert.equal(f.records[1].aovx.parseStatus, 'opaque');
+  assert.deepEqual(f.records[1].aovx.parsedPayload.rawBody, { encoding: 'hex', value: 'dead' });
 });
 
 test('TCP protocol defaults to raw and rejects unknown modes', () => {

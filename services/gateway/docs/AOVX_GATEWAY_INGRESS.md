@@ -1,38 +1,27 @@
-# AOVX Gateway ingress mode
+# AOVX Gateway ingress
 
-The Gateway supports explicit TCP protocol selection:
+When `TCP_PROTOCOL=aovx`, the Gateway:
 
-- `TCP_PROTOCOL=raw` (default): existing synthetic newline-delimited raw capture.
-- `TCP_PROTOCOL=aovx`: reassembles AOVX frames, validates delimiters, escaping and declared body length, then journals the exact original wire frame.
+1. Reassembles complete AOVX frames from arbitrary TCP chunks.
+2. Validates the generic envelope and declared body length.
+3. Compares the received checksum with the unconfirmed XOR candidate for observation only.
+4. Attempts the pure semantic body parser.
+5. Persists the exact original wire frame plus observational metadata.
 
-## Checksum status is provisional
+The raw wire bytes and SHA-256 remain the authoritative capture. A semantic
+body parse failure does not discard a structurally valid frame: it is stored
+with `aovx_parse_status='error'` and a bounded `aovx_parse_error`. Unknown
+message IDs are stored with `aovx_parse_status='opaque'`. Successfully parsed
+messages use `aovx_parse_status='parsed'`.
 
-The generic workbook says a checksum is present and must be verified, but its extracted examples conflict:
+The journal metadata columns are additive and are installed idempotently when
+the Gateway initializes. They include message ID, the six-byte device ID as
+BCD hex, message sequence, observational checksum status, parser status/error,
+and JSON-safe parsed body values. Binary fields in JSON are represented as
+`{"encoding":"hex","value":"..."}`.
 
-| Message | Workbook checksum | XOR over unescaped header + body | Result |
-|---|---:|---:|---|
-| `0x0102` authentication | `0x3E` | `0x3E` | match |
-| `0x0100` registration | `0x48` | `0x1C` | mismatch |
-| `0x8100` registration response | `0x3F` | `0xBD` | mismatch |
-
-XOR is therefore an **unconfirmed candidate**, not an authoritative AOVX checksum algorithm. The decoder reports `checksumStatus` as `xor-match` or `xor-mismatch`. Its default `observe` policy accepts either status after structural validation. The opt-in `require-xor-match` policy is intended only for controlled fixtures.
-
-The encoder still emits the XOR candidate for synthetic tests. Do not use it to construct production commands until checksum behavior is confirmed against the original workbook and real GL110-GL traffic.
-
-## Deliberate scope boundary
-
-This is not yet a GL110-GL V1.2 integration claim. AOVX mode does not parse `0x0200` telemetry, process registration/authentication, construct or send `0x8001` acknowledgements, map device IDs to tenants, or apply per-device authorization. It is a structurally validated binary-frame capture path only. Keep the TCP listener behind a private network/firewall until identity, authentication and tenant authorization exist.
-
-The mode is selected at startup and does not auto-detect protocols. The default remains `raw`.
-
-## Configure
-
-```dotenv
-TCP_PROTOCOL=aovx
-```
-
-Recreate the Gateway container. `/readyz` reports `aovx-frame-capture-only` in this mode and `raw-capture-only` otherwise.
-
-## Validation
-
-Tests cover split TCP chunks, coalesced frames, escaping, exact raw-wire persistence, structural rejection and checksum-mismatch observation. Physical GL110-GL compatibility still requires captured device traffic and manufacturer confirmation of the exact firmware profile.
+This remains capture and observation only. The six-byte protocol device ID is
+not a verified Trackium device identity; no tenant or device ownership is
+assigned. The Gateway does not send registration responses, ACKs, commands,
+or configuration. Checksum validation remains unconfirmed, and the generic
+GAL workbook is not proof of GL110-GL V1.2 compatibility.

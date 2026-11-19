@@ -27,17 +27,42 @@ export async function initialize(database = pool) {
       status TEXT NOT NULL DEFAULT 'unclassified',
       device_id TEXT,
       tenant_id TEXT,
-      error TEXT
+      error TEXT,
+      aovx_message_id INTEGER,
+      aovx_device_id_bcd TEXT,
+      aovx_sequence_number INTEGER,
+      aovx_checksum_status TEXT,
+      aovx_parse_status TEXT,
+      aovx_parse_error TEXT,
+      aovx_parsed_payload JSONB
     );
+    ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_message_id INTEGER;
+    ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_device_id_bcd TEXT;
+    ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_sequence_number INTEGER;
+    ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_checksum_status TEXT;
+    ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_parse_status TEXT;
+    ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_parse_error TEXT;
+    ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_parsed_payload JSONB;
     CREATE INDEX IF NOT EXISTS gateway_packets_received_idx ON gateway_packets(received_at);
+    CREATE INDEX IF NOT EXISTS gateway_packets_aovx_message_idx ON gateway_packets(aovx_message_id, received_at)
+      WHERE aovx_message_id IS NOT NULL;
   `);
 }
 
-export async function persistPacket({ payload, remoteAddress }, database = pool) {
+export async function persistPacket({ payload, remoteAddress, aovx = null }, database = pool) {
   const sha256 = createHash('sha256').update(payload).digest('hex');
   const result = await database.query(
-    'INSERT INTO gateway_packets (transport, remote_address, raw_payload, sha256) VALUES ($1,$2,$3,$4) RETURNING id, received_at',
-    ['tcp', remoteAddress ?? null, payload, sha256]
+    `INSERT INTO gateway_packets (
+      transport, remote_address, raw_payload, sha256,
+      aovx_message_id, aovx_device_id_bcd, aovx_sequence_number,
+      aovx_checksum_status, aovx_parse_status, aovx_parse_error, aovx_parsed_payload
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, received_at`,
+    [
+      'tcp', remoteAddress ?? null, payload, sha256,
+      aovx?.messageId ?? null, aovx?.deviceIdBcd ?? null, aovx?.sequenceNumber ?? null,
+      aovx?.checksumStatus ?? null, aovx?.parseStatus ?? null, aovx?.parseError ?? null,
+      aovx?.parsedPayload ?? null
+    ]
   );
   return { ...result.rows[0], sha256 };
 }
