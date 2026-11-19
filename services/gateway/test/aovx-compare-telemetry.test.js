@@ -9,7 +9,7 @@ const DEVICE_B = Buffer.from('123456789012', 'hex');
 function packet({ timestamp, sequenceNumber, device = DEVICE_A, status = '10000000',
   latitude = '00000000', longitude = '00000000', altitude = '0000',
   speed = '0000', direction = '0000', temperature = '00f0', humidity = '02a0' }) {
-  const body = Buffer.alloc(54);
+  const body = Buffer.alloc(56);
   Buffer.from(status, 'hex').copy(body, 4);
   Buffer.from(latitude, 'hex').copy(body, 8);
   Buffer.from(longitude, 'hex').copy(body, 12);
