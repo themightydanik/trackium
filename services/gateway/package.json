@@ -9,7 +9,8 @@
     "test:integration": "node --test test/*.integration.js",
     "telemetry:admin": "node src/telemetry/admin.js",
     "aovx:analyze": "node src/aovx/analyze-capture.js",
-    "aovx:delivery": "node src/aovx/analyze-delivery.js"
+    "aovx:delivery": "node src/aovx/analyze-delivery.js",
+    "aovx:duplicates": "node src/aovx/analyze-duplicates.js"
   },
   "dependencies": {
     "pg": "^8.13.1"
