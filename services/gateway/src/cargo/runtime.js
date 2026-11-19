@@ -47,12 +47,15 @@ export function createRuntime(
     journal: {
       async initialize() {
         const checkpoint = async (phase) => {
-          if (config.tcpEnabled === false) return;
+          // Port 0 asks the OS for an ephemeral port and is used by integration
+          // tests; it is not a fixed listener target worth inspecting.
+          if (config.tcpEnabled === false || !Number.isInteger(config.tcpPort) || config.tcpPort <= 0)
+            return;
           try {
             const report = await diagnosePortConflict(config.tcpPort);
-            logger.info('tcp port runtime checkpoint:', JSON.stringify({ ...report, phase }));
+            (logger.info ?? console.info).call(logger, 'tcp port runtime checkpoint:', JSON.stringify({ ...report, phase }));
           } catch (err) {
-            logger.warn('tcp port runtime checkpoint unavailable:', phase, err.message);
+            (logger.warn ?? console.warn).call(logger, 'tcp port runtime checkpoint unavailable:', phase, err.message);
           }
         };
         await checkpoint('journal_initialize_started');
