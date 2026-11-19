@@ -142,24 +142,39 @@ export function createGateway({ journal, config, logger = console, requestHandle
   api.requestTimeout = 10000;
   api.headersTimeout = 5000;
 
-  const listen = (server, port) => new Promise((resolve, reject) => {
-    const onError = err => {
-      server.off('listening', onListening);
-      if (err.code === 'EADDRINUSE') {
-        void diagnosePortConflict(port).then(report => {
-          logger.error('bind conflict diagnostics:', JSON.stringify(report));
-        }).catch(diagnosticError => {
-          logger.error('bind conflict diagnostics failed:', diagnosticError.message);
-        }).finally(() => reject(err));
-        return;
+  const listen = async (server, port) => {
+    if (server === tcp && Number.isInteger(port) && port > 0) {
+      try {
+        const report = await diagnosePortConflict(port);
+        (logger.info ?? console.info).call(logger, 'tcp port listen boundary:', JSON.stringify({
+          phase: 'immediately_before_server_listen',
+          serverListening: server.listening,
+          serverAddress: server.address(),
+          report
+        }));
+      } catch (diagnosticError) {
+        (logger.warn ?? console.warn).call(logger, 'tcp port listen boundary diagnostics unavailable:', diagnosticError.message);
       }
-      reject(err);
-    };
-    const onListening = () => { server.off('error', onError); resolve(); };
-    server.once('error', onError);
-    server.once('listening', onListening);
-    server.listen(port, config.host ?? '0.0.0.0');
-  });
+    }
+    return new Promise((resolve, reject) => {
+      const onError = err => {
+        server.off('listening', onListening);
+        if (err.code === 'EADDRINUSE') {
+          void diagnosePortConflict(port).then(report => {
+            logger.error('bind conflict diagnostics:', JSON.stringify(report));
+          }).catch(diagnosticError => {
+            logger.error('bind conflict diagnostics failed:', diagnosticError.message);
+          }).finally(() => reject(err));
+          return;
+        }
+        reject(err);
+      };
+      const onListening = () => { server.off('error', onError); resolve(); };
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen(port, config.host ?? '0.0.0.0');
+    });
+  };
   const close = server => new Promise((resolve, reject) => {
     if (!server.listening) return resolve();
     server.close(err => err ? reject(err) : resolve());
