@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { ApiError, object, text, uuid } from '../telemetry/schema.js';
 import { reply, body, query } from '../telemetry/api.js';
 export function createCargoApi({
@@ -8,6 +9,7 @@ export function createCargoApi({
   shipments,
   simulator,
   pairing,
+  aovxObservations,
   config,
   telemetryApi,
   logger = console
@@ -23,6 +25,17 @@ export function createCargoApi({
     try {
       const url = new URL(req.url, 'http://gateway.invalid'),
         path = url.pathname;
+      const aovxDevice = /^\/internal\/aovx\/devices(?:\/([0-9a-fA-F]{12}))?$/.exec(path);
+      if (aovxDevice) {
+        const expected = config.aovxObservationsToken;
+        if (!expected) throw new ApiError(404, 'not found');
+        if (req.method !== 'GET') throw new ApiError(405, 'method not allowed');
+        const supplied = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1] ?? '';
+        const a = Buffer.from(supplied), b = Buffer.from(expected);
+        if (a.length !== b.length || !timingSafeEqual(a, b)) throw new ApiError(401, 'operator authentication required');
+        const q = query(url, aovxDevice[1] ? [] : ['limit', 'cursor']);
+        return reply(res, 200, aovxDevice[1] ? await aovxObservations.get(aovxDevice[1]) : await aovxObservations.list(q.limit, q.cursor));
+      }
       if (!['GET', 'HEAD'].includes(req.method)) query(url, []);
       if (!config.nativeEnabled && path.startsWith('/v1/native/'))
         throw new ApiError(404, 'native clients disabled');

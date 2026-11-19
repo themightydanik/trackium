@@ -120,7 +120,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
   const api = http.createServer(async (req, res) => {
     if (ingressGuard && !ingressGuard(req, res)) return;
     if (assetHandler && (req.url === '/app' || req.url.startsWith('/app/'))) { await assetHandler(req,res);return; }
-    if (requestHandler && req.url.startsWith('/v1/')) {
+    if (requestHandler && (req.url.startsWith('/v1/') || req.url.startsWith('/internal/'))) {
       if (stopping) { res.writeHead(503); res.end(); return; }
       await requestHandler(req, res);
       return;
