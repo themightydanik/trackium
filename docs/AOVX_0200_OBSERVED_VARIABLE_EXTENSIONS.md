@@ -16,7 +16,7 @@ The 50-packet length histogram had no truncated TLV blocks. The F4 length is an 
 
 ### F6/F9 value comparison (50-packet capture)
 
-- F6: 50/50 values are 14 bytes. There are 19 distinct values. The first two bytes are `00 0f` in 48 packets and `10 0f` in two packets. The third byte varies (observed values include `01` through `07`); subsequent bytes also vary. All bytes are retained exactly as captured. These byte patterns are observations only; no mask bit order, event type, sensor count, or sensor measurements are assigned.
+- F6: 50/50 values are 14 bytes. There are 19 distinct values. The first two bytes are `00 0f` in 47 packets and `10 0f` in three packets. The third byte varies (observed values include `01` through `07`); subsequent bytes also vary. All bytes are retained exactly as captured. These byte patterns are observations only; no mask bit order, event type, sensor count, or sensor measurements are assigned.
 - F9: 50/50 values are identical, 18 bytes: `00 0f` followed by 16 zero bytes. This is consistent with a stable mask-like prefix and zero-valued remainder, but does not prove the exact field boundaries or optional-field ordering.
 - The workbook's sensor structure requires a two-byte prefix, one-byte trigger/event field, one-byte count, and zero or more substantially larger sensor records. A 14-byte F6 value cannot safely be treated as one complete documented sensor record.
 - The workbook's assistant section describes optional fields controlled by a mask. The 18-byte F9 sample alone does not establish a reliable field-by-field decode, so it remains opaque.
