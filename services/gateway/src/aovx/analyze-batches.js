@@ -47,6 +47,7 @@ export function analyzeAovxDeliveryBatches(document, options = {}) {
   const errors = [];
   const records = [];
   let nonTelemetryCount = 0;
+  let invalidCount = 0;
   let missingOrInvalidReceivedAtCount = 0;
 
   for (let index = 0; index < document.packets.length; index += 1) {
@@ -76,6 +77,7 @@ export function analyzeAovxDeliveryBatches(document, options = {}) {
         frameHash: createHash('sha256').update(wire).digest('hex')
       });
     } catch (error) {
+      invalidCount += 1;
       if (errors.length < 100) errors.push({
         packetIndex: index,
         error: error instanceof Error ? error.message : 'unknown decode error'
@@ -88,8 +90,9 @@ export function analyzeAovxDeliveryBatches(document, options = {}) {
     .sort((left, right) => left.receivedMs - right.receivedMs || left.inputIndex - right.inputIndex);
   const intervals = [];
   const batches = [];
-  for (const record of chronological) {
-    const previous = chronological[chronological.indexOf(record) - 1];
+  for (let recordIndex = 0; recordIndex < chronological.length; recordIndex += 1) {
+    const record = chronological[recordIndex];
+    const previous = chronological[recordIndex - 1];
     if (previous) intervals.push((record.receivedMs - previous.receivedMs) / 1000);
 
     const currentBatch = batches.at(-1);
@@ -141,7 +144,7 @@ export function analyzeAovxDeliveryBatches(document, options = {}) {
     packetCount: document.packets.length,
     telemetry0200Count: records.length,
     nonTelemetryCount,
-    invalidCount: errors.length,
+    invalidCount,
     missingOrInvalidReceivedAtCount,
     batchGapThresholdMinutes: gapMinutes,
     chronologicalPacketCount: chronological.length,
@@ -189,12 +192,12 @@ function parseArguments(args) {
 async function main() {
   const { inputPath, batchGapMinutes } = parseArguments(process.argv.slice(2));
   const input = JSON.parse(await readFile(inputPath, 'utf8'));
-  process.stdout.write(`${JSON.stringify(analyzeAovxDeliveryBatches(input, { batchGapMinutes }), null, 2)}\\n`);
+  process.stdout.write(`${JSON.stringify(analyzeAovxDeliveryBatches(input, { batchGapMinutes }), null, 2)}\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch(error => {
-    process.stderr.write(`AOVX batch analysis failed: ${error.message}\\n`);
+    process.stderr.write(`AOVX batch analysis failed: ${error.message}\n`);
     process.exitCode = 1;
   });
 }
