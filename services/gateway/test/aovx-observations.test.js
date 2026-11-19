@@ -12,6 +12,9 @@ test('AOVX observations list uses bounded stable BCD cursor pagination', async (
       { device_id_bcd: '000000000003' }
     ] };
   }});
+  const firstPage = await service.list(2);
+  assert.deepEqual(firstPage.devices.map(x => x.device_id_bcd), ['000000000001', '000000000002']);
+  assert.equal(firstPage.next_cursor, '000000000002');
   const result = await service.list(2, '000000000001');
   assert.deepEqual(call.values, ['000000000001', 3]);
   assert.match(call.sql, /device_id_bcd > \$1/);

@@ -8,7 +8,7 @@ export function createAovxObservations(pool) {
   return {
     async list(limit = 100, cursor) {
       if (!Number.isInteger(limit) || limit < 1 || limit > 200) invalid('invalid limit');
-      const after = cursor === undefined ? null : normalizeId(cursor);
+      const after = cursor == null ? null : normalizeId(cursor);
       const result = await pool.query(
         `SELECT device_id_bcd, first_seen_at, last_seen_at, packet_count,
           last_message_id, last_sequence_number, last_checksum_status, last_parse_status,
