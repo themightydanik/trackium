@@ -241,7 +241,7 @@ export function compareAovxTelemetry(document) {
     chronologicalBasis: 'BCD digit string order within each device; no timezone or elapsed-time assumption',
     fieldValues,
     transitions: combinedTransitions,
-    perDeviceTransitionCount: deviceSummaries.reduce((sum, item) => sum + item.transitionCount, 0),
+    perDeviceTransitionCount: deviceSummaries.reduce((sum, item) => sum + item.transitionCount, 0),\n    invalidBcdTimestampCount: deviceSummaries.reduce((sum, item) => sum + item.invalidBcdTimestampCount, 0),
     note: 'Fixed telemetry and F6 sensor values are compared as raw hexadecimal bytes. Records with invalid BCD timestamps are excluded from chronological comparisons. No units, scales, signedness, byte order, coordinates, or causal relationships are inferred.'
   };
 }
