@@ -11,6 +11,10 @@ const env = {
   PUBLIC_ORIGIN: 'https://gateway.test', ENABLE_NATIVE_CLIENTS: 'true',
   ENABLE_TCP_RECEIVER: 'false'
 };
+const aovxPilotEnv = {
+  ...env, DEPLOYMENT_PROFILE: 'railway-aovx-pilot',
+  ENABLE_TCP_RECEIVER: 'true', TCP_PROTOCOL: 'aovx'
+};
 
 test('Railway PORT takes precedence and invalid ports cannot silently fall back', () => {
   assert.equal(readConfig({ ...env, PORT: '4567', HTTP_PORT: '8080' }).httpPort, 4567);
@@ -29,6 +33,29 @@ test('Railway test profile refuses unsafe runtime overrides', () => {
     { ENABLE_SERVER_SIMULATOR: 'true' }, { ENABLE_FIXTURE_ADAPTER: 'true' },
     { ENABLE_TCP_RECEIVER: 'yes' }, { DEPLOYMENT_PROFILE: 'unknown' }
   ]) assert.throws(() => readConfig({ ...env, ...override }));
+});
+
+test('Railway AOVX pilot enables only explicit AOVX TCP capture while retaining safety gates', () => {
+  const config = readConfig(aovxPilotEnv);
+  assert.equal(config.railwayTest, false);
+  assert.equal(config.railwayAovxPilot, true);
+  assert.equal(config.tcpEnabled, true);
+  assert.equal(config.tcpProtocol, 'aovx');
+  assert.equal(config.tcpPort, 9000);
+  assert.equal(config.nativeEnabled, true);
+  assert.equal(config.proofs.mode, 'disabled');
+  for (const override of [
+    { ENABLE_TCP_RECEIVER: 'false' },
+    { ENABLE_TCP_RECEIVER: undefined },
+    { TCP_PROTOCOL: 'raw' },
+    { ENABLE_NATIVE_CLIENTS: 'false' },
+    { PUBLIC_ORIGIN: 'http://gateway.test' },
+    { PROOF_MODE: 'test' },
+    { PROOF_ALLOW_LIVE: 'true' },
+    { PROOF_ALLOW_MAINNET: 'true' },
+    { ENABLE_SERVER_SIMULATOR: 'true' },
+    { ENABLE_FIXTURE_ADAPTER: 'true' }
+  ]) assert.throws(() => readConfig({ ...aovxPilotEnv, ...override }));
 });
 
 function probe(guard, overrides = {}) {

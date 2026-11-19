@@ -2,7 +2,7 @@ import { proofConfig } from './proofs/config.js';
 function integer(env, name, fallback, max = 2147483647) {
   const value = env[name] ?? String(fallback);
   if (
-    !/^\d+$/.test(value) ||
+    !/^\\d+$/.test(value) ||
     !Number.isSafeInteger(Number(value)) ||
     Number(value) < 1 ||
     Number(value) > max
@@ -23,28 +23,36 @@ export function readConfig(env = process.env) {
   for (const name of ['ENABLE_WEB_WORKSPACE', 'ENABLE_SERVER_SIMULATOR', 'ENABLE_NATIVE_CLIENTS', 'ENABLE_TCP_RECEIVER'])
     if (env[name] !== undefined && !['true', 'false'].includes(env[name]))
       throw new Error(name + ' must be true or false');
-  if (env.DEPLOYMENT_PROFILE !== undefined && env.DEPLOYMENT_PROFILE !== 'railway-test')
+  const profiles = ['railway-test', 'railway-aovx-pilot'];
+  if (env.DEPLOYMENT_PROFILE !== undefined && !profiles.includes(env.DEPLOYMENT_PROFILE))
     throw new Error('Unknown DEPLOYMENT_PROFILE');
   const railwayTest = env.DEPLOYMENT_PROFILE === 'railway-test';
-  if (railwayTest) {
-    if (env.ENABLE_NATIVE_CLIENTS !== 'true' || env.ENABLE_TCP_RECEIVER !== 'false')
-      throw new Error('Railway test requires native clients and a disabled TCP receiver');
+  const railwayAovxPilot = env.DEPLOYMENT_PROFILE === 'railway-aovx-pilot';
+  if (railwayTest || railwayAovxPilot) {
+    if (env.ENABLE_NATIVE_CLIENTS !== 'true')
+      throw new Error('Railway profiles require native clients');
     if (!env.PUBLIC_ORIGIN || new URL(env.PUBLIC_ORIGIN).protocol !== 'https:')
-      throw new Error('Railway test requires an explicit HTTPS PUBLIC_ORIGIN');
+      throw new Error('Railway profiles require an explicit HTTPS PUBLIC_ORIGIN');
     if ((env.PROOF_MODE ?? 'disabled') !== 'disabled' ||
         (env.PROOF_ALLOW_LIVE ?? 'false') !== 'false' ||
         (env.PROOF_ALLOW_MAINNET ?? 'false') !== 'false' ||
         (env.PROOF_MAX_PUBLICATIONS ?? '1') !== '1' ||
         (env.ENABLE_SERVER_SIMULATOR ?? 'false') !== 'false' ||
         (env.ENABLE_FIXTURE_ADAPTER ?? 'false') !== 'false')
-      throw new Error('Railway test forbids publication, simulation and fixture ingestion');
+      throw new Error('Railway profiles forbid publication, simulation and fixture ingestion');
   }
-  const aovxObservationsToken = env.AOVX_OBSERVATIONS_TOKEN || undefined;
-  if (aovxObservationsToken !== undefined && (typeof aovxObservationsToken !== 'string' || aovxObservationsToken.length < 32 || aovxObservationsToken.length > 512 || !/^[A-Za-z0-9._~-]+$/.test(aovxObservationsToken))) throw new Error('AOVX_OBSERVATIONS_TOKEN must be 32..512 URL-safe characters');
+  if (railwayTest && env.ENABLE_TCP_RECEIVER !== 'false')
+    throw new Error('Railway test requires a disabled TCP receiver');
   const tcpProtocol = env.TCP_PROTOCOL ?? 'raw';
   if (!['raw', 'aovx'].includes(tcpProtocol)) throw new Error('TCP_PROTOCOL must be raw or aovx');
+  if (railwayAovxPilot &&
+      (env.ENABLE_TCP_RECEIVER !== 'true' || tcpProtocol !== 'aovx'))
+    throw new Error('Railway AOVX pilot requires an explicitly enabled AOVX TCP receiver');
+  const aovxObservationsToken = env.AOVX_OBSERVATIONS_TOKEN || undefined;
+  if (aovxObservationsToken !== undefined && (typeof aovxObservationsToken !== 'string' || aovxObservationsToken.length < 32 || aovxObservationsToken.length > 512 || !/^[A-Za-z0-9._~-]+$/.test(aovxObservationsToken))) throw new Error('AOVX_OBSERVATIONS_TOKEN must be 32..512 URL-safe characters');
   return {
     railwayTest,
+    railwayAovxPilot,
     tcpProtocol,
     aovxObservationsToken,
     proofs: proofConfig(env),
