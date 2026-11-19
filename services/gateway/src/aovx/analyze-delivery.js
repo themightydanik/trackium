@@ -163,7 +163,6 @@ export function analyzeAovxDelivery(document) {
     records: records.slice(0, MAX_DETAILS),
     recordsOmitted: Math.max(0, records.length - MAX_DETAILS),
     errors,
-    errorsOmitted: Math.max(0, document.packets.length - records.length - errors.length),
     notes: [
       'Device timestamps are interpreted as YYMMDDhhmmss BCD and provisionally treated as UTC solely to calculate age; device timezone is not confirmed.',
       'Status bit 31 is reported as 0=realtime and 1=buffered per the protocol workbook.',
