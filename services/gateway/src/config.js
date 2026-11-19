@@ -50,6 +50,13 @@ export function readConfig(env = process.env) {
     throw new Error('Railway AOVX pilot requires an explicitly enabled AOVX TCP receiver');
   const aovxObservationsToken = env.AOVX_OBSERVATIONS_TOKEN || undefined;
   if (aovxObservationsToken !== undefined && (typeof aovxObservationsToken !== 'string' || aovxObservationsToken.length < 32 || aovxObservationsToken.length > 512 || !/^[A-Za-z0-9._~-]+$/.test(aovxObservationsToken))) throw new Error('AOVX_OBSERVATIONS_TOKEN must be 32..512 URL-safe characters');
+  const tcpEnabled = env.ENABLE_TCP_RECEIVER !== 'false';
+  const tcpPort = integer(env, 'TCP_PORT', 9000, 65535);
+  const httpPort = env.HTTP_PORT !== undefined
+    ? integer(env, 'HTTP_PORT', 8080, 65535)
+    : integer(env, 'PORT', 8080, 65535);
+  if (tcpEnabled && tcpPort === httpPort)
+    throw new Error('TCP_PORT and HTTP_PORT must be different when TCP receiver is enabled');
   return {
     railwayTest,
     railwayAovxPilot,
@@ -62,12 +69,9 @@ export function readConfig(env = process.env) {
     publicOrigin: env.PUBLIC_ORIGIN || 'http://127.0.0.1:8080',
     webRoot: env.WEB_ROOT,
     fixturesEnabled: env.ENABLE_FIXTURE_ADAPTER === 'true',
-    tcpPort: integer(env, 'TCP_PORT', 9000, 65535),
-    tcpEnabled: env.ENABLE_TCP_RECEIVER !== 'false',
-    // Railway's PORT wins over the native/Compose HTTP_PORT setting.
-    httpPort: env.PORT !== undefined
-      ? integer(env, 'PORT', 8080, 65535)
-      : integer(env, 'HTTP_PORT', 8080, 65535),
+    tcpPort,
+    tcpEnabled,
+    httpPort,
     maxFrameBytes: integer(env, 'MAX_FRAME_BYTES', 65536, 16 * 1024 * 1024),
     maxConnections: integer(env, 'MAX_CONNECTIONS', 100),
     maxPendingFrames: integer(env, 'MAX_PENDING_FRAMES', 100),
