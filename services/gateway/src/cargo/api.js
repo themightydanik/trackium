@@ -36,7 +36,7 @@ export function createCargoApi({
           if (!['limit', 'before', 'device_id'].includes(key) || url.searchParams.getAll(key).length !== 1)
             throw new ApiError(400, 'unsupported query parameter');
         const rawLimit = url.searchParams.get('limit') ?? '25';
-        if (!/^\\d+$/.test(rawLimit) || Number(rawLimit) < 1 || Number(rawLimit) > 50)
+        if (!/^\d+$/.test(rawLimit) || Number(rawLimit) < 1 || Number(rawLimit) > 50)
           throw new ApiError(400, 'limit must be 1..50');
         return reply(res, 200, await aovxObservations.packets({
           limit: Number(rawLimit),
@@ -44,7 +44,7 @@ export function createCargoApi({
           deviceId: url.searchParams.get('device_id') ?? undefined
         }));
       }
-      const aovxDevice = /^\\/internal\\/aovx\\/devices(?:\\/([0-9a-fA-F]{12}))?$/.exec(path);
+      const aovxDevice = /^\/internal\/aovx\/devices(?:\/([0-9a-fA-F]{12}))?$/.exec(path);
       if (aovxDevice) {
         const expected = config.aovxObservationsToken;
         if (!expected) throw new ApiError(404, 'not found');
