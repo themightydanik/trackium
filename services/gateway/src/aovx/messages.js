@@ -16,7 +16,33 @@ function readUInt48BE(bytes, offset) {
 
 function asciiOrNull(bytes) {
   if (!bytes.every(byte => byte === 0 || (byte >= 0x20 && byte <= 0x7e))) return null;
-  return bytes.toString('ascii').replace(/\0+$/u, '');
+  return bytes.toString('ascii').replace(/\\0+$/u, '');
+}
+
+function bcdDigitsOrNull(bytes) {
+  let digits = '';
+  for (const byte of bytes) {
+    const high = byte >> 4;
+    const low = byte & 0x0f;
+    if (high > 9 || low > 9) return null;
+    digits += String(high) + String(low);
+  }
+  return digits;
+}
+
+function hexChunks(bytes, baseOffset) {
+  const chunks = [];
+  for (let start = 0; start < bytes.length; start += 16) {
+    const chunk = bytes.subarray(start, Math.min(start + 16, bytes.length));
+    const ascii = Array.from(chunk, byte => byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : '.').join('');
+    chunks.push({
+      offset: baseOffset + start,
+      offsetHex: `0x${(baseOffset + start).toString(16).padStart(2, '0')}`,
+      hex: chunk.toString('hex').match(/.{1,2}/gu)?.join(' ') ?? '',
+      ascii
+    });
+  }
+  return chunks;
 }
 
 function requireLength(body, minimum, messageId) {
@@ -72,6 +98,8 @@ function parseBasicInformation(body) {
   // The workbook defines these fixed fields through GNSS count. Later fields are
   // model/configuration dependent; retain them as opaque bytes until decoded.
   requireLength(body, 40, 0x0200);
+  const timestampBcd = Buffer.from(body.subarray(22, 28));
+  const remainingBody = Buffer.from(body.subarray(40));
   return {
     alarm: body.readUInt32BE(0),
     status: body.readUInt32BE(4),
@@ -80,11 +108,35 @@ function parseBasicInformation(body) {
     altitudeRaw: body.readUInt16BE(16),
     speedRaw: body.readUInt16BE(18),
     directionRaw: body.readUInt16BE(20),
-    timestampBcd: Buffer.from(body.subarray(22, 28)),
+    timestampBcd,
+    timestampBcdDigits: bcdDigitsOrNull(timestampBcd),
     mileageRaw: readUInt48BE(body, 28),
     cellularSignalRaw: Buffer.from(body.subarray(34, 37)),
     gnssSatellitesRaw: Buffer.from(body.subarray(37, 40)),
-    remainingBody: Buffer.from(body.subarray(40))
+    remainingBody,
+    diagnostics: {
+      bodyLength: body.length,
+      fixedPrefixLength: 40,
+      fields: {
+        alarm: { offset: 0, length: 4 },
+        status: { offset: 4, length: 4 },
+        latitudeRaw: { offset: 8, length: 4 },
+        longitudeRaw: { offset: 12, length: 4 },
+        altitudeRaw: { offset: 16, length: 2 },
+        speedRaw: { offset: 18, length: 2 },
+        directionRaw: { offset: 20, length: 2 },
+        timestampBcd: { offset: 22, length: 6 },
+        mileageRaw: { offset: 28, length: 6 },
+        cellularSignalRaw: { offset: 34, length: 3 },
+        gnssSatellitesRaw: { offset: 37, length: 3 }
+      },
+      remainingBody: {
+        offset: 40,
+        length: remainingBody.length,
+        hex: remainingBody.toString('hex'),
+        chunks: hexChunks(remainingBody, 40)
+      }
+    }
   };
 }
 

@@ -14,13 +14,32 @@ envelope has been structurally decoded.
 - `0x0001`: response sequence, corresponding device message ID and result.
 - `0x0200`: fixed telemetry prefix through GNSS satellite count. Raw numeric
   values and BCD timestamp bytes are exposed without applying undocumented
-  scaling, timezone, coordinate or unit assumptions. Remaining bytes are kept
-  opaque because optional/model-dependent fields vary by configuration.
+  scaling, timezone, coordinate or unit assumptions.
+
+## Telemetry byte diagnostics
+
+For `0x0200`, the parser now also returns a diagnostic map of fixed-prefix
+field offsets and a byte-oriented view of the opaque tail:
+
+- body length and fixed-prefix length;
+- byte offset and length for each documented fixed-prefix field;
+- tail offset (40), byte length and complete hex representation;
+- 16-byte chunks with absolute body offsets, spaced hex bytes and printable
+  ASCII (non-printable bytes appear as dots);
+- `timestampBcdDigits`, populated only when every BCD nibble is valid.
+
+The BCD digit view is not a date/time conversion: no timezone or calendar
+validity is inferred. Numeric telemetry fields remain raw and no coordinate,
+speed, altitude, mileage or signal units are assumed. The tail remains opaque;
+printable strings or repeated byte patterns are diagnostic clues, not a
+confirmed extension schema.
 
 The `0x0200` workbook example declares a 76-byte body. Its parser test checks
 the documented 40-byte fixed prefix and uses a synthetic 36-byte opaque tail;
 that test is not a complete captured wire-frame fixture and is not a GL110
 device fixture.
+
+## Other messages
 
 Other message IDs, including `0x0900`, `0x0104`, `0x8103` and `0x8104`,
 remain opaque until their layouts are implemented from verified fixtures.
