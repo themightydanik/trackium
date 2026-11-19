@@ -203,6 +203,76 @@ test('parses observed Wi-Fi records and battery fields while keeping device iden
 });
 
 
+test('parses observed F6 sensor fields from the one-byte data type and mask', () => {
+  const sensorValue = Buffer.from('000f01dd00e8029ffff6001a040c', 'hex');
+  const tail = Buffer.concat([Buffer.from([0xf6, sensorValue.length]), sensorValue]);
+  const body = Buffer.concat([Buffer.alloc(40), tail]);
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.alloc(6),
+    sequenceNumber: 1,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
+  const sensor = parsed.data.observedExtensions.sensorInformation;
+
+  assert.equal(sensor.matchesObservedEnvelope, true);
+  assert.equal(sensor.dataTypeRaw, 0);
+  assert.equal(sensor.dataTypeDescription, 'periodic-sampling');
+  assert.equal(sensor.fieldMask, 0x0f);
+  assert.deepEqual(sensor.enabledFields, [
+    'lightRaw', 'temperatureRaw', 'humidityRaw', 'accelerometerRaw'
+  ]);
+  assert.deepEqual(sensor.fields.lightRaw, Buffer.from('01dd', 'hex'));
+  assert.deepEqual(sensor.fields.temperatureRaw, Buffer.from('00e8', 'hex'));
+  assert.deepEqual(sensor.fields.humidityRaw, Buffer.from('029f', 'hex'));
+  assert.deepEqual(sensor.fields.accelerometerRaw, Buffer.from('fff6001a040c', 'hex'));
+  assert.equal(parsed.data.observedExtensions.opaqueExtensions.length, 0);
+  assert.equal(parsed.data.observedExtensions.unparsedTail.length, 0);
+});
+
+test('parses F6 reserved data type while preserving the raw type and selected fields', () => {
+  const sensorValue = Buffer.from('100f01dd00e8029ffff6001a040c', 'hex');
+  const tail = Buffer.concat([Buffer.from([0xf6, sensorValue.length]), sensorValue]);
+  const body = Buffer.concat([Buffer.alloc(40), tail]);
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.alloc(6),
+    sequenceNumber: 1,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
+  const sensor = parsed.data.observedExtensions.sensorInformation;
+
+  assert.equal(sensor.matchesObservedEnvelope, true);
+  assert.equal(sensor.dataTypeRaw, 0x10);
+  assert.equal(sensor.dataTypeDescription, 'reserved');
+  assert.equal(sensor.fieldMask, 0x0f);
+  assert.deepEqual(sensor.fields.lightRaw, Buffer.from('01dd', 'hex'));
+});
+
+test('keeps F6 opaque when its declared length does not match the selected sensor fields', () => {
+  const sensorValue = Buffer.from('000f01dd00e8029ffff600', 'hex');
+  const tail = Buffer.concat([Buffer.from([0xf6, sensorValue.length]), sensorValue]);
+  const body = Buffer.concat([Buffer.alloc(40), tail]);
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.alloc(6),
+    sequenceNumber: 1,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
+
+  assert.equal(parsed.data.observedExtensions.sensorInformation, null);
+  assert.equal(parsed.data.observedExtensions.opaqueExtensions.length, 1);
+  assert.equal(parsed.data.observedExtensions.opaqueExtensions[0].tag, 0xf6);
+  assert.equal(parsed.data.observedExtensions.opaqueExtensions[0].matchesObservedEnvelope, false);
+  assert.equal(parsed.data.observedExtensions.unparsedTail.length, 0);
+});
+
 test('parses the observed F9 mask 0x000f into opaque workbook-aligned fields', () => {
   const assistantValue = Buffer.from('000f00000000000000000000000000000000', 'hex');
   const tail = Buffer.concat([
