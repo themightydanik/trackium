@@ -160,6 +160,49 @@ test('exposes workbook-aligned raw base-station field slices', () => {
   assert.equal(fields.rssiRaw, 0x97);
 });
 
+
+test('parses observed Wi-Fi records and battery fields while keeping device identifiers opaque', () => {
+  const wifiRecords = Buffer.from(Array.from({ length: 35 }, (_, index) => index + 1));
+  const batteryValue = Buffer.from('000f01d900e8', 'hex');
+  const deviceInformation = Buffer.alloc(29, 0x41);
+  const opaqueSensor = Buffer.alloc(14, 0x5a);
+  const opaqueAssist = Buffer.alloc(18, 0x6b);
+  const tail = Buffer.concat([
+    Buffer.from([0xf4, wifiRecords.length]), wifiRecords,
+    Buffer.from([0xf6, opaqueSensor.length]), opaqueSensor,
+    Buffer.from([0xf7, batteryValue.length]), batteryValue,
+    Buffer.from([0xf8, deviceInformation.length]), deviceInformation,
+    Buffer.from([0xf9, opaqueAssist.length]), opaqueAssist
+  ]);
+  const body = Buffer.concat([Buffer.alloc(40), tail]);
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.alloc(6),
+    sequenceNumber: 1,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
+  const extensions = parsed.data.observedExtensions;
+
+  assert.equal(extensions.wifiList.matchesObservedEnvelope, true);
+  assert.equal(extensions.wifiList.recordLength, 7);
+  assert.equal(extensions.wifiList.recordCount, 5);
+  assert.equal(extensions.wifiList.records[0].macHex, '010203040506');
+  assert.equal(extensions.wifiList.records[0].rssiRaw, 7);
+  assert.equal(extensions.batteryInformation.matchesObservedEnvelope, true);
+  assert.deepEqual(extensions.batteryInformation.batteryVoltageRaw, Buffer.from('000f01d9', 'hex'));
+  assert.equal(extensions.batteryInformation.chargeStatusRaw, 0x00);
+  assert.equal(extensions.batteryInformation.batteryLevelPercentageRaw, 0xe8);
+  assert.equal(extensions.deviceGeneralInformation.matchesObservedEnvelope, true);
+  assert.equal(extensions.deviceGeneralInformation.valueLength, 29);
+  assert.equal('valueRaw' in extensions.deviceGeneralInformation, false);
+  assert.deepEqual(extensions.opaqueExtensions.map(field => field.tag), [0xf6, 0xf9]);
+  assert.equal(extensions.parsedLength, tail.length);
+  assert.equal(extensions.unparsedTail.length, 0);
+});
+
+
 test('does not consume malformed observed variable extensions', () => {
   const tail = Buffer.from('f00c0102030405060708090a0b0cf2234142', 'hex');
   const body = Buffer.concat([Buffer.alloc(40), tail]);
