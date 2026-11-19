@@ -67,3 +67,10 @@ test('handles missing receive times and rejects invalid capture shapes', () => {
   assert.throws(() => analyzeAovxDelivery({}), /packets array/);
   assert.throws(() => analyzeAovxDelivery({ packets: Array(5001).fill({}) }), /exceeds/);
 });
+
+
+test('bounds raw frame size before decoding', () => {
+  const result = analyzeAovxDelivery({ packets: [{ id: 'oversized', raw_payload_hex: 'aa'.repeat(65537) }] });
+  assert.equal(result.telemetry0200Count, 0);
+  assert.match(result.errors[0].error, /bounded even-length hexadecimal frame/);
+});
