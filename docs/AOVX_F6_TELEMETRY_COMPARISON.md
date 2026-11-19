@@ -24,7 +24,7 @@ The input is the existing packet export with a top-level `packets` array and eac
 - Decode structurally valid AOVX frames and retain only 0x0200 messages with an F6 extension that matches the workbook's mask-derived length.
 - Group samples by device internally, then sort each device's samples by the BCD timestamp digit string. This is lexical ordering only; it does not apply a timezone or calculate elapsed time.
 - Compare the raw F6 fields (Light, Temperature, Humidity, Accelerometer) with raw fixed-prefix bytes (status, latitude, longitude, altitude, speed, direction).
-- For each sensor/fixed-field pair, count adjacent transitions where both changed, only the sensor field changed, only the fixed field changed, or neither changed.
+- Compare adjacent samples only when the F6 data type and field mask match; otherwise count an incomparable boundary. For each sensor/fixed-field pair, count transitions where both changed, only the sensor field changed, only the fixed field changed, or neither changed.
 - Keep malformed frames, telemetry without a matching F6 block, and invalid BCD timestamps visible in aggregate counts.
 
 ## Interpretation limits
