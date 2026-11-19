@@ -187,4 +187,4 @@ A buffered replay, duplicate packet, parser retry or device heartbeat must not a
 
 ## 10. Relationship to the decentralized roadmap
 
-This contract supplies concrete protocol and ingestion evidence for the hardware/telemetry work in [DECENTRALIZED_ROADMAP.md](DECENTRALIZED_ROADMAP.md), particularly P0.3 (hardware identity/firmware contract) and the later real-adapter stage. The roadmap audit PR may remain separately reviewable; this document does not silently mark any proposed roadmap gate complete.
+This contract supplies concrete protocol and ingestion evidence for the hardware/telemetry work in [decentralized architecture audit and roadmap PR #11](https://github.com/themightydanik/trackium/pull/11), particularly P0.3 (hardware identity/firmware contract) and the later real-adapter stage. The roadmap audit PR may remain separately reviewable; this document does not silently mark any proposed roadmap gate complete.
