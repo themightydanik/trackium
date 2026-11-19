@@ -191,17 +191,17 @@ export function analyzeAovxDuplicateSamples(document) {
 async function main() {
   const path = process.argv[2];
   if (!path || process.argv.length !== 3) {
-    process.stderr.write('Usage: npm run aovx:duplicates -- <capture.json>\\n');
+    process.stderr.write('Usage: npm run aovx:duplicates -- <capture.json>\n');
     process.exitCode = 2;
     return;
   }
   const input = JSON.parse(await readFile(path, 'utf8'));
-  process.stdout.write(`${JSON.stringify(analyzeAovxDuplicateSamples(input), null, 2)}\\n`);
+  process.stdout.write(`${JSON.stringify(analyzeAovxDuplicateSamples(input), null, 2)}\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch(error => {
-    process.stderr.write(`AOVX duplicate analysis failed: ${error.message}\\n`);
+    process.stderr.write(`AOVX duplicate analysis failed: ${error.message}\n`);
     process.exitCode = 1;
   });
 }
