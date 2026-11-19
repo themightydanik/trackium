@@ -1,4 +1,6 @@
 import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { decodeAovxFrame } from './frame.js';
 import { parseAovxMessage } from './messages.js';
 
@@ -84,7 +86,7 @@ async function main() {
   process.stdout.write(`${JSON.stringify(analyzeAovxCapture(input), null, 2)}\\n`);
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch(error => {
     process.stderr.write(`AOVX capture analysis failed: ${error.message}\\n`);
     process.exitCode = 1;
