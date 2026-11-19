@@ -115,84 +115,138 @@ function parseObservedTlvField(bytes, expectedTag, expectedValueLength) {
   };
 }
 
-function parseObservedLengthPrefixedExtension(bytes, expectedTag, validateValue) {
-  const raw = Buffer.from(bytes);
-  const tag = raw.length >= 1 ? raw[0] : null;
-  const declaredLength = raw.length >= 2 ? raw[1] : null;
-  const hasCompleteValue = declaredLength !== null && raw.length >= declaredLength + 2;
-  const valueRaw = Buffer.from(raw.subarray(2, hasCompleteValue ? declaredLength + 2 : undefined));
-  const matchesObservedEnvelope = tag === expectedTag &&
-    hasCompleteValue &&
-    validateValue(valueRaw);
-
-  return {
-    format: 'observed-tag-length-value',
-    tag,
-    declaredLength,
-    valueRaw,
-    valueHex: valueRaw.toString('hex'),
-    matchesObservedEnvelope,
-    consumedLength: matchesObservedEnvelope ? declaredLength + 2 : 0
-  };
-}
-
 function parseObservedTelemetryExtensions(tail) {
   let offset = 0;
   let baseStationInformation = null;
   let deviceFirmwareVersion = null;
+  let wifiList = null;
+  let batteryInformation = null;
+  let deviceGeneralInformation = null;
+  const opaqueExtensions = [];
 
-  if (tail[0] === 0xf0) {
-    const field = parseObservedLengthPrefixedExtension(
-      tail,
-      0xf0,
-      value => value.length > 0 && value.length % 13 === 0
-    );
-    baseStationInformation = {
-      ...field,
-      recordLength: 13,
-      recordCount: field.matchesObservedEnvelope ? field.valueRaw.length / 13 : null,
-      recordsHex: field.matchesObservedEnvelope
-        ? Array.from({ length: field.valueRaw.length / 13 }, (_, index) =>
-          field.valueRaw.subarray(index * 13, (index + 1) * 13).toString('hex'))
-        : [],
-      records: field.matchesObservedEnvelope
-        ? Array.from({ length: field.valueRaw.length / 13 }, (_, index) => {
-          const record = field.valueRaw.subarray(index * 13, (index + 1) * 13);
-          return {
-            offset: index * 13,
-            mccRaw: Buffer.from(record.subarray(0, 2)),
-            mccHex: record.subarray(0, 2).toString('hex'),
-            mncRaw: Buffer.from(record.subarray(2, 4)),
-            mncHex: record.subarray(2, 4).toString('hex'),
-            cellIdRaw: Buffer.from(record.subarray(4, 8)),
-            cellIdHex: record.subarray(4, 8).toString('hex'),
-            lacRaw: Buffer.from(record.subarray(8, 12)),
-            lacHex: record.subarray(8, 12).toString('hex'),
-            rssiRaw: record[12]
-          };
-        })
-        : []
-    };
-    offset += field.consumedLength;
-  }
+  while (offset + 2 <= tail.length) {
+    const blockOffset = offset;
+    const tag = tail[offset];
+    const declaredLength = tail[offset + 1];
+    const valueStart = offset + 2;
+    const valueEnd = valueStart + declaredLength;
+    if (valueEnd > tail.length) break;
 
-  if (offset < tail.length && tail[offset] === 0xf2) {
-    const field = parseObservedLengthPrefixedExtension(
-      tail.subarray(offset),
-      0xf2,
-      value => value.length > 0 && value.every(byte => byte >= 0x20 && byte <= 0x7e)
-    );
-    deviceFirmwareVersion = {
-      ...field,
-      valueAscii: field.matchesObservedEnvelope ? field.valueRaw.toString('ascii') : null
+    const valueRaw = Buffer.from(tail.subarray(valueStart, valueEnd));
+    const valueHex = valueRaw.toString('hex');
+    const envelope = {
+      format: 'observed-tag-length-value',
+      tag,
+      declaredLength,
+      valueRaw,
+      valueHex,
+      offset: blockOffset
     };
-    offset += field.consumedLength;
+
+    if (tag === 0xf0) {
+      const matchesObservedEnvelope = valueRaw.length > 0 && valueRaw.length % 13 === 0;
+      if (matchesObservedEnvelope) {
+        baseStationInformation = {
+          ...envelope,
+          matchesObservedEnvelope: true,
+          recordLength: 13,
+          recordCount: valueRaw.length / 13,
+          recordsHex: Array.from({ length: valueRaw.length / 13 }, (_, index) =>
+            valueRaw.subarray(index * 13, (index + 1) * 13).toString('hex')),
+          records: Array.from({ length: valueRaw.length / 13 }, (_, index) => {
+            const record = valueRaw.subarray(index * 13, (index + 1) * 13);
+            return {
+              offset: index * 13,
+              mccRaw: Buffer.from(record.subarray(0, 2)),
+              mccHex: record.subarray(0, 2).toString('hex'),
+              mncRaw: Buffer.from(record.subarray(2, 4)),
+              mncHex: record.subarray(2, 4).toString('hex'),
+              cellIdRaw: Buffer.from(record.subarray(4, 8)),
+              cellIdHex: record.subarray(4, 8).toString('hex'),
+              lacRaw: Buffer.from(record.subarray(8, 12)),
+              lacHex: record.subarray(8, 12).toString('hex'),
+              rssiRaw: record[12]
+            };
+          })
+        };
+      } else {
+        baseStationInformation = { ...envelope, matchesObservedEnvelope: false, recordCount: null };
+        break;
+      }
+    } else if (tag === 0xf2) {
+      const matchesObservedEnvelope = valueRaw.length > 0 &&
+        valueRaw.every(byte => byte >= 0x20 && byte <= 0x7e);
+      if (matchesObservedEnvelope) {
+        deviceFirmwareVersion = {
+          ...envelope,
+          matchesObservedEnvelope: true,
+          valueAscii: valueRaw.toString('ascii')
+        };
+      } else {
+        opaqueExtensions.push({ ...envelope, matchesObservedEnvelope: false });
+      }
+    } else if (tag === 0xf4) {
+      const matchesObservedEnvelope = valueRaw.length > 0 && valueRaw.length % 7 === 0;
+      if (matchesObservedEnvelope) {
+        wifiList = {
+          ...envelope,
+          matchesObservedEnvelope: true,
+          recordLength: 7,
+          recordCount: valueRaw.length / 7,
+          records: Array.from({ length: valueRaw.length / 7 }, (_, index) => {
+            const record = valueRaw.subarray(index * 7, (index + 1) * 7);
+            return {
+              offset: index * 7,
+              macRaw: Buffer.from(record.subarray(0, 6)),
+              macHex: record.subarray(0, 6).toString('hex'),
+              rssiRaw: record[6]
+            };
+          })
+        };
+      } else {
+        opaqueExtensions.push({ ...envelope, matchesObservedEnvelope: false });
+      }
+    } else if (tag === 0xf7) {
+      const matchesObservedEnvelope = valueRaw.length >= 4 && valueRaw.length <= 6;
+      if (matchesObservedEnvelope) {
+        batteryInformation = {
+          format: 'observed-tag-length-value',
+          tag,
+          declaredLength,
+          matchesObservedEnvelope: true,
+          valueLength: valueRaw.length,
+          batteryVoltageRaw: Buffer.from(valueRaw.subarray(0, 4)),
+          chargeStatusRaw: valueRaw.length >= 5 ? valueRaw[4] : null,
+          batteryLevelPercentageRaw: valueRaw.length >= 6 ? valueRaw[5] : null
+        };
+      } else {
+        opaqueExtensions.push({ ...envelope, matchesObservedEnvelope: false });
+      }
+    } else if (tag === 0xf8) {
+      // Device information includes IMEI and ICCID. Expose only its envelope
+      // metadata here; do not duplicate those identifiers into parsed fields.
+      deviceGeneralInformation = {
+        format: 'observed-tag-length-value',
+        tag,
+        declaredLength,
+        valueLength: valueRaw.length,
+        matchesObservedEnvelope: valueRaw.length === 29
+      };
+    } else {
+      opaqueExtensions.push({ ...envelope, matchesObservedEnvelope: null });
+    }
+
+    offset = valueEnd;
   }
 
   const unparsedTail = Buffer.from(tail.subarray(offset));
   return {
     baseStationInformation,
     deviceFirmwareVersion,
+    wifiList,
+    batteryInformation,
+    deviceGeneralInformation,
+    opaqueExtensions,
     unparsedTail,
     unparsedTailHex: unparsedTail.toString('hex'),
     parsedLength: offset
