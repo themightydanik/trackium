@@ -79,3 +79,42 @@ test('keeps unimplemented messages opaque and rejects truncated known messages',
   assert.deepEqual(unknown.data.rawBody, Buffer.from([1, 2]));
   assert.throws(() => parseAovxMessage({ messageId: 0x8001, body: Buffer.alloc(4), deviceIdBcd: Buffer.alloc(6), sequenceNumber: 1, bodyLength: 4 }), /must be 5 bytes/);
 });
+
+test('adds byte-offset diagnostics and a BCD digit view without interpreting units or timezone', () => {
+  const body = Buffer.concat([
+    Buffer.from('000000000000000301e611be06fc5dc0004100000000210928172305010400000000300116310107', 'hex'),
+    Buffer.from('AOVX-GM110-GL-EXT', 'ascii'),
+    Buffer.from([0x00, 0x7e, 0x7d, 0xff])
+  ]);
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.from('944063243931', 'hex'),
+    sequenceNumber: 16,
+    bodyLength: body.length,
+    checksumStatus: 'xor-match',
+    body
+  });
+  assert.equal(parsed.data.timestampBcdDigits, '210928172305');
+  assert.equal(parsed.data.diagnostics.bodyLength, body.length);
+  assert.deepEqual(parsed.data.diagnostics.fields.latitudeRaw, { offset: 8, length: 4 });
+  assert.equal(parsed.data.diagnostics.remainingBody.offset, 40);
+  assert.equal(parsed.data.diagnostics.remainingBody.length, body.length - 40);
+  assert.equal(parsed.data.diagnostics.remainingBody.hex, body.subarray(40).toString('hex'));
+  assert.equal(parsed.data.diagnostics.remainingBody.chunks[0].offset, 40);
+  assert.equal(parsed.data.diagnostics.remainingBody.chunks[0].offsetHex, '0x28');
+  assert.match(parsed.data.diagnostics.remainingBody.chunks[0].ascii, /AOVX-GM110-GL-EXT/);
+});
+
+test('does not expose a BCD digit view when timestamp bytes contain invalid nibbles', () => {
+  const body = Buffer.alloc(40);
+  body[22] = 0xfa;
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.alloc(6),
+    sequenceNumber: 1,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
+  assert.equal(parsed.data.timestampBcdDigits, null);
+});
