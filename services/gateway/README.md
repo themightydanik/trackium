@@ -37,7 +37,8 @@ Native environment settings (positive integers, rejected when invalid):
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `TCP_PORT` / `HTTP_PORT` | `9000` / `8080` | Listener ports, 1–65535 |\n| `TCP_PROTOCOL` | `raw` | `raw` (legacy LF) or `aovx` (binary frame validation) |
+| `TCP_PORT` / `HTTP_PORT` | `9000` / `8080` | Listener ports, 1–65535 |
+| `TCP_PROTOCOL` | `raw` | `raw` (legacy LF) or `aovx` (binary frame validation) |
 | `MAX_FRAME_BYTES` | `65536` | Maximum raw payload or complete AOVX wire frame, up to 16 MiB |
 | `MAX_CONNECTIONS` | `100` | Connected or draining TCP sessions |
 | `MAX_PENDING_FRAMES` | `100` | Global queued and in-flight frame budget |
