@@ -16,7 +16,7 @@ function readUInt48BE(bytes, offset) {
 
 function asciiOrNull(bytes) {
   if (!bytes.every(byte => byte === 0 || (byte >= 0x20 && byte <= 0x7e))) return null;
-  return bytes.toString('ascii').replace(/\\0+$/u, '');
+  return bytes.toString('ascii').replace(/\0+$/u, '');
 }
 
 function bcdDigitsOrNull(bytes) {
