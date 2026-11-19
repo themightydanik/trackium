@@ -16,11 +16,18 @@ const aovxPilotEnv = {
   ENABLE_TCP_RECEIVER: 'true', TCP_PROTOCOL: 'aovx'
 };
 
-test('Railway PORT takes precedence and invalid ports cannot silently fall back', () => {
-  assert.equal(readConfig({ ...env, PORT: '4567', HTTP_PORT: '8080' }).httpPort, 4567);
+test('HTTP_PORT overrides Railway PORT so HTTP and TCP can use separate ports', () => {
+  assert.equal(readConfig({ ...aovxPilotEnv, PORT: '9000', HTTP_PORT: '8080' }).httpPort, 8080);
+  assert.equal(readConfig({ ...env, PORT: '4567' }).httpPort, 4567);
   assert.equal(readConfig({ DATABASE_URL: 'unused', HTTP_PORT: '1234' }).httpPort, 1234);
   for (const PORT of ['', '0', '65536', '-1', '1.5', 'abc'])
     assert.throws(() => readConfig({ ...env, PORT }), /PORT/);
+});
+
+test('enabled TCP receiver rejects an HTTP/TCP port collision with a clear config error', () => {
+  assert.throws(() => readConfig({ ...aovxPilotEnv, PORT: '9000' }), /TCP_PORT and HTTP_PORT must be different/);
+  assert.equal(readConfig({ ...aovxPilotEnv, PORT: '9000', HTTP_PORT: '8080' }).tcpPort, 9000);
+  assert.equal(readConfig({ ...env, PORT: '9000' }).httpPort, 9000);
 });
 
 test('Railway test profile refuses unsafe runtime overrides', () => {
