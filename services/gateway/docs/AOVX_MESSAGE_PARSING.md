@@ -39,6 +39,25 @@ the documented 40-byte fixed prefix and uses a synthetic 36-byte opaque tail;
 that test is not a complete captured wire-frame fixture and is not a GL110
 device fixture.
 
+## Observed variable telemetry extensions
+
+The `0x0200` tail parser recognizes two observed length-prefixed blocks, in
+the order present in the workbook example and GL110-GL captures:
+
+- `0xF0`: base-station information. The workbook describes this field as
+  `2 + m × 13` bytes; the parser checks that the declared value length is a
+  positive multiple of 13 and exposes each 13-byte record as raw hex only.
+- `0xF2`: device firmware version. The workbook describes an ASCII
+  firmware string with a two-byte envelope; the parser exposes the value as
+  ASCII only when the declared length is complete and every byte is printable.
+
+The tag mapping is based on the workbook's `0x0200` sample and the observed
+GL110-GL packets. No MCC, MNC, cell ID, LAC, RSSI, firmware subcomponents,
+units, or other record semantics are inferred. Any bytes after these recognized
+blocks remain in `observedExtensions.unparsedTail` and the original
+`remainingBody` is preserved unchanged. Malformed or truncated blocks are
+not consumed and do not invalidate the enclosing structurally decoded frame.
+
 ## Other messages
 
 Other message IDs, including `0x0900`, `0x0104`, `0x8103` and `0x8104`,

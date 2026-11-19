@@ -105,6 +105,57 @@ test('preserves unexpected 0x0200 tagged-field envelopes without interpreting th
   assert.equal(parsed.data.cellularSignalField.valueByte, null);
 });
 
+test('parses observed 0x0200 base-station and firmware envelopes while preserving unknown tail', () => {
+  const baseStationRecords = Buffer.from([
+    ...Array.from({ length: 13 }, (_, index) => index),
+    ...Array.from({ length: 13 }, (_, index) => 0x20 + index)
+  ]);
+  const firmware = Buffer.from('AOVX_GM110-GL_H1.2_FX095B10004R00C7616P02_V2.0.9:v05', 'ascii');
+  const unknownTail = Buffer.from('f423aabbcc', 'hex');
+  const tail = Buffer.concat([
+    Buffer.from([0xf0, baseStationRecords.length]),
+    baseStationRecords,
+    Buffer.from([0xf2, firmware.length]),
+    firmware,
+    unknownTail
+  ]);
+  const body = Buffer.concat([Buffer.alloc(40), tail]);
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.alloc(6),
+    sequenceNumber: 1,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
+
+  const extensions = parsed.data.observedExtensions;
+  assert.equal(extensions.baseStationInformation.matchesObservedEnvelope, true);
+  assert.equal(extensions.baseStationInformation.recordLength, 13);
+  assert.equal(extensions.baseStationInformation.recordCount, 2);
+  assert.equal(extensions.baseStationInformation.recordsHex.length, 2);
+  assert.equal(extensions.deviceFirmwareVersion.matchesObservedEnvelope, true);
+  assert.equal(extensions.deviceFirmwareVersion.valueAscii, firmware.toString('ascii'));
+  assert.deepEqual(extensions.unparsedTail, unknownTail);
+});
+
+test('does not consume malformed observed variable extensions', () => {
+  const tail = Buffer.from('f00c0102030405060708090a0b0cf2234142', 'hex');
+  const body = Buffer.concat([Buffer.alloc(40), tail]);
+  const parsed = parseAovxMessage({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.alloc(6),
+    sequenceNumber: 1,
+    bodyLength: body.length,
+    checksumStatus: 'not-evaluated',
+    body
+  });
+
+  assert.equal(parsed.data.observedExtensions.baseStationInformation.matchesObservedEnvelope, false);
+  assert.equal(parsed.data.observedExtensions.baseStationInformation.recordCount, null);
+  assert.deepEqual(parsed.data.observedExtensions.unparsedTail, tail);
+});
+
 test('keeps unimplemented messages opaque and rejects truncated known messages', () => {
   const unknown = parseAovxMessage({ messageId: 0x0900, body: Buffer.from([1, 2]), deviceIdBcd: Buffer.alloc(6), sequenceNumber: 1, bodyLength: 2 });
   assert.deepEqual(unknown.data.rawBody, Buffer.from([1, 2]));
