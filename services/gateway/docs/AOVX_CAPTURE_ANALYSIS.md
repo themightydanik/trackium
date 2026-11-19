@@ -39,10 +39,11 @@ body length and reports:
 - pairwise group comparisons using the most-frequent byte at each shared
   offset, with a bounded sample of differing offsets.
 
-Aggregate analysis is capped at 256 offsets per group, eight frequency values
-per offset, 64 ranges, and 64 differing-offset samples per group pair. The
-report indicates when detail was truncated. Error details and per-packet
-telemetry details are also capped to keep output bounded.
+Aggregate analysis is capped at 100 reported groups, 100 pairwise group
+comparisons, 256 offsets per group, eight frequency values per offset, 64
+ranges, and 64 differing-offset samples per group pair. The report indicates
+when group, comparison, or offset detail was truncated. Error details and
+per-packet telemetry details are also capped to keep output bounded.
 
 Offsets are relative to the start of the tail. These are byte-level
 observations only: a stable or differing byte is not evidence of a field's
