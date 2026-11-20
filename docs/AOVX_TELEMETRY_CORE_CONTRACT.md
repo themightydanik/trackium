@@ -64,7 +64,7 @@ The current backend has two distinct persistence paths:
 1. **Raw AOVX journal.** With `TCP_PROTOCOL=aovx`, the TCP receiver extracts framed packets, runs the current AOVX envelope/parser path and persists the original payload plus parsed metadata in `gateway_packets`. `gateway_aovx_device_observations` is an operational observation index keyed by the BCD device identifier. It is not a tenant-owned device registry and is not an authenticated device state model. The receiver currently does not implement a verified AOVX registration/authentication/ACK exchange.
 2. **Normalized telemetry and shipment pipeline.** The existing `telemetry_events` schema and ingestion services are limited to fixture/simulator identities and synthetic provenance. The `ingestSynthetic` transaction creates telemetry events, calls the shared shipment telemetry handler, and can append immutable `cargo_events` plus `cargo_outbox` rows. The proof engine consumes approved cargo events; it must not receive every raw packet.
 
-Consequently, successful AOVX packet parsing does not currently create a real `telemetry_event`, update tenant-owned device state, advance a shipment, or enqueue a proof. This is an explicit integration gap, not a parser failure.
+AOVX packet processing is restart-recoverable: raw persistence happens first, pending packets are replayed by a bounded worker, and event creation plus packet-to-event linking is transactional. Unbound/revoked/disabled packets remain raw only. Device time is retained as raw BCD, while event ordering uses Gateway receive time. GPS and sensor measurements remain unnormalized. AOVX telemetry does not advance shipment state or enqueue proofs.
 
 Relevant implementation references:
 
