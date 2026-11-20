@@ -32,6 +32,7 @@ export function adaptAovxTelemetry({ frame, parsed, receivedAt, tenantId, device
     status: 'unknown',
     extra: {
       protocol_message_id: 0x0200,
+      device_time_bcd_digits: data.timestampBcdDigits,
       sequence_number: frame.sequenceNumber,
       alarm_raw: data.alarm,
       status_raw: data.status,
