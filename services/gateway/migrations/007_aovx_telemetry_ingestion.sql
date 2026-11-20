@@ -1,7 +1,7 @@
 ALTER TABLE gateway_packets
-  ADD COLUMN aovx_processing_state TEXT NOT NULL DEFAULT 'not_applicable'
+  ADD COLUMN IF NOT EXISTS aovx_processing_state TEXT NOT NULL DEFAULT 'not_applicable'
     CHECK (aovx_processing_state IN ('not_applicable','pending','processed','unbound','rejected')),
-  ADD COLUMN aovx_processing_error TEXT;
+  ADD COLUMN IF NOT EXISTS aovx_processing_error TEXT;
 
 UPDATE gateway_packets
 SET aovx_processing_state = 'pending'
