@@ -114,7 +114,7 @@ export function createTelemetryApi(
           requireScope('admin');
           query(url, []);
           const { input } = await body(req);
-          reply(res, 201, await service.bindAovxDevice(tenant, identity.id, input));
+          reply(res, 201, await service.bindAovxDevice(tenant, identity.kind ? null : identity.id, input));
           return;
         }
       }
