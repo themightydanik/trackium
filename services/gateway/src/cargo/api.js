@@ -1,9 +1,18 @@
 import { timingSafeEqual } from 'node:crypto';
 import { ApiError, object, text, uuid } from '../telemetry/schema.js';
 import { reply, body, query } from '../telemetry/api.js';
+function requireEmptyRequestBody(req) {
+  const contentLength = req.headers['content-length'];
+  if (req.headers['transfer-encoding'] ||
+      (contentLength !== undefined && contentLength !== '0')) {
+    throw new ApiError(400, 'request body not allowed');
+  }
+}
+
 export function createCargoApi({
   pool,
   aovxConfigQuery,
+  aovxGnssEnable,
   telemetry,
   authenticate: suppliedAuthenticate,
   native,
@@ -56,6 +65,7 @@ export function createCargoApi({
         if (a.length !== b.length || !timingSafeEqual(a, b))
           throw new ApiError(401, 'operator authentication required');
         query(url, []);
+        requireEmptyRequestBody(req);
         const deviceIdBcd = aovxConfigQueryMatch[1].toLowerCase();
         const binding = await pool.query(
           `SELECT b.device_id_bcd, b.trust
@@ -80,6 +90,37 @@ export function createCargoApi({
           }));
           throw new ApiError(/timed out/.test(error.message) ? 504 : 409,
             /timed out/.test(error.message) ? 'AOVX device did not return configuration parameters before timeout' : 'AOVX device is not available for an unambiguous read-only query');
+        }
+      }
+      const aovxGnssEnableMatch = /^\/internal\/aovx\/devices\/([0-9a-fA-F]{12})\/gnss-enable$/.exec(path);
+      if (aovxGnssEnableMatch) {
+        const expected = config.aovxObservationsToken;
+        if (!expected) throw new ApiError(404, 'not found');
+        if (req.method !== 'POST') throw new ApiError(405, 'method not allowed');
+        const supplied = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1] ?? '';
+        const a = Buffer.from(supplied), b = Buffer.from(expected);
+        if (a.length !== b.length || !timingSafeEqual(a, b)) throw new ApiError(401, 'operator authentication required');
+        query(url, []);
+        requireEmptyRequestBody(req);
+        const deviceIdBcd = aovxGnssEnableMatch[1].toLowerCase();
+        const binding = await pool.query(
+          `SELECT b.device_id_bcd FROM telemetry_aovx_device_bindings b
+           JOIN telemetry_devices d ON d.tenant_id=b.tenant_id AND d.id=b.device_id
+           WHERE b.device_id_bcd=$1 AND b.state='active'
+             AND d.enabled=true AND d.mode='real' AND d.identity_kind='physical'
+           ORDER BY b.created_at DESC LIMIT 2`,
+          [deviceIdBcd]
+        );
+        if (binding.rowCount !== 1) throw new ApiError(404, 'no unique active physical AOVX device binding');
+        logger.warn?.('AOVX GNSS configuration change requested:', JSON.stringify({ deviceIdBcd, parameter: '0xF029', value: 1 }));
+        try {
+          const result = await aovxGnssEnable(deviceIdBcd);
+          logger.info?.('AOVX GNSS configuration change result:', JSON.stringify(result));
+          return reply(res, result.verified ? 200 : 409, result);
+        } catch (error) {
+          logger.warn?.('AOVX GNSS configuration change failed:', JSON.stringify({ deviceIdBcd, reason: error.message }));
+          throw new ApiError(/timed out/.test(error.message) ? 504 : 409,
+            /timed out/.test(error.message) ? 'AOVX device did not acknowledge the GNSS configuration command' : 'AOVX GNSS configuration command could not be completed safely');
         }
       }
       const aovxDevice = /^\/internal\/aovx\/devices(?:\/([0-9a-fA-F]{12}))?$/.exec(path);

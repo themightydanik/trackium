@@ -91,3 +91,24 @@ export function decodeAovxConfigResponse(wireFrame) {
   }
   throw new Error(`unexpected AOVX response message 0x${frame.messageId.toString(16)}`);
 }
+
+export const AOVX_CONFIGURATION_COMMAND = 0x8103;
+
+/**
+ * The only configuration write currently exposed by Trackium:
+ * enable the AOVX GNSS parameter (0xF029 = BYTE 0x01).
+ */
+export function encodeAovxGnssEnableCommand({ deviceIdBcd, sequenceNumber }) {
+  const body = Buffer.from([
+    0x01,                   // one parameter
+    0x00, 0x00, 0xf0, 0x29, // parameter ID 0x0000F029
+    0x01,                   // one-byte value
+    0x01                    // GNSS enabled
+  ]);
+  return encodeAovxFrame({
+    messageId: AOVX_CONFIGURATION_COMMAND,
+    deviceIdBcd,
+    sequenceNumber,
+    body
+  });
+}

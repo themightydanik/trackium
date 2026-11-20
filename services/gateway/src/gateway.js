@@ -5,7 +5,7 @@ import { createLineFramer } from './framing.js';
 import { createAovxStreamFramer } from './aovx/stream-framer.js';
 import { decodeAovxFrame } from './aovx/frame.js';
 import { parseAovxMessage } from './aovx/messages.js';
-import { encodeAovxQueryCommand, parseAovxGeneralQueryResponse, parseAovxConfigurationResponse } from './aovx/config-query.js';
+import { encodeAovxQueryCommand, encodeAovxGnssEnableCommand, parseAovxGeneralQueryResponse, parseAovxConfigurationResponse } from './aovx/config-query.js';
 
 function jsonSafe(value) {
   if (Buffer.isBuffer(value)) return { encoding: 'hex', value: value.toString('hex') };
@@ -54,6 +54,8 @@ export function createGateway({ journal, config, logger = console, requestHandle
   const sessions = new Set();
   const aovxDeviceSessions = new Map();
   const pendingAovxQueries = new Map();
+  const pendingAovxCommands = new Map();
+  const activeAovxGnssOperations = new Set();
   let nextAovxSequence = Date.now() & 0xffff;
   let pendingFrames = 0;
   let pendingBytes = 0;
@@ -92,6 +94,13 @@ export function createGateway({ journal, config, logger = console, requestHandle
             const previous = aovxDeviceSessions.get(session.deviceIdBcd);
             previous?.delete(session);
             if (previous?.size === 0) aovxDeviceSessions.delete(session.deviceIdBcd);
+            for (const [key, pending] of pendingAovxCommands) {
+              if (pending.session === session) {
+                clearTimeout(pending.timer);
+                pendingAovxCommands.delete(key);
+                pending.reject(new Error('AOVX session identity changed during configuration command'));
+              }
+            }
             for (const [key, pending] of pendingAovxQueries) {
               if (pending.session === session) {
                 clearTimeout(pending.timer);
@@ -120,6 +129,18 @@ export function createGateway({ journal, config, logger = console, requestHandle
             : parseAovxConfigurationResponse(decodedAovx);
           const responseSequence = parsed.responseSequenceNumber;
           const key = `${decodedAovx.deviceIdBcd.toString('hex')}:${responseSequence}`;
+          const command = pendingAovxCommands.get(key);
+          if (command && command.session === session && decodedAovx.messageId === 0x0001) {
+            if (parsed.correspondingMessageId !== 0x8103 || parsed.result !== 0) {
+              clearTimeout(command.timer);
+              pendingAovxCommands.delete(key);
+              command.reject(new Error(`AOVX GNSS command acknowledgement failed (message 0x${parsed.correspondingMessageId.toString(16)}, result ${parsed.result})`));
+            } else {
+              clearTimeout(command.timer);
+              pendingAovxCommands.delete(key);
+              command.resolve({ acknowledged: true, acknowledgement_result: parsed.result, sequence_number: responseSequence });
+            }
+          }
           const pending = pendingAovxQueries.get(key);
           if (pending && pending.session === session) {
             if (decodedAovx.messageId === 0x0001) {
@@ -201,6 +222,13 @@ export function createGateway({ journal, config, logger = console, requestHandle
         const active = aovxDeviceSessions.get(session.deviceIdBcd);
         active?.delete(session);
         if (active?.size === 0) aovxDeviceSessions.delete(session.deviceIdBcd);
+      }
+      for (const [key, pending] of pendingAovxCommands) {
+        if (pending.session === session) {
+          clearTimeout(pending.timer);
+          pendingAovxCommands.delete(key);
+          pending.reject(new Error('AOVX device disconnected during configuration command'));
+        }
       }
       for (const [key, pending] of pendingAovxQueries) {
         if (pending.session === session) {
@@ -330,7 +358,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
     for (let attempt = 0; attempt < 0x10000; attempt += 1) {
       const candidate = nextAovxSequence;
       nextAovxSequence = (nextAovxSequence + 1) & 0xffff;
-      if (!pendingAovxQueries.has(`${deviceIdBcd}:${candidate}`)) {
+      if (!pendingAovxQueries.has(`${deviceIdBcd}:${candidate}`) && !pendingAovxCommands.has(`${deviceIdBcd}:${candidate}`)) {
         sequenceNumber = candidate;
         break;
       }
@@ -361,8 +389,89 @@ export function createGateway({ journal, config, logger = console, requestHandle
     });
   }
 
+
+  async function enableAovxGnss(deviceIdBcd) {
+    if (config.tcpProtocol !== 'aovx') throw new Error('AOVX command channel is disabled');
+    if (typeof deviceIdBcd !== 'string' || !/^[0-9]{12}$/.test(deviceIdBcd))
+      throw new TypeError('deviceIdBcd must be 12 decimal digits');
+    if (activeAovxGnssOperations.has(deviceIdBcd))
+      throw new Error('an AOVX GNSS operation is already pending for this device');
+    activeAovxGnssOperations.add(deviceIdBcd);
+    try {
+      const active = [...(aovxDeviceSessions.get(deviceIdBcd) ?? [])]
+        .filter(item => !item.closed && !item.socket.destroyed && item.socket.writable);
+      if (active.length !== 1)
+        throw new Error(active.length === 0
+          ? 'AOVX device has no active TCP session'
+          : 'AOVX device has multiple active TCP sessions; refusing ambiguous command routing');
+      const session = active[0];
+
+      let sequenceNumber;
+      for (let attempt = 0; attempt < 0x10000; attempt += 1) {
+        const candidate = nextAovxSequence;
+        nextAovxSequence = (nextAovxSequence + 1) & 0xffff;
+        const key = `${deviceIdBcd}:${candidate}`;
+        if (!pendingAovxQueries.has(key) && !pendingAovxCommands.has(key)) {
+          sequenceNumber = candidate;
+          break;
+        }
+      }
+      if (sequenceNumber === undefined)
+        throw new Error('all AOVX sequence numbers are currently in use for this device');
+
+      const key = `${deviceIdBcd}:${sequenceNumber}`;
+      const acknowledgement = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          pendingAovxCommands.delete(key);
+          reject(new Error('AOVX GNSS configuration command timed out without acknowledgement'));
+        }, 12000);
+        pendingAovxCommands.set(key, { deviceIdBcd, session, timer, resolve, reject });
+        const frame = encodeAovxGnssEnableCommand({
+          deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+          sequenceNumber
+        });
+        session.socket.write(frame, error => {
+          if (!error) return;
+          clearTimeout(timer);
+          pendingAovxCommands.delete(key);
+          reject(error);
+        });
+        logger.warn?.('AOVX GNSS enable configuration command sent:', JSON.stringify({
+          deviceIdBcd, messageId: '0x8103', sequenceNumber, parameter: '0xF029', value: 1
+        }));
+      });
+
+      let verification;
+      try {
+        verification = await queryAovxConfiguration(deviceIdBcd);
+      } catch (error) {
+        return {
+          command_sent: true,
+          acknowledged: true,
+          acknowledgement_sequence_number: acknowledgement.sequence_number,
+          verified: false,
+          observed_gnss: null,
+          verification_sequence_number: null,
+          failure_reason: error.message
+        };
+      }
+      const verified = verification.gnss === 'enabled' && verification.parameter_present === true;
+      return {
+        command_sent: true,
+        acknowledged: true,
+        acknowledgement_sequence_number: acknowledgement.sequence_number,
+        verified,
+        observed_gnss: verification.gnss,
+        verification_sequence_number: verification.sequence_number,
+        failure_reason: verified ? null : 'GNSS enable was not confirmed by the configuration read-back'
+      };
+    } finally {
+      activeAovxGnssOperations.delete(deviceIdBcd);
+    }
+  }
+
   return {
-    tcp, api, shutdown, queryAovxConfiguration,
+    tcp, api, shutdown, queryAovxConfiguration, enableAovxGnss,
     async start() {
       if (startPromise || stopping) throw new Error('gateway cannot be started twice or after shutdown');
       startPromise = (async () => {

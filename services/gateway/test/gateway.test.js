@@ -5,7 +5,7 @@ import http from 'node:http';
 import { once } from 'node:events';
 import { createGateway } from '../src/gateway.js';
 import { readConfig } from '../src/config.js';
-import { encodeAovxFrame } from '../src/aovx/frame.js';
+import { encodeAovxFrame, decodeAovxFrame } from '../src/aovx/frame.js';
 
 const deferred = () => Promise.withResolvers();
 const quiet = { error() {}, warn() {} };
@@ -17,7 +17,7 @@ async function until(check) {
     await tick();
   }
 }
-async function fixture(t, overrides = {}, persist = async () => {}) {
+async function fixture(t, overrides = {}, persist = async () => {}, logger = quiet) {
   const writes = [];
   const packets = [];
   const records = [];
@@ -28,7 +28,7 @@ async function fixture(t, overrides = {}, persist = async () => {}) {
     async checkReady() {},
     async close() { closed = true; }
   };
-  const gateway = createGateway({ journal, logger: quiet, config: {
+  const gateway = createGateway({ journal, logger, config: {
     ...readConfig({ DATABASE_URL: 'postgres://unused' }),
     host: '127.0.0.1', tcpPort: 0, httpPort: 0, ...overrides
   } });
@@ -344,7 +344,7 @@ test('logs TCP and HTTP listener lifecycle with distinct server types and ports'
 test('logs TCP peer lifecycle and AOVX session identity transitions', { timeout: 3000 }, async t => {
   const events = [];
   const logger = {
-    info(message, detail) { events.push({ level: 'info', message, detail: detail ? JSON.parse(detail) : null }); },
+    info(message, detail) { events.push({ level: 'info', message, detail: detail ? (() => { try { return JSON.parse(detail); } catch { return detail; } })() : null }); },
     warn(message, detail) { events.push({ level: 'warn', message, detail: detail ? JSON.parse(detail) : null }); },
     error() {}
   };
@@ -373,7 +373,7 @@ test('logs TCP peer lifecycle and AOVX session identity transitions', { timeout:
     messageId: 0x0200,
     deviceIdBcd: Buffer.from('944063243931', 'hex'),
     sequenceNumber: 1,
-    body: Buffer.alloc(0)
+    body: Buffer.alloc(40)
   });
   socket.end(frame);
   await ended;
@@ -389,4 +389,169 @@ test('logs TCP peer lifecycle and AOVX session identity transitions', { timeout:
   assert.equal(halfClosed.detail.deviceIdBcd, '944063243931');
   assert.equal(closed.detail.deviceIdBcd, '944063243931');
   assert.equal(closed.detail.hadError, false);
+});
+
+test('GNSS enable requires 0x8103 acknowledgement and 0x8104 read-back verification', { timeout: 3000 }, async t => {
+  const events = [];
+  const logger = {
+    info(message, detail) { events.push({ message, detail: detail ? JSON.parse(detail) : null }); },
+    warn() {}, error() {}
+  };
+  const f = await fixture(t, { tcpProtocol: 'aovx' }, async () => {}, logger);
+  const deviceIdBcd = '944063243931';
+  const { socket } = await f.connect();
+  const identity = encodeAovxFrame({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+    sequenceNumber: 100,
+    body: Buffer.alloc(40)
+  });
+  socket.write(identity);
+  await until(() => events.some(event => event.message === 'tcp client AOVX identity updated:'));
+
+  const received = [];
+  socket.on('data', chunk => {
+    const frame = decodeAovxFrame(chunk, { checksumPolicy: 'require-xor-match' });
+    received.push(frame.messageId);
+    if (frame.messageId === 0x8103) {
+      const ackBody = Buffer.alloc(5);
+      ackBody.writeUInt16BE(frame.sequenceNumber, 0);
+      ackBody.writeUInt16BE(0x8103, 2);
+      ackBody[4] = 0;
+      socket.write(encodeAovxFrame({
+        messageId: 0x0001, deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+        sequenceNumber: 101, body: ackBody
+      }));
+    } else if (frame.messageId === 0x8104) {
+      const responseBody = Buffer.alloc(9);
+      responseBody.writeUInt16BE(frame.sequenceNumber, 0);
+      responseBody[2] = 1;
+      responseBody.writeUInt32BE(0x0000f029, 3);
+      responseBody[7] = 1;
+      responseBody[8] = 1;
+      socket.write(encodeAovxFrame({
+        messageId: 0x0104, deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+        sequenceNumber: 102, body: responseBody
+      }));
+    }
+  });
+
+  const result = await f.gateway.enableAovxGnss(deviceIdBcd);
+  assert.deepEqual(received, [0x8103, 0x8104]);
+  assert.equal(result.command_sent, true);
+  assert.equal(result.acknowledged, true);
+  assert.equal(result.verified, true);
+  assert.equal(result.observed_gnss, 'enabled');
+});
+
+
+test('GNSS enable rejects a negative 0x8103 acknowledgement without issuing read-back', { timeout: 3000 }, async t => {
+  const events = [];
+  const logger = {
+    info(message, detail) { events.push({ message, detail: detail ? JSON.parse(detail) : null }); },
+    warn() {}, error() {}
+  };
+  const f = await fixture(t, { tcpProtocol: 'aovx' }, async () => {}, logger);
+  const deviceIdBcd = '944063243931';
+  const { socket } = await f.connect();
+  socket.write(encodeAovxFrame({
+    messageId: 0x0200, deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+    sequenceNumber: 110, body: Buffer.alloc(40)
+  }));
+  await until(() => events.some(event => event.message === 'tcp client AOVX identity updated:'));
+
+  const received = [];
+  socket.on('data', chunk => {
+    const frame = decodeAovxFrame(chunk, { checksumPolicy: 'require-xor-match' });
+    received.push(frame.messageId);
+    if (frame.messageId === 0x8103) {
+      const ackBody = Buffer.alloc(5);
+      ackBody.writeUInt16BE(frame.sequenceNumber, 0);
+      ackBody.writeUInt16BE(0x8103, 2);
+      ackBody[4] = 1;
+      socket.write(encodeAovxFrame({
+        messageId: 0x0001, deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+        sequenceNumber: 111, body: ackBody
+      }));
+    }
+  });
+
+  await assert.rejects(f.gateway.enableAovxGnss(deviceIdBcd), /acknowledgement failed/);
+  assert.deepEqual(received, [0x8103]);
+});
+
+test('GNSS enable reports unverified when 0x0104 read-back still says disabled', { timeout: 3000 }, async t => {
+  const events = [];
+  const logger = {
+    info(message, detail) { events.push({ message, detail: detail ? JSON.parse(detail) : null }); },
+    warn() {}, error() {}
+  };
+  const f = await fixture(t, { tcpProtocol: 'aovx' }, async () => {}, logger);
+  const deviceIdBcd = '944063243931';
+  const { socket } = await f.connect();
+  socket.write(encodeAovxFrame({
+    messageId: 0x0200, deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+    sequenceNumber: 120, body: Buffer.alloc(40)
+  }));
+  await until(() => events.some(event => event.message === 'tcp client AOVX identity updated:'));
+
+  socket.on('data', chunk => {
+    const frame = decodeAovxFrame(chunk, { checksumPolicy: 'require-xor-match' });
+    if (frame.messageId === 0x8103) {
+      const ackBody = Buffer.alloc(5);
+      ackBody.writeUInt16BE(frame.sequenceNumber, 0);
+      ackBody.writeUInt16BE(0x8103, 2);
+      ackBody[4] = 0;
+      socket.write(encodeAovxFrame({
+        messageId: 0x0001, deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+        sequenceNumber: 121, body: ackBody
+      }));
+    } else if (frame.messageId === 0x8104) {
+      const responseBody = Buffer.alloc(9);
+      responseBody.writeUInt16BE(frame.sequenceNumber, 0);
+      responseBody[2] = 1;
+      responseBody.writeUInt32BE(0x0000f029, 3);
+      responseBody[7] = 1;
+      responseBody[8] = 0;
+      socket.write(encodeAovxFrame({
+        messageId: 0x0104, deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+        sequenceNumber: 122, body: responseBody
+      }));
+    }
+  });
+
+  const result = await f.gateway.enableAovxGnss(deviceIdBcd);
+  assert.equal(result.command_sent, true);
+  assert.equal(result.acknowledged, true);
+  assert.equal(Number.isInteger(result.acknowledgement_sequence_number), true);
+  assert.equal(result.verified, false);
+  assert.equal(result.observed_gnss, 'disabled');
+  assert.equal(Number.isInteger(result.verification_sequence_number), true);
+  assert.equal(result.failure_reason, 'GNSS enable was not confirmed by the configuration read-back');
+});
+
+test('GNSS enable rejects when the device disconnects before acknowledging 0x8103', { timeout: 3000 }, async t => {
+  const events = [];
+  const logger = {
+    info(message, detail) { events.push({ message, detail: detail ? JSON.parse(detail) : null }); },
+    warn() {}, error() {}
+  };
+  const f = await fixture(t, { tcpProtocol: 'aovx' }, async () => {}, logger);
+  const deviceIdBcd = '944063243931';
+  const { socket } = await f.connect();
+  socket.write(encodeAovxFrame({
+    messageId: 0x0200, deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+    sequenceNumber: 130, body: Buffer.alloc(40)
+  }));
+  await until(() => events.some(event => event.message === 'tcp client AOVX identity updated:'));
+
+  const receivedCommand = deferred();
+  socket.on('data', chunk => {
+    const frame = decodeAovxFrame(chunk, { checksumPolicy: 'require-xor-match' });
+    if (frame.messageId === 0x8103) receivedCommand.resolve();
+  });
+  const operation = f.gateway.enableAovxGnss(deviceIdBcd);
+  await receivedCommand.promise;
+  socket.destroy();
+  await assert.rejects(operation, /disconnected during configuration command/);
 });
