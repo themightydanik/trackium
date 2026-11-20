@@ -103,6 +103,28 @@ export function createTelemetryApi(
           return;
         }
       }
+      if (url.pathname === '/v1/aovx/devices') {
+        if (req.method === 'GET') {
+          requireScope('read');
+          query(url, []);
+          reply(res, 200, await service.listAovxDevices(tenant));
+          return;
+        }
+        if (req.method === 'POST') {
+          requireScope('admin');
+          query(url, []);
+          const { input } = await body(req);
+          reply(res, 201, await service.bindAovxDevice(tenant, identity.id, input));
+          return;
+        }
+      }
+      const aovxBinding = /^\/v1\/aovx\/devices\/([0-9]{12})$/.exec(url.pathname);
+      if (aovxBinding && req.method === 'DELETE') {
+        requireScope('admin');
+        query(url, []);
+        reply(res, 200, await service.revokeAovxDevice(tenant, aovxBinding[1]));
+        return;
+      }
       const match = /^\/v1\/devices\/([^/]+)(?:\/(events|location|status))?$/.exec(url.pathname);
       if (match) {
         const [, id, action] = match;
