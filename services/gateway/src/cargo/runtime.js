@@ -3,6 +3,7 @@ import { createProofService, startProofWorker } from '../proofs/service.js';
 import { createGateway } from '../gateway.js';
 import { initialize, persistPacket } from '../journal.js';
 import { createAovxObservations } from '../aovx/observations.js';
+import { createAovxIngestion } from '../aovx/ingestion.js';
 import { migrate } from '../telemetry/migrate.js';
 import { createTelemetryService } from '../telemetry/service.js';
 import { createTelemetryApi } from '../telemetry/api.js';
@@ -26,6 +27,7 @@ export function createRuntime(
   const pairing = createPairing(pool, config);
   const proofs = createProofService(pool, config.proofs, proofDependencies);
   const aovxObservations = createAovxObservations(pool);
+  const aovxIngestion = createAovxIngestion(pool, { logger });
   let stopProofWorker = async () => {};
   const native = createNativeSessions(pool, config);
   const authenticate = (req) =>
@@ -63,15 +65,23 @@ export function createRuntime(
         await migrate(pool);
         await proofs.initialize();
         await checkpoint('database_and_proof_initialization_complete');
+        if (worker) aovxIngestion.start();
         if (worker && config.proofs?.mode !== 'disabled')
           stopProofWorker = startProofWorker(proofs, logger);
         if (worker && config.simulatorEnabled) stopWorker = startWorker(simulator, logger);
         await checkpoint('background_workers_started');
       },
-      persistPacket: (packet) => persistPacket(packet, pool),
+      persistPacket: async (packet) => {
+        const stored = await persistPacket(packet, pool);
+        if (packet.aovx?.messageId === 0x0200) {
+          try { await aovxIngestion.processPacket(stored.id); }
+          catch (error) { logger.error?.('AOVX telemetry processing deferred:', error.message); }
+        }
+        return stored;
+      },
       checkReady: () => pool.query('SELECT 1'),
       async close() {
-        await Promise.all([stopWorker(), stopProofWorker()]);
+        await Promise.all([stopWorker(), stopProofWorker(), aovxIngestion.stop()]);
         await pool.end();
       }
     },
@@ -90,5 +100,5 @@ export function createRuntime(
     }),
     assetHandler: createWebHandler(config)
   });
-  return { gateway, shipments, telemetry, simulator, pairing, proofs, native, aovxObservations };
+  return { gateway, shipments, telemetry, simulator, pairing, proofs, native, aovxObservations, aovxIngestion };
 }

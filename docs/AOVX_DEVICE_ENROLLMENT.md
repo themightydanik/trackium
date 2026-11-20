@@ -1,6 +1,6 @@
 # AOVX device enrollment (manual owner binding)
 
-This stage adds an explicit tenant-owned mapping between an AOVX protocol identifier and an existing physical device record. It does **not** authenticate the tracker, decode more fields, or ingest packets into normalized telemetry.
+This stage adds an explicit tenant-owned mapping between an AOVX protocol identifier and an existing physical device record. It does **not** authenticate the tracker or establish physical measurement units. The subsequent AOVX ingestion stage converts eligible 0x0200 observations into tenant-scoped telemetry with unverified provenance.
 
 ## Prerequisites
 
@@ -43,4 +43,4 @@ A revoked identifier may later be explicitly rebound. A duplicate active identif
 
 Migration `006_aovx_device_enrollment.sql` is additive. It does not rewrite prior migrations or existing device records. Composite foreign keys preserve tenant ownership; partial unique indexes prevent concurrent active cross-tenant claims.
 
-This table is an enrollment registry only. The TCP ingress path does not yet consult it to create `telemetry_events`; unbound or spoofed packet observations remain in the raw journal and cannot become normalized telemetry or cargo events through this change. The next stage will use this binding as one required lookup, while preserving `unverified` provenance until a device authentication mechanism is actually established.
+The AOVX adapter consults this binding before creating a `telemetry_events` row. It only processes structurally valid 0x0200 messages whose observed XOR-candidate checksum matches, and it records that checksum algorithm as unconfirmed. Every raw packet remains in `gateway_packets`; exact repeated frames link to one logical telemetry event through `telemetry_aovx_packet_events`. Unbound, revoked, disabled, malformed and checksum-mismatched packets do not create tenant telemetry. Event time uses Gateway receive time; the original six-byte device BCD time is retained without UTC conversion. GPS and sensor measurements remain null/un-normalized until their scales and conversions are verified. This ingestion stage does not invoke shipment state handling or create cargo events/proofs.

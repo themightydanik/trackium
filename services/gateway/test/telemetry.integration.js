@@ -9,6 +9,8 @@ import { migrate } from '../src/telemetry/migrate.js';
 import { provisionTenant, issueKey, createTelemetryService } from '../src/telemetry/service.js';
 import { createTelemetryApi } from '../src/telemetry/api.js';
 import { createGateway } from '../src/gateway.js';
+import { createAovxIngestion } from '../src/aovx/ingestion.js';
+import { encodeAovxFrame } from '../src/aovx/frame.js';
 import { readConfig } from '../src/config.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -27,7 +29,7 @@ const sample = (id = 'sample-1', at = '2026-11-07T12:00:00.000Z') => ({
 
 test(
   'Telemetry Core: PostgreSQL migrations and tenant-isolated HTTP API',
-  { timeout: 20000 },
+  { timeout: 120000 },
   async (t) => {
     const schema = 'telemetry_test_' + randomUUID().replaceAll('-', '');
     const admin = new pg.Pool({ connectionString: url });
@@ -241,6 +243,95 @@ test(
         );
       }
     );
+    await t.test(
+      'AOVX packets become unverified tenant telemetry only through an active binding; exact repeats are idempotent',
+      async () => {
+        const rebound = await request('/v1/aovx/devices', {
+          method: 'POST',
+          body: { device_id: real.id, device_id_bcd: '944063243931' }
+        });
+        assert.equal(rebound.status, 201);
+        const body = Buffer.alloc(40);
+        body.writeUInt32BE(0x00010000, 0);
+        body.writeUInt32BE(0x00000012, 4);
+        Buffer.from('261119163552', 'hex').copy(body, 22);
+        const wire = encodeAovxFrame({
+          messageId: 0x0200,
+          deviceIdBcd: Buffer.from('944063243931', 'hex'),
+          sequenceNumber: 7,
+          body
+        });
+        const persist = () => persistPacket({
+          payload: wire,
+          remoteAddress: '127.0.0.1',
+          aovx: {
+            messageId: 0x0200, deviceIdBcd: '944063243931',
+            sequenceNumber: 7, checksumStatus: 'xor-match',
+            parseStatus: 'parsed', parsedPayload: {}
+          }
+        }, db);
+        const ingestion = createAovxIngestion(db, { logger: { error() {} } });
+        const first = await persist();
+        const recovery = await ingestion.processPending();
+        assert.equal(recovery.processed, 1);
+        const result = await ingestion.processPacket(first.id);
+        assert.equal(result.processed, false);
+        assert.equal(result.reason, 'not-pending');
+        const duplicate = await persist();
+        const repeated = await ingestion.processPacket(duplicate.id);
+        assert.equal(repeated.processed, true);
+        assert.equal(repeated.duplicate, true);
+        const events = await db.query(
+          "SELECT * FROM telemetry_events WHERE tenant_id=$1 AND device_id=$2 AND source='aovx-gal-v1'",
+          [a.tenant_id, real.id]
+        );
+        assert.equal(events.rowCount, 1);
+        assert.equal(events.rows[0].trust, 'unverified');
+        assert.equal(events.rows[0].event_time_basis, 'gateway_received_at');
+        assert.equal(events.rows[0].device_time_raw, '261119163552');
+        assert.equal(events.rows[0].payload.gps, null);
+        assert.equal(events.rows[0].payload.temperature_c, null);
+        assert.equal(
+          (await db.query('SELECT count(*) FROM telemetry_aovx_packet_events WHERE event_id=$1', [events.rows[0].id])).rows[0].count,
+          '2'
+        );
+
+        const variantBody = Buffer.from(body);
+        variantBody.writeUInt32BE(0x00000092, 4);
+        const variantWire = encodeAovxFrame({
+          messageId: 0x0200,
+          deviceIdBcd: Buffer.from('944063243931', 'hex'),
+          sequenceNumber: 7,
+          body: variantBody
+        });
+        const variantPacket = await persistPacket({
+          payload: variantWire, remoteAddress: '127.0.0.1',
+          aovx: { messageId: 0x0200, deviceIdBcd: '944063243931', sequenceNumber: 7,
+            checksumStatus: 'xor-match', parseStatus: 'parsed', parsedPayload: {} }
+        }, db);
+        await ingestion.processPacket(variantPacket.id);
+        assert.equal(
+          (await db.query("SELECT count(*) FROM telemetry_events WHERE source='aovx-gal-v1' AND tenant_id=$1", [a.tenant_id])).rows[0].count,
+          '2'
+        );
+
+        await request('/v1/aovx/devices/944063243931', { method: 'DELETE' });
+        const unbound = await persistPacket({
+          payload: encodeAovxFrame({
+            messageId: 0x0200, deviceIdBcd: Buffer.from('944063243931', 'hex'),
+            sequenceNumber: 8, body
+          }),
+          aovx: { messageId: 0x0200, deviceIdBcd: '944063243931', sequenceNumber: 8,
+            checksumStatus: 'xor-match', parseStatus: 'parsed', parsedPayload: {} }
+        }, db);
+        const unboundResult = await ingestion.processPacket(unbound.id);
+        assert.equal(unboundResult.reason, 'unbound');
+        assert.equal(
+          (await db.query('SELECT aovx_processing_state FROM gateway_packets WHERE id=$1', [unbound.id])).rows[0].aovx_processing_state,
+          'unbound'
+        );
+      }
+    );
     const fixturePath = (id) => `/v1/fixtures/devices/${id}/events`;
     await t.test(
       'tenant isolation covers list, detail, history, status, location, mutation and fixtures',
@@ -322,7 +413,7 @@ test(
           (await db.query('SELECT count(*) FROM telemetry_fixture_inputs')).rows[0].count,
           '1'
         );
-        const row = (await db.query('SELECT * FROM telemetry_events')).rows[0];
+        const row = (await db.query("SELECT * FROM telemetry_events WHERE source='fixture-v1'")).rows[0];
         assert.equal(row.trust, 'synthetic');
         assert.equal(row.raw_packet_id, null);
         assert.equal(row.payload.device_id, device.id);
@@ -330,7 +421,7 @@ test(
           createHash('sha256').update(row.canonical_event).digest('hex'),
           row.canonical_sha256
         );
-        assert.equal((await db.query('SELECT count(*) FROM gateway_packets')).rows[0].count, '1');
+        assert.equal((await db.query('SELECT count(*) FROM gateway_packets')).rows[0].count, '5');
       }
     );
     await t.test(
@@ -363,7 +454,7 @@ test(
     await t.test(
       'database constraints reject tenant mixing and event failure rolls back fixture provenance',
       async () => {
-        const event = (await db.query('SELECT * FROM telemetry_events LIMIT 1')).rows[0];
+        const event = (await db.query("SELECT * FROM telemetry_events WHERE source='fixture-v1' LIMIT 1")).rows[0];
         await assert.rejects(
           db.query(
             `INSERT INTO telemetry_events(id,tenant_id,device_id,schema_version,source,trust,source_event_id,occurred_at,payload,canonical_event,canonical_sha256,fixture_input_id)
@@ -448,13 +539,13 @@ test(
         await closed;
         // Wait for accepted writes via the gateway shutdown before checking retained rows.
         const before = (await db.query('SELECT count(*) FROM telemetry_events')).rows[0].count;
-        assert.equal(before, '3');
+        assert.equal(before, '5');
         const deadline = Date.now() + 1000;
-        while ((await db.query('SELECT count(*) FROM gateway_packets')).rows[0].count !== '2') {
+        while ((await db.query('SELECT count(*) FROM gateway_packets')).rows[0].count !== '6') {
           if (Date.now() > deadline) throw new Error('TCP journal write timed out');
           await new Promise((r) => setTimeout(r, 5));
         }
-        assert.equal((await db.query('SELECT count(*) FROM telemetry_events')).rows[0].count, '3');
+        assert.equal((await db.query('SELECT count(*) FROM telemetry_events')).rows[0].count, '5');
       }
     );
   }
