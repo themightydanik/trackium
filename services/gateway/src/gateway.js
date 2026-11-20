@@ -66,6 +66,8 @@ export function createGateway({ journal, config, logger = console, requestHandle
     if (stopping || sessions.size >= config.maxConnections) { socket.destroy(); return; }
     const session = { socket, chain: Promise.resolve(), pending: 0, closed: false, failed: false, deviceIdBcd: null };
     sessions.add(session);
+    const peer = { remoteAddress: socket.remoteAddress ?? null, remotePort: socket.remotePort ?? null };
+    logger.info?.('tcp client connected:', JSON.stringify(peer));
     const release = () => {
       if (session.closed && session.pending === 0) sessions.delete(session);
     };
@@ -98,6 +100,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
               }
             }
           }
+          const previousDeviceIdBcd = session.deviceIdBcd;
           session.deviceIdBcd = null;
           if (/^[0-9]{12}$/.test(deviceId)) {
             session.deviceIdBcd = deviceId;
@@ -105,6 +108,9 @@ export function createGateway({ journal, config, logger = console, requestHandle
             if (!active) aovxDeviceSessions.set(deviceId, active = new Set());
             active.add(session);
           }
+          logger.info?.('tcp client AOVX identity updated:', JSON.stringify({
+            ...peer, previousDeviceIdBcd, deviceIdBcd: session.deviceIdBcd
+          }));
         }
       }
       if (decodedAovx && [0x0001, 0x0104].includes(decodedAovx.messageId) && decodedAovx.checksumMatchesXor) {
@@ -172,10 +178,25 @@ export function createGateway({ journal, config, logger = console, requestHandle
         }, onFrame })
       : createLineFramer({ maxFrameBytes: config.maxFrameBytes, onError: () => socket.destroy(), onFrame });
     socket.on('data', chunk => { if (!framer.push(chunk)) socket.destroy(); });
-    socket.on('timeout', () => socket.destroy());
-    socket.on('error', err => logger.warn('tcp connection error:', err.message));
-    socket.on('close', () => {
+    socket.on('end', () => logger.info?.('tcp client half-closed:', JSON.stringify({
+      ...peer, deviceIdBcd: session.deviceIdBcd, pendingWrites: session.pending
+    })));
+    socket.on('timeout', () => {
+      logger.warn('tcp client timeout:', JSON.stringify({
+        ...peer, deviceIdBcd: session.deviceIdBcd, timeoutMs: config.socketTimeoutMs,
+        pendingWrites: session.pending
+      }));
+      socket.destroy();
+    });
+    socket.on('error', err => logger.warn('tcp connection error:', JSON.stringify({
+      ...peer, deviceIdBcd: session.deviceIdBcd, code: err.code ?? null, message: err.message
+    })));
+    socket.on('close', hadError => {
       session.closed = true;
+      logger.info?.('tcp client closed:', JSON.stringify({
+        ...peer, deviceIdBcd: session.deviceIdBcd, hadError,
+        pendingWrites: session.pending, journalFailed: session.failed
+      }));
       if (session.deviceIdBcd) {
         const active = aovxDeviceSessions.get(session.deviceIdBcd);
         active?.delete(session);
