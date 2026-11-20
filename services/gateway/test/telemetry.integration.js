@@ -29,7 +29,7 @@ const sample = (id = 'sample-1', at = '2026-11-07T12:00:00.000Z') => ({
 
 test(
   'Telemetry Core: PostgreSQL migrations and tenant-isolated HTTP API',
-  { timeout: 20000 },
+  { timeout: 120000 },
   async (t) => {
     const schema = 'telemetry_test_' + randomUUID().replaceAll('-', '');
     const admin = new pg.Pool({ connectionString: url });

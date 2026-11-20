@@ -10,10 +10,10 @@ CREATE INDEX gateway_packets_aovx_pending_idx ON gateway_packets(id)
   WHERE aovx_processing_state = 'pending';
 
 ALTER TABLE telemetry_events
-  DROP CONSTRAINT telemetry_events_device_mode_check,
-  DROP CONSTRAINT telemetry_events_trust_check,
-  DROP CONSTRAINT telemetry_events_source_check,
-  DROP CONSTRAINT telemetry_events_check;
+  DROP CONSTRAINT IF EXISTS telemetry_events_device_mode_check,
+  DROP CONSTRAINT IF EXISTS telemetry_events_trust_check,
+  DROP CONSTRAINT IF EXISTS telemetry_events_source_check,
+  DROP CONSTRAINT IF EXISTS telemetry_events_check;
 
 ALTER TABLE telemetry_events
   ALTER COLUMN fixture_input_id DROP NOT NULL,
