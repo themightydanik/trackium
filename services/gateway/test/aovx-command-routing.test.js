@@ -53,6 +53,15 @@ test('sends 0x8104 only to the unique active session and resolves matching 0x010
   assert.equal(command.body.length, 0);
   assert.deepEqual(command.deviceIdBcd, deviceIdBcd);
 
+  const acknowledgementBody = Buffer.alloc(5);
+  acknowledgementBody.writeUInt16BE(command.sequenceNumber, 0);
+  acknowledgementBody.writeUInt16BE(0x8104, 2);
+  acknowledgementBody[4] = 0;
+  socket.write(encodeAovxFrame({
+    messageId: 0x0001, deviceIdBcd, sequenceNumber: 12, body: acknowledgementBody
+  }));
+  await tick();
+
   const responseBody = Buffer.alloc(9);
   responseBody.writeUInt16BE(command.sequenceNumber, 0);
   responseBody[2] = 1;
@@ -68,7 +77,7 @@ test('sends 0x8104 only to the unique active session and resolves matching 0x010
     device_id_bcd: '944063243931',
     sequence_number: command.sequenceNumber,
     gnss: 'enabled',
-    acknowledged: false,
+    acknowledged: true,
     parameter_present: true
   });
 });
