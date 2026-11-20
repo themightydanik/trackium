@@ -42,8 +42,8 @@ export function escapeAovxPayload(bytes) {
 
 /**
  * Decode the generic AOVX envelope.
- * "observe" reports the XOR-candidate comparison without rejecting the frame.
- * "require-xor-match" is opt-in and intended only for controlled fixtures.
+ * "observe" reports checksum validity without rejecting captured telemetry.
+ * "require-xor-match" rejects frames that fail the documented protocol checksum.
  */
 export function decodeAovxFrame(wireFrame, { checksumPolicy = 'observe' } = {}) {
   if (!['observe', 'require-xor-match'].includes(checksumPolicy)) {
