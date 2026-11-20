@@ -98,12 +98,18 @@ export function createTelemetryService(pool, { onEvent } = {}) {
           throw new ApiError(409, 'AOVX binding requires a physical device');
         if (!device.enabled) throw new ApiError(409, 'device disabled');
         const id = randomUUID();
-        await client.query(
-          `INSERT INTO telemetry_aovx_device_bindings
-           (id,tenant_id,device_id,device_id_bcd,created_by_api_key_id)
-           VALUES($1,$2,$3,$4,$5)`,
-          [id, tenantId, deviceId, input.device_id_bcd, actorKeyId ?? null]
-        );
+        try {
+          await client.query(
+            `INSERT INTO telemetry_aovx_device_bindings
+             (id,tenant_id,device_id,device_id_bcd,created_by_api_key_id)
+             VALUES($1,$2,$3,$4,$5)`,
+            [id, tenantId, deviceId, input.device_id_bcd, actorKeyId ?? null]
+          );
+        } catch (err) {
+          if (err.code === '23505')
+            throw new ApiError(409, 'AOVX identifier or device already has an active binding');
+          throw err;
+        }
         const binding = await client.query(
           `SELECT id,tenant_id,device_id,device_id_bcd,trust,state,created_at,revoked_at
            FROM telemetry_aovx_device_bindings WHERE id=$1`,
