@@ -17,6 +17,7 @@ test('journal initialization creates idempotent AOVX metadata and device observa
     'aovx_parsed_payload JSONB'
   ]) assert.match(sql, new RegExp('ADD COLUMN IF NOT EXISTS ' + column.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(sql, /CREATE TABLE IF NOT EXISTS gateway_aovx_device_observations/);
+  assert.match(sql, /aovx_processing_state/);
   assert.match(sql, /registration_message_seen_at TIMESTAMPTZ/);
   assert.match(sql, /authentication_message_seen_at TIMESTAMPTZ/);
   assert.match(sql, /packet_count BIGINT/);
