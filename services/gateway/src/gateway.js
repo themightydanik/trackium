@@ -358,7 +358,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
     for (let attempt = 0; attempt < 0x10000; attempt += 1) {
       const candidate = nextAovxSequence;
       nextAovxSequence = (nextAovxSequence + 1) & 0xffff;
-      if (!pendingAovxQueries.has(`${deviceIdBcd}:${candidate}`)) {
+      if (!pendingAovxQueries.has(`${deviceIdBcd}:${candidate}`) && !pendingAovxCommands.has(`${deviceIdBcd}:${candidate}`)) {
         sequenceNumber = candidate;
         break;
       }
