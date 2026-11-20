@@ -5,7 +5,7 @@ import http from 'node:http';
 import { once } from 'node:events';
 import { createGateway } from '../src/gateway.js';
 import { readConfig } from '../src/config.js';
-import { encodeAovxFrame } from '../src/aovx/frame.js';
+import { encodeAovxFrame, decodeAovxFrame } from '../src/aovx/frame.js';
 
 const deferred = () => Promise.withResolvers();
 const quiet = { error() {}, warn() {} };
