@@ -23,6 +23,6 @@ The Gateway routes the request only when exactly one active TCP session has repo
 
 ## Identity and trust boundary
 
-The BCD value in an AOVX frame is an identifier, not cryptographic authentication. The existing device binding remains at its current trust level (including `unverified`). A configuration response is recorded as an observation and does not promote device trust.
+The BCD value in an AOVX frame is an identifier, not cryptographic authentication. The existing device binding remains at its current trust level (including `unverified`). The configuration result is returned to the operator and written to the Gateway's structured logs; it is not persisted as a separate telemetry observation and does not promote device trust.
 
 No production command is sent during tests or deployment. An operator must explicitly call the endpoint after reviewing and deploying the change.
