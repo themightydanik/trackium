@@ -5,6 +5,7 @@ import { createLineFramer } from './framing.js';
 import { createAovxStreamFramer } from './aovx/stream-framer.js';
 import { decodeAovxFrame } from './aovx/frame.js';
 import { parseAovxMessage } from './aovx/messages.js';
+import { encodeAovxQueryCommand, parseAovxGeneralQueryResponse, parseAovxConfigurationResponse } from './aovx/config-query.js';
 
 function jsonSafe(value) {
   if (Buffer.isBuffer(value)) return { encoding: 'hex', value: value.toString('hex') };
@@ -18,7 +19,7 @@ function jsonSafe(value) {
 function inspectAovxFrame(payload, logger) {
   const decoded = decodeAovxFrame(payload);
   if (!decoded.checksumMatchesXor) {
-    logger.warn('AOVX frame captured with checksum mismatch against unconfirmed XOR candidate');
+    logger.warn('AOVX frame captured with protocol checksum mismatch');
   }
 
   try {
@@ -51,6 +52,9 @@ function inspectAovxFrame(payload, logger) {
 // The injected journal keeps TCP lifecycle tests independent of PostgreSQL.
 export function createGateway({ journal, config, logger = console, requestHandler, assetHandler, ingressGuard }) {
   const sessions = new Set();
+  const aovxDeviceSessions = new Map();
+  const pendingAovxQueries = new Map();
+  let nextAovxSequence = Date.now() & 0xffff;
   let pendingFrames = 0;
   let pendingBytes = 0;
   let stopping = false;
@@ -60,7 +64,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
   const tcp = net.createServer(socket => {
     // A disconnected client keeps its slot until accepted writes settle.
     if (stopping || sessions.size >= config.maxConnections) { socket.destroy(); return; }
-    const session = { socket, chain: Promise.resolve(), pending: 0, closed: false, failed: false };
+    const session = { socket, chain: Promise.resolve(), pending: 0, closed: false, failed: false, deviceIdBcd: null };
     sessions.add(session);
     const release = () => {
       if (session.closed && session.pending === 0) sessions.delete(session);
@@ -68,13 +72,57 @@ export function createGateway({ journal, config, logger = console, requestHandle
     socket.setTimeout(config.socketTimeoutMs);
     const onFrame = payload => {
       let aovx = null;
+      let decodedAovx = null;
       if (config.tcpProtocol === 'aovx') {
         try {
           aovx = inspectAovxFrame(payload, logger);
+          decodedAovx = decodeAovxFrame(payload);
         } catch (err) {
           logger.warn('invalid AOVX frame:', err.message);
           socket.destroy();
           return false;
+        }
+      }
+      if (decodedAovx?.messageId === 0x0200 && decodedAovx.checksumMatchesXor) {
+        const deviceId = decodedAovx.deviceIdBcd.toString('hex');
+        if (/^[0-9]{12}$/.test(deviceId)) {
+          session.deviceIdBcd = deviceId;
+          let active = aovxDeviceSessions.get(deviceId);
+          if (!active) aovxDeviceSessions.set(deviceId, active = new Set());
+          active.add(session);
+        }
+      }
+      if (decodedAovx && [0x0001, 0x0104].includes(decodedAovx.messageId) && decodedAovx.checksumMatchesXor) {
+        try {
+          const parsed = decodedAovx.messageId === 0x0001
+            ? parseAovxGeneralQueryResponse(decodedAovx)
+            : parseAovxConfigurationResponse(decodedAovx);
+          const responseSequence = parsed.responseSequenceNumber;
+          const key = `${decodedAovx.deviceIdBcd.toString('hex')}:${responseSequence}`;
+          const pending = pendingAovxQueries.get(key);
+          if (pending && pending.session === session) {
+            if (decodedAovx.messageId === 0x0001) {
+              if (parsed.correspondingMessageId !== 0x8104 || parsed.result !== 0) {
+                clearTimeout(pending.timer);
+                pendingAovxQueries.delete(key);
+                pending.reject(new Error(`AOVX query acknowledgement failed (result ${parsed.result})`));
+              } else {
+                pending.acknowledged = true;
+              }
+            } else {
+              clearTimeout(pending.timer);
+              pendingAovxQueries.delete(key);
+              pending.resolve({
+                device_id_bcd: decodedAovx.deviceIdBcd.toString('hex'),
+                sequence_number: responseSequence,
+                gnss: parsed.gnssEnabled,
+                acknowledged: pending.acknowledged,
+                parameter_present: parsed.gnssRaw !== null
+              });
+            }
+          }
+        } catch (error) {
+          logger.warn('AOVX configuration response rejected:', error.message);
         }
       }
       if (stopping || session.failed || pendingFrames >= config.maxPendingFrames ||
@@ -113,6 +161,18 @@ export function createGateway({ journal, config, logger = console, requestHandle
     socket.on('error', err => logger.warn('tcp connection error:', err.message));
     socket.on('close', () => {
       session.closed = true;
+      if (session.deviceIdBcd) {
+        const active = aovxDeviceSessions.get(session.deviceIdBcd);
+        active?.delete(session);
+        if (active?.size === 0) aovxDeviceSessions.delete(session.deviceIdBcd);
+      }
+      for (const [key, pending] of pendingAovxQueries) {
+        if (pending.session === session) {
+          clearTimeout(pending.timer);
+          pendingAovxQueries.delete(key);
+          pending.reject(new Error('AOVX device disconnected during configuration query'));
+        }
+      }
       framer.discard(); // EOF is not a frame delimiter; retain complete frames only.
       release();
     });
@@ -218,8 +278,49 @@ export function createGateway({ journal, config, logger = console, requestHandle
     return shutdownPromise;
   }
 
+  function queryAovxConfiguration(deviceIdBcd) {
+    if (config.tcpProtocol !== 'aovx') throw new Error('AOVX command channel is disabled');
+    if (typeof deviceIdBcd !== 'string' || !/^[0-9]{12}$/.test(deviceIdBcd))
+      throw new TypeError('deviceIdBcd must be 12 decimal digits');
+    const active = [...(aovxDeviceSessions.get(deviceIdBcd) ?? [])]
+      .filter(item => !item.closed && !item.socket.destroyed && item.socket.writable);
+    if (active.length !== 1)
+      throw new Error(active.length === 0
+        ? 'AOVX device has no active TCP session'
+        : 'AOVX device has multiple active TCP sessions; refusing ambiguous command routing');
+
+    const session = active[0];
+    let sequenceNumber = nextAovxSequence;
+    for (let attempt = 0; attempt < 0x10000; attempt += 1) {
+      nextAovxSequence = (nextAovxSequence + 1) & 0xffff;
+      if (!pendingAovxQueries.has(`${deviceIdBcd}:${sequenceNumber}`)) break;
+      sequenceNumber = nextAovxSequence;
+    }
+    const key = `${deviceIdBcd}:${sequenceNumber}`;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        pendingAovxQueries.delete(key);
+        reject(new Error('AOVX configuration query timed out; no 0x0104 parameter response received'));
+      }, 12000);
+      pendingAovxQueries.set(key, { session, timer, resolve, reject, acknowledged: false });
+      const frame = encodeAovxQueryCommand({
+        deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+        sequenceNumber
+      });
+      session.socket.write(frame, error => {
+        if (!error) return;
+        clearTimeout(timer);
+        pendingAovxQueries.delete(key);
+        reject(error);
+      });
+      logger.info?.('AOVX read-only configuration query sent:', JSON.stringify({
+        deviceIdBcd, messageId: '0x8104', sequenceNumber
+      }));
+    });
+  }
+
   return {
-    tcp, api, shutdown,
+    tcp, api, shutdown, queryAovxConfiguration,
     async start() {
       if (startPromise || stopping) throw new Error('gateway cannot be started twice or after shutdown');
       startPromise = (async () => {

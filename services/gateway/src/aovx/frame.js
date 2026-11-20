@@ -5,7 +5,7 @@ const ESCAPED_ESCAPE = 0x01;
 const HEADER_LENGTH = 12;
 const MIN_FRAME_LENGTH = HEADER_LENGTH + 1;
 
-/** Candidate XOR checksum; workbook samples do not yet confirm it universally. */
+/** AOVX protocol checksum: XOR from the first header byte through the final body byte. */
 export function aovxChecksum(bytes) {
   let checksum = 0;
   for (const byte of bytes) checksum ^= byte;
@@ -42,8 +42,8 @@ export function escapeAovxPayload(bytes) {
 
 /**
  * Decode the generic AOVX envelope.
- * "observe" reports the XOR-candidate comparison without rejecting the frame.
- * "require-xor-match" is opt-in and intended only for controlled fixtures.
+ * "observe" reports checksum validity without rejecting captured telemetry.
+ * "require-xor-match" rejects frames that fail the documented protocol checksum.
  */
 export function decodeAovxFrame(wireFrame, { checksumPolicy = 'observe' } = {}) {
   if (!['observe', 'require-xor-match'].includes(checksumPolicy)) {
@@ -76,7 +76,7 @@ export function decodeAovxFrame(wireFrame, { checksumPolicy = 'observe' } = {}) 
     sequenceNumber: packet.readUInt16BE(10),
     body: Buffer.from(packet.subarray(HEADER_LENGTH, -1)),
     checksum: receivedChecksum,
-    checksumAlgorithm: 'unconfirmed-xor-candidate',
+    checksumAlgorithm: 'xor',
     checksumMatchesXor,
     checksumStatus: checksumMatchesXor ? 'xor-match' : 'xor-mismatch',
     raw: packet
@@ -99,7 +99,7 @@ export function encodeAovxFrame({ messageId, deviceIdBcd, sequenceNumber, body =
   device.copy(packet, 4);
   packet.writeUInt16BE(sequenceNumber, 10);
   payload.copy(packet, HEADER_LENGTH);
-  // Retained for synthetic fixtures only; production checksum algorithm is unconfirmed.
+  // AOVX checksum is XOR over the complete header and body.
   packet[packet.length - 1] = aovxChecksum(packet.subarray(0, -1));
   return Buffer.concat([Buffer.from([FLAG]), escapeAovxPayload(packet), Buffer.from([FLAG])]);
 }

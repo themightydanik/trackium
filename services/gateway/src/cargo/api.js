@@ -2,6 +2,8 @@ import { timingSafeEqual } from 'node:crypto';
 import { ApiError, object, text, uuid } from '../telemetry/schema.js';
 import { reply, body, query } from '../telemetry/api.js';
 export function createCargoApi({
+  pool,
+  aovxConfigQuery,
   telemetry,
   authenticate: suppliedAuthenticate,
   native,
@@ -43,6 +45,42 @@ export function createCargoApi({
           before: url.searchParams.get('before') ?? undefined,
           deviceId: url.searchParams.get('device_id') ?? undefined
         }));
+      }
+      const aovxConfigQueryMatch = /^\/internal\/aovx\/devices\/([0-9a-fA-F]{12})\/config-query$/.exec(path);
+      if (aovxConfigQueryMatch) {
+        const expected = config.aovxObservationsToken;
+        if (!expected) throw new ApiError(404, 'not found');
+        if (req.method !== 'POST') throw new ApiError(405, 'method not allowed');
+        const supplied = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1] ?? '';
+        const a = Buffer.from(supplied), b = Buffer.from(expected);
+        if (a.length !== b.length || !timingSafeEqual(a, b))
+          throw new ApiError(401, 'operator authentication required');
+        query(url, []);
+        const deviceIdBcd = aovxConfigQueryMatch[1].toLowerCase();
+        const binding = await pool.query(
+          `SELECT b.device_id_bcd, b.trust
+           FROM telemetry_aovx_device_bindings b
+           JOIN telemetry_devices d ON d.tenant_id=b.tenant_id AND d.id=b.device_id
+           WHERE b.device_id_bcd=$1 AND b.state='active'
+             AND d.enabled=true AND d.mode='real' AND d.identity_kind='physical'
+           ORDER BY b.created_at DESC LIMIT 2`,
+          [deviceIdBcd]
+        );
+        if (binding.rowCount !== 1) throw new ApiError(404, 'no unique active physical AOVX device binding');
+        logger.info?.('AOVX read-only configuration query requested:', JSON.stringify({
+          deviceIdBcd, trust: binding.rows[0].trust, parameter: '0xF029'
+        }));
+        try {
+          const result = await aovxConfigQuery(deviceIdBcd);
+          logger.info?.('AOVX read-only configuration query completed:', JSON.stringify(result));
+          return reply(res, 200, result);
+        } catch (error) {
+          logger.warn?.('AOVX read-only configuration query failed:', JSON.stringify({
+            deviceIdBcd, reason: error.message
+          }));
+          throw new ApiError(/timed out/.test(error.message) ? 504 : 409,
+            /timed out/.test(error.message) ? 'AOVX device did not return configuration parameters before timeout' : 'AOVX device is not available for an unambiguous read-only query');
+        }
       }
       const aovxDevice = /^\/internal\/aovx\/devices(?:\/([0-9a-fA-F]{12}))?$/.exec(path);
       if (aovxDevice) {
