@@ -150,8 +150,8 @@ export function createAovxIngestion(pool, { logger = console, pollMs = 5000, bat
     processPending,
     start() {
       if (timer || stopped) return;
-      void processPending();
-      timer = setInterval(() => { void processPending(); }, pollMs);
+      void processPending().catch(error => logger.error?.('AOVX telemetry worker failed:', error.message));
+      timer = setInterval(() => { void processPending().catch(error => logger.error?.('AOVX telemetry worker failed:', error.message)); }, pollMs);
       timer.unref?.();
     },
     async stop() {
