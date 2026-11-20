@@ -340,3 +340,53 @@ test('logs TCP and HTTP listener lifecycle with distinct server types and ports'
   assert.equal(typeof listening[1].detail.serverAddress.port, 'number');
 });
 
+
+test('logs TCP peer lifecycle and AOVX session identity transitions', { timeout: 3000 }, async t => {
+  const events = [];
+  const logger = {
+    info(message, detail) { events.push({ level: 'info', message, detail: detail ? JSON.parse(detail) : null }); },
+    warn(message, detail) { events.push({ level: 'warn', message, detail: detail ? JSON.parse(detail) : null }); },
+    error() {}
+  };
+  const journal = {
+    async initialize() {},
+    async persistPacket() {},
+    async checkReady() {},
+    async close() {}
+  };
+  const gateway = createGateway({
+    journal, logger,
+    config: {
+      ...readConfig({ DATABASE_URL: 'postgres://unused' }),
+      host: '127.0.0.1', tcpPort: 0, httpPort: 0, tcpProtocol: 'aovx'
+    }
+  });
+  await gateway.start();
+  t.after(() => gateway.shutdown());
+
+  const socket = net.connect(gateway.tcp.address().port, '127.0.0.1');
+  socket.on('error', () => {});
+  socket.on('data', () => {});
+  const ended = new Promise(resolve => socket.once('close', resolve));
+  await once(socket, 'connect');
+  const frame = encodeAovxFrame({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.from('944063243931', 'hex'),
+    sequenceNumber: 1,
+    body: Buffer.alloc(0)
+  });
+  socket.end(frame);
+  await ended;
+  await until(() => events.some(event => event.message === 'tcp client closed:'));
+
+  const connected = events.find(event => event.message === 'tcp client connected:');
+  const identified = events.find(event => event.message === 'tcp client AOVX identity updated:');
+  const halfClosed = events.find(event => event.message === 'tcp client half-closed:');
+  const closed = events.find(event => event.message === 'tcp client closed:');
+  assert.equal(typeof connected.detail.remoteAddress, 'string');
+  assert.equal(typeof connected.detail.remotePort, 'number');
+  assert.equal(identified.detail.deviceIdBcd, '944063243931');
+  assert.equal(halfClosed.detail.deviceIdBcd, '944063243931');
+  assert.equal(closed.detail.deviceIdBcd, '944063243931');
+  assert.equal(closed.detail.hadError, false);
+});
