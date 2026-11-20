@@ -74,8 +74,10 @@ export async function persistPacket({ payload, remoteAddress, aovx = null }, dat
       INSERT INTO gateway_packets (
         transport, remote_address, raw_payload, sha256,
         aovx_message_id, aovx_device_id_bcd, aovx_sequence_number,
-        aovx_checksum_status, aovx_parse_status, aovx_parse_error, aovx_parsed_payload
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        aovx_checksum_status, aovx_parse_status, aovx_parse_error, aovx_parsed_payload,
+        aovx_processing_state
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
+        CASE WHEN $5 = 512 THEN 'pending' ELSE 'not_applicable' END)
       RETURNING id, received_at
     ),
     observation AS (
