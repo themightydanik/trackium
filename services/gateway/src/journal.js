@@ -34,7 +34,10 @@ export async function initialize(database = pool) {
       aovx_checksum_status TEXT,
       aovx_parse_status TEXT,
       aovx_parse_error TEXT,
-      aovx_parsed_payload JSONB
+      aovx_parsed_payload JSONB,
+      aovx_processing_state TEXT NOT NULL DEFAULT 'not_applicable'
+        CHECK (aovx_processing_state IN ('not_applicable','pending','processed','unbound','rejected')),
+      aovx_processing_error TEXT
     );
     ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_message_id INTEGER;
     ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_device_id_bcd TEXT;
@@ -43,6 +46,9 @@ export async function initialize(database = pool) {
     ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_parse_status TEXT;
     ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_parse_error TEXT;
     ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_parsed_payload JSONB;
+    ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_processing_state TEXT NOT NULL DEFAULT 'not_applicable'
+      CHECK (aovx_processing_state IN ('not_applicable','pending','processed','unbound','rejected'));
+    ALTER TABLE gateway_packets ADD COLUMN IF NOT EXISTS aovx_processing_error TEXT;
     CREATE INDEX IF NOT EXISTS gateway_packets_received_idx ON gateway_packets(received_at);
     CREATE INDEX IF NOT EXISTS gateway_packets_aovx_message_idx ON gateway_packets(aovx_message_id, received_at)
       WHERE aovx_message_id IS NOT NULL;
