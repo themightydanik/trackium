@@ -173,6 +173,30 @@ test(
       }
     );
     await t.test(
+      'Cargo API delegates tenant-scoped AOVX enrollment routes to Telemetry Core',
+      async () => {
+        const created = await req('/v1/aovx/devices', {
+          method: 'POST',
+          body: { device_id: physical.id, device_id_bcd: '944063243931' }
+        });
+        assert.equal(created.status, 201);
+        assert.equal(created.body.device_id, physical.id);
+        assert.equal(created.body.trust, 'unverified');
+        assert.equal(
+          (await req('/v1/aovx/devices', { token: b.token })).body.devices.length,
+          0
+        );
+        assert.equal(
+          (await req('/v1/aovx/devices', { token: reader.token })).status,
+          200
+        );
+        assert.equal(
+          (await req('/v1/aovx/devices/944063243931', { method: 'DELETE' })).status,
+          200
+        );
+      }
+    );
+    await t.test(
       'status machine, permissions and dedicated simulator commands fail closed',
       async () => {
         assert.equal(
