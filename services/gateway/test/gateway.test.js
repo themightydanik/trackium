@@ -390,3 +390,51 @@ test('logs TCP peer lifecycle and AOVX session identity transitions', { timeout:
   assert.equal(closed.detail.deviceIdBcd, '944063243931');
   assert.equal(closed.detail.hadError, false);
 });
+
+test('GNSS enable requires 0x8103 acknowledgement and 0x8104 read-back verification', { timeout: 3000 }, async t => {
+  const f = await fixture(t, { tcpProtocol: 'aovx' });
+  const deviceIdBcd = '944063243931';
+  const { socket } = await f.connect();
+  const identity = encodeAovxFrame({
+    messageId: 0x0200,
+    deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+    sequenceNumber: 100,
+    body: Buffer.alloc(40)
+  });
+  socket.write(identity);
+  await tick();
+
+  const received = [];
+  socket.on('data', chunk => {
+    const frame = decodeAovxFrame(chunk, { checksumPolicy: 'require-xor-match' });
+    received.push(frame.messageId);
+    if (frame.messageId === 0x8103) {
+      const ackBody = Buffer.alloc(5);
+      ackBody.writeUInt16BE(frame.sequenceNumber, 0);
+      ackBody.writeUInt16BE(0x8103, 2);
+      ackBody[4] = 0;
+      socket.write(encodeAovxFrame({
+        messageId: 0x0001, deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+        sequenceNumber: 101, body: ackBody
+      }));
+    } else if (frame.messageId === 0x8104) {
+      const responseBody = Buffer.alloc(9);
+      responseBody.writeUInt16BE(frame.sequenceNumber, 0);
+      responseBody[2] = 1;
+      responseBody.writeUInt32BE(0x0000f029, 3);
+      responseBody[7] = 1;
+      responseBody[8] = 1;
+      socket.write(encodeAovxFrame({
+        messageId: 0x0104, deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+        sequenceNumber: 102, body: responseBody
+      }));
+    }
+  });
+
+  const result = await f.gateway.enableAovxGnss(deviceIdBcd);
+  assert.deepEqual(received, [0x8103, 0x8104]);
+  assert.equal(result.command_sent, true);
+  assert.equal(result.acknowledged, true);
+  assert.equal(result.verified, true);
+  assert.equal(result.observed_gnss, 'enabled');
+});
