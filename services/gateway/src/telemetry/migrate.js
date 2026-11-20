@@ -6,7 +6,7 @@ export async function migrate(pool) {
     '001_telemetry.sql',
     '002_cargo.sql',
     '003_proofs.sql',
-    '004_publisher_safety.sql', '005_native_android.sql', '006_aovx_device_enrollment.sql'
+    '004_publisher_safety.sql', '005_native_android.sql', '006_aovx_device_enrollment.sql', '007_aovx_telemetry_ingestion.sql'
   ];
   const client = await pool.connect();
   try {
