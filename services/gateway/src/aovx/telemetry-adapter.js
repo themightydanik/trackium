@@ -23,6 +23,8 @@ export function adaptAovxTelemetry({ frame, parsed, receivedAt, tenantId, device
     device_id: deviceId,
     source: AOVX_TELEMETRY_PARSER_VERSION,
     trust: 'unverified',
+    event_time_basis: 'gateway_received_at',
+    device_time_raw: data.timestampBcd.toString('hex'),
     source_event_id: sourceEventId,
     occurred_at: occurredAtIso,
     gps: null,
@@ -32,6 +34,7 @@ export function adaptAovxTelemetry({ frame, parsed, receivedAt, tenantId, device
     status: 'unknown',
     extra: {
       protocol_message_id: 0x0200,
+      device_identifier_bcd: deviceIdBcd,
       device_time_bcd_digits: data.timestampBcdDigits,
       sequence_number: frame.sequenceNumber,
       alarm_raw: data.alarm,
