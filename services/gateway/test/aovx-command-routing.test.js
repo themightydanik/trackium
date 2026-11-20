@@ -32,9 +32,9 @@ async function connect(gateway, t) {
   return socket;
 }
 
-function telemetryFrame() {
+function telemetryFrame(id = deviceIdBcd) {
   return encodeAovxFrame({
-    messageId: 0x0200, deviceIdBcd, sequenceNumber: 10,
+    messageId: 0x0200, deviceIdBcd: id, sequenceNumber: 10,
     body: Buffer.alloc(40)
   });
 }
@@ -98,4 +98,38 @@ test('does not route a command when a device has ambiguous active sessions', asy
 test('does not route a command to a device without an active session', async t => {
   const gateway = await fixture(t);
   assert.throws(() => gateway.queryAovxConfiguration('944063243931'), /no active TCP session/);
+});
+
+test('removes a session from its previous device identity before rerouting', async t => {
+  const gateway = await fixture(t);
+  const socket = await connect(gateway, t);
+  const otherDevice = Buffer.from('123456789012', 'hex');
+  socket.write(telemetryFrame());
+  await new Promise(resolve => setTimeout(resolve, 25));
+  socket.write(telemetryFrame(otherDevice));
+  await new Promise(resolve => setTimeout(resolve, 25));
+
+  assert.throws(
+    () => gateway.queryAovxConfiguration('944063243931'),
+    /no active TCP session/
+  );
+
+  const incoming = new Promise(resolve => socket.once('data', resolve));
+  const resultPromise = gateway.queryAovxConfiguration('123456789012');
+  const command = decodeAovxFrame(await incoming, { checksumPolicy: 'require-xor-match' });
+  assert.equal(command.messageId, 0x8104);
+  assert.deepEqual(command.deviceIdBcd, otherDevice);
+
+  const responseBody = Buffer.alloc(9);
+  responseBody.writeUInt16BE(command.sequenceNumber, 0);
+  responseBody[2] = 1;
+  responseBody.writeUInt32BE(0x0000f029, 3);
+  responseBody[7] = 1;
+  responseBody[8] = 0;
+  socket.write(encodeAovxFrame({
+    messageId: 0x0104, deviceIdBcd: otherDevice, sequenceNumber: 11, body: responseBody
+  }));
+  const result = await resultPromise;
+  assert.equal(result.device_id_bcd, '123456789012');
+  assert.equal(result.gnss, 'disabled');
 });
