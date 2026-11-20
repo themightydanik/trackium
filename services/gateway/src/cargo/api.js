@@ -83,7 +83,7 @@ export function createCargoApi({
             /timed out/.test(error.message) ? 'AOVX device did not return configuration parameters before timeout' : 'AOVX device is not available for an unambiguous read-only query');
         }
       }
-      const aovxGnssEnableMatch = /^\\/internal\\/aovx\\/devices\\/([0-9a-fA-F]{12})\\/gnss-enable$/.exec(path);
+      const aovxGnssEnableMatch = /^\/internal\/aovx\/devices\/([0-9a-fA-F]{12})\/gnss-enable$/.exec(path);
       if (aovxGnssEnableMatch) {
         const expected = config.aovxObservationsToken;
         if (!expected) throw new ApiError(404, 'not found');
