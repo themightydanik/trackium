@@ -65,7 +65,7 @@ export function createRuntime(
         await migrate(pool);
         await proofs.initialize();
         await checkpoint('database_and_proof_initialization_complete');
-        aovxIngestion.start();
+        if (worker) aovxIngestion.start();
         if (worker && config.proofs?.mode !== 'disabled')
           stopProofWorker = startProofWorker(proofs, logger);
         if (worker && config.simulatorEnabled) stopWorker = startWorker(simulator, logger);
