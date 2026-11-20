@@ -19,7 +19,7 @@ function jsonSafe(value) {
 function inspectAovxFrame(payload, logger) {
   const decoded = decodeAovxFrame(payload);
   if (!decoded.checksumMatchesXor) {
-    logger.warn('AOVX frame captured with checksum mismatch against unconfirmed XOR candidate');
+    logger.warn('AOVX frame captured with protocol checksum mismatch');
   }
 
   try {
