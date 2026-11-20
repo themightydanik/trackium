@@ -12,7 +12,7 @@ const deviceIdBcd = Buffer.from('944063243931', 'hex');
 
 test('encodes the documented empty-body 0x8104 query command', () => {
   const frame = encodeAovxQueryCommand({ deviceIdBcd, sequenceNumber: 0xfff9 });
-  assert.equal(frame.toString('hex'), '7e81040000944063243931fff9b47e');
+  assert.equal(frame.toString('hex'), '7e81040000944063243931fff9187e');
   const decoded = decodeAovxFrame(frame, { checksumPolicy: 'require-xor-match' });
   assert.equal(decoded.messageId, 0x8104);
   assert.equal(decoded.body.length, 0);
