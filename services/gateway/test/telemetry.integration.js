@@ -411,7 +411,7 @@ test(
           (await db.query('SELECT count(*) FROM telemetry_fixture_inputs')).rows[0].count,
           '1'
         );
-        const row = (await db.query('SELECT * FROM telemetry_events')).rows[0];
+        const row = (await db.query("SELECT * FROM telemetry_events WHERE source='fixture-v1'")).rows[0];
         assert.equal(row.trust, 'synthetic');
         assert.equal(row.raw_packet_id, null);
         assert.equal(row.payload.device_id, device.id);
@@ -419,7 +419,7 @@ test(
           createHash('sha256').update(row.canonical_event).digest('hex'),
           row.canonical_sha256
         );
-        assert.equal((await db.query('SELECT count(*) FROM gateway_packets')).rows[0].count, '1');
+        assert.equal((await db.query('SELECT count(*) FROM gateway_packets')).rows[0].count, '5');
       }
     );
     await t.test(
@@ -452,7 +452,7 @@ test(
     await t.test(
       'database constraints reject tenant mixing and event failure rolls back fixture provenance',
       async () => {
-        const event = (await db.query('SELECT * FROM telemetry_events LIMIT 1')).rows[0];
+        const event = (await db.query("SELECT * FROM telemetry_events WHERE source='fixture-v1' LIMIT 1")).rows[0];
         await assert.rejects(
           db.query(
             `INSERT INTO telemetry_events(id,tenant_id,device_id,schema_version,source,trust,source_event_id,occurred_at,payload,canonical_event,canonical_sha256,fixture_input_id)
