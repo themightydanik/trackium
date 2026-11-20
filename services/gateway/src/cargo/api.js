@@ -1,6 +1,14 @@
 import { timingSafeEqual } from 'node:crypto';
 import { ApiError, object, text, uuid } from '../telemetry/schema.js';
 import { reply, body, query } from '../telemetry/api.js';
+function requireEmptyRequestBody(req) {
+  const contentLength = req.headers['content-length'];
+  if (req.headers['transfer-encoding'] ||
+      (contentLength !== undefined && contentLength !== '0')) {
+    throw new ApiError(400, 'request body not allowed');
+  }
+}
+
 export function createCargoApi({
   pool,
   aovxConfigQuery,
@@ -57,6 +65,7 @@ export function createCargoApi({
         if (a.length !== b.length || !timingSafeEqual(a, b))
           throw new ApiError(401, 'operator authentication required');
         query(url, []);
+        requireEmptyRequestBody(req);
         const deviceIdBcd = aovxConfigQueryMatch[1].toLowerCase();
         const binding = await pool.query(
           `SELECT b.device_id_bcd, b.trust
@@ -92,6 +101,7 @@ export function createCargoApi({
         const a = Buffer.from(supplied), b = Buffer.from(expected);
         if (a.length !== b.length || !timingSafeEqual(a, b)) throw new ApiError(401, 'operator authentication required');
         query(url, []);
+        requireEmptyRequestBody(req);
         const deviceIdBcd = aovxGnssEnableMatch[1].toLowerCase();
         const binding = await pool.query(
           `SELECT b.device_id_bcd FROM telemetry_aovx_device_bindings b
