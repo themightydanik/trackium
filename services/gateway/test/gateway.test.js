@@ -17,7 +17,7 @@ async function until(check) {
     await tick();
   }
 }
-async function fixture(t, overrides = {}, persist = async () => {}) {
+async function fixture(t, overrides = {}, persist = async () => {}, logger = quiet) {
   const writes = [];
   const packets = [];
   const records = [];
@@ -28,7 +28,7 @@ async function fixture(t, overrides = {}, persist = async () => {}) {
     async checkReady() {},
     async close() { closed = true; }
   };
-  const gateway = createGateway({ journal, logger: quiet, config: {
+  const gateway = createGateway({ journal, logger, config: {
     ...readConfig({ DATABASE_URL: 'postgres://unused' }),
     host: '127.0.0.1', tcpPort: 0, httpPort: 0, ...overrides
   } });
@@ -344,7 +344,7 @@ test('logs TCP and HTTP listener lifecycle with distinct server types and ports'
 test('logs TCP peer lifecycle and AOVX session identity transitions', { timeout: 3000 }, async t => {
   const events = [];
   const logger = {
-    info(message, detail) { events.push({ level: 'info', message, detail: detail ? JSON.parse(detail) : null }); },
+    info(message, detail) { events.push({ level: 'info', message, detail: detail ? (() => { try { return JSON.parse(detail); } catch { return detail; } })() : null }); },
     warn(message, detail) { events.push({ level: 'warn', message, detail: detail ? JSON.parse(detail) : null }); },
     error() {}
   };
@@ -373,7 +373,7 @@ test('logs TCP peer lifecycle and AOVX session identity transitions', { timeout:
     messageId: 0x0200,
     deviceIdBcd: Buffer.from('944063243931', 'hex'),
     sequenceNumber: 1,
-    body: Buffer.alloc(0)
+    body: Buffer.alloc(40)
   });
   socket.end(frame);
   await ended;
@@ -392,7 +392,12 @@ test('logs TCP peer lifecycle and AOVX session identity transitions', { timeout:
 });
 
 test('GNSS enable requires 0x8103 acknowledgement and 0x8104 read-back verification', { timeout: 3000 }, async t => {
-  const f = await fixture(t, { tcpProtocol: 'aovx' });
+  const events = [];
+  const logger = {
+    info(message, detail) { events.push({ message, detail: detail ? JSON.parse(detail) : null }); },
+    warn() {}, error() {}
+  };
+  const f = await fixture(t, { tcpProtocol: 'aovx' }, async () => {}, logger);
   const deviceIdBcd = '944063243931';
   const { socket } = await f.connect();
   const identity = encodeAovxFrame({
@@ -402,7 +407,7 @@ test('GNSS enable requires 0x8103 acknowledgement and 0x8104 read-back verificat
     body: Buffer.alloc(40)
   });
   socket.write(identity);
-  await tick();
+  await until(() => events.some(event => event.message === 'tcp client AOVX identity updated:'));
 
   const received = [];
   socket.on('data', chunk => {
