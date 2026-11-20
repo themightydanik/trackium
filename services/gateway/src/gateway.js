@@ -85,11 +85,26 @@ export function createGateway({ journal, config, logger = console, requestHandle
       }
       if (decodedAovx?.messageId === 0x0200 && decodedAovx.checksumMatchesXor) {
         const deviceId = decodedAovx.deviceIdBcd.toString('hex');
-        if (/^[0-9]{12}$/.test(deviceId)) {
-          session.deviceIdBcd = deviceId;
-          let active = aovxDeviceSessions.get(deviceId);
-          if (!active) aovxDeviceSessions.set(deviceId, active = new Set());
-          active.add(session);
+        if (session.deviceIdBcd !== deviceId) {
+          if (session.deviceIdBcd) {
+            const previous = aovxDeviceSessions.get(session.deviceIdBcd);
+            previous?.delete(session);
+            if (previous?.size === 0) aovxDeviceSessions.delete(session.deviceIdBcd);
+            for (const [key, pending] of pendingAovxQueries) {
+              if (pending.session === session) {
+                clearTimeout(pending.timer);
+                pendingAovxQueries.delete(key);
+                pending.reject(new Error('AOVX session identity changed during configuration query'));
+              }
+            }
+          }
+          session.deviceIdBcd = null;
+          if (/^[0-9]{12}$/.test(deviceId)) {
+            session.deviceIdBcd = deviceId;
+            let active = aovxDeviceSessions.get(deviceId);
+            if (!active) aovxDeviceSessions.set(deviceId, active = new Set());
+            active.add(session);
+          }
         }
       }
       if (decodedAovx && [0x0001, 0x0104].includes(decodedAovx.messageId) && decodedAovx.checksumMatchesXor) {
@@ -290,11 +305,17 @@ export function createGateway({ journal, config, logger = console, requestHandle
         : 'AOVX device has multiple active TCP sessions; refusing ambiguous command routing');
 
     const session = active[0];
-    let sequenceNumber = nextAovxSequence;
+    let sequenceNumber;
     for (let attempt = 0; attempt < 0x10000; attempt += 1) {
+      const candidate = nextAovxSequence;
       nextAovxSequence = (nextAovxSequence + 1) & 0xffff;
-      if (!pendingAovxQueries.has(`${deviceIdBcd}:${sequenceNumber}`)) break;
-      sequenceNumber = nextAovxSequence;
+      if (!pendingAovxQueries.has(`${deviceIdBcd}:${candidate}`)) {
+        sequenceNumber = candidate;
+        break;
+      }
+    }
+    if (sequenceNumber === undefined) {
+      throw new Error('all AOVX query sequence numbers are currently in use for this device');
     }
     const key = `${deviceIdBcd}:${sequenceNumber}`;
     return new Promise((resolve, reject) => {
