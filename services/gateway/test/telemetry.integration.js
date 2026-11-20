@@ -275,8 +275,8 @@ test(
         const recovery = await ingestion.processPending();
         assert.equal(recovery.processed, 1);
         const result = await ingestion.processPacket(first.id);
+        assert.equal(result.processed, false);
         assert.equal(result.reason, 'not-pending');
-        assert.equal(result.duplicate, false);
         const duplicate = await persist();
         const repeated = await ingestion.processPacket(duplicate.id);
         assert.equal(repeated.processed, true);
