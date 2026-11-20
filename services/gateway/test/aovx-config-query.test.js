@@ -73,3 +73,13 @@ test('rejects a response with an invalid checksum', () => {
   frame[frame.length - 2] ^= 0x01;
   assert.throws(() => decodeAovxConfigResponse(frame), /checksum mismatch/);
 });
+
+test('encodes only the fixed GNSS-enable 0x8103 configuration parameter', async () => {
+  const { encodeAovxGnssEnableCommand } = await import('../src/aovx/config-query.js');
+  const wire = encodeAovxGnssEnableCommand({ deviceIdBcd, sequenceNumber: 0x1234 });
+  const decoded = decodeAovxFrame(wire, { checksumPolicy: 'require-xor-match' });
+  assert.equal(decoded.messageId, 0x8103);
+  assert.equal(decoded.sequenceNumber, 0x1234);
+  assert.deepEqual(decoded.deviceIdBcd, deviceIdBcd);
+  assert.deepEqual(decoded.body, Buffer.from('010000f0290101', 'hex'));
+});
