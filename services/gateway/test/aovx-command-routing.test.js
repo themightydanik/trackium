@@ -44,7 +44,7 @@ test('sends 0x8104 only to the unique active session and resolves matching 0x010
   const socket = await connect(gateway, t);
   const incoming = new Promise(resolve => socket.once('data', resolve));
   socket.write(telemetryFrame());
-  await tick();
+  await new Promise(resolve => setTimeout(resolve, 25));
 
   const resultPromise = gateway.queryAovxConfiguration('944063243931');
   const wireCommand = await incoming;
@@ -79,7 +79,7 @@ test('does not route a command when a device has ambiguous active sessions', asy
   const second = await connect(gateway, t);
   first.write(telemetryFrame());
   second.write(telemetryFrame());
-  await tick();
+  await new Promise(resolve => setTimeout(resolve, 25));
   assert.throws(
     () => gateway.queryAovxConfiguration('944063243931'),
     /multiple active TCP sessions/
