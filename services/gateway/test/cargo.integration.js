@@ -111,7 +111,7 @@ test(
           (
             await db.query('SELECT version FROM gateway_schema_migrations ORDER BY version')
           ).rows.map((r) => r.version),
-          [1, 2, 3, 4, 5]
+          [1, 2, 3, 4, 5, 6]
         );
         simulated = (
           await req('/v1/simulated-devices', {
@@ -168,6 +168,30 @@ test(
         assert.equal(
           (await req('/v1/shipments/' + s.id, { method: 'PATCH', body: { name: 'Updated draft' } }))
             .status,
+          200
+        );
+      }
+    );
+    await t.test(
+      'Cargo API delegates tenant-scoped AOVX enrollment routes to Telemetry Core',
+      async () => {
+        const created = await req('/v1/aovx/devices', {
+          method: 'POST',
+          body: { device_id: physical.id, device_id_bcd: '944063243931' }
+        });
+        assert.equal(created.status, 201);
+        assert.equal(created.body.device_id, physical.id);
+        assert.equal(created.body.trust, 'unverified');
+        assert.equal(
+          (await req('/v1/aovx/devices', { token: b.token })).body.devices.length,
+          0
+        );
+        assert.equal(
+          (await req('/v1/aovx/devices', { token: reader.token })).status,
+          200
+        );
+        assert.equal(
+          (await req('/v1/aovx/devices/944063243931', { method: 'DELETE' })).status,
           200
         );
       }

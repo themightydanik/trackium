@@ -255,7 +255,7 @@ export function createCargoApi({
         return reply(res, 200, await simulator.control(tenant, uuid(control[1]), control[2]));
       }
       // Existing telemetry routes retain scopes; sessions have no admin/fixture grants.
-      if (path.startsWith('/v1/devices') || path.startsWith('/v1/fixtures/'))
+      if (path.startsWith('/v1/devices') || path.startsWith('/v1/fixtures/') || path.startsWith('/v1/aovx/'))
         return telemetryApi(req, res);
       reply(res, 404, { error: 'not found' });
     } catch (err) {

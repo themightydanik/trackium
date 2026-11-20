@@ -166,6 +166,81 @@ test(
         );
       }
     );
+    await t.test(
+      'AOVX enrollment is admin-only, tenant-scoped, physical-only and revocable',
+      async () => {
+        const bPhysical = (
+          await request('/v1/devices', {
+            token: b.token,
+            method: 'POST',
+            body: { label: 'tenant B physical', mode: 'real' }
+          })
+        ).body;
+        assert.equal(
+          (await request('/v1/aovx/devices', { token: null })).status,
+          401
+        );
+        assert.equal(
+          (await request('/v1/aovx/devices', {
+            token: readOnly.token,
+            method: 'POST',
+            body: { device_id: real.id, device_id_bcd: '944063243931' }
+          })).status,
+          403
+        );
+        assert.equal(
+          (await request('/v1/aovx/devices', {
+            method: 'POST',
+            body: { device_id: device.id, device_id_bcd: '944063243931' }
+          })).status,
+          409
+        );
+        assert.equal(
+          (await request('/v1/aovx/devices', {
+            method: 'POST',
+            body: { device_id: real.id, device_id_bcd: '94406324393x' }
+          })).status,
+          400
+        );
+        const binding = await request('/v1/aovx/devices', {
+          method: 'POST',
+          body: { device_id: real.id, device_id_bcd: '944063243931' }
+        });
+        assert.equal(binding.status, 201);
+        assert.equal(binding.body.device_id, real.id);
+        assert.equal(binding.body.tenant_id, a.tenant_id);
+        assert.equal(binding.body.trust, 'unverified');
+        assert.equal(binding.body.state, 'active');
+        assert.equal(
+          (await request('/v1/aovx/devices', {
+            token: b.token,
+            method: 'POST',
+            body: { device_id: bPhysical.id, device_id_bcd: '944063243931' }
+          })).status,
+          409
+        );
+        const listed = await request('/v1/aovx/devices');
+        assert.equal(listed.status, 200);
+        assert.equal(listed.body.devices.length, 1);
+        assert.equal(listed.body.devices[0].device_id_bcd, '944063243931');
+        assert.equal(
+          (await request('/v1/aovx/devices', { token: readOnly.token })).status,
+          200
+        );
+        const revoked = await request('/v1/aovx/devices/944063243931', { method: 'DELETE' });
+        assert.equal(revoked.status, 200);
+        assert.equal(revoked.body.state, 'revoked');
+        assert.ok(revoked.body.revoked_at);
+        assert.equal(
+          (await request('/v1/aovx/devices/944063243931', { method: 'DELETE' })).status,
+          404
+        );
+        assert.equal(
+          (await db.query('SELECT count(*) FROM telemetry_aovx_device_bindings WHERE state=\'revoked\'')).rows[0].count,
+          '1'
+        );
+      }
+    );
     const fixturePath = (id) => `/v1/fixtures/devices/${id}/events`;
     await t.test(
       'tenant isolation covers list, detail, history, status, location, mutation and fixtures',

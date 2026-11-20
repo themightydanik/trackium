@@ -81,6 +81,65 @@ export function createTelemetryService(pool, { onEvent } = {}) {
         return device(client, tenantId, id);
       });
     },
+    async bindAovxDevice(tenantId, actorKeyId, input) {
+      object(input, ['device_id', 'device_id_bcd']);
+      const deviceId = uuid(input.device_id);
+      if (typeof input.device_id_bcd !== 'string' || !/^[0-9]{12}$/.test(input.device_id_bcd))
+        invalid('device_id_bcd must contain exactly 12 decimal digits');
+      return transaction(pool, async (client) => {
+        const result = await client.query(
+          `SELECT id, mode, identity_kind, enabled FROM telemetry_devices
+           WHERE tenant_id=$1 AND id=$2 FOR UPDATE`,
+          [tenantId, deviceId]
+        );
+        const device = result.rows[0];
+        if (!device) throw new ApiError(404, 'device not found');
+        if (device.mode !== 'real' || device.identity_kind !== 'physical')
+          throw new ApiError(409, 'AOVX binding requires a physical device');
+        if (!device.enabled) throw new ApiError(409, 'device disabled');
+        const id = randomUUID();
+        try {
+          await client.query(
+            `INSERT INTO telemetry_aovx_device_bindings
+             (id,tenant_id,device_id,device_id_bcd,created_by_api_key_id)
+             VALUES($1,$2,$3,$4,$5)`,
+            [id, tenantId, deviceId, input.device_id_bcd, actorKeyId ?? null]
+          );
+        } catch (err) {
+          if (err.code === '23505')
+            throw new ApiError(409, 'AOVX identifier or device already has an active binding');
+          throw err;
+        }
+        const binding = await client.query(
+          `SELECT id,tenant_id,device_id,device_id_bcd,trust,state,created_at,revoked_at
+           FROM telemetry_aovx_device_bindings WHERE id=$1`,
+          [id]
+        );
+        return binding.rows[0];
+      });
+    },
+    async listAovxDevices(tenantId) {
+      const result = await pool.query(
+        `SELECT id,tenant_id,device_id,device_id_bcd,trust,state,created_at,revoked_at
+         FROM telemetry_aovx_device_bindings WHERE tenant_id=$1
+         ORDER BY created_at DESC,id DESC`,
+        [tenantId]
+      );
+      return { devices: result.rows };
+    },
+    async revokeAovxDevice(tenantId, deviceIdBcd) {
+      if (typeof deviceIdBcd !== 'string' || !/^[0-9]{12}$/.test(deviceIdBcd))
+        invalid('device identifier must contain exactly 12 decimal digits');
+      const result = await pool.query(
+        `UPDATE telemetry_aovx_device_bindings
+         SET state='revoked',revoked_at=now()
+         WHERE tenant_id=$1 AND device_id_bcd=$2 AND state='active'
+         RETURNING id,tenant_id,device_id,device_id_bcd,trust,state,created_at,revoked_at`,
+        [tenantId, deviceIdBcd]
+      );
+      if (!result.rowCount) throw new ApiError(404, 'active AOVX binding not found');
+      return result.rows[0];
+    },
     async setEnabled(tenantId, id, input) {
       object(input, ['enabled']);
       if (typeof input.enabled !== 'boolean') invalid('enabled must be boolean');
