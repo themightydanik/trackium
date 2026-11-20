@@ -86,6 +86,8 @@ export function createRuntime(
       }
     },
     requestHandler: createCargoApi({
+      pool,
+      aovxConfigQuery,
       telemetry,
       authenticate,
       native,
