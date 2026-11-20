@@ -2,6 +2,8 @@ import { timingSafeEqual } from 'node:crypto';
 import { ApiError, object, text, uuid } from '../telemetry/schema.js';
 import { reply, body, query } from '../telemetry/api.js';
 export function createCargoApi({
+  pool,
+  aovxConfigQuery,
   telemetry,
   authenticate: suppliedAuthenticate,
   native,
