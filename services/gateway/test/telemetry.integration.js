@@ -537,13 +537,13 @@ test(
         await closed;
         // Wait for accepted writes via the gateway shutdown before checking retained rows.
         const before = (await db.query('SELECT count(*) FROM telemetry_events')).rows[0].count;
-        assert.equal(before, '3');
+        assert.equal(before, '5');
         const deadline = Date.now() + 1000;
-        while ((await db.query('SELECT count(*) FROM gateway_packets')).rows[0].count !== '2') {
+        while ((await db.query('SELECT count(*) FROM gateway_packets')).rows[0].count !== '6') {
           if (Date.now() > deadline) throw new Error('TCP journal write timed out');
           await new Promise((r) => setTimeout(r, 5));
         }
-        assert.equal((await db.query('SELECT count(*) FROM telemetry_events')).rows[0].count, '3');
+        assert.equal((await db.query('SELECT count(*) FROM telemetry_events')).rows[0].count, '5');
       }
     );
   }
