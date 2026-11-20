@@ -42,7 +42,7 @@ export function createRuntime(
     logger
   });
   let stopWorker = async () => {};
-  const gateway = createGateway({
+  let gateway;\n  const aovxConfigQuery = (deviceIdBcd) => gateway.queryAovxConfiguration(deviceIdBcd);\n  gateway = createGateway({
     config,
     ingressGuard: config.railwayTest ? createIngressGuard(config) : undefined,
     logger,
