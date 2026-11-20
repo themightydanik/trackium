@@ -80,8 +80,8 @@ test('does not route a command when a device has ambiguous active sessions', asy
   first.write(telemetryFrame());
   second.write(telemetryFrame());
   await tick();
-  await assert.rejects(
-    gateway.queryAovxConfiguration('944063243931'),
+  assert.throws(
+    () => gateway.queryAovxConfiguration('944063243931'),
     /multiple active TCP sessions/
   );
 });
