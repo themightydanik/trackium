@@ -55,6 +55,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
   const aovxDeviceSessions = new Map();
   const pendingAovxQueries = new Map();
   const pendingAovxCommands = new Map();
+  const activeAovxGnssOperations = new Set();
   let nextAovxSequence = Date.now() & 0xffff;
   let pendingFrames = 0;
   let pendingBytes = 0;
@@ -393,76 +394,80 @@ export function createGateway({ journal, config, logger = console, requestHandle
     if (config.tcpProtocol !== 'aovx') throw new Error('AOVX command channel is disabled');
     if (typeof deviceIdBcd !== 'string' || !/^[0-9]{12}$/.test(deviceIdBcd))
       throw new TypeError('deviceIdBcd must be 12 decimal digits');
-    if ([...pendingAovxCommands.values()].some(item => item.deviceIdBcd === deviceIdBcd))
-      throw new Error('an AOVX configuration command is already pending for this device');
-
-    const active = [...(aovxDeviceSessions.get(deviceIdBcd) ?? [])]
-      .filter(item => !item.closed && !item.socket.destroyed && item.socket.writable);
-    if (active.length !== 1)
-      throw new Error(active.length === 0
-        ? 'AOVX device has no active TCP session'
-        : 'AOVX device has multiple active TCP sessions; refusing ambiguous command routing');
-    const session = active[0];
-
-    let sequenceNumber;
-    for (let attempt = 0; attempt < 0x10000; attempt += 1) {
-      const candidate = nextAovxSequence;
-      nextAovxSequence = (nextAovxSequence + 1) & 0xffff;
-      const key = `${deviceIdBcd}:${candidate}`;
-      if (!pendingAovxQueries.has(key) && !pendingAovxCommands.has(key)) {
-        sequenceNumber = candidate;
-        break;
-      }
-    }
-    if (sequenceNumber === undefined)
-      throw new Error('all AOVX sequence numbers are currently in use for this device');
-
-    const key = `${deviceIdBcd}:${sequenceNumber}`;
-    const acknowledgement = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        pendingAovxCommands.delete(key);
-        reject(new Error('AOVX GNSS configuration command timed out without acknowledgement'));
-      }, 12000);
-      pendingAovxCommands.set(key, { deviceIdBcd, session, timer, resolve, reject });
-      const frame = encodeAovxGnssEnableCommand({
-        deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
-        sequenceNumber
-      });
-      session.socket.write(frame, error => {
-        if (!error) return;
-        clearTimeout(timer);
-        pendingAovxCommands.delete(key);
-        reject(error);
-      });
-      logger.info?.('AOVX GNSS enable configuration command sent:', JSON.stringify({
-        deviceIdBcd, messageId: '0x8103', sequenceNumber, parameter: '0xF029', value: 1
-      }));
-    });
-
-    let verification;
+    if (activeAovxGnssOperations.has(deviceIdBcd))
+      throw new Error('an AOVX GNSS operation is already pending for this device');
+    activeAovxGnssOperations.add(deviceIdBcd);
     try {
-      verification = await queryAovxConfiguration(deviceIdBcd);
-    } catch (error) {
+      const active = [...(aovxDeviceSessions.get(deviceIdBcd) ?? [])]
+        .filter(item => !item.closed && !item.socket.destroyed && item.socket.writable);
+      if (active.length !== 1)
+        throw new Error(active.length === 0
+          ? 'AOVX device has no active TCP session'
+          : 'AOVX device has multiple active TCP sessions; refusing ambiguous command routing');
+      const session = active[0];
+
+      let sequenceNumber;
+      for (let attempt = 0; attempt < 0x10000; attempt += 1) {
+        const candidate = nextAovxSequence;
+        nextAovxSequence = (nextAovxSequence + 1) & 0xffff;
+        const key = `${deviceIdBcd}:${candidate}`;
+        if (!pendingAovxQueries.has(key) && !pendingAovxCommands.has(key)) {
+          sequenceNumber = candidate;
+          break;
+        }
+      }
+      if (sequenceNumber === undefined)
+        throw new Error('all AOVX sequence numbers are currently in use for this device');
+
+      const key = `${deviceIdBcd}:${sequenceNumber}`;
+      const acknowledgement = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          pendingAovxCommands.delete(key);
+          reject(new Error('AOVX GNSS configuration command timed out without acknowledgement'));
+        }, 12000);
+        pendingAovxCommands.set(key, { deviceIdBcd, session, timer, resolve, reject });
+        const frame = encodeAovxGnssEnableCommand({
+          deviceIdBcd: Buffer.from(deviceIdBcd, 'hex'),
+          sequenceNumber
+        });
+        session.socket.write(frame, error => {
+          if (!error) return;
+          clearTimeout(timer);
+          pendingAovxCommands.delete(key);
+          reject(error);
+        });
+        logger.warn?.('AOVX GNSS enable configuration command sent:', JSON.stringify({
+          deviceIdBcd, messageId: '0x8103', sequenceNumber, parameter: '0xF029', value: 1
+        }));
+      });
+
+      let verification;
+      try {
+        verification = await queryAovxConfiguration(deviceIdBcd);
+      } catch (error) {
+        return {
+          command_sent: true,
+          acknowledged: true,
+          acknowledgement_sequence_number: acknowledgement.sequence_number,
+          verified: false,
+          observed_gnss: null,
+          verification_sequence_number: null,
+          failure_reason: error.message
+        };
+      }
+      const verified = verification.gnss === 'enabled' && verification.parameter_present === true;
       return {
         command_sent: true,
         acknowledged: true,
         acknowledgement_sequence_number: acknowledgement.sequence_number,
-        verified: false,
-        observed_gnss: null,
-        verification_sequence_number: null,
-        failure_reason: error.message
+        verified,
+        observed_gnss: verification.gnss,
+        verification_sequence_number: verification.sequence_number,
+        failure_reason: verified ? null : 'GNSS enable was not confirmed by the configuration read-back'
       };
+    } finally {
+      activeAovxGnssOperations.delete(deviceIdBcd);
     }
-    const verified = verification.gnss === 'enabled' && verification.parameter_present === true;
-    return {
-      command_sent: true,
-      acknowledged: true,
-      acknowledgement_sequence_number: acknowledgement.sequence_number,
-      verified,
-      observed_gnss: verification.gnss,
-      verification_sequence_number: verification.sequence_number,
-      failure_reason: verified ? null : 'GNSS enable was not confirmed by the configuration read-back'
-    };
   }
 
   return {
