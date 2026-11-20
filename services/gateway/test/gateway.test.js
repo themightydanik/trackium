@@ -521,15 +521,13 @@ test('GNSS enable reports unverified when 0x0104 read-back still says disabled',
   });
 
   const result = await f.gateway.enableAovxGnss(deviceIdBcd);
-  assert.deepEqual(result, {
-    command_sent: true,
-    acknowledged: true,
-    acknowledgement_sequence_number: result.acknowledgement_sequence_number,
-    verified: false,
-    observed_gnss: 'disabled',
-    verification_sequence_number: result.verification_sequence_number,
-    failure_reason: 'GNSS enable was not confirmed by the configuration read-back'
-  });
+  assert.equal(result.command_sent, true);
+  assert.equal(result.acknowledged, true);
+  assert.equal(Number.isInteger(result.acknowledgement_sequence_number), true);
+  assert.equal(result.verified, false);
+  assert.equal(result.observed_gnss, 'disabled');
+  assert.equal(Number.isInteger(result.verification_sequence_number), true);
+  assert.equal(result.failure_reason, 'GNSS enable was not confirmed by the configuration read-back');
 });
 
 test('GNSS enable rejects when the device disconnects before acknowledging 0x8103', { timeout: 3000 }, async t => {
