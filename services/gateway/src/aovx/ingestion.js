@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { decodeAovxFrame } from './frame.js';
 import { parseAovxMessage } from './messages.js';
 import { adaptAovxTelemetry, AOVX_TELEMETRY_PARSER_VERSION } from './telemetry-adapter.js';
@@ -96,13 +97,13 @@ export function createAovxIngestion(pool, { logger = console, pollMs = 5000, bat
         const inserted = await client.query(
           `INSERT INTO telemetry_events
            (id,tenant_id,device_id,device_mode,schema_version,source,trust,source_event_id,
-            occurred_at,payload,canonical_event,canonical_sha256,fixture_input_id,identity_kind,
+            occurred_at,received_at,payload,canonical_event,canonical_sha256,fixture_input_id,identity_kind,
             event_time_basis,device_time_raw,parser_version)
-           VALUES(gen_random_uuid(),$1,$2,'real',1,'aovx-gal-v1','unverified',$3,
-            $4,$5,$6,$7,NULL,'physical','gateway_received_at',$8,$9)
+           VALUES($1,$2,$3,'real',1,'aovx-gal-v1','unverified',$4,
+            $5,$6,$7,$8,$9,NULL,'physical','gateway_received_at',$10,$11)
            RETURNING id`,
-          [binding.tenant_id,binding.device_id,normalized.event.source_event_id,
-            normalized.event.occurred_at,normalized.event,normalized.canonical,
+          [randomUUID(),binding.tenant_id,binding.device_id,normalized.event.source_event_id,
+            normalized.event.occurred_at,packet.received_at,normalized.event,normalized.canonical,
             normalized.sha256,normalized.deviceTimeRaw,AOVX_TELEMETRY_PARSER_VERSION]
         );
         eventId = inserted.rows[0].id;
