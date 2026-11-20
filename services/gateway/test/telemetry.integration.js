@@ -272,8 +272,10 @@ test(
         }, db);
         const ingestion = createAovxIngestion(db, { logger: { error() {} } });
         const first = await persist();
+        const recovery = await ingestion.processPending();
+        assert.equal(recovery.processed, 1);
         const result = await ingestion.processPacket(first.id);
-        assert.equal(result.processed, true);
+        assert.equal(result.reason, 'not-pending');
         assert.equal(result.duplicate, false);
         const duplicate = await persist();
         const repeated = await ingestion.processPacket(duplicate.id);
