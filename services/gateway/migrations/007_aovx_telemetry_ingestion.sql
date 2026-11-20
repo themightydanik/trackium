@@ -6,6 +6,8 @@ ALTER TABLE gateway_packets
 UPDATE gateway_packets
 SET aovx_processing_state = 'pending'
 WHERE aovx_message_id = 512;
+CREATE INDEX gateway_packets_aovx_pending_idx ON gateway_packets(id)
+  WHERE aovx_processing_state = 'pending';
 
 ALTER TABLE telemetry_events
   DROP CONSTRAINT telemetry_events_device_mode_check,
