@@ -37,7 +37,7 @@
   }
   function chart(events) {
     return (
-      '<section class="telemetry-charts"><h3>Returned measurement series</h3><p>Discrete observations only · missing values omitted · time on the horizontal axis. No smoothing or invented samples.</p>' +
+      '<section class="telemetry-charts"><h3>Returned measurement series</h3><p>Discrete observations only · missing values omitted · reported observation time on the horizontal axis. No smoothing or invented samples.</p>' +
       [
         ['temperature_c', 'Temperature', '°C'],
         ['humidity_pct', 'Humidity', '%'],
@@ -61,7 +61,7 @@
             return (
               '<div class="ux-chart-empty"><strong>' +
               title +
-              '</strong><p>Insufficient data · at least two measured times are needed.</p></div>'
+              '</strong><p>Insufficient data · at least two observation times are needed.</p></div>'
             );
           const xmin = samples[0].x,
             xmax = samples.at(-1).x,
@@ -76,7 +76,7 @@
             samples.length +
             ' reported samples</figcaption><svg viewBox="0 0 440 160" role="img" aria-label="' +
             title +
-            ' observations over measured time"><path class="chart-axis" d="M45 15V125H425"/><text x="0" y="20">' +
+            ' observations over reported time"><path class="chart-axis" d="M45 15V125H425"/><text x="0" y="20">' +
             esc(ymax) +
             '</text><text x="0" y="125">' +
             esc(ymin) +
@@ -173,6 +173,13 @@
     }
     if (reset) lastView = null;
   }
+  function reportedPosition(device) {
+    const position = device.location?.location;
+    return device.registry.identity_kind !== 'physical' &&
+      position?.trust === 'synthetic' && valid(position.gps)
+      ? position
+      : null;
+  }
   function mountMap(data, page) {
     const el = document.getElementById('workspace-map');
     if (!el || !root.L || !root.TrackiumWorldMap) return;
@@ -207,11 +214,12 @@
           .addTo(map);
     }
     for (const d of data.devices) {
-      const obs = d.location?.location;
-      if (!valid(obs?.gps)) continue;
+      const obs = reportedPosition(d);
+      if (!obs) continue;
       const p = [obs.gps.latitude, obs.gps.longitude];
       bounds.push(p);
       L.circleMarker(p, {
+        className: 'ux-device-position',
         radius: 7,
         color: accent,
         fillColor: accent,
@@ -260,6 +268,7 @@
     chart,
     connection,
     beforeRender,
-    mountMap
+    mountMap,
+    reportedPosition
   };
 })(window);

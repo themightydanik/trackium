@@ -27,7 +27,7 @@ async function until(check, ms = 12000) {
 }
 test(
   'Browser → real owner pairing → server simulation → PostgreSQL → shipment history → MiniDapp',
-  { timeout: 45000 },
+  { timeout: 60000 },
   async (t) => {
     const schema = 'cargo_browser_' + randomUUID().replaceAll('-', ''),
       admin = new pg.Pool({ connectionString: DB });
@@ -42,6 +42,7 @@ test(
       PGOPTIONS: '-c search_path=' + schema,
       HTTP_PORT: String(http),
       TCP_PORT: String(tcp),
+      TCP_PROTOCOL: 'aovx',
       PUBLIC_ORIGIN: origin,
       WEB_ROOT: ROOT,
       ENABLE_WEB_WORKSPACE: 'true',
@@ -89,7 +90,7 @@ test(
     }
     assert.equal((await fetch(origin + '/app/assets/v2/brand/private.txt')).status, 404);
     // Issue owner credential in the trusted test process, never inside Chromium.
-    const { provisionTenant } = await import(
+    const { createTelemetryService, provisionTenant } = await import(
       path.join(ROOT, 'services/gateway/src/telemetry/service.js')
     );
     const owner = await provisionTenant(db, 'Browser owner');
@@ -238,10 +239,75 @@ test(
     await page.setViewportSize({ width: 390, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await page.setViewportSize({ width: 1440, height: 1000 });
+    // Use the real TCP and tenant enrollment path. These are generated frame bytes,
+    // not evidence for coordinate scaling or the clock on a physical tracker.
+    const { encodeAovxFrame } = await import(path.join(ROOT, 'services/gateway/src/aovx/frame.js'));
+    const { createShipmentService } = await import(path.join(ROOT, 'services/gateway/src/cargo/shipments.js'));
+    const telemetry = createTelemetryService(db);
+    const physical = await telemetry.register(owner.tenant_id, { label: 'AOVX history tracker', mode: 'real' });
+    const bcd = '111222333444';
+    await telemetry.bindAovxDevice(owner.tenant_id, null, { device_id: physical.id, device_id_bcd: bcd });
+    const shipments = createShipmentService(db);
+    const shipment = await shipments.create(owner.tenant_id, {
+      name: 'AOVX observation cargo', device_id: physical.id,
+      route: [{ name: 'Start', latitude: 51, longitude: 17 }, { name: 'End', latitude: 50, longitude: 30 }],
+      conditions: { temperature_min_c: 2, temperature_max_c: 8 }
+    });
+    await shipments.change(owner.tenant_id, shipment.id, 'active');
+    const body = Buffer.alloc(40);
+    body.writeUInt32BE(0x80000012, 4);
+    Buffer.from('240201030405', 'hex').copy(body, 22);
+    const socket = net.connect(tcp, '127.0.0.1');
+    const closed = once(socket, 'close');
+    socket.end(encodeAovxFrame({
+      messageId: 0x0200, deviceIdBcd: Buffer.from(bcd, 'hex'), sequenceNumber: 1, body
+    }));
+    await closed;
+    let observation;
+    await until(async () => {
+      observation = (await db.query(
+        'SELECT received_at FROM telemetry_events WHERE tenant_id=$1 AND device_id=$2',
+        [owner.tenant_id, physical.id]
+      )).rows[0];
+      return Boolean(observation);
+    });
+    const received = await page.evaluate(
+      iso => new Date(iso).toLocaleString(), observation.received_at.toISOString()
+    );
+    await page.locator('#navigation a[href="#devices"]').click();
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    const row = page.getByRole('row').filter({ hasText: physical.label });
+    await row.getByText(/Gateway received:/).waitFor();
+    assert.ok((await row.innerText()).includes(received));
+    assert.match(await row.innerText(), /unverified[\s\S]*Device measurement time unavailable[\s\S]*Current position unavailable/);
+    assert.match(await row.innerText(), /Not reported/);
+    assert.match(await page.getByRole('row').filter({ hasText: 'Server simulator 1' }).innerText(), /synthetic/);
+    await row.getByRole('button', { name: 'Device details' }).click();
+    const details = page.locator('#detail-dialog');
+    assert.match(await details.innerText(), /Current position\s+Unavailable/);
+    assert.match(await details.innerText(), /Device measurement time\s+Unavailable/);
+    assert.match(await details.getByRole('listitem').last().innerText(), /Gateway received:.*unavailable/i);
+    await details.locator('[data-action=close-dialog]').click();
+
+    await page.locator('#navigation a[href="#map"]').click();
+    const card = page.locator('.ux-card-grid .panel').filter({ hasText: physical.label });
+    assert.match(await card.innerText(), /Current position\s+Unavailable[\s\S]*unverified/);
+    assert.doesNotMatch(await card.innerText(), /Latitude|Longitude/);
+    assert.equal(await page.locator('.ux-device-position').count(), 1, 'only the simulator gets a point');
+
+    await page.locator('#navigation a[href="#events"]').click();
+    const recorded = page.locator('.ux-timeline li').filter({ hasText: 'AOVX observation cargo' })
+      .filter({ hasText: 'telemetry recorded' });
+    assert.match(await recorded.innerText(), /Gateway received:.*Device measurement time unavailable/);
+    await recorded.getByRole('button', { name: 'Event details' }).click();
+    assert.match(await details.innerText(), /Gateway received[\s\S]*Device measurement time\s+Unavailable/);
+    await details.locator('[data-action=close-dialog]').click();
     // Static Preview is still an explicitly selected, isolated data source.
+    await page.locator('#navigation a[href="#proofs"]').click();
     await page.locator('#demo-toggle').click();
     await page.waitForSelector('.proof-pipeline');
     assert.equal(await page.locator('#server-banner').isVisible(), false);
+    assert.doesNotMatch(await page.locator('#main').innerText(), /AOVX history tracker|AOVX observation cargo/);
     await page.locator('#exit-demo').click();
     // A disconnected Gateway must clear loaded tenant data, not call it live.
     await stop();
