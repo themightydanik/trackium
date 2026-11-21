@@ -1170,7 +1170,12 @@
           });
         else if (serverAction === 'create')
           openDialog(TrackiumServerView.createForm(server.state.data.devices));
-        else if (serverAction.startsWith('transition:'))
+        else if (serverAction === 'edit-draft') {
+          const { data, session } = server.state;
+          const draft = data?.shipments.find((shipment) => shipment.id === id);
+          if (draft?.status === 'draft' && session?.scopes.includes('shipments'))
+            openDialog(TrackiumServerView.createForm(data.devices, draft));
+        } else if (serverAction.startsWith('transition:'))
           await server.mutate('/v1/shipments/' + id + '/transitions', {
             status: serverAction.split(':')[1]
           });
@@ -1239,32 +1244,44 @@
     }
     if (event.target.id === 'server-shipment-form') {
       event.preventDefault();
-      const form = new FormData(event.target);
+      const editor = event.target;
+      const submit = editor.querySelector('[type=submit]');
+      if (submit.disabled || !editor.reportValidity()) return;
+      const feedback = editor.querySelector('#server-form-error');
+      const form = new FormData(editor);
+      const id = editor.dataset.shipmentId;
+      let input;
       try {
-        const input = {
+        input = {
           name: form.get('name'),
           device_id: form.get('device_id'),
-          route: TrackiumServerView.route(event.target),
+          route: TrackiumServerView.route(editor),
           conditions: {
             temperature_min_c: Number(form.get('min')),
             temperature_max_c: Number(form.get('max')),
             tolerance_c: Number(form.get('tolerance')),
-            max_deviation_m: 1000
+            max_deviation_m: Number(form.get('deviation'))
           }
         };
-        server
-          .mutate('/v1/shipments', input)
-          .then(() => {
-            $('#detail-dialog').close();
-            toast('Draft saved on Gateway.');
-          })
-          .catch((error) => {
-            $('#server-form-error').textContent = error.message;
-          });
-      } catch (error) {
-        $('#server-form-error').textContent =
-          'Enter a name and valid numeric coordinates for each route stop.';
+      } catch (_) {
+        feedback.textContent = 'Enter a name and valid numeric coordinates for each route stop.';
+        return;
       }
+      submit.disabled = true;
+      feedback.textContent = '';
+      server
+        .mutate(id ? '/v1/shipments/' + encodeURIComponent(id) : '/v1/shipments', input, id ? 'PATCH' : 'POST')
+        .then(() => {
+          if (!editor.isConnected || !$('#detail-dialog').open) return;
+          $('#detail-dialog').close();
+          toast('Draft saved on Gateway.');
+        })
+        .catch((error) => {
+          feedback.textContent = error.message;
+        })
+        .finally(() => {
+          submit.disabled = false;
+        });
       return;
     }
     if (event.target.id !== 'gateway-form') return;

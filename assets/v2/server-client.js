@@ -219,8 +219,8 @@
           change();
         }
       },
-      async mutate(path, input = {}) {
-        await request(path, 'POST', input);
+      async mutate(path, input = {}, method = 'POST') {
+        await request(path, method, input);
         await refresh();
       },
       async turnPage(kind, direction) {

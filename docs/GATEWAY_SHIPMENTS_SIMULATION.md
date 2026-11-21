@@ -47,7 +47,7 @@ docker compose -f compose.yml exec gateway node src/telemetry/admin.js approve-p
 ```
 
 3. Click **Check owner approval**. A five-minute tenant session is issued. For read-only use, approve only `read` instead.
-4. In **Devices**, explicitly create a simulator identity. In **Shipments**, create a draft, select that device, review/edit the ordered route JSON and temperature conditions, and save it on Gateway.
+4. In **Devices**, explicitly create a simulator identity. In **Shipments**, create a draft, select that device, review the ordered route stops and conditions, and save it on Gateway. **Edit draft** reopens the existing device, route and conditions before activation. The Gateway rejects edits after activation.
 5. Activate the shipment, then explicitly select a normal simulation or temperature excursion. Pause/resume/finish control the persistent server run. Coordinate/sensor updates, checkpoints and events appear through polling.
 6. Reaching all checkpoints changes the shipment to `delivered`. **Complete shipment** is a separate authorized action. Repeating completion returns 409.
 7. **Disconnect and revoke** destroys the current session and clears loaded browser data. Expiry, owner-key revocation or a Gateway error also prevent loaded data from being shown as live; reconnect/refresh starts from server state, never from Preview fixtures.

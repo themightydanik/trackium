@@ -108,22 +108,39 @@ test(
     page.on('request', (r) => {
       authHeaders.push(Boolean(r.headers().authorization));
     });
-    await page.goto(origin + '/app/#settings');
-    await page.locator('#pair-tenant').fill(owner.tenant_id);
-    await page.getByRole('button', { name: 'Create one-use challenge' }).click();
-    await page.waitForSelector('#pair-challenge');
-    const id = await page.locator('#pair-challenge').innerText();
-    const approval = await fetch(origin + '/v1/pairing/challenges/' + id + '/approve', {
-      method: 'POST',
-      headers: {
-        authorization: 'Bearer ' + owner.token,
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({ scopes: ['read', 'shipments', 'simulate'] })
-    });
-    assert.equal(approval.status, 200);
-    await page.getByRole('button', { name: 'Check owner approval' }).click();
-    await page.waitForSelector('#server-banner:not([hidden])');
+    async function pair(client, scopes) {
+      await client.goto(origin + '/app/#settings');
+      await client.locator('#pair-tenant').fill(owner.tenant_id);
+      await client.getByRole('button', { name: 'Create one-use challenge' }).click();
+      await client.waitForSelector('#pair-challenge');
+      const id = await client.locator('#pair-challenge').innerText();
+      const approval = await fetch(origin + '/v1/pairing/challenges/' + id + '/approve', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer ' + owner.token,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({ scopes })
+      });
+      assert.equal(approval.status, 200);
+      await client.getByRole('button', { name: 'Check owner approval' }).click();
+      await client.waitForSelector('#server-banner:not([hidden])');
+    }
+    async function patchName(client, shipmentId) {
+      return client.evaluate(async (id) => {
+        const clientHeader = { 'X-Trackium-Client': 'cargo-v2' };
+        const session = await fetch('/v1/session', { headers: clientHeader });
+        if (!session.ok) throw new Error('Missing browser session');
+        const { csrf } = await session.json();
+        const response = await fetch('/v1/shipments/' + id, {
+          method: 'PATCH',
+          headers: { ...clientHeader, 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'Rejected edit' })
+        });
+        return { status: response.status, error: (await response.json()).error };
+      }, shipmentId);
+    }
+    await pair(page, ['read', 'shipments', 'simulate']);
     const cookies = await context.cookies();
     assert.ok(
       cookies.some((c) => c.name === 'trk_session' && c.httpOnly && c.sameSite === 'Strict')
@@ -140,10 +157,69 @@ test(
     );
     await page.locator('#navigation a[href="#shipments"]').click();
     await page.getByRole('button', { name: 'Create shipment', exact: true }).click();
-    await page.locator('#server-shipment-form input[name=name]').fill('Browser cargo');
+    const form = page.locator('#server-shipment-form');
+    await form.locator('[name=name]').fill('Browser cargo');
+    await form.locator('[name=deviation]').fill('765');
     await page.getByRole('button', { name: 'Save draft on Gateway' }).click();
-    await page.waitForSelector('.server-shipment');
+    const draftCard = page.locator('.server-shipment');
+    await draftCard.waitFor();
+    const draft = (await db.query('SELECT id,device_id FROM cargo_shipments')).rows[0];
+
+    const readContext = await browser.newContext();
+    try {
+      const reader = await readContext.newPage();
+      reader.setDefaultTimeout(8000);
+      await pair(reader, ['read']);
+      await reader.locator('#navigation a[href="#shipments"]').click();
+      const readEdit = reader.getByRole('button', { name: 'Edit draft' });
+      await readEdit.waitFor();
+      assert.equal(await readEdit.isDisabled(), true);
+      const denied = await patchName(reader, draft.id);
+      assert.equal(denied.status, 403);
+      assert.match(denied.error, /scope/);
+    } finally {
+      await readContext.close();
+    }
+
+    await draftCard.getByRole('button', { name: 'Edit draft' }).click();
+    assert.equal(await form.locator('[name=name]').inputValue(), 'Browser cargo');
+    assert.equal(await form.locator('[name=device_id]').inputValue(), draft.device_id);
+    assert.equal(await form.locator('[name=deviation]').inputValue(), '765');
+    assert.equal(await form.locator('[data-route-field=name]').last().inputValue(), 'Kyiv');
+    await form.locator('[name=name]').fill('Browser cargo updated');
+    await form.locator('[name=min]').fill('9');
+    const save = form.getByRole('button', { name: 'Save draft changes' });
+    await save.click();
+    await page.waitForFunction(() =>
+      document.querySelector('#server-form-error')?.textContent.includes('inverted temperature range')
+    );
+    assert.equal(await form.locator('[name=name]').inputValue(), 'Browser cargo updated');
+    await form.locator('[name=min]').fill('3');
+    await form.locator('[data-route-field=name]').last().fill('Kyiv depot');
+    const patch = page.waitForResponse((r) =>
+      r.request().method() === 'PATCH' && r.url() === origin + '/v1/shipments/' + draft.id
+    );
+    await save.click();
+    assert.equal((await patch).status(), 200);
+    await draftCard.getByRole('heading', { name: 'Browser cargo updated' }).waitFor();
+    const saved = (await db.query('SELECT name,device_id,conditions FROM cargo_shipments WHERE id=$1', [draft.id])).rows[0];
+    assert.equal(saved.name, 'Browser cargo updated');
+    assert.equal(saved.device_id, draft.device_id);
+    assert.equal(saved.conditions.temperature_min_c, 3);
+    assert.equal(saved.conditions.max_deviation_m, 765);
+    const stops = (await db.query(
+      'SELECT name FROM cargo_checkpoints WHERE shipment_id=$1 ORDER BY ordinal', [draft.id]
+    )).rows;
+    assert.deepEqual(stops.map((stop) => stop.name), ['Wrocław', 'Kyiv depot']);
+    assert.equal((await db.query(
+      "SELECT count(*) FROM cargo_events WHERE shipment_id=$1 AND event_type='shipment_updated'", [draft.id]
+    )).rows[0].count, '1');
     await page.getByRole('button', { name: 'Activate', exact: true }).click();
+    await page.getByRole('button', { name: 'Start temperature excursion' }).waitFor();
+    assert.equal(await draftCard.getByRole('button', { name: 'Edit draft' }).count(), 0);
+    const rejected = await patchName(page, draft.id);
+    assert.equal(rejected.status, 409);
+    assert.match(rejected.error, /only draft/);
     await page.getByRole('button', { name: 'Start temperature excursion' }).click();
     await until(
       async () => Number((await db.query('SELECT step FROM cargo_simulations')).rows[0]?.step) >= 1
