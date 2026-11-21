@@ -10,7 +10,7 @@
 
 ## Конфигурация в репозитории
 
-- Существующий `services/gateway/Dockerfile`, build context — **корень репозитория**. В образ входят SQL 001–005 и только публичные v2 assets; Android, Git, `.env`, operator credentials и IaC-зависимости исключены `.dockerignore`.
+- Существующий `services/gateway/Dockerfile`, build context — **корень репозитория**. В образ входят SQL 001–007 и только публичные v2 assets; Android, Git, `.env`, operator credentials и IaC-зависимости исключены `.dockerignore`.
 - `.railway/railway.ts` описывает dedicated test project `Trackium Test`, PostgreSQL `Postgres`, Gateway, Dockerfile, `/readyz`, один replica и безопасные переменные. SDK зафиксирован lockfile в `.railway/` и не входит в Gateway image.
 - `DEPLOYMENT_PROFILE=railway-test` включает проверку Host/Origin, ограничение запросов и отказ запуска при включении публикации, simulator, fixture adapter или TCP receiver. Это намеренное ограничение первого теста. Не убирать профиль для обхода ошибки конфигурации.
 - `PORT` имеет приоритет над `HTTP_PORT`; Node слушает HTTP на `0.0.0.0`. `ENABLE_TCP_RECEIVER=false` полностью отключает listener 9000, а не просто скрывает порт из Dockerfile.
@@ -78,9 +78,11 @@ GitHub source подключается через UI и намеренно не 
 
 ## 2. Startup, миграции, перезапуск
 
-Startup создаёт raw journal, затем использует существующий `migrate(pool)` для 001–005 в одной транзакции с `pg_advisory_xact_lock(731824901)`. Для каждой SQL-миграции сохраняется SHA-256; уже применённая миграция только сравнивается с записью в `gateway_schema_migrations`. SQL-файлы и механизм миграций в deployment PR не меняются. Несовпадение checksum завершает startup с ошибкой, транзакция откатывается, порт не открывается. Нельзя исправлять такой сбой удалением migration rows, переименованием старых SQL или отключением проверки. Найти правильную версию исходников/БД и проверить backup.
+Startup создаёт raw journal, затем использует существующий `migrate(pool)` для 001–007 в одной транзакции с `pg_advisory_xact_lock(731824901)`. Для каждой SQL-миграции сохраняется SHA-256; уже применённая миграция только сравнивается с записью в `gateway_schema_migrations`. SQL-файлы и механизм миграций в deployment PR не меняются. Несовпадение checksum завершает startup с ошибкой, транзакция откатывается, порт не открывается. Нельзя исправлять такой сбой удалением migration rows, переименованием старых SQL или отключением проверки. Найти правильную версию исходников/БД и проверить backup.
 
 Повторный deploy не удаляет tenant, shipment, event, proof, session или nonce. База и её volume принадлежат `Postgres`, не файловой системе Gateway. Не запускать `DROP`, reset, compose down -v или новое создание БД вместо redeploy. Перед первым обновлением существующей БД сделать backup и проверить восстановление отдельно. После миграции 005 не откатывать Gateway на код без #8; mixed-version workers не поддерживаются.
+
+[Локальная проверка backup/restore](../services/gateway/docs/BACKUP_RESTORE_DRILL.md) запускает отдельную одноразовую PostgreSQL и проверяет восстановление артефактов Gateway.
 
 Railway посылает SIGTERM старому процессу. Gateway прекращает приём, ждёт текущие HTTP-запросы/принятые записи и закрывает pg pool; предел 10 s. Railway должен дать 15 s до принудительного завершения. `overlapSeconds=0` и один replica ограничивают steady state, но платформа всё равно может кратко запускать replacement до выключения старого экземпляра для healthcheck. Для **строго одного процесса**, включая deploy, выполнить maintenance stop старого deployment, дождаться завершения, затем Deploy нового; возможен простой. Для первого теста использовать этот порядок. Не обещать zero-downtime/отсутствие overlap без проверки реального Railway. Параллельные SQL-миграции сериализуются; in-memory HTTP budgets общими между процессами не являются.
 
