@@ -201,10 +201,12 @@ export function createTelemetryService(pool, { onEvent } = {}) {
       };
     },
     async latest(tenantId, id, locationOnly = false) {
+      // Physical observations stay in history until measurement freshness can
+      // be established independently of the Gateway receive time.
       const d = await device(pool, tenantId, id);
       const result = await pool.query(
         `SELECT id,occurred_at,payload FROM telemetry_events WHERE tenant_id=$1 AND device_id=$2
-        ${locationOnly ? "AND payload->'gps' <> 'null'::jsonb" : ''} ORDER BY occurred_at DESC,id DESC LIMIT 1`,
+        ${locationOnly ? "AND trust='synthetic' AND payload->'gps' <> 'null'::jsonb" : ''} ORDER BY occurred_at DESC,id DESC LIMIT 1`,
         [tenantId, id]
       );
       const row = result.rows[0];
