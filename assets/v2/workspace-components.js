@@ -125,17 +125,19 @@
         pairing: 'Waiting for owner approval',
         expired: 'Session expired',
         unavailable: 'Gateway unavailable',
+        offline: 'You are offline',
         forbidden: 'Access not authorized'
       }[phase] || 'Connect your logistics workspace';
     const steps =
       '<ol class="connection-steps"><li><strong>Identify your tenant</strong><span>Use its public UUID, never an owner key.</span></li><li><strong>Request owner approval</strong><span>A short-lived one-use challenge is approved on the trusted Gateway host.</span></li><li><strong>Open your workspace</strong><span>The Gateway grants a scoped HttpOnly browser session.</span></li></ol>';
     return (
-      '<div class="page-heading"><div><div class="eyebrow">TRACKIUM CORE · GATEWAY</div><h1>' +
+      '<div class="page-heading"><div><div class="eyebrow">TRACKIUM LITE · GATEWAY</div><h1>' +
       title +
       '</h1><p>No shipment data is shown until an authenticated Gateway observation succeeds.</p></div></div><section class="panel server-content connection-state"><div class="connection-status" role="status"><strong>' +
       {
         checking: 'Connection unknown · checking',
         unavailable: 'Unavailable · loaded data cleared',
+        offline: 'Offline · tenant data cleared',
         forbidden: 'Reachable · authorization denied',
         expired: 'Expired · owner re-pairing required',
         pairing: 'Reachable · approval pending',
@@ -144,7 +146,7 @@
       '</strong><p>' +
       esc(state.error) +
       '</p>' +
-      (['unavailable', 'expired', 'forbidden'].includes(phase)
+      (['offline', 'unavailable', 'expired', 'forbidden'].includes(phase)
         ? '<button class="button secondary" data-server-action="reconnect">Retry session check</button>'
         : '') +
       '</div>' +
@@ -158,6 +160,28 @@
     Number.isFinite(p.longitude) &&
     Math.abs(p.latitude) <= 90 &&
     Math.abs(p.longitude) <= 180;
+  function historyPosition(device, event) {
+    const payload = event.payload;
+    return device.identity_kind !== 'physical' && payload?.trust === 'synthetic' &&
+      valid(payload.gps) ? payload.gps : null;
+  }
+  function positionHistory(device, events) {
+    const points = events.map((event) => historyPosition(device, event)).filter(Boolean);
+    if (!points.length) return '<p>No historical positions on this page.</p>';
+    const latitudes = points.map((point) => point.latitude);
+    const longitudes = points.map((point) => point.longitude);
+    const minLat = Math.min(...latitudes), minLon = Math.min(...longitudes);
+    const latSpan = Math.max(...latitudes) - minLat, lonSpan = Math.max(...longitudes) - minLon;
+    return '<figure class="ux-chart"><figcaption>Synthetic position observations on this page</figcaption>' +
+      '<svg viewBox="0 0 440 160" role="img" aria-label="Discrete historical positions">' +
+      points.map((point) => {
+        const x = lonSpan ? 20 + (point.longitude - minLon) / lonSpan * 400 : 220;
+        const y = latSpan ? 140 - (point.latitude - minLat) / latSpan * 120 : 80;
+        return '<circle cx="' + x + '" cy="' + y + '" r="4"><title>' +
+          point.latitude + ', ' + point.longitude + '</title></circle>';
+      }).join('') +
+      '</svg><small>Positions are shown as individual samples. Lines between observations are omitted.</small></figure>';
+  }
   let mapInstance = null,
     lastView = null,
     currentPage = null;
@@ -269,6 +293,8 @@
     connection,
     beforeRender,
     mountMap,
-    reportedPosition
+    reportedPosition,
+    historyPosition,
+    positionHistory
   };
 })(window);

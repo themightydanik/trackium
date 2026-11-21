@@ -78,7 +78,7 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
 
     if (p === '/v1/session')
       data = {
-        tenant_id: 'synthetic-browser-fixture',
+        tenant_id: source.tenant ?? 'synthetic-browser-fixture',
         audience: 'test-only',
         expires_at: '2099-01-01T00:00:00Z',
         scopes: ['read', 'shipments'],
@@ -125,8 +125,12 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
           trust: 'synthetic'
         }
       };
+    else if (p === `/v1/devices/${deviceId}/events` &&
+        new URL(route.request().url()).searchParams.has('cursor') && source.historyPage)
+      data = await source.historyPage();
     else if (p === `/v1/devices/${deviceId}/events`)
       data = {
+        next_cursor: source.historyPage ? 'fixture-history-cursor' : null,
         events: [
           {
             occurred_at: '2026-01-01T00:00:00Z',
