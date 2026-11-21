@@ -8,6 +8,7 @@ import pg from 'pg';
 import { createRuntime } from '../src/cargo/runtime.js';
 import { readConfig } from '../src/config.js';
 import { provisionTenant, issueKey } from '../src/telemetry/service.js';
+import { canonicalize } from '../src/telemetry/schema.js';
 import { ingestSynthetic } from '../src/cargo/ingestion.js';
 import { transaction, tenantLock, hash } from '../src/cargo/shared.js';
 import { claimOutbox, acknowledge, retry } from '../src/cargo/outbox.js';
@@ -744,18 +745,18 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
     { status: 409 }
   );
 
-  function wire(sequenceNumber, deviceId = bcd, status = 0x12) {
+  function wire(sequenceNumber, deviceId = bcd, status = 0x12, deviceTime = '261119163552') {
     const body = Buffer.alloc(40);
     body.writeUInt32BE(status, 4);
     body.writeUInt32BE(51110000, 8);
     body.writeUInt32BE(17040000, 12);
-    Buffer.from('261119163552', 'hex').copy(body, 22);
+    Buffer.from(deviceTime, 'hex').copy(body, 22);
     return encodeAovxFrame({
       messageId: 0x0200, deviceIdBcd: Buffer.from(deviceId, 'hex'), sequenceNumber, body
     });
   }
-  const persist = (sequenceNumber, deviceId = bcd, status) => persistPacket({
-    payload: wire(sequenceNumber, deviceId, status),
+  const persist = (sequenceNumber, deviceId = bcd, status, deviceTime) => persistPacket({
+    payload: wire(sequenceNumber, deviceId, status, deviceTime),
     aovx: { messageId: 0x0200, deviceIdBcd: deviceId, sequenceNumber }
   }, db);
   const count = async (table) => (await db.query('SELECT count(*)::int AS n FROM ' + table)).rows[0].n;
@@ -843,7 +844,9 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
       cargo_events: await count('cargo_events'),
       cargo_outbox: await count('cargo_outbox')
     };
-    const pending = await persist(3);
+    const { events } = await runtime.shipments.events(a, shipment.id);
+    const previous = JSON.parse(events.at(-1).canonical_payload).data.payload;
+    const pending = await persist(3, bcd, 0x80000012, '261118120000');
     await db.query(`
       CREATE FUNCTION test_reject_outbox() RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN RAISE EXCEPTION 'test outbox failure'; END $$;
@@ -866,6 +869,15 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
       processed: false, reason: 'not-pending'
     });
     for (const [table, n] of Object.entries(counts)) assert.equal(await count(table), n + 1);
+    const replayed = (await db.query(
+      `SELECT e.payload FROM telemetry_events e JOIN telemetry_aovx_packet_events p ON p.event_id=e.id
+       WHERE p.packet_id=$1`, [pending.id]
+    )).rows[0].payload;
+    assert.equal(replayed.extra.buffered, true);
+    assert.equal(replayed.device_time_raw, '261118120000');
+    assert.equal(replayed.occurred_at, pending.received_at.toISOString());
+    assert.ok(replayed.device_time_raw < previous.device_time_raw);
+    assert.ok(replayed.occurred_at >= previous.occurred_at);
   });
 
   await t.test('disabled, revoked and unbound packets stay raw and never touch another tenant', async () => {
@@ -919,5 +931,75 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
     assert.equal(detail.temperature_violation, false);
     assert.equal(detail.route_violation, false);
     assert.ok(detail.checkpoints.every(checkpoint => checkpoint.visited_at === null));
+  });
+  await t.test('buffered and ambiguous physical measurements remain in history and cannot drive live state', async () => {
+    const reader = await issueKey(db, a, ['read']);
+    const read = async action => {
+      const response = await fetch(
+        `http://127.0.0.1:${runtime.gateway.api.address().port}/v1/devices/${device.id}/${action}`,
+        { headers: { authorization: 'Bearer ' + reader.token } }
+      );
+      assert.equal(response.status, 200);
+      return response.json();
+    };
+
+    // Test-only normalized payloads exercise both guards independently of the
+    // production adapter, which still emits null measurements.
+    for (const sample of [
+      { buffered: true, gps: { latitude: 0, longitude: 10 }, temperature_c: 20, violation: false },
+      { buffered: false, gps: { latitude: 51.11, longitude: 17.04 }, temperature_c: 5, violation: true }
+    ]) {
+      if (sample.violation) {
+        await db.query(
+          'UPDATE cargo_shipments SET route_violation=true,temperature_violation=true WHERE tenant_id=$1 AND id=$2',
+          [a, shipment.id]
+        );
+      }
+      const id = randomUUID();
+      const sha256 = await transaction(db, a, async c => {
+        const { rows: [{ payload }] } = await c.query(
+          `SELECT payload FROM telemetry_events WHERE tenant_id=$1 AND device_id=$2
+           AND (payload->'extra'->>'buffered')::boolean=$3 ORDER BY received_at DESC LIMIT 1`,
+          [a, device.id, sample.buffered]
+        );
+        const event = {
+          ...payload,
+          source_event_id: hash(id),
+          gps: sample.gps,
+          temperature_c: sample.temperature_c
+        };
+        const canonical = canonicalize(event);
+        const digest = hash(canonical);
+        await c.query(
+          `INSERT INTO telemetry_events
+             (id,tenant_id,device_id,device_mode,schema_version,source,trust,source_event_id,
+              occurred_at,received_at,payload,canonical_event,canonical_sha256,identity_kind,
+              event_time_basis,device_time_raw,parser_version)
+           VALUES($1,$2,$3,'real',1,'aovx-gal-v1','unverified',$4,$5,$5,$6,$7,$8,
+             'physical','gateway_received_at',$9,'aovx-gal-v1')`,
+          [id, a, device.id, event.source_event_id, event.occurred_at, event, canonical, digest,
+            event.device_time_raw]
+        );
+        await runtime.shipments.onTelemetry(c, { id, event, sha256: digest });
+        return digest;
+      });
+      const { events } = await runtime.shipments.events(a, shipment.id);
+      const entry = events.at(-1);
+      assert.equal(entry.event_type, 'telemetry_recorded');
+      assert.equal(entry.previous_hash, events.at(-2).sha256);
+      assert.equal(entry.sha256, hash(entry.canonical_payload));
+      assert.equal(entry.outbox_state, 'pending');
+      const { data } = JSON.parse(entry.canonical_payload);
+      assert.equal(data.telemetry_event_id, id);
+      assert.equal(data.canonical_sha256, sha256);
+      const detail = await runtime.shipments.detail(a, shipment.id);
+      assert.equal(detail.status, 'active');
+      assert.equal(detail.route_violation, sample.violation);
+      assert.equal(detail.temperature_violation, sample.violation);
+      assert.ok(detail.checkpoints.every(checkpoint => checkpoint.visited_at === null));
+      assert.deepEqual(await read('location'), { device_id: device.id, location: null });
+      const history = await read('events');
+      assert.deepEqual(history.events.find(event => event.id === id).payload.gps, sample.gps);
+    }
   });
 });

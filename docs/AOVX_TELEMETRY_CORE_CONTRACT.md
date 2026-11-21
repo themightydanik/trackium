@@ -114,7 +114,13 @@ Minimum event provenance should distinguish:
 
 Do not apply a UTC assumption to the device BCD clock. Until timezone and clock behavior are established, Gateway receive time is the only unambiguous instant for server ordering. If a receive-time fallback is used for the existing non-null `occurred_at` field, it must be explicitly labeled as receive-time-based; it must not be presented as the device's occurrence time. Once the device-time rule is verified, a later additive migration can store the resolved instant without rewriting the original raw timestamp.
 
-For state reduction, preserve both event time and receive time. An older buffered event may be appended to history, but it must not move the current device/shipment state backwards. Do not silently drop out-of-order events.
+### Observation history and live state
+
+Unique accepted AOVX observations remain in device history and, for an active shipment, in the shipment ledger and transactional outbox. Their raw packet links, raw device BCD time and receive-time basis remain intact. History order reflects the recorded event-time basis, which for AOVX is receipt time. Shipment sequence reflects ledger append order.
+
+Live device location and telemetry-driven shipment state currently accept only synthetic telemetry. For physical observations this applies even if a payload contains coordinates, the fix bit is set and the buffered bit is clear. The buffered bit can identify some delayed reports. A clear bit and receive time cannot establish measurement freshness. Physical observations therefore cannot visit checkpoints, auto-deliver a shipment, change route deviation or change temperature state.
+
+Enabling live physical positions requires verified coordinate encoding and an independently validated measurement-order rule for the supported device and firmware. Verify delayed and buffered delivery, clock resets, sequence wrap and equal or ambiguous measurement times. Only observations established as newer than the last eligible state may update it. Keep ambiguous observations in history and retain immutable telemetry, cargo records and proofs across rollout.
 
 ## 6. Duplicate and replay contract
 

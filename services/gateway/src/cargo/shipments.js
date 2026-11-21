@@ -299,6 +299,9 @@ export function createShipmentService(pool) {
         'telemetry:' + id,
         event.occurred_at
       );
+      // Physical observations are recorded above. Their measurement order is
+      // unresolved, so only synthetic telemetry may drive live shipment state.
+      if (event.trust !== 'synthetic') return;
       const cond = s.conditions,
         t = event.temperature_c;
       if (t !== null) {
