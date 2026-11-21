@@ -145,7 +145,6 @@ test('MDS bridge sends only status; no inited-only success or blockchain confirm
   statusCallback({ status: true, response: { chain: { block: 124 } } });
   assert.equal(states.at(-1).state, 'unavailable', 'late status cannot revive a stopped session');
   assert.deepEqual(calls, ['status']);
-  assert.equal(window.TrackiumMDS.legacyUrl(), './legacy.html?uid=0xabcd');
 });
 test('standalone preview does not initialize MDS or request privileged commands', () => {
   const states = [];

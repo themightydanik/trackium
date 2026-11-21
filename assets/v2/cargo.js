@@ -687,6 +687,14 @@
       '</section>'
     );
   }
+  function localPublisherLink() {
+    const uid = new URLSearchParams(location.search).get('uid') ?? '';
+    return /^0x[0-9a-f]+$/i.test(uid)
+      ? '<p><a class="button secondary" href="local-core.html?uid=' +
+        encodeURIComponent(uid) +
+        '">Open Local Core Publisher</a></p>'
+      : '';
+  }
   function proofsPage() {
     return (
       header(
@@ -709,13 +717,6 @@
         ? 'Demo telemetry is synthetic and has no published proof.'
         : 'No Gateway evidence is loaded.') +
       ' Preview does not publish. Use the installed Local Core workflow with an owner-approved signed Gateway job.</p></div>' +
-      ((location.pathname ?? '').startsWith('/app/')
-        ? '<p>Open Local Core Publisher inside the installed Core MiniDapp; this Gateway origin has no Core wallet session.</p>'
-        : '<a class="button secondary" href="local-core.html' +
-          (/^0x[0-9a-f]+$/i.test(new URLSearchParams(location.search).get('uid') ?? '')
-            ? '?uid=' + encodeURIComponent(new URLSearchParams(location.search).get('uid'))
-            : '') +
-          '">Open Local Core Publisher</a>') +
       '</section>'
     );
   }
@@ -751,11 +752,7 @@
           escape(state.mds.block) +
           '. This is not cargo proof confirmation.'
         : 'The new UI makes only a read-only node status request when opened with a Minima session.') +
-      '</p><a class="text-link" href="' +
-      escape(TrackiumMDS.legacyUrl()) +
-      '">Open legacy workspace ' +
-      icon('arrow', 'northeast') +
-      '</a><small class="legacy-note">Separate legacy tools, including their original local DB, simulator and blockchain behavior. Not a Gateway migration.</small></section></div></div>'
+      '</p></section></div></div>'
     );
   }
   function render() {
@@ -904,7 +901,9 @@
         escape(pages.find((p) => p[0] === current)[1]) +
         '</h2><p>' +
         (current === 'proofs' ? 'No blockchain proofs published. ' : '') +
-        'No authenticated records are loaded in this standalone workspace.</p><a class="button primary" href="#settings">Configure Gateway</a></section>';
+        'No authenticated records are loaded in this standalone workspace.</p><a class="button primary" href="#settings">Configure Gateway</a>' +
+        (current === 'proofs' ? localPublisherLink() : '') +
+        '</section>';
       restoreView();
       return;
     }

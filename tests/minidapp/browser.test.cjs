@@ -1,14 +1,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
-const { spawn } = require('node:child_process');
+const { execFileSync, spawn } = require('node:child_process');
+const { once } = require('node:events');
+const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
 const ROOT = path.resolve(__dirname, '../..');
 const PORT = 4175;
 const ORIGIN = 'http://127.0.0.1:' + PORT;
 const ARTIFACTS = process.env.TRACKIUM_SCREENSHOTS || '/tmp/trackium-minidapp-screenshots';
-let browser, server;
+let browser, server, packageDir;
 async function ready() {
   for (let n = 0; n < 50; n++) {
     try {
@@ -61,9 +63,14 @@ async function noOverflow(page) {
 }
 
 test.before(async () => {
+  packageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'trackium-mds-test-'));
+  const zip = path.join(packageDir, 'cargo.mds.zip');
+  const webRoot = path.join(packageDir, 'web');
+  execFileSync('python3', [path.join(ROOT, 'scripts/package-minidapp.py'), zip]);
+  execFileSync('python3', ['-m', 'zipfile', '-e', zip, webRoot]);
   server = spawn(
     'python3',
-    ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1', '--directory', ROOT],
+    ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1', '--directory', webRoot],
     { stdio: 'ignore' }
   );
   await ready();
@@ -76,7 +83,12 @@ test.before(async () => {
 });
 test.after(async () => {
   if (browser) await browser.close();
-  if (server) server.kill();
+  if (server && server.exitCode === null && server.signalCode === null) {
+    const exited = once(server, 'exit');
+    server.kill();
+    await exited;
+  }
+  if (packageDir) fs.rmSync(packageDir, { recursive: true, force: true });
 });
 
 test('unpaired workspace stays empty, never falls back to demo and has no unauthenticated Gateway requests', async (t) => {
@@ -221,8 +233,28 @@ test('settings reject secret-bearing URLs, store only non-secret profile and sur
   assert.match(await page.locator('#profile-feedback').innerText(), /could not be saved/);
 });
 
+test('packaged archive excludes legacy pages and assets while retaining operator workflows', async () => {
+  for (const route of ['/legacy.html', '/assets/js/blockchain.js', '/assets/css/styles.css']) {
+    const response = await fetch(ORIGIN + route);
+    assert.equal(response.status, 404, route);
+    await response.body.cancel();
+  }
+  const conf = await (await fetch(ORIGIN + '/dapp.conf')).json();
+  assert.equal(conf.browser, 'internal');
+  assert.equal(conf.trust, 'write');
+  assert.ok(!Object.hasOwn(conf, 'permission'), 'the archive does not set the effective Core grant');
+  for (const route of [
+    '/index.html', '/local-core.html', '/assets/v2/local-core.js',
+    '/service.js', '/assets/v2/background-database.js', '/assets/v2/brand/site.webmanifest'
+  ]) {
+    const response = await fetch(ORIGIN + route);
+    assert.equal(response.status, 200, route);
+    await response.body.cancel();
+  }
+});
+
 test('actual bundled MDS SDK with mocked node makes read-only status calls; block updates never become cargo proofs', async (t) => {
-  const { context, page } = await newPage(t);
+  const { context, page, requests } = await newPage(t);
   const commands = [];
   await context.route('**/mdscommand_/**', (route) => {
     const name = new URL(route.request().url()).pathname.split('/').at(-1);
@@ -240,14 +272,21 @@ test('actual bundled MDS SDK with mocked node makes read-only status calls; bloc
   );
   assert.match(await page.locator('.runtime-panel').innerText(), /4242/);
   assert.deepEqual(commands, ['status']);
-  assert.match(await page.locator('a[href^="./legacy.html"]').getAttribute('href'), /uid=0xabcd/);
+  assert.equal(await page.locator('a[href*="legacy.html"]').count(), 0);
   await page.evaluate(() =>
     MDSPostMessage({ event: 'NEWBLOCK', data: { txpow: { header: { block: 4243 } } } })
   );
   assert.match(await page.locator('.runtime-panel').innerText(), /4243/);
   await navigate(page, 'proofs');
   assert.match(await page.locator('#main').innerText(), /No blockchain proofs published/);
+  assert.equal(await page.getByRole('link', { name: 'Open Local Core Publisher' })
+    .getAttribute('href'), 'local-core.html?uid=0xabcd');
   assert.ok(commands.every((c) => c === 'status'));
+  assert.ok(requests.every((url) => !/legacy\.html|\/assets\/js\/|\/local-core[.-]/.test(url)));
+  await demo(page);
+  assert.equal(await page.getByRole('link', { name: 'Open Local Core Publisher' }).count(), 0);
+  await page.goto(ORIGIN + '/#proofs');
+  assert.equal(await page.getByRole('link', { name: 'Open Local Core Publisher' }).count(), 0);
 });
 
 test('Local Core page is responsive and never invokes a wallet outside installed MDS', async (t) => {
