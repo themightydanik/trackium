@@ -2,29 +2,40 @@ import { randomUUID } from 'node:crypto';
 import { decodeAovxFrame } from './frame.js';
 import { parseAovxMessage } from './messages.js';
 import { adaptAovxTelemetry, AOVX_TELEMETRY_PARSER_VERSION } from './telemetry-adapter.js';
+import { tenantLock, transaction } from '../cargo/shared.js';
 
-async function inTransaction(pool, work) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await work(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+async function lockEligibleBinding(client, deviceIdBcd, receivedAt) {
+  const { rows: [candidate] } = await client.query(
+    `SELECT id,tenant_id,device_id FROM telemetry_aovx_device_bindings
+     WHERE device_id_bcd=$1 AND state='active' AND created_at <= $2`,
+    [deviceIdBcd, receivedAt]
+  );
+  if (!candidate) return null;
+
+  // Match Cargo's tenant-first ordering before locking device or shipment rows.
+  await tenantLock(client, candidate.tenant_id);
+  const { rows: [device] } = await client.query(
+    'SELECT enabled,mode,identity_kind FROM telemetry_devices WHERE tenant_id=$1 AND id=$2 FOR UPDATE',
+    [candidate.tenant_id, candidate.device_id]
+  );
+  if (!device?.enabled || device.mode !== 'real' || device.identity_kind !== 'physical') return null;
+
+  // Enrollment can change while we wait. Never switch tenants under this lock.
+  const { rows: [binding] } = await client.query(
+    `SELECT tenant_id,device_id FROM telemetry_aovx_device_bindings
+     WHERE id=$1 AND tenant_id=$2 AND device_id=$3 AND state='active' FOR UPDATE`,
+    [candidate.id, candidate.tenant_id, candidate.device_id]
+  );
+  return binding ?? null;
 }
 
-export function createAovxIngestion(pool, { logger = console, pollMs = 5000, batchSize = 50 } = {}) {
+export function createAovxIngestion(pool, { logger = console, pollMs = 5000, batchSize = 50, onEvent } = {}) {
   let timer = null;
   let running = false;
   let stopped = false;
 
   async function processPacket(packetId) {
-    return inTransaction(pool, async client => {
+    return transaction(pool, null, async client => {
       const packetResult = await client.query(
         `SELECT id,received_at,raw_payload,aovx_processing_state
          FROM gateway_packets WHERE id=$1 AND aovx_message_id=512 FOR UPDATE`,
@@ -57,16 +68,8 @@ export function createAovxIngestion(pool, { logger = console, pollMs = 5000, bat
         return { processed: false, reason: 'rejected' };
       }
 
-      const bindingResult = await client.query(
-        `SELECT b.tenant_id,b.device_id,b.trust,d.enabled,d.mode,d.identity_kind
-         FROM telemetry_aovx_device_bindings b
-         JOIN telemetry_devices d ON d.tenant_id=b.tenant_id AND d.id=b.device_id
-         WHERE b.device_id_bcd=$1 AND b.state='active' AND b.created_at <= $2
-         FOR UPDATE OF b,d`,
-        [deviceIdBcd, packet.received_at]
-      );
-      const binding = bindingResult.rows[0];
-      if (!binding || !binding.enabled || binding.mode !== 'real' || binding.identity_kind !== 'physical') {
+      const binding = await lockEligibleBinding(client, deviceIdBcd, packet.received_at);
+      if (!binding) {
         await client.query(
           `UPDATE gateway_packets SET aovx_processing_state='unbound',
              aovx_processing_error='no eligible active tenant binding at packet receive time' WHERE id=$1`,
@@ -113,6 +116,8 @@ export function createAovxIngestion(pool, { logger = console, pollMs = 5000, bat
          VALUES($1,$2,$3,$4) ON CONFLICT(packet_id) DO NOTHING`,
         [packet.id,binding.tenant_id,binding.device_id,eventId]
       );
+      if (!existing.rowCount && onEvent)
+        await onEvent(client, { id: eventId, event: normalized.event, sha256: normalized.sha256 });
       await client.query(
         `UPDATE gateway_packets SET aovx_processing_state='processed',aovx_processing_error=NULL WHERE id=$1`,
         [packet.id]
