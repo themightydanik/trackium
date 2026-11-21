@@ -762,6 +762,8 @@
         '/' +
         server.state.session?.audience +
         '/' +
+        server.state.session?.id +
+        '/' +
         server.state.session?.expires_at
       : 'unpaired';
     if (renderedIdentity !== null && renderedIdentity !== identity)
@@ -859,7 +861,8 @@
       : server.state.connected
         ? 'Tenant workspace · authenticated snapshot'
         : 'Local workspace · not paired';
-    document.title = pages.find((p) => p[0] === current)[1] + ' · Trackium Core';
+    document.title = pages.find((p) => p[0] === current)[1] +
+      (TrackiumServer.enabled ? ' · Trackium Lite' : ' · Trackium Core');
     const views = {
       dashboard,
       shipments,
@@ -1077,6 +1080,24 @@
     const target = event.target.closest('button, a');
     if (!target) return;
     const serverAction = target.dataset.serverAction;
+    if (serverAction?.startsWith('history-')) {
+      if (!server.state.history || target.dataset.serverId !== server.state.history.device.registry.id) return;
+      target.disabled = true;
+      try {
+        const history = await server.stepHistory(serverAction.slice('history-'.length));
+        if (!history || server.state.history !== history || !$('#detail-dialog').open) return;
+        const section = $('#device-history');
+        if (!section || !section.contains(target)) return;
+        section.outerHTML = TrackiumServerView.deviceHistory(history.device, history);
+        const next = $('#device-history').querySelector('[data-server-action="' + serverAction + '"]:not(:disabled)');
+        (next || $('#device-history-title')).focus({ preventScroll: true });
+      } catch (error) {
+        toast(error.message);
+      } finally {
+        target.disabled = false;
+      }
+      return;
+    }
     if (serverAction) {
       target.disabled = true;
       try {
@@ -1092,12 +1113,17 @@
         }
         if (target.dataset.confirmed === 'true') $('#detail-dialog').close();
         if (serverAction.startsWith('view-')) {
+          const device = serverAction === 'view-device'
+            ? server.state.data?.devices.find((row) => row.registry.id === id)
+            : null;
+          server.closeHistory();
           const html = TrackiumServerView.detail(
             serverAction.slice(5),
             id,
             server.state.data,
             server.state.verifications,
-            server.state.updated
+            server.state.updated,
+            device ? server.openHistory(device) : null
           );
           if (html) openDialog(html);
         } else if (serverAction === 'reconnect') await server.restore();
@@ -1345,7 +1371,7 @@
       $('#event-filter').focus();
     }
   });
-  window.addEventListener('offline', render);
+  window.addEventListener('offline', () => TrackiumServer.enabled ? server.offline() : render());
   window.addEventListener('online', render);
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   window.addEventListener('hashchange', () => {
@@ -1381,6 +1407,7 @@
     }
   });
   $('#detail-dialog').addEventListener('close', () => {
+    if (!$('#detail-dialog').open) server.closeHistory();
     const anchor = dialogAnchor;
     dialogAnchor = null;
     const target = anchor?.id
@@ -1396,14 +1423,21 @@
   $('#detail-dialog').addEventListener('click', (event) => {
     if (event.target === $('#detail-dialog')) $('#detail-dialog').close();
   });
+  if (TrackiumServer.enabled) {
+    for (const label of document.querySelectorAll('[data-product-name]')) label.textContent = 'Trackium Lite';
+    $('#mds-state').textContent = 'Gateway browser workspace';
+  }
   loadProfile();
   render();
-  if (TrackiumServer.enabled) server.restore();
-  TrackiumMDS.start((info) => {
-    state.mds = info;
-    $('#mds-state').textContent = info.label;
-    if (page() === 'settings') render();
-  });
+  if (TrackiumServer.enabled) {
+    server.restore();
+  } else {
+    TrackiumMDS.start((info) => {
+      state.mds = info;
+      $('#mds-state').textContent = info.label;
+      if (page() === 'settings') render();
+    });
+  }
 })();
 
 // Exchange stays in the authenticated same-origin Gateway; no cookies/keys enter Core files.

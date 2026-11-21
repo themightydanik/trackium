@@ -83,12 +83,19 @@ test(
       await admin.end();
     });
     await start();
-    for (const asset of ['mark.png', 'app-32.png', 'site.webmanifest']) {
+    for (const asset of ['mark.png', 'app-32.png', 'site.webmanifest', 'lite.webmanifest']) {
       const response = await fetch(origin + '/app/assets/v2/brand/' + asset);
       assert.equal(response.status, 200, 'approved brand asset is served');
       assert.match(response.headers.get('content-type'), asset.endsWith('.png') ? /image\/png/ : /manifest\+json/);
     }
     assert.equal((await fetch(origin + '/app/assets/v2/brand/private.txt')).status, 404);
+    const lite = await (await fetch(origin + '/app/')).text();
+    assert.match(lite, /lite\.webmanifest/);
+    assert.doesNotMatch(lite, /src="(?:mds\.js|assets\/v2\/mds-bridge\.js)"/);
+    const manifestUrl = origin + '/app/assets/v2/brand/lite.webmanifest';
+    const manifest = await (await fetch(manifestUrl)).json();
+    assert.equal(new URL(manifest.start_url, manifestUrl).href, origin + '/app/');
+    assert.equal(new URL(manifest.scope, manifestUrl).href, origin + '/app/');
     // Issue owner credential in the trusted test process, never inside Chromium.
     const { createTelemetryService, provisionTenant } = await import(
       path.join(ROOT, 'services/gateway/src/telemetry/service.js')
@@ -378,6 +385,65 @@ test(
     await recorded.getByRole('button', { name: 'Event details' }).click();
     assert.match(await details.innerText(), /Gateway received[\s\S]*Device measurement time\s+Unavailable/);
     await details.locator('[data-action=close-dialog]').click();
+    // Browse actual PostgreSQL cursor pages in the browser-only workspace.
+    const fixture = await telemetry.register(owner.tenant_id, { label: 'Synthetic history sample', mode: 'synthetic' });
+    for (let index = 1; index <= 22; index++) {
+      const input = {
+        schema_version: 1,
+        source_event_id: 'lite-history-' + index,
+        occurred_at: new Date(Date.UTC(2026, 0, index)).toISOString(),
+        gps: index === 2 ? null : { latitude: index, longitude: index + 10 },
+        temperature_c: index
+      };
+      await telemetry.ingestFixture(owner.tenant_id, fixture.id, input, JSON.stringify(input));
+    }
+    const foreign = await provisionTenant(db, 'Other Lite tenant');
+    const historyPath = '/v1/devices/' + fixture.id + '/events';
+    const scopedRead = (token, cursor) => fetch(origin + historyPath + '?limit=20&cursor=' + cursor, {
+      headers: { authorization: 'Bearer ' + token }
+    });
+    const pageResponse = await fetch(origin + historyPath + '?limit=20', {
+      headers: { authorization: 'Bearer ' + owner.token }
+    });
+    assert.equal(pageResponse.headers.get('cache-control'), 'no-store');
+    const firstPage = await pageResponse.json();
+    assert.ok(firstPage.next_cursor);
+    assert.equal((await scopedRead(foreign.token, firstPage.next_cursor)).status, 404);
+    assert.equal((await scopedRead(owner.token, 'invalid')).status, 400);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.match(await page.title(), /Trackium Lite/);
+    await page.locator('#navigation a[href="#devices"]').evaluate(link => link.click());
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    const historyRow = page.getByRole('row').filter({ hasText: fixture.label });
+    await historyRow.getByRole('button', { name: 'Device details' }).click();
+    const history = page.locator('#device-history');
+    await history.getByText('Page 1', { exact: true }).waitFor();
+    assert.equal(await history.locator('.ux-timeline > li').count(), 20);
+    assert.equal(await history.getByRole('img', { name: 'Discrete historical positions' }).locator('circle').count(), 20);
+    await history.getByRole('button', { name: 'Older observations' }).press('Enter');
+    await history.getByText('Page 2', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'device-history-title');
+    assert.equal(await history.locator('.ux-timeline > li').count(), 2);
+    const positions = history.getByRole('img', { name: 'Discrete historical positions' });
+    assert.equal(await positions.locator('circle').count(), 1);
+    assert.equal(await positions.locator('line, polyline, path').count(), 0);
+    assert.equal(await history.getByRole('button', { name: 'Older observations' }).isDisabled(), true);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await history.getByRole('button', { name: 'Newer observations' }).click();
+    await history.getByText('Page 1', { exact: true }).waitFor();
+    assert.equal(await history.locator('.ux-timeline > li').count(), 20);
+
+    await context.setOffline(true);
+    await page.getByRole('heading', { name: 'You are offline' }).waitFor();
+    assert.equal(await history.count(), 0);
+    assert.doesNotMatch(await page.locator('#main').innerText(), /Synthetic history sample/);
+    await context.setOffline(false);
+    await page.getByRole('button', { name: 'Retry session check' }).click();
+    await historyRow.getByRole('button', { name: 'Device details' }).click();
+    await history.getByText('Page 1', { exact: true }).waitFor();
+    await details.locator('[data-action=close-dialog]').click();
+    await page.setViewportSize({ width: 1440, height: 1000 });
     // Static Preview is still an explicitly selected, isolated data source.
     await page.locator('#navigation a[href="#proofs"]').click();
     await page.locator('#demo-toggle').click();
@@ -397,12 +463,10 @@ test(
     await page.locator('#navigation a[href="#settings"]').click();
     await page.getByRole('button', { name: 'Disconnect and revoke' }).click();
     await page.waitForSelector('#pair-tenant');
-    assert.equal(
-      (await db.query('SELECT count(*) FROM cargo_sessions WHERE revoked_at IS NOT NULL')).rows[0]
-        .count,
-      '1'
+    await until(async () =>
+      (await db.query('SELECT count(*) FROM cargo_sessions WHERE revoked_at IS NOT NULL')).rows[0].count === '1'
     );
-    assert.equal((await context.cookies()).filter((c) => c.name === 'trk_session').length, 0);
+    await until(async () => !(await context.cookies()).some((c) => c.name === 'trk_session'));
     assert.ok(
       authHeaders.every((v) => !v),
       'no owner Authorization header in Chromium'

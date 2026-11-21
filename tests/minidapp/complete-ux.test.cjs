@@ -147,3 +147,34 @@ test('map stays local and uses geographic coordinates with measured-position lab
   assert.deepEqual(external, []);
   await context.close();
 });
+
+test('late history response cannot reopen a dialog or survive a changed browser session', async () => {
+  let deliver, started;
+  const held = new Promise(resolve => { deliver = resolve; });
+  const pending = new Promise(resolve => { started = resolve; });
+  const source = {
+    historyPage: () => {
+      started();
+      return held;
+    }
+  };
+  const { context, page } = await fixturePage(390, 'light', source);
+  try {
+    await navigate(page, 'devices');
+    await page.getByRole('button', { name: 'Device details', exact: true }).click();
+    const old = page.getByRole('button', { name: 'Older observations' });
+    await old.click();
+    await pending;
+    source.tenant = 'other-tenant';
+    await page.waitForFunction(() => document.querySelector('#main').textContent.includes('Browser session changed'));
+    assert.equal(await page.locator('#device-history').count(), 0);
+    deliver({ events: [{ payload: { temperature_c: 777, trust: 'synthetic' } }], next_cursor: null });
+    await page.getByRole('button', { name: 'Retry session check' }).click();
+    await page.getByRole('button', { name: 'Device details', exact: true }).click();
+    await page.locator('#device-history').getByText('Page 1', { exact: true }).waitFor();
+    assert.doesNotMatch(await page.locator('#dialog-content').innerText(), /777/);
+  } finally {
+    deliver({ events: [] });
+    await context.close();
+  }
+});

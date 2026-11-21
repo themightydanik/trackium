@@ -3,6 +3,7 @@
 A Minima MiniDapp foundation for cargo visibility, with an explicit synthetic Demo Mode and a tenant-scoped Gateway architecture.
 
 - [Minima Proof Engine: protocol, live prerequisites and independent verification](docs/MINIMA_PROOF_ENGINE.md)
+- [Trackium Lite browser workspace and device history](docs/TRACKIUM_LITE.md)
 - [Gateway integration, pairing, shipments and server simulation](docs/GATEWAY_SHIPMENTS_SIMULATION.md)
 - [MiniDapp 2.0: screens, local launch, packaging, tests and pairing design](docs/MINIDAPP_V2_FOUNDATION.md)
 - [Gateway architecture and rollout](docs/GATEWAY_V1_ARCHITECTURE.md)

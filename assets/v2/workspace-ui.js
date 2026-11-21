@@ -135,7 +135,7 @@
     })[p.state] || 'Unknown · inspect Gateway evidence';
 
   const heading = (page, state) =>
-    '<div class="page-heading"><div><div class="eyebrow">TRACKIUM CORE · TENANT WORKSPACE</div><h1>' +
+    '<div class="page-heading"><div><div class="eyebrow">TRACKIUM LITE · TENANT WORKSPACE</div><h1>' +
     {
       dashboard: 'Overview',
       shipments: 'Shipments',
@@ -631,7 +631,30 @@
       body
     );
   }
-  function detail(type, id, data, evidence = {}, observed) {
+  function deviceHistory(device, history) {
+    const events = arr(history?.page?.events);
+    return '<section id="device-history" class="panel server-content" aria-labelledby="device-history-title">' +
+      '<h3 id="device-history-title" tabindex="-1">Returned telemetry history</h3>' +
+      C.positionHistory(device.registry, events) + C.chart(events) +
+      (events.length
+        ? '<ol class="ux-timeline">' + events.map((event) => {
+            const point = C.historyPosition(device.registry, event);
+            return '<li><time>' + observationTime(event) + '</time>' +
+              provenanceBadge(event.payload?.trust) +
+              (point ? '<p>Reported position: ' + point.latitude + ', ' + point.longitude + '</p>' : '') +
+              '<div class="ux-sensors">' +
+              metric('Temperature', event.payload?.temperature_c, ' °C') +
+              metric('Humidity', event.payload?.humidity_pct, ' %') +
+              metric('Battery', event.payload?.battery_pct, ' %') + '</div></li>';
+          }).join('') + '</ol>'
+        : '<p>No telemetry observations have been returned.</p>') +
+      '<nav class="ux-pagination" aria-label="Device history pages">' +
+      action('Newer observations', 'history-newer', device.registry.id, !history?.previous?.length) +
+      '<span aria-live="polite">Page ' + ((history?.previous?.length ?? 0) + 1) + '</span>' +
+      action('Older observations', 'history-older', device.registry.id, !history?.page?.next_cursor) +
+      '</nav></section>';
+  }
+  function detail(type, id, data, evidence = {}, observed, history) {
     verificationEvidence = evidence;
     let title = 'Reported evidence',
       body = '',
@@ -730,26 +753,7 @@
         metric('Humidity', latest?.payload?.humidity_pct, ' %') +
         metric('Battery', latest?.payload?.battery_pct, ' %') +
         '</div>' +
-        C.chart(d.history?.events) +
-        panel(
-          'Returned telemetry history',
-          '<ol class="ux-timeline">' +
-            arr(d.history?.events)
-              .map(
-                (e) =>
-                  '<li><time>' +
-                  observationTime(e) +
-                  '</time>' +
-                  provenanceBadge(e.payload?.trust) +
-                  '<div class="ux-sensors">' +
-                  metric('Temperature', e.payload?.temperature_c, ' °C') +
-                  metric('Humidity', e.payload?.humidity_pct, ' %') +
-                  metric('Battery', e.payload?.battery_pct, ' %') +
-                  '</div></li>'
-              )
-              .join('') +
-            '</ol>'
-        );
+        deviceHistory(d, history ?? { page: d.history });
     } else {
       record = arr(type === 'proof' ? data.proofs : data.events).find((e) => e.id === id);
       if (!record) return null;
@@ -792,8 +796,9 @@
       body +
       '<p>Last successful workspace fetch: ' +
       date(observed) +
-      '</p><details class="ux-advanced"><summary>Advanced Raw Data</summary><pre>' +
-      esc(JSON.stringify(record, null, 2)) +
+      '</p><details class="ux-advanced"><summary>' +
+      (type === 'device' ? 'Initial workspace snapshot (raw)' : 'Advanced Raw Data') +
+      '</summary><pre>' + esc(JSON.stringify(record, null, 2)) +
       '</pre></details>'
     );
   }
@@ -911,6 +916,7 @@
     ...legacy,
     render,
     detail,
+    deviceHistory,
     createForm,
     route,
     observation

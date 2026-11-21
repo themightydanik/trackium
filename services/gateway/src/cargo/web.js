@@ -20,7 +20,7 @@ export function createWebHandler({ webEnabled, webRoot }) {
       !['index.html', 'mds.js', 'icon.png'].includes(relative) &&
       !/^assets\/v2\/[a-z0-9-]+\.(js|css)$/.test(relative) &&
       !/^assets\/v2\/brand\/(mark|app-(32|48|180|192|512))\.png$/.test(relative) &&
-      relative !== 'assets/v2/brand/site.webmanifest'
+      !['assets/v2/brand/site.webmanifest', 'assets/v2/brand/lite.webmanifest'].includes(relative)
     ) {
       res.writeHead(404);
       res.end();
@@ -44,7 +44,12 @@ export function createWebHandler({ webEnabled, webRoot }) {
         'content-security-policy':
           "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
       });
-      res.end(data);
+      res.end(relative === 'index.html'
+        ? data.toString('utf8')
+          .replace('assets/v2/brand/site.webmanifest', 'assets/v2/brand/lite.webmanifest')
+          .replace('<script defer src="mds.js"></script>', '')
+          .replace('<script defer src="assets/v2/mds-bridge.js"></script>', '')
+        : data);
     } catch {
       res.writeHead(404);
       res.end();
