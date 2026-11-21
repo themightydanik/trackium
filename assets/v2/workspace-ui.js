@@ -253,6 +253,7 @@
     );
     return (
       '<div class="form-actions">' +
+      (s.status === 'draft' ? action('Edit draft', 'edit-draft', s.id, !can('shipments')) : '') +
       next
         .map((n) =>
           action(
@@ -825,9 +826,9 @@
       '<button class="button secondary" type="button" data-route-remove>Remove stop</button></div>'
     );
   }
-  function createForm(devices) {
+  function createForm(devices, draft) {
     const t = document.createElement('template');
-    t.innerHTML = legacy.createForm(devices);
+    t.innerHTML = legacy.createForm(devices, draft);
     const raw = t.content.querySelector('[name=route]');
     const points = JSON.parse(raw.value);
     raw.closest('label').outerHTML =

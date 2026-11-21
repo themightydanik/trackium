@@ -428,51 +428,47 @@
       '</p></section>'
     );
   }
-  function createForm(devices) {
+  function createForm(devices, draft) {
+    const eligible = devices.filter(({ registry }) =>
+      registry.enabled &&
+      (!draft || (registry.mode === 'synthetic' ? 'synthetic' : 'unverified') === draft.source_trust)
+    );
+    const points = draft?.route ?? [
+      { name: 'Wrocław', latitude: 51.11, longitude: 17.04, radius_m: 200 },
+      { name: 'Kyiv', latitude: 50.45, longitude: 30.52, radius_m: 200 }
+    ];
+    const conditions = draft?.conditions;
     return (
-      '<h2 id="dialog-title">Create a Gateway shipment</h2><p>Saved in PostgreSQL for the authenticated tenant. Route points are ordered checkpoints.</p><form id="server-shipment-form"><label class="field-label">Name<input name="name" class="text-input" required maxlength="120"></label><label class="field-label">Bound device<select name="device_id" class="text-input" required>' +
-      devices
-        .filter((d) => d.registry.enabled)
-        .map(
-          (d) =>
-            '<option value="' +
-            esc(d.registry.id) +
-            '">' +
-            esc(d.registry.label) +
-            ' · ' +
-            esc(d.registry.identity_kind) +
-            '</option>'
-        )
-        .join('') +
+      '<h2 id="dialog-title">' +
+      (draft ? 'Edit shipment draft' : 'Create a Gateway shipment') +
+      '</h2><p>Saved in PostgreSQL for the authenticated tenant. Route points are ordered checkpoints.</p><form id="server-shipment-form"' +
+      (draft ? ' data-shipment-id="' + esc(draft.id) + '"' : '') +
+      '><label class="field-label">Name<input name="name" class="text-input" required maxlength="120" value="' +
+      esc(draft?.name) +
+      '"></label><label class="field-label">Bound device<select name="device_id" class="text-input" required>' +
+      (draft && !eligible.some(({ registry }) => registry.id === draft.device_id)
+        ? '<option selected value="' + esc(draft.device_id) + '">Current device · ' + esc(draft.device_id) + '</option>'
+        : '') +
+      eligible.map(({ registry }) =>
+        '<option value="' + esc(registry.id) + '"' +
+        (registry.id === draft?.device_id ? ' selected' : '') +
+        '>' + esc(registry.label) + ' · ' + esc(registry.identity_kind) + '</option>'
+      ).join('') +
       '</select></label><label class="field-label">Ordered route JSON<textarea name="route" class="text-input" rows="7" required>' +
-      esc(
-        JSON.stringify(
-          [
-            { name: 'Wrocław', latitude: 51.11, longitude: 17.04, radius_m: 200 },
-            { name: 'Kyiv', latitude: 50.45, longitude: 30.52, radius_m: 200 }
-          ],
-          null,
-          2
-        )
-      ) +
+      esc(JSON.stringify(points, null, 2)) +
       '</textarea></label><div class="sensor-cards">' +
       [
-        ['min', 'Min °C', 2],
-        ['max', 'Max °C', 8],
-        ['tolerance', 'Tolerance °C', 1]
-      ]
-        .map(
-          ([name, label, v]) =>
-            '<label>' +
-            label +
-            '<input class="text-input" name="' +
-            name +
-            '" type="number" step="0.1" value="' +
-            v +
-            '" required></label>'
-        )
-        .join('') +
-      '</div><button class="button primary" type="submit">Save draft on Gateway</button><p id="server-form-error" role="status"></p></form>'
+        ['min', 'Min °C', conditions?.temperature_min_c ?? 2],
+        ['max', 'Max °C', conditions?.temperature_max_c ?? 8],
+        ['tolerance', 'Tolerance °C', conditions?.tolerance_c ?? 1],
+        ['deviation', 'Route deviation limit (m)', conditions?.max_deviation_m ?? 1000]
+      ].map(([name, label, value]) =>
+        '<label>' + label + '<input class="text-input" name="' + name +
+        '" type="number" step="any" value="' + esc(value) + '" required></label>'
+      ).join('') +
+      '</div><button class="button primary" type="submit">' +
+      (draft ? 'Save draft changes' : 'Save draft on Gateway') +
+      '</button><p id="server-form-error" role="status"></p></form>'
     );
   }
   root.TrackiumServerView = { render, pairing, createForm };
