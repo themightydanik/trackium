@@ -79,6 +79,48 @@
     '<dl class="evidence-grid">' +
     rows.map(([k, v]) => '<div><dt>' + esc(k) + '</dt><dd>' + value(v) + '</dd></div>').join('') +
     '</dl>';
+  const receiptTime = (event) => event?.payload?.event_time_basis === 'gateway_received_at';
+  const observationFields = (event) =>
+    receiptTime(event)
+      ? [
+          ['Gateway received', event.received_at ?? event.occurred_at],
+          ['Device measurement time', 'Unavailable']
+        ]
+      : [[
+          event?.payload?.trust === 'synthetic' ? 'Synthetic sample time' : 'Device measurement time',
+          event?.occurred_at
+        ]];
+  const observationTime = (event) =>
+    receiptTime(event)
+      ? 'Gateway received: ' + date(event.received_at ?? event.occurred_at) +
+        ' · Device measurement time unavailable'
+      : date(event?.occurred_at);
+  const provenanceBadge = (trust) =>
+    badge(trust || 'unknown', trust === 'synthetic' ? 'synthetic' : 'neutral');
+  function cargoObservation(event) {
+    if (event.event_type !== 'telemetry_recorded') return null;
+    try {
+      return {
+        occurred_at: event.event_time,
+        payload: JSON.parse(event.canonical_payload)?.data?.payload
+      };
+    } catch {
+      return null;
+    }
+  }
+  const cargoEventTime = (event) =>
+    observationTime(cargoObservation(event) ?? { occurred_at: event.event_time });
+  function positionFields(device) {
+    const position = C.reportedPosition(device);
+    return position
+      ? [
+          ['Synthetic position time', position.occurred_at],
+          ['Latitude', position.gps.latitude],
+          ['Longitude', position.gps.longitude],
+          ['Position trust', position.trust]
+        ]
+      : [['Current position', 'Unavailable']];
+  }
   const stateLabel = (p) =>
     ({
       created: 'Created · no inclusion evidence',
@@ -272,7 +314,7 @@
   }
   function deviceTable(items) {
     return (
-      '<div class="table-wrap"><table class="ux-device-table"><thead><tr><th>Device</th><th>Reported state</th><th>Temperature</th><th>Humidity</th><th>Battery</th><th>Provenance / measured</th><th>Details</th></tr></thead><tbody>' +
+      '<div class="table-wrap"><table class="ux-device-table"><thead><tr><th>Device</th><th>Reported state</th><th>Temperature</th><th>Humidity</th><th>Battery</th><th>Provenance / observation time</th><th>Details</th></tr></thead><tbody>' +
       items
         .map((d) => {
           const e = d.history?.events?.[0],
@@ -290,10 +332,11 @@
             value(p.humidity_pct, ' %') +
             '</td><td data-label="Battery">' +
             value(p.battery_pct, ' %') +
-            '</td><td data-label="Provenance / measured">' +
-            badge(p.trust || 'unknown', 'synthetic') +
+            '</td><td data-label="Provenance / observation time">' +
+            provenanceBadge(p.trust) +
             '<small class="cell-note">' +
-            date(e?.occurred_at) +
+            observationTime(e) +
+            (d.registry.identity_kind === 'physical' ? '<br>Current position unavailable' : '') +
             '</small></td><td data-label="Details">' +
             action('Device details', 'view-device', d.registry.id) +
             '</td></tr>'
@@ -306,7 +349,7 @@
   function map(data) {
     return (
       '<div id="workspace-map" class="ux-geo" role="region" aria-label="Geographic routes and last reported positions"></div><p class="map-caption">Bundled coarse geographic basemap · drag or use keyboard arrows, +/− to zoom. Dashed lines are planned routes, points are last reported positions. No live tracking, external tiles or navigation service.</p>' +
-      (data.devices.some((d) => d.location?.location?.gps)
+      (data.devices.some(C.reportedPosition)
         ? ''
         : '<p>No reported device positions in this page. A planned route is not a measured journey.</p>')
     );
@@ -410,9 +453,9 @@
                       '<li><strong>' +
                       esc(eventName(e)) +
                       '</strong><time>' +
-                      date(e.event_time) +
+                      cargoEventTime(e) +
                       '</time>' +
-                      badge(e.source_trust, 'synthetic') +
+                      provenanceBadge(e.source_trust) +
                       action('Event details', 'view-event', e.id) +
                       '</li>'
                   )
@@ -483,10 +526,13 @@
             panel(
               x.registry.label,
               fields([
-                ['Measured', date(x.location?.location?.occurred_at)],
-                ['Latitude', x.location?.location?.gps?.latitude],
-                ['Longitude', x.location?.location?.gps?.longitude],
-                ['Source trust', x.location?.location?.trust]
+                ...positionFields(x),
+                ...(x.history?.events?.length
+                  ? [
+                      ['Observation trust', x.history.events[0].payload?.trust],
+                      ...observationFields(x.history.events[0])
+                    ]
+                  : [])
               ]) + action('Device details', 'view-device', x.registry.id)
             )
           )
@@ -504,7 +550,7 @@
                   '<li><div class="section-title"><h3>' +
                   esc(eventName(e)) +
                   '</h3>' +
-                  badge(e.source_trust, 'synthetic') +
+                  provenanceBadge(e.source_trust) +
                   '</div><p>' +
                   esc(d.shipments.find((s) => s.id === e.shipment_id)?.name || e.shipment_id) +
                   '</p>' +
@@ -515,7 +561,7 @@
                   '<p>Importance: ' +
                   esc(e.severity || 'Not reported') +
                   '</p><time>' +
-                  date(e.event_time) +
+                  cargoEventTime(e) +
                   '</time><p>' +
                   esc(e.outbox_state || 'unknown') +
                   ' · delivery only</p>' +
@@ -602,13 +648,13 @@
         ]) +
         deviceLink(record.device_id, data) +
         panel(
-          'Latest linked device measurement',
+          'Latest linked device observation',
           (() => {
             const d = data.devices.find((x) => x.registry.id === record.device_id),
               e = d?.history?.events?.[0];
             return d
               ? fields([
-                  ['Measured', e?.occurred_at],
+                  ...observationFields(e),
                   ['Temperature (°C)', e?.payload?.temperature_c],
                   ['Humidity (%)', e?.payload?.humidity_pct],
                   ['Battery (%)', e?.payload?.battery_pct],
@@ -655,7 +701,7 @@
                 '<p>' +
                 esc(eventName(e)) +
                 ' · ' +
-                date(e.event_time) +
+                cargoEventTime(e) +
                 ' · ' +
                 esc(e.source_trust) +
                 '</p>'
@@ -674,13 +720,9 @@
           ['Identifier', d.registry.id],
           ['Identity', d.registry.identity_kind],
           ['Status', d.status?.status],
-          ['Last activity', d.status?.last_event_at],
-          ['Latitude', d.location?.location?.gps?.latitude],
-          ['Longitude', d.location?.location?.gps?.longitude],
-          ['Position measured', d.location?.location?.occurred_at],
-          ['Position trust', d.location?.location?.trust],
-          ['Sensors measured', latest?.occurred_at],
-          ['Sensor trust', latest?.payload?.trust]
+          ...positionFields(d),
+          ...observationFields(latest),
+          ['Observation trust', latest?.payload?.trust]
         ]) +
         '<div class="ux-sensors">' +
         metric('Temperature', latest?.payload?.temperature_c, ' °C') +
@@ -695,9 +737,9 @@
               .map(
                 (e) =>
                   '<li><time>' +
-                  date(e.occurred_at) +
+                  observationTime(e) +
                   '</time>' +
-                  badge(e.payload?.trust || 'unknown', 'synthetic') +
+                  provenanceBadge(e.payload?.trust) +
                   '<div class="ux-sensors">' +
                   metric('Temperature', e.payload?.temperature_c, ' °C') +
                   metric('Humidity', e.payload?.humidity_pct, ' %') +
@@ -711,6 +753,7 @@
       record = arr(type === 'proof' ? data.proofs : data.events).find((e) => e.id === id);
       if (!record) return null;
       title = type === 'proof' ? 'Proof evidence' : record.event_type;
+      const event = type === 'event' ? cargoObservation(record) : null;
       body = fields(
         type === 'proof'
           ? [
@@ -732,7 +775,7 @@
             ]
           : [
               ['Event', record.event_type],
-              ['Measured / recorded', record.event_time],
+              ...(event ? observationFields(event) : [['Event time', record.event_time]]),
               ['Shipment', record.shipment_id],
               ['Source trust', record.source_trust],
               ['SHA-256', record.sha256],
