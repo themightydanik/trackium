@@ -2,6 +2,31 @@
 
 This stage adds an explicit tenant-owned mapping between an AOVX protocol identifier and an existing physical device record. It does **not** authenticate the tracker or establish physical measurement units. The subsequent AOVX ingestion stage converts eligible 0x0200 observations into tenant-scoped telemetry with unverified provenance.
 
+## Operator CLI
+
+Run from the repository root on a trusted POSIX operator machine with Node.js 22+ and a tenant credential issued by the existing operator CLI. Use the intended Gateway HTTPS origin and a regular credential JSON file owned by the operator with mode `0600`. Prefer a tenant-scoped `read,admin` key for the full workflow or a `read` key for listing only. The bearer token stays in that file and the direct HTTPS request. The CLI refuses redirects, origins with credentials or paths, and plain HTTP outside literal loopback. The commands neither provision a tenant nor change any tracker settings.
+
+Confirm the tenant and the protocol identifier against the owner's inventory before creating a binding. Registration can be skipped if an eligible physical device UUID already exists. In the example, the BCD is a placeholder that must be replaced with the operator's 12 protocol digits. Keep leading zeros.
+
+```sh
+gateway=https://gateway.example.com
+credential=/private/trackium-owner.json
+enroll() {
+  node services/gateway/scripts/aovx-enrollment.mjs "$@" --origin="$gateway" --credential-file="$credential"
+}
+enroll register --label='Vehicle A'
+# Copy the returned device UUID and the confirmed 12-digit BCD.
+enroll bind --device='<device-uuid>' --bcd='<12-protocol-digits>'
+enroll list
+# To remove the association, check the active binding in the list first.
+enroll revoke --bcd='<12-protocol-digits>'
+enroll list
+```
+
+The binding is `unverified`. Revocation retains its history and does not disable the tracker or delete historical telemetry. CLI stdout is the existing Gateway JSON and can contain tenant and device identifiers. Keep it in the operator environment. On failure the CLI exits nonzero and reports an HTTP status and guidance without echoing the remote error body. If a write times out or the connection drops, inspect the tenant's current records before retrying. Registration and binding are separate requests with separate outcomes.
+
+This operator workflow uses the existing HTTP API and scopes below. Browser enrollment and delegated owner permissions remain a separate scope-design decision.
+
 ## Prerequisites
 
 Create a physical device under the authenticated tenant:

@@ -4,6 +4,13 @@ import { randomUUID, createHash } from 'node:crypto';
 import pg from 'pg';
 import net from 'node:net';
 import { once } from 'node:events';
+import { execFile } from 'node:child_process';
+import { createServer } from 'node:http';
+import { chmod, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { initialize, persistPacket } from '../src/journal.js';
 import { migrate } from '../src/telemetry/migrate.js';
 import { provisionTenant, issueKey, createTelemetryService } from '../src/telemetry/service.js';
@@ -552,5 +559,101 @@ test(
         assert.equal((await db.query('SELECT count(*) FROM telemetry_events')).rows[0].count, '5');
       }
     );
+    await t.test('operator CLI completes tenant-scoped AOVX enrollment and revoke', async (t) => {
+      const reader = await issueKey(db, a.tenant_id, ['read']);
+      const directory = await mkdtemp(join(tmpdir(), 'trackium-enrollment-'));
+      t.after(() => rm(directory, { recursive: true, force: true }));
+      const [ownerFile, readerFile, foreignFile] = await Promise.all(
+        [a, reader, b].map(async (key, index) => {
+          const file = join(directory, index + '.json');
+          await writeFile(file, JSON.stringify(key), { mode: 0o600 });
+          return file;
+        })
+      );
+      const origin = 'http://127.0.0.1:' + gateway.api.address().port;
+      const cli = fileURLToPath(new URL('../scripts/aovx-enrollment.mjs', import.meta.url));
+      const execute = promisify(execFile);
+      const call = (credential, command, args = [], base = origin) => execute(process.execPath,
+        [cli, command, '--origin=' + base, '--credential-file=' + credential, ...args],
+        { timeout: 15000 });
+      const run = async (...args) => {
+        const { stdout, stderr } = await call(...args);
+        assert.equal(stderr, '');
+        for (const { token } of [a, b, reader]) assert.ok(!stdout.includes(token));
+        return JSON.parse(stdout);
+      };
+      const rejected = (operation, message) => assert.rejects(operation, error => {
+        assert.equal(error.code, 1);
+        assert.equal(error.stdout, '');
+        for (const { token } of [a, b, reader]) assert.ok(!error.stderr.includes(token));
+        assert.match(error.stderr, message);
+        return true;
+      });
+
+      const device = await run(ownerFile, 'register', ['--label=Owner CLI test tracker']);
+      assert.equal(device.tenant_id, a.tenant_id);
+      assert.equal(device.mode, 'real');
+      assert.equal(device.identity_kind, 'physical');
+      const bcd = '012345678901';
+      const args = ['--device=' + device.id, '--bcd=' + bcd];
+      await rejected(call(ownerFile, 'bind', ['--device=' + device.id, '--bcd=01234567890x']),
+        /exactly 12 decimal protocol digits/);
+      await rejected(call(readerFile, 'register', ['--label=Denied']), /HTTP 403/);
+      await rejected(call(readerFile, 'bind', args), /HTTP 403/);
+      await rejected(call(foreignFile, 'bind', args), /HTTP 404/);
+      const binding = await run(ownerFile, 'bind', args);
+      assert.equal(binding.device_id_bcd, bcd);
+      assert.equal(binding.device_id, device.id);
+      assert.equal(binding.trust, 'unverified');
+      assert.equal(binding.state, 'active');
+      await rejected(call(ownerFile, 'bind', args), /HTTP 409/);
+      assert.ok((await run(readerFile, 'list')).devices.some(row => row.id === binding.id));
+      assert.ok(!(await run(foreignFile, 'list')).devices.some(row => row.id === binding.id));
+      await rejected(call(foreignFile, 'revoke', ['--bcd=' + bcd]), /HTTP 404/);
+      await rejected(call(readerFile, 'revoke', ['--bcd=' + bcd]), /HTTP 403/);
+      const revoked = await run(ownerFile, 'revoke', ['--bcd=' + bcd]);
+      assert.equal(revoked.id, binding.id);
+      assert.equal(revoked.state, 'revoked');
+      assert.ok((await run(ownerFile, 'list')).devices.some(row =>
+        row.id === binding.id && row.state === 'revoked'
+      ));
+      await rejected(call(ownerFile, 'revoke', ['--bcd=' + bcd]), /HTTP 404/);
+      const rebound = await run(ownerFile, 'bind', args);
+      assert.equal(rebound.state, 'active');
+      assert.notEqual(rebound.id, binding.id);
+    });
+    await t.test('operator CLI rejects unsafe origins, credential files and redirects', async (t) => {
+      const directory = await mkdtemp(join(tmpdir(), 'trackium-enrollment-'));
+      t.after(() => rm(directory, { recursive: true, force: true }));
+      const credential = join(directory, 'key.json');
+      await writeFile(credential, JSON.stringify(a), { mode: 0o600 });
+      const cli = fileURLToPath(new URL('../scripts/aovx-enrollment.mjs', import.meta.url));
+      const execute = promisify(execFile);
+      const list = (base, file = credential) => execute(process.execPath,
+        [cli, 'list', '--origin=' + base, '--credential-file=' + file], { timeout: 15000 });
+      for (const base of ['http://example.com', 'https://user:secret@example.com',
+        'https://example.com/v1', 'https://example.com/?token=secret'])
+        await assert.rejects(list(base), /Supply the Gateway HTTPS origin/);
+      const origin = 'http://127.0.0.1:' + gateway.api.address().port;
+      await chmod(credential, 0o644);
+      await assert.rejects(list(origin), /chmod 600/);
+      await chmod(credential, 0o600);
+      const linked = join(directory, 'linked.json');
+      await symlink(credential, linked);
+      await assert.rejects(list(origin, linked), /regular credential JSON file/);
+
+      let requests = 0;
+      const redirect = createServer((req, res) => {
+        requests++;
+        res.writeHead(302, { location: '/somewhere-else' });
+        res.end();
+      });
+      redirect.listen(0, '127.0.0.1');
+      await once(redirect, 'listening');
+      t.after(() => new Promise(resolve => redirect.close(resolve)));
+      await assert.rejects(list('http://127.0.0.1:' + redirect.address().port),
+        /Gateway request failed/);
+      assert.equal(requests, 1, 'the CLI never forwards a credential to a redirect destination');
+    });
   }
 );
