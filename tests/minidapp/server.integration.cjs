@@ -475,3 +475,176 @@ test(
     assert.ok(!logs.includes(owner.token), 'no owner credential in server logs');
   }
 );
+
+test('Managed customer lifecycle through the operator CLI, Gateway and Lite', { timeout: 60000 }, async (t) => {
+  const { execFile } = require('node:child_process');
+  const { promisify } = require('node:util');
+  const { mkdtemp, readFile, rm, stat, writeFile } = require('node:fs/promises');
+  const { tmpdir } = require('node:os');
+  const directory = await mkdtemp(path.join(tmpdir(), 'trackium-managed-'));
+  const schema = 'managed_browser_' + randomUUID().replaceAll('-', '');
+  const admin = new pg.Pool({ connectionString: DB });
+  const db = new pg.Pool({ connectionString: DB, options: '-c search_path=' + schema });
+  let gateway, browser;
+  t.after(async () => {
+    await browser?.close();
+    if (gateway) await gateway.shutdown();
+    else await db.end();
+    await admin.query('DROP SCHEMA IF EXISTS ' + schema + ' CASCADE');
+    await admin.end();
+    await rm(directory, { recursive: true, force: true });
+  });
+  await admin.query('CREATE SCHEMA ' + schema);
+  const httpPort = await port();
+  const origin = 'http://127.0.0.1:' + httpPort;
+  const { createRuntime } = await import('../../services/gateway/src/cargo/runtime.js');
+  const { readConfig } = await import('../../services/gateway/src/config.js');
+  ({ gateway } = createRuntime(db, {
+    ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, PROOF_MODE: 'disabled',
+      ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', WEB_ROOT: ROOT }),
+    host: '127.0.0.1', httpPort
+  }, { worker: false, logger: { info() {}, warn() {}, error() {} } }));
+  await gateway.start();
+  const cli = async (command, ...options) => {
+    const { stdout } = await promisify(execFile)(process.execPath,
+      ['services/gateway/src/telemetry/admin.js', command, ...options],
+      { cwd: ROOT, env: { ...process.env, DATABASE_URL: DB, PGOPTIONS: '-c search_path=' + schema } });
+    return JSON.parse(stdout);
+  };
+  const a = '--customer=' + randomUUID(), b = '--customer=' + randomUUID();
+  const provision = (customer, name) => cli('managed-provision', customer, '--name=' + name);
+  const status = (customer) => cli('managed-status', customer);
+  const output = (name) => '--out=' + path.join(directory, name);
+  const grant = (customer, revision, name) => cli('managed-grant', customer, '--revision=' + revision, output(name));
+  const owner = async (name) => JSON.parse(await readFile(path.join(directory, name), 'utf8'));
+  const [customerA, sameA, customerB] = await Promise.all([
+    provision(a, 'Customer A'), provision(a, 'Customer A'), provision(b, 'Customer B')
+  ]);
+  assert.deepEqual(customerA, sameA);
+  assert.notEqual(customerA.tenant_id, customerB.tenant_id);
+  await assert.rejects(provision(a, 'Conflicting name'), /different name/);
+  assert.equal((await status(a)).access, 'awaiting_grant');
+  await writeFile(path.join(directory, 'occupied'), 'sentinel', { mode: 0o600 });
+  await assert.rejects(grant(a, 0, 'occupied'), /EEXIST/);
+  assert.equal((await status(a)).access_revision, 0);
+  assert.equal(await readFile(path.join(directory, 'occupied'), 'utf8'), 'sentinel');
+  const [first, second] = await Promise.allSettled([grant(a, 0, 'a1'), grant(a, 0, 'a2')]);
+  assert.notEqual(first.status, second.status);
+  const winner = first.status === 'fulfilled' ? 'a1' : 'a2';
+  assert.match((first.reason || second.reason).message, /access revision changed/);
+  assert.equal((await stat(path.join(directory, winner))).mode & 0o777, 0o600);
+  const ownerA = await owner(winner);
+  assert.deepEqual(ownerA.scopes, ['read', 'admin', 'shipments']);
+  await assert.rejects(cli('issue-key', '--tenant=' + customerA.tenant_id, '--scopes=publish',
+    output('bypass')), /use managed-grant/);
+  await assert.rejects(cli('revoke-key', '--id=' + ownerA.id), /use managed-revoke/);
+  await grant(b, 0, 'b');
+  const ownerB = await owner('b');
+  const api = (credential, endpoint, method = 'GET', body) => fetch(origin + endpoint, {
+    method, headers: { authorization: 'Bearer ' + credential.token, 'content-type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  const register = (credential, label) => api(credential, '/v1/devices', 'POST', { label, mode: 'real' });
+  const registered = await register(ownerA, 'Customer A tracker');
+  assert.equal(registered.status, 201);
+  const deviceA = await registered.json();
+  assert.equal((await register(ownerB, 'Customer B tracker')).status, 201);
+  const deviceUrl = '/v1/devices/' + deviceA.id;
+  assert.equal((await api(ownerB, deviceUrl)).status, 404);
+  const location = await api(ownerA, deviceUrl + '/location');
+  assert.equal(location.status, 200);
+  assert.equal((await location.json()).location, null);
+  const approve = (credential, id, scopes) =>
+    api(credential, '/v1/pairing/challenges/' + id + '/approve', 'POST', { scopes });
+
+  browser = await chromium.launch({
+    executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', args: ['--no-sandbox']
+  });
+  const open = async () => (await browser.newContext()).newPage();
+  const pageA = await open(), pageB = await open(), pending = await open();
+  const leaked = [];
+  pageA.on('request', request => {
+    if (request.headers().authorization) leaked.push(request.url());
+  });
+  async function challenge(page, tenant) {
+    await page.goto(origin + '/app/#settings');
+    await page.locator('#pair-tenant').fill(tenant);
+    await page.getByRole('button', { name: 'Create one-use challenge' }).click();
+    return page.locator('#pair-challenge').innerText();
+  }
+  async function claim(page) {
+    await page.getByRole('button', { name: 'Check owner approval' }).click();
+    await page.waitForSelector('#server-banner:not([hidden])');
+  }
+  function browserRequest(page, endpoint, method = 'GET', withCsrf = false) {
+    return page.evaluate(async ({ endpoint, method, withCsrf }) => {
+      const headers = { 'X-Trackium-Client': 'cargo-v2' };
+      if (withCsrf) headers['X-CSRF-Token'] =
+        (await (await fetch('/v1/session', { headers })).json()).csrf;
+      if (method !== 'GET') headers['Content-Type'] = 'application/json';
+      const response = await fetch(endpoint, { method, headers,
+        body: method === 'GET' ? undefined : JSON.stringify({ name: 'Denied' }) });
+      return response.status;
+    }, { endpoint, method, withCsrf });
+  }
+
+  const idA = await challenge(pageA, customerA.tenant_id);
+  assert.equal((await approve(ownerB, idA, ['read'])).status, 409);
+  assert.equal((await approve(ownerA, idA, ['simulate'])).status, 403);
+  assert.equal((await approve(ownerA, idA, ['read', 'shipments'])).status, 200);
+  await claim(pageA);
+  const idB = await challenge(pageB, customerB.tenant_id);
+  assert.equal((await approve(ownerB, idB, ['read', 'shipments'])).status, 200);
+  await claim(pageB);
+  const pendingId = await challenge(pending, customerA.tenant_id);
+  assert.equal((await approve(ownerA, pendingId, ['read'])).status, 200);
+  assert.equal((await status(a)).active_browser_sessions, 1);
+
+  await pageA.locator('#navigation a[href="#shipments"]').click();
+  await pageA.getByRole('button', { name: 'Create shipment', exact: true }).click();
+  await pageA.locator('#server-shipment-form [name=name]').fill('Customer A cargo');
+  await pageA.getByRole('button', { name: 'Save draft on Gateway' }).click();
+  await pageA.locator('.server-shipment').filter({ hasText: 'Customer A cargo' }).waitFor();
+  const { rows: [shipment] } = await db.query('SELECT id,tenant_id FROM cargo_shipments');
+  assert.equal(shipment.tenant_id, customerA.tenant_id);
+  const url = '/v1/shipments/' + shipment.id;
+  assert.equal(await browserRequest(pageA, url, 'PATCH'), 403);
+  assert.equal(await browserRequest(pageB, url), 404);
+  assert.equal(await browserRequest(pageA, deviceUrl), 200);
+  assert.equal(await browserRequest(pageB, deviceUrl), 404);
+  assert.equal(await browserRequest(pageA, url + '/proofs'), 200);
+  assert.equal(await browserRequest(pageB, url + '/proofs'), 404);
+  assert.equal(await browserRequest(pageB, url, 'PATCH', true), 404);
+  assert.equal((await api(ownerB, url)).status, 404);
+  assert.equal((await api(ownerA, '/v1/managed/customers')).status, 404);
+  const proofStatus = await api(ownerA, '/v1/proof-publisher');
+  assert.equal(proofStatus.status, 200);
+  assert.equal((await proofStatus.json()).enabled, false);
+  const { rows: [ledger] } = await db.query(
+    'SELECT e.event_type,o.tenant_id FROM cargo_events e JOIN cargo_outbox o ON o.event_id=e.id'
+  );
+  assert.deepEqual(ledger, { event_type: 'shipment_created', tenant_id: customerA.tenant_id });
+  assert.equal((await db.query('SELECT count(*)::int AS total FROM cargo_proofs')).rows[0].total, 0);
+  assert.equal(Number((await cli('managed-capacity')).managed_customers), 2);
+
+  await cli('managed-revoke', a, '--revision=1');
+  assert.equal((await status(a)).access, 'revoked');
+  assert.equal((await status(a)).active_browser_sessions, 0);
+  assert.equal((await api(ownerA, url)).status, 401);
+  assert.equal(await browserRequest(pageA, '/v1/session'), 401);
+  assert.equal(await browserRequest(pageB, '/v1/session'), 200);
+  await grant(a, 2, 'recovered');
+  const recovered = await owner('recovered');
+  assert.equal(await browserRequest(pageA, '/v1/session'), 401);
+  assert.equal(await browserRequest(pending, '/v1/pairing/session', 'POST'), 401);
+  const newId = await challenge(pageA, customerA.tenant_id);
+  assert.equal((await approve(ownerA, newId, ['read'])).status, 401);
+  assert.equal((await approve(recovered, newId, ['read'])).status, 200);
+  await claim(pageA);
+  assert.equal(await browserRequest(pageA, url), 200);
+  assert.equal(await browserRequest(pageA, url, 'PATCH', true), 403);
+  await grant(a, 3, 'rotated');
+  assert.equal((await api(recovered, url)).status, 401);
+  assert.equal(await browserRequest(pageA, '/v1/session'), 401);
+  assert.deepEqual(leaked, []);
+});
