@@ -1,8 +1,8 @@
 # AOVX → Gateway Telemetry Core contract
 
-**Status:** design baseline; no runtime behavior, database schema, Railway configuration, tracker settings, Android code or publication policy is changed by this document.
+**Status:** Gateway contract for unverified AOVX observations, including shipment integration and the remaining hardware acceptance gates.
 
-This document reconciles the AOVX GL110-GL observations with the current Gateway data model and the separate Trackium Core Android client. It is a contract for the next implementation steps, not a claim that real-device telemetry is already accepted by the shipment pipeline.
+This document reconciles the AOVX GL110-GL observations with the current Gateway data model and the separate Trackium Core Android client. It documents the Gateway behavior and the evidence still required for real-device acceptance.
 
 ## 1. Terminology and ownership
 
@@ -62,9 +62,9 @@ These observations prove successful TCP frame ingestion, raw persistence and cur
 The current backend has two distinct persistence paths:
 
 1. **Raw AOVX journal.** With `TCP_PROTOCOL=aovx`, the TCP receiver extracts framed packets, runs the current AOVX envelope/parser path and persists the original payload plus parsed metadata in `gateway_packets`. `gateway_aovx_device_observations` is an operational observation index keyed by the BCD device identifier. It is not a tenant-owned device registry and is not an authenticated device state model. The receiver currently does not implement a verified AOVX registration/authentication/ACK exchange.
-2. **Normalized telemetry and shipment pipeline.** The existing `telemetry_events` schema and ingestion services are limited to fixture/simulator identities and synthetic provenance. The `ingestSynthetic` transaction creates telemetry events, calls the shared shipment telemetry handler, and can append immutable `cargo_events` plus `cargo_outbox` rows. The proof engine consumes approved cargo events; it must not receive every raw packet.
+2. **Normalized telemetry and shipment pipeline.** The `telemetry_events` schema supports fixture/simulator events and unverified AOVX events from bound physical devices. The `ingestSynthetic` transaction creates telemetry events, calls the shared shipment telemetry handler, and can append immutable `cargo_events` plus `cargo_outbox` rows. The proof engine consumes approved cargo events; it must not receive every raw packet.
 
-AOVX packet processing is restart-recoverable: raw persistence happens first, pending packets are replayed by a bounded worker, and event creation plus packet-to-event linking is transactional. Unbound/revoked/disabled packets remain raw only. Device time is retained as raw BCD, while event ordering uses Gateway receive time. GPS and sensor measurements remain unnormalized. AOVX telemetry does not advance shipment state or enqueue proofs.
+AOVX packet processing is restart-recoverable: raw persistence happens first, pending packets are replayed by a bounded worker, and event creation plus packet-to-event linking is transactional. Unbound/revoked/disabled packets remain raw only. Device time is retained as raw BCD, while event ordering uses Gateway receive time. GPS and sensor measurements remain unnormalized. A new logical AOVX event and its packet link commit with the existing shipment handler’s ledger and outbox writes when the device has an active shipment. Exact repeats add only packet links. Missing measurements do not advance checkpoints or change condition state. Outbox rows are subject to the existing proof approval policy.
 
 Relevant implementation references:
 
@@ -130,9 +130,9 @@ Do not deduplicate solely by device timestamp, sequence number, or device ID. Do
 
 ## 7. Database and migration boundary
 
-Do not rewrite applied migrations `001_telemetry.sql` through `005_native_android.sql`. The current schema explicitly constrains telemetry sources/identities to fixture and simulator paths and keeps the raw-packet reference unavailable to fixture events. A real AOVX event path therefore requires a **new additive migration** after a reviewed contract.
+Do not rewrite applied migrations `001_telemetry.sql` through `005_native_android.sql`. Migration `007_aovx_telemetry_ingestion.sql` adds physical telemetry provenance and packet links. The shipment integration uses those fields and needs no further schema changes.
 
-That migration should be designed to:
+The telemetry and shipment persistence contract is to:
 
 - represent protocol source, parser version, trust/provenance and physical identity binding without weakening tenant composite foreign keys;
 - link real telemetry to `gateway_packets` while keeping fixture/simulator provenance separate;

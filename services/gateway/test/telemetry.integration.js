@@ -270,14 +270,18 @@ test(
             parseStatus: 'parsed', parsedPayload: {}
           }
         }, db);
-        const ingestion = createAovxIngestion(db, { logger: { error() {} } });
+        const ingestion = createAovxIngestion(db, { batchSize: 1, logger: { error() {} } });
         const first = await persist();
+        const duplicate = await persist();
         const recovery = await ingestion.processPending();
         assert.equal(recovery.processed, 1);
         const result = await ingestion.processPacket(first.id);
         assert.equal(result.processed, false);
         assert.equal(result.reason, 'not-pending');
-        const duplicate = await persist();
+        assert.equal(
+          (await db.query('SELECT aovx_processing_state FROM gateway_packets WHERE id=$1', [duplicate.id])).rows[0].aovx_processing_state,
+          'pending'
+        );
         const repeated = await ingestion.processPacket(duplicate.id);
         assert.equal(repeated.processed, true);
         assert.equal(repeated.duplicate, true);

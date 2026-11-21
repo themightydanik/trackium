@@ -27,7 +27,7 @@ export function createRuntime(
   const pairing = createPairing(pool, config);
   const proofs = createProofService(pool, config.proofs, proofDependencies);
   const aovxObservations = createAovxObservations(pool);
-  const aovxIngestion = createAovxIngestion(pool, { logger });
+  const aovxIngestion = createAovxIngestion(pool, { logger, onEvent: shipments.onTelemetry });
   let stopProofWorker = async () => {};
   const native = createNativeSessions(pool, config);
   const authenticate = (req) =>
