@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import pg from 'pg';
@@ -10,6 +10,7 @@ import { createRuntime } from '../src/cargo/runtime.js';
 import { hash } from '../src/cargo/shared.js';
 import { readConfig } from '../src/config.js';
 import { persistPacket } from '../src/journal.js';
+import { changeCustomerAccess, customerStatus, provisionCustomer } from '../src/managed/service.js';
 import { verifyBundle } from '../src/proofs/verifier.js';
 import { createTelemetryService, provisionTenant } from '../src/telemetry/service.js';
 
@@ -63,7 +64,10 @@ function gatewayFor(port, database) {
 }
 
 async function fixture(db, runtime) {
-  const owner = await provisionTenant(db, 'Restore drill owner');
+  const managed = await provisionCustomer(db, randomUUID(), 'Restore drill managed owner');
+  let previousOwner, owner;
+  await changeCustomerAccess(db, managed.customer_id, '0', credential => { previousOwner = credential; });
+  await changeCustomerAccess(db, managed.customer_id, '1', credential => { owner = credential; });
   const other = await provisionTenant(db, 'Restore drill other tenant');
   const telemetry = createTelemetryService(db);
   const device = await telemetry.register(owner.tenant_id, { label: 'Generated tracker', mode: 'real' });
@@ -75,7 +79,7 @@ async function fixture(db, runtime) {
     conditions: { temperature_min_c: 2, temperature_max_c: 8 }
   });
   await runtime.shipments.change(owner.tenant_id, shipment.id, 'active');
-  return { owner, other, device, bcd, shipment };
+  return { owner, other, device, bcd, shipment, managed, previousOwner };
 }
 
 function packet(db, bcd, sequenceNumber) {
@@ -91,6 +95,8 @@ function packet(db, bcd, sequenceNumber) {
 async function snapshot(db) {
   const tables = [
     ['gateway_schema_migrations', 'version'],
+    ['managed_customers', 'customer_id'],
+    ['telemetry_api_keys', 'id'],
     ['gateway_packets', 'id'],
     ['telemetry_aovx_device_bindings', 'id'],
     ['telemetry_events', 'id'],
@@ -110,7 +116,7 @@ async function snapshot(db) {
 }
 
 async function verifyMigrations(rows) {
-  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8]);
   const directory = new URL('../migrations/', import.meta.url);
   const files = (await readdir(directory)).filter(file => /^\d{3}_.*\.sql$/.test(file)).sort();
   assert.equal(files.length, rows.length);
@@ -247,7 +253,9 @@ try {
   const proofId = baseline.cargo_proofs.at(-1).id;
   const evidence = await exportEvidence(runtime, seeded, proofId);
 
+  const backupStart = performance.now();
   const archive = dump();
+  const backupMs = Math.round(performance.now() - backupStart);
   const incompleteArchive = dump('--exclude-table-data=public.telemetry_aovx_packet_events');
   console.log('Backup SHA-256:', hash(archive), '· bytes:', archive.length);
   await runtime.gateway.shutdown();
@@ -276,6 +284,7 @@ try {
   }
   console.log('PASS: structurally valid but incomplete archive failed the lineage gate');
 
+  const recoveryStart = performance.now();
   restore(recovered, archive);
   gateway = gatewayFor(port, recovered);
   await gateway.runtime.gateway.start();
@@ -286,7 +295,18 @@ try {
   await assert.rejects(gateway.db.query('UPDATE cargo_events SET sha256=sha256'), /immutable/);
   await assert.rejects(gateway.db.query('DELETE FROM cargo_events'), /immutable/);
   assert.equal(await exportEvidence(gateway.runtime, seeded, proofId), evidence);
-  console.log('PASS: 001–007 checksums, packet lineage, immutable ledger, outbox and test proof export');
+  const managed = await customerStatus(gateway.db, seeded.managed.customer_id);
+  assert.equal(managed.tenant_id, seeded.owner.tenant_id);
+  assert.equal(managed.access_revision, 2);
+  assert.equal(managed.access, 'active');
+  const oldAccess = await fetch('http://127.0.0.1:' + gateway.runtime.gateway.api.address().port + '/v1/devices',
+    { headers: { authorization: 'Bearer ' + seeded.previousOwner.token }, signal: AbortSignal.timeout(5000) });
+  assert.equal(oldAccess.status, 401);
+  await oldAccess.body.cancel();
+  console.log('PASS: restored managed registration, current owner access and previous key revocation');
+  console.log('Local dump and verified recovery (ms):', backupMs, Math.round(performance.now() - recoveryStart),
+    '· fixture writes lost at quiescent cut: 0');
+  console.log('PASS: 001–008 checksums, packet lineage, immutable ledger, outbox and test proof export');
 
   await gateway.db.query(`
     CREATE FUNCTION drill_reject_outbox() RETURNS trigger LANGUAGE plpgsql AS $$

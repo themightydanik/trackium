@@ -8,6 +8,7 @@ A Minima MiniDapp foundation for cargo visibility, with an explicit synthetic De
 - [MiniDapp 2.0: screens, local launch, packaging, tests and pairing design](docs/MINIDAPP_V2_FOUNDATION.md)
 - [Gateway architecture and rollout](docs/GATEWAY_V1_ARCHITECTURE.md)
 - [Telemetry Core v1 API, migrations and security boundaries](docs/TELEMETRY_CORE_V1.md)
+- [Managed Gateway pilot provisioning and recovery](docs/MANAGED_GATEWAY.md)
 - [Gateway local development](services/gateway/README.md)
 - [Railway test deployment: HTTPS, PostgreSQL and Android owner pairing](docs/RAILWAY_DEPLOYMENT.md)
 
