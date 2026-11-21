@@ -72,13 +72,6 @@
         clearTimeout(timeout);
         onState({ state: 'unavailable', label: 'Minima unavailable' });
       }
-    },
-    legacyUrl: function () {
-      var uid = new URLSearchParams(root.location.search).get('uid');
-      return (
-        './legacy.html' +
-        (uid && /^0x[0-9a-f]+$/i.test(uid) ? '?uid=' + encodeURIComponent(uid) : '')
-      );
     }
   };
 })(window);

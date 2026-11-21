@@ -1485,16 +1485,6 @@ tbody tr:hover {
 .runtime-status {
   margin: 15px 0;
 }
-.runtime-panel .text-link {
-  margin-top: 19px;
-}
-.legacy-note {
-  display: block;
-  font-size: 9px;
-  color: #8198b1;
-  margin-top: 10px;
-  line-height: 1.8;
-}
 .detail-dialog {
   background: #132136;
   border: 1px solid #3b5067;

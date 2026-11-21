@@ -14,7 +14,7 @@
 | Live Map | Local schematic Europe map and device coordinate list; no external tiles, geocoding or live tracking |
 | Events | Fixed normalized-event history, device search and reported-status filters |
 | Proofs | Clear unpublished/unimplemented states; no publish button, fabricated transactions or confirmations |
-| Settings / Gateway | Free/Managed profile form, origin validation, pending-pairing state, runtime status and legacy link |
+| Settings / Gateway | Free/Managed profile form, origin validation, pending-pairing state, runtime status |
 
 On first load **Demo mode is off**. No devices, shipments or events are obtained anonymously, and no data silently falls back to demo on failure. Enable the labeled switch or **Explore demo workspace** to load a deterministic snapshot at `2026-11-07T12:00:00.000Z`. Every demo event is `fixture-v1` / `synthetic`; a persistent banner labels the whole workspace. Demo data stays in memory and is not sent to Gateway or MDS SQL. Exiting demo clears its records and closes details; reload returns to unpaired mode. Shipments, routes, milestones and ETA are demonstrations only. There is no shipment API or local imitation of a Gateway save.
 
@@ -24,13 +24,13 @@ The only persisted v2 setting is `trackium_v2_profile`, containing exactly `{mod
 
 The old `index.html` loaded MDS, local SQL/database helpers, device/registry/simulator modules, blockchain/contract helpers and large inline handlers together. It could initialize legacy SQL/blockchain behavior as part of startup. These must not run as side effects of the new Gateway workspace.
 
-- The old document is preserved **byte-for-byte** as root `legacy.html`, so its existing relative `assets/` and `mds.js` references still work. The Settings link carries only the native Minima `uid` when present; it does not carry a Gateway credential. The old files/functions in `assets/js`, `assets/css` and `mds.js` remain unchanged.
-- The new document loads only the existing `mds.js` SDK and isolated `assets/v2/` scripts/styles. It does not read old `devices`, `blockchain_proofs` or shipment tables, import their trust flags, invoke transaction helpers, enable RPC, request GPS permissions or initialize Trackium Live.
-- `dapp.conf` keeps the existing internal browser, icon and `trust: write` permission for legacy/service compatibility. Name/version/description now describe the Cargo foundation rather than claiming completed proof publishing. The new foreground UI uses only read-only `status`; this release does not claim least-privilege isolation from the preserved legacy tools.
+- The original `legacy.html`, `assets/js/` and `assets/css/` are preserved in source with their original dependencies. Cargo Settings no longer links to the legacy page or forwards the Core UID to it.
+- Cargo loads the SDK and v2 workspace assets. Its foreground MDS bridge issues only `status`; Cargo does not initialize the legacy database UI, enable RPC or load transaction helpers. Outside Demo and the Gateway workspace, the Proofs screen links to the separate Local Core Publisher only with a syntactically valid Core UID. The UID is not a permission check.
+- The manifest keeps `browser: internal` and the existing `trust: write` field. In the [reviewed Core 1.0.49.4 MDS implementation](https://github.com/minima-global/Minima/blob/52542f25605a28a776e9b3b43b0808a05dceab01/src/org/minima/system/commands/mds/mds.java#L287), installation defaults to READ unless explicitly granted WRITE, and update carries forward the installed permission. Core grants permissions to the installed MiniDapp, so Cargo, the service and Local Core Publisher share that grant. READ is not a comprehensive command allowlist. In the [reviewed command runner](https://github.com/minima-global/Minima/blob/52542f25605a28a776e9b3b43b0808a05dceab01/src/org/minima/system/commands/CommandRunner.java#L267), READ can queue restricted commands such as signing, and public MDS denies them. The separate Local Core adapter retains its `checkmode`, signed-job, consent and approval checks.
 - `service.js` previously loaded `assets/js/database.js`. Although its own syntax was ES5, that dependency contains `const`, template literals, arrows, Promise helpers and `globalThis`, so loading it in Rhino ES5 could fail at parse time. The service now loads `assets/v2/background-database.js` and constructs `TrackiumBackgroundDatabase`; these are its only two line changes.
 - The new ES5 initializer copies the **same SQL definitions** for the three legacy tables and four indexes used by the service (`devices`, `movements`, `events`), without modifying existing data or loading modern browser helpers. It reports initialization failure instead of continuing on a failed schema operation. The full old initializer remains available to the legacy UI; no old tables or functions are deleted. The service's Android polling, throttling and local insert/update functions remain unchanged. They are legacy behavior, **not** Gateway telemetry or a new Android implementation.
 
-Legacy data and controls are deliberately separate; opening the legacy workspace retains its original functionality and limitations. This is not a data migration. In particular, old local proof flags are not treated as confirmed evidence by v2.
+Historical local proof flags remain separate from Cargo evidence. The archive change performs no database or wallet migration.
 
 ## Gateway client boundary
 
@@ -75,9 +75,9 @@ python3 -m http.server 4173 --bind 127.0.0.1
 python3 scripts/package-minidapp.py /tmp/trackium-cargo-v2.mds.zip
 ```
 
-The packager includes only root MiniDapp entry/config/runtime/icon files and static assets. Backend files, `.env`, dependencies, caches and Git metadata are excluded; output must be outside the checkout. The `.mds.zip` contains `dapp.conf` at its root and can be installed through the Minima MiniDapp Hub. In Core, launch the new default entry and check runtime status. The actual package installation on a running Minima Core has **not** been validated in this cloud environment.
+The Cargo 2.2.1 package uses an explicit file allowlist. It contains Cargo, the deliberately opened Local Core Publisher, the MDS SDK, the background companion service and necessary v2 assets. It excludes `legacy.html` and its original UI, simulator, wallet/contract commands, external Leaflet script and old asset trees. Backend files, credentials and caches also stay outside the package. Output must be outside the checkout.
 
-The preserved legacy page still has its original external Leaflet dependency; offline guarantees apply to the new v2 page only. Back up the old MiniDapp/local data before upgrading and independently validate any legacy operations you use.
+An operator who still relies on the original local UI needs the separately retained legacy installation or original distribution. Keep that workflow separate and back up local data before an upgrade. For reviewed Core 1.0.49.4, [the MDS update implementation](https://github.com/minima-global/Minima/blob/52542f25605a28a776e9b3b43b0808a05dceab01/src/org/minima/system/commands/mds/mds.java#L455) replaces the old web directory for the existing UID and preserves its permission. An overlay copy can leave excluded files reachable. For other Core versions, verify that behavior before updating. Confirm in a test installation that the legacy path is absent, background data still works and the publisher honors the installed permission. This cloud environment checks the extracted archive and mock MDS. Installation and update on actual Core remain unverified.
 
 ## Focused validation
 
