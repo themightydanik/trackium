@@ -658,6 +658,14 @@ test('Managed customer lifecycle through the operator CLI, Gateway and Lite', { 
   await pageA.getByRole('button', { name: 'Recheck test evidence' }).click();
   await pageA.getByRole('heading', { name: 'Integritas · TEST_ONLY' }).last().waitFor();
   assert.equal((await (await api(ownerA, proofs + '/' + proofId + '/bundle')).json()).proof.on_chain_verified, false);
+  await pageA.getByRole('button', { name: 'Close details', exact: true }).click();
+  const downloaded = pageA.waitForEvent('download');
+  await pageA.getByRole('button', { name: 'Export test evidence' }).click();
+  const artifact = JSON.parse(await readFile(await (await downloaded).path(), 'utf8'));
+  assert.equal(artifact.proof.id, proofId);
+  assert.equal(artifact.proof.provider, 'integritas');
+  assert.equal(artifact.proof.on_chain_verified, false);
+  assert.equal(artifact.evidence.cargo_event.event_id, eligible.id);
 
   await cli('managed-revoke', a, '--revision=1');
   assert.equal(await browserRequest(pageA, feed), 401);
