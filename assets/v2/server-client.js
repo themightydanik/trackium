@@ -100,7 +100,7 @@
           change();
           return;
         }
-        const [shipments, devices, simulations, publisher, notifications] = await Promise.all([
+        const [shipments, devices, simulations, publisher, notifications, integritas] = await Promise.all([
           request(
             '/v1/shipments?limit=25' +
               (state.pages.shipments.cursor
@@ -115,7 +115,8 @@
           ),
           request('/v1/simulations'),
           request('/v1/proof-publisher'),
-          session.local_notifications ? request('/v1/notifications') : null
+          session.local_notifications ? request('/v1/notifications') : null,
+          session.integritas_proofs ? request('/v1/integritas/proofs') : null
         ]);
         const details = await Promise.all(
           shipments.shipments.map((s) => request('/v1/shipments/' + s.id))
@@ -131,7 +132,7 @@
         const events = await Promise.all(
           details.map((s) => request('/v1/shipments/' + s.id + '/events?limit=50'))
         );
-        const proofs = await Promise.all(
+        const proofs = integritas ? [] : await Promise.all(
           details.map((s) => request('/v1/shipments/' + s.id + '/proofs?limit=50'))
         );
         if (version !== generation || serial !== refreshSerial) return;
@@ -148,7 +149,8 @@
           proofs: proofs.flatMap((e) => e.proofs),
           proofMode: proofs[0]?.engine_mode ?? 'disabled',
           publisher,
-          notifications
+          notifications,
+          integritas
         };
         state.loading = false;
         state.updated = new Date().toISOString();

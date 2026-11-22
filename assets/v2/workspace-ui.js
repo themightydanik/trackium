@@ -364,7 +364,7 @@
             '<article class="panel server-content"><div class="section-title"><h2>' +
             esc(C.label(p.commitment?.event_type || 'Proof')) +
             '</h2>' +
-            badge(p.mode, 'synthetic') +
+            badge('minima_native · ' + p.mode, 'synthetic') +
             '</div><h3>' +
             esc(stateLabel(p)) +
             '</h3><p>Reported confirmations ' +
@@ -394,9 +394,6 @@
             action('Evidence details', 'view-proof', p.id) +
             action('Verify', 'proof-verify', p.id) +
             action('Export bundle', 'proof-export', p.id) +
-            (p.publisher_kind === 'local'
-              ? action('Export Local Core job', 'local-job', p.id)
-              : '') +
             '</div></article>'
         )
         .join('') +
@@ -593,8 +590,19 @@
         (d.events.filter((e) => matches(e, view)).length
           ? ''
           : empty('No matching events', 'No event history matches the loaded snapshot.'));
-    if (page === 'proofs') {
-      const controls = old().querySelector('section.panel.server-content');
+    if (page === 'proofs' && d.integritas) {
+      const cards = d.integritas.proofs.map((proof) => panel('Integritas · TEST_ONLY', fields([
+        ['Shipment', proof.shipment_id], ['Cargo event', proof.event_type + ' · ' + proof.event_id],
+        ['Provenance', proof.source_trust], ['Prepared', proof.created_at], ['Proof ID', proof.id],
+        ['Operation ID', proof.operation_id || 'Unavailable'], ['Network', proof.network],
+        ['Status', proof.status === 'verified' ? 'Test evidence checked' : proof.status],
+        ['Verification', 'TEST_ONLY · No blockchain confirmation'],
+        ['Error', proof.error || 'None reported']
+      ]) + action('Recheck test evidence', 'integritas-verify', proof.id) +
+        action('Export test evidence', 'integritas-export', proof.id)));
+      body = cards.length ? cards.join('') : empty('No Integritas proofs', 'Ask the tenant owner to prepare test evidence.');
+    }
+    if (page === 'proofs' && !d.integritas) {
       body =
         '<div class="notice"><p>Submission, chain inclusion and physical sensor authenticity are different claims. Gateway confirmation is a past observation; Verify performs a fresh reader check. Test receipts are not blockchain transactions.</p></div>' +
         search(page, view, d) +
@@ -604,10 +612,7 @@
               'No matching proof records',
               'Publication stays governed by the existing owner policy.'
             )
-          : '') +
-        '<details class="panel ux-advanced"><summary>Advanced publisher policy & Local Core exchange</summary>' +
-        (controls?.innerHTML || '') +
-        '</details>';
+          : '');
     }
     if (page === 'settings') {
       const original = old().querySelector('section.settings-panel');

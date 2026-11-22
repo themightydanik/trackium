@@ -1176,10 +1176,26 @@
               escape(result.source_trust ?? 'see event') +
               '.</p><p>Export the bundle to verify with your own trusted node. A valid commitment does not verify the physical sensor reading.</p>'
           );
-        } else if (serverAction === 'proof-export') {
-          const bundle = await server.request('/v1/proofs/' + id + '/bundle');
+        } else if (serverAction === 'integritas-verify') {
+          const session = server.state.session?.id;
+          const result = await server.request('/v1/integritas/proofs/' + id + '/verify', 'POST', {});
+          if (!session || server.state.session?.id !== session) return;
+          openDialog('<h2 id="dialog-title">Integritas · TEST_ONLY</h2><p>' +
+            escape(result.status === 'verified' ? 'Local test evidence checked' : result.status) +
+            '</p><p>No blockchain confirmation.</p>');
+        } else if (['proof-export', 'integritas-export'].includes(serverAction)) {
+          const path = serverAction === 'integritas-export' ? '/v1/integritas/proofs/' : '/v1/proofs/';
+          const session = server.state.session?.id;
+          const bundle = await server.request(path + id + '/bundle');
+          if (!session || server.state.session?.id !== session) return;
+          const json = JSON.stringify(bundle, null, 2);
+          if (navigator.userAgent.includes('TrackiumLiteAndroid/')) {
+            openDialog('<h2 id="dialog-title">Evidence export</h2><label>Evidence JSON' +
+              '<textarea readonly rows="12">' + escape(json) + '</textarea></label>');
+            return;
+          }
           const url = URL.createObjectURL(
-            new Blob([JSON.stringify(bundle, null, 2)], {
+            new Blob([json], {
               type: 'application/json'
             })
           );

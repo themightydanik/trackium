@@ -23,6 +23,9 @@ export function readConfig(env = process.env) {
   for (const name of ['ENABLE_WEB_WORKSPACE', 'ENABLE_SERVER_SIMULATOR', 'ENABLE_NATIVE_CLIENTS', 'ENABLE_TCP_RECEIVER', 'ENABLE_LOCAL_NOTIFICATIONS'])
     if (env[name] !== undefined && !['true', 'false'].includes(env[name]))
       throw new Error(name + ' must be true or false');
+  const integritasMode = env.INTEGRITAS_MODE ?? 'disabled';
+  if (!['disabled', 'test'].includes(integritasMode))
+    throw new Error('INTEGRITAS_MODE must be disabled or test');
   const profiles = ['railway-test', 'railway-aovx-pilot'];
   if (env.DEPLOYMENT_PROFILE !== undefined && !profiles.includes(env.DEPLOYMENT_PROFILE))
     throw new Error('Unknown DEPLOYMENT_PROFILE');
@@ -58,6 +61,7 @@ export function readConfig(env = process.env) {
   if (tcpEnabled && tcpPort === httpPort)
     throw new Error('TCP_PORT and HTTP_PORT must be different when TCP receiver is enabled');
   return {
+    integritasMode,
     railwayTest,
     railwayAovxPilot,
     tcpProtocol,

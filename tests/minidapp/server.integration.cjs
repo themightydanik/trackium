@@ -501,7 +501,7 @@ test('Managed customer lifecycle through the operator CLI, Gateway and Lite', { 
   const { readConfig } = await import('../../services/gateway/src/config.js');
   ({ gateway } = createRuntime(db, {
     ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, PROOF_MODE: 'disabled',
-      ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', ENABLE_LOCAL_NOTIFICATIONS: 'true', WEB_ROOT: ROOT }),
+      ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', ENABLE_LOCAL_NOTIFICATIONS: 'true', INTEGRITAS_MODE: 'test', WEB_ROOT: ROOT }),
     host: '127.0.0.1', httpPort
   }, { worker: true, logger: { info() {}, warn() {}, error() {} } }));
   await gateway.start();
@@ -643,6 +643,21 @@ test('Managed customer lifecycle through the operator CLI, Gateway and Lite', { 
   await pageB.locator('#navigation a[href="#settings"]').click();
   await pageB.getByText('No notifications.', { exact: true }).waitFor();
   assert.equal(await pageB.locator('li').filter({ hasText: shipment.id }).count(), 0);
+
+  const proofs = '/v1/integritas/proofs';
+  const { rows: [eligible] } = await db.query("SELECT id FROM cargo_events WHERE event_type='status_changed'");
+  assert.equal((await api(ownerB, proofs, 'POST', { event_id: eligible.id })).status, 404);
+  const prepared = await api(ownerA, proofs, 'POST', { event_id: eligible.id });
+  assert.equal(prepared.status, 202);
+  const { id: proofId } = await prepared.json();
+  assert.deepEqual(await (await api(ownerA, proofs, 'POST', { event_id: eligible.id })).json(), { id: proofId });
+  assert.equal((await api(ownerB, proofs + '/' + proofId + '/bundle')).status, 404);
+  assert.equal(await browserRequest(pageA, proofs, 'POST', true), 403);
+  await pageA.locator('#navigation a[href="#proofs"]').click();
+  await pageA.getByText('Test evidence checked', { exact: true }).waitFor();
+  await pageA.getByRole('button', { name: 'Recheck test evidence' }).click();
+  await pageA.getByRole('heading', { name: 'Integritas · TEST_ONLY' }).last().waitFor();
+  assert.equal((await (await api(ownerA, proofs + '/' + proofId + '/bundle')).json()).proof.on_chain_verified, false);
 
   await cli('managed-revoke', a, '--revision=1');
   assert.equal(await browserRequest(pageA, feed), 401);

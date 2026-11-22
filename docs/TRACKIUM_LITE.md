@@ -12,3 +12,5 @@ Open `https://<your-gateway>/app/` in a browser. The Gateway serves a standalone
 The supported pilot target is browser operation in current Chromium, tested in desktop and mobile layouts using local Playwright. Browser install prompts, physical Android/iOS devices, Safari, offline operation and Managed production onboarding are outside this local acceptance. The MDS package retains its separate manifest, static Preview and explicit Local Core workflow. This change uses the existing HTTPS API, scopes and CSRF controls with no storage migration.
 
 The browser integration suite covers actual Gateway pairing, read-only scope rejection, tenant-isolated cursor requests, a 20+2 event history with missing GPS, return to the newer page, mobile layout, offline clearing, recovery and revoked session. The UI regression holds a cursor response across a session change to verify that late data is discarded. Existing ledger, outbox, proof status and restore tests remain the regressions for Gateway behavior.
+
+Use the [Integritas test foundation](INTEGRITAS_PROOFS.md) for local proof evidence and the provider acceptance gates.
