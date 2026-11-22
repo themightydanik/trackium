@@ -5,6 +5,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import pg from 'pg';
 import { encodeAovxFrame, decodeAovxFrame } from '../src/aovx/frame.js';
+import { createNotifications } from '../src/cargo/notifications.js';
 import { acknowledge, claimOutbox } from '../src/cargo/outbox.js';
 import { createRuntime } from '../src/cargo/runtime.js';
 import { hash } from '../src/cargo/shared.js';
@@ -78,7 +79,13 @@ async function fixture(db, runtime) {
     route: [{ name: 'Origin', latitude: 51, longitude: 17 }, { name: 'Destination', latitude: 50, longitude: 30 }],
     conditions: { temperature_min_c: 2, temperature_max_c: 8 }
   });
+  const notifications = createNotifications(db);
+  await notifications.setPreferences(owner.tenant_id, { enabled: true });
   await runtime.shipments.change(owner.tenant_id, shipment.id, 'active');
+  await notifications.tick();
+  const [delivered] = (await notifications.status(owner.tenant_id)).notifications;
+  assert.equal(delivered.state, 'delivered');
+  assert.equal(delivered.attempts, 1);
   return { owner, other, device, bcd, shipment, managed, previousOwner };
 }
 
@@ -105,6 +112,9 @@ async function snapshot(db) {
     ['cargo_checkpoints', 'ordinal'],
     ['cargo_events', 'sequence'],
     ['cargo_outbox', 'event_id'],
+    ['cargo_notification_preferences', 'tenant_id'],
+    ['cargo_notification_deliveries', 'event_id'],
+    ['cargo_notification_inbox', 'event_id'],
     ['cargo_proofs', 'sequence'],
     ['cargo_proof_states', 'id'],
     ['cargo_proof_attempts', 'id']
@@ -116,7 +126,7 @@ async function snapshot(db) {
 }
 
 async function verifyMigrations(rows) {
-  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
   const directory = new URL('../migrations/', import.meta.url);
   const files = (await readdir(directory)).filter(file => /^\d{3}_.*\.sql$/.test(file)).sort();
   assert.equal(files.length, rows.length);
@@ -292,6 +302,10 @@ try {
   await verifyMigrations(restored.gateway_schema_migrations);
   assert.deepEqual(restored, baseline, 'restore and startup changed the backup evidence');
   verifyHistory(restored, seeded, { linkCount: 2, sampleCount: 1 });
+  const restoredNotifications = createNotifications(gateway.db);
+  await restoredNotifications.tick();
+  assert.deepEqual((await snapshot(gateway.db)).cargo_notification_inbox, baseline.cargo_notification_inbox);
+  assert.deepEqual((await restoredNotifications.status(seeded.other.tenant_id)).notifications, []);
   await assert.rejects(gateway.db.query('UPDATE cargo_events SET sha256=sha256'), /immutable/);
   await assert.rejects(gateway.db.query('DELETE FROM cargo_events'), /immutable/);
   assert.equal(await exportEvidence(gateway.runtime, seeded, proofId), evidence);
@@ -306,7 +320,7 @@ try {
   console.log('PASS: restored managed registration, current owner access and previous key revocation');
   console.log('Local dump and verified recovery (ms):', backupMs, Math.round(performance.now() - recoveryStart),
     '· fixture writes lost at quiescent cut: 0');
-  console.log('PASS: 001–008 checksums, packet lineage, immutable ledger, outbox and test proof export');
+  console.log('PASS: 001–009 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
 
   await gateway.db.query(`
     CREATE FUNCTION drill_reject_outbox() RETURNS trigger LANGUAGE plpgsql AS $$

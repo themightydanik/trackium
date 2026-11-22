@@ -403,6 +403,24 @@
       '</div>'
     );
   }
+  function notificationPanel(feed) {
+    if (!feed) return '';
+    const preferences = feed.preferences.enabled
+      ? 'Enabled by the tenant owner.' + (feed.preferences.include_synthetic ? ' Includes synthetic events.' : '')
+      : 'New notifications are disabled by the tenant owner.';
+    const items = feed.notifications.map((notice) => {
+      const attempts = notice.attempts === 1 ? ' attempt' : ' attempts';
+      return '<li>' + esc(notice.event_type.replaceAll('_', ' ')) +
+        (notice.shipment_status ? ' · ' + esc(notice.shipment_status) : '') +
+        ' · shipment ' + esc(notice.shipment_id) +
+        ' · ' + esc(notice.source_trust) + ' · ' + esc(notice.recorded_at) +
+        ' · ' + esc(notice.state) + ' (' + esc(notice.attempts) + attempts + ')' +
+        (notice.last_error ? ' · Local inbox write failed' : '') + '</li>';
+    });
+    return panel('Local shipment notifications',
+      '<p>' + preferences + ' Delivery means an entry reached this inbox.</p>' +
+      (items.length ? '<ul>' + items.join('') + '</ul>' : '<p>No notifications.</p>'));
+  }
   function render(page, state, view = {}) {
     verificationEvidence = state.verifications || {};
     if (!state.data)
@@ -607,6 +625,7 @@
             '<p>Owner-approved, short-lived session. HttpOnly cookies remain unavailable to JavaScript. No owner key or bearer-token form.</p>' +
             action('Disconnect and revoke', 'disconnect')
         ) +
+        notificationPanel(d.notifications) +
         '<details class="panel ux-advanced"><summary>Session & technical details</summary>' +
         (original?.innerHTML || '') +
         '</details>';

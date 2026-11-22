@@ -49,3 +49,20 @@ export async function retry(pool, tenant, eventId, token) {
   );
   if (!r.rowCount) throw new ApiError(409, 'stale or invalid outbox lease');
 }
+
+// The shipment transaction already holds the tenant lock. Notification consent
+// uses the same lock, so opt-out and event enqueue have a defined order.
+export async function enqueueOutbox(client, tenant, eventId, type, trust) {
+  await client.query(
+    `WITH queued AS (
+       INSERT INTO cargo_outbox(event_id,tenant_id) VALUES($1,$2) RETURNING event_id,tenant_id
+     )
+     INSERT INTO cargo_notification_deliveries(event_id,tenant_id)
+     SELECT q.event_id,q.tenant_id FROM queued q
+     JOIN cargo_notification_preferences p USING(tenant_id)
+     WHERE p.enabled AND ($4 <> 'synthetic' OR p.include_synthetic)
+       AND $3 IN ('status_changed','checkpoint_reached','route_deviation','route_recovered',
+         'temperature_violation','temperature_recovered')`,
+    [eventId, tenant, type, trust]
+  );
+}

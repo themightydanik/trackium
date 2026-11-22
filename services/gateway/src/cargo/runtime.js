@@ -7,6 +7,7 @@ import { createAovxIngestion } from '../aovx/ingestion.js';
 import { migrate } from '../telemetry/migrate.js';
 import { createTelemetryService } from '../telemetry/service.js';
 import { createTelemetryApi } from '../telemetry/api.js';
+import { createNotifications, startNotificationWorker } from './notifications.js';
 import { createShipmentService } from './shipments.js';
 import { createSimulator, startWorker } from './simulator.js';
 import { createPairing, publicOrigin } from './pairing.js';
@@ -28,6 +29,8 @@ export function createRuntime(
   const proofs = createProofService(pool, config.proofs, proofDependencies);
   const aovxObservations = createAovxObservations(pool);
   const aovxIngestion = createAovxIngestion(pool, { logger, onEvent: shipments.onTelemetry });
+  const notifications = config.localNotificationsEnabled ? createNotifications(pool) : null;
+  let stopNotifications = async () => {};
   let stopProofWorker = async () => {};
   const native = createNativeSessions(pool, config);
   const authenticate = (req) =>
@@ -71,6 +74,7 @@ export function createRuntime(
         if (worker) aovxIngestion.start();
         if (worker && config.proofs?.mode !== 'disabled')
           stopProofWorker = startProofWorker(proofs, logger);
+        if (worker && notifications) stopNotifications = startNotificationWorker(notifications, logger);
         if (worker && config.simulatorEnabled) stopWorker = startWorker(simulator, logger);
         await checkpoint('background_workers_started');
       },
@@ -84,7 +88,7 @@ export function createRuntime(
       },
       checkReady: () => pool.query('SELECT 1'),
       async close() {
-        await Promise.all([stopWorker(), stopProofWorker(), aovxIngestion.stop()]);
+        await Promise.all([stopWorker(), stopProofWorker(), stopNotifications(), aovxIngestion.stop()]);
         await pool.end();
       }
     },
@@ -98,6 +102,7 @@ export function createRuntime(
       proofs,
       shipments,
       simulator,
+      notifications,
       pairing,
       aovxObservations,
       config,
