@@ -81,7 +81,8 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
         tenant_id: source.tenant ?? 'synthetic-browser-fixture',
         audience: 'test-only',
         expires_at: '2099-01-01T00:00:00Z',
-        scopes: ['read', 'shipments'],
+        scopes: source.scopes || ['read', 'shipments'],
+        integritas_proofs: source.integritas,
         csrf: 'test-only',
         simulation_enabled: false
       };
@@ -112,7 +113,9 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
     else if (p === `/v1/shipments/${id}`) data = fixture.shipment;
     else if (p === `/v1/shipments/${id}/events`) data = { events: [fixture.event] };
     else if (p === `/v1/shipments/${id}/proofs`)
-      data = { proofs: [fixture.proof], engine_mode: 'test' };
+      data = { proofs: [{ ...fixture.proof, publisher_kind: source.publisherKind || 'server' }], engine_mode: 'test' };
+    else if (p === '/v1/integritas/proofs') data = { proofs: [] };
+    else if (p === '/v1/proofs/' + proofId + '/local-job') data = { proof_id: proofId };
     else if (p === '/v1/devices')
       data = { devices: source.empty ? [] : [fixture.registry], next_cursor: null };
     else if (p.endsWith('/status'))
@@ -148,7 +151,7 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
       };
     else if (p === '/v1/simulations') data = { simulations: [] };
     else if (p === '/v1/proof-publisher')
-      data = { enabled: false, pending_events: [], policy: null, signer_fingerprint: 'test-only' };
+      data = { enabled: source.publisherEnabled || false, pending_events: [], policy: null, signer_fingerprint: 'test-only' };
     else throw new Error('Unexpected UI API: ' + p);
     await route.fulfill({ json: data });
   });
@@ -163,7 +166,7 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
     source.errors ||= [];
     source.errors.push(e.message);
   });
-  await page.goto(origin + '/app/');
+  await page.goto(origin + (source.nativeWorkspace ? '/app/core' : '/app/'));
   await page
     .locator(source.phase || source.offline ? '.connection-state' : '.ux-kpi')
     .first()
@@ -175,7 +178,7 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
 async function start(rootDir = ROOT) {
   server = http.createServer(async (req, res) => {
     let name = new URL(req.url, 'http://local').pathname.replace(/^\/app\//, '/');
-    if (name === '/') name = '/index.html';
+    if (name === '/' || name === '/core') name = '/index.html';
     const file = path.resolve(rootDir, '.' + name);
     if (!file.startsWith(rootDir + path.sep)) {
       res.writeHead(404).end();

@@ -70,6 +70,7 @@
   let renderedIdentity = null;
   let renderedPage = null;
   window.TrackiumExchangeRequest = async function (id, input) {
+    if (!server.state.nativeWorkspace) throw new Error('Open the Core proof workspace to import an exchange.');
     const result = await server.request(
       '/v1/proofs/' + id + (input.mined_data ? '/local-checkpoint' : '/local-result'),
       'POST',
@@ -740,7 +741,12 @@
       (state.profile
         ? '<div class="server-content"><a class="button primary" href="' +
           escape(state.profile.origin) +
-          '/app/" target="_blank" rel="noopener noreferrer">Open secure Gateway workspace</a><p>Owner-approved pairing runs on the Gateway origin. No token or Minima UID is forwarded.</p></div>'
+          '/app/" target="_blank" rel="noopener noreferrer">Open secure Gateway workspace</a>' +
+          (/^0x[0-9a-f]+$/i.test(new URLSearchParams(location.search).get('uid') ?? '')
+            ? ' <a class="button secondary" href="' + escape(state.profile.origin) +
+              '/app/core#proofs" target="_blank" rel="noopener noreferrer">Open Core proof workspace</a>'
+            : '') +
+          '<p>Owner-approved pairing runs on the Gateway origin. No token or Minima UID is forwarded.</p></div>'
         : '') +
       '<div class="pairing-state"><span class="pairing-symbol">' +
       icon('signal') +
@@ -1134,9 +1140,11 @@
         else if (serverAction === 'claim') await server.claim();
         else if (serverAction === 'disconnect') await server.disconnect();
         else if (serverAction === 'publisher-preflight') {
+          if (!server.state.nativeWorkspace) return;
           const result = await server.request('/v1/proof-publisher/preflight', 'POST', {});
           openDialog(TrackiumServerView.observation('Core readiness observation', result));
         } else if (serverAction === 'local-job') {
+          if (!server.state.nativeWorkspace) return;
           const packet = await server.request('/v1/proofs/' + id + '/local-job');
           const url = URL.createObjectURL(
               new Blob([JSON.stringify(packet, null, 2)], {
@@ -1176,10 +1184,26 @@
               escape(result.source_trust ?? 'see event') +
               '.</p><p>Export the bundle to verify with your own trusted node. A valid commitment does not verify the physical sensor reading.</p>'
           );
-        } else if (serverAction === 'proof-export') {
-          const bundle = await server.request('/v1/proofs/' + id + '/bundle');
+        } else if (serverAction === 'integritas-verify') {
+          const session = server.state.session?.id;
+          const result = await server.request('/v1/integritas/proofs/' + id + '/verify', 'POST', {});
+          if (!session || server.state.session?.id !== session) return;
+          openDialog('<h2 id="dialog-title">Integritas · TEST_ONLY</h2><p>' +
+            escape(result.status === 'verified' ? 'Local test evidence checked' : result.status) +
+            '</p><p>No blockchain confirmation.</p>');
+        } else if (['proof-export', 'integritas-export'].includes(serverAction)) {
+          const path = serverAction === 'integritas-export' ? '/v1/integritas/proofs/' : '/v1/proofs/';
+          const session = server.state.session?.id;
+          const bundle = await server.request(path + id + '/bundle');
+          if (!session || server.state.session?.id !== session) return;
+          const json = JSON.stringify(bundle, null, 2);
+          if (navigator.userAgent.includes('TrackiumLiteAndroid/')) {
+            openDialog('<h2 id="dialog-title">Evidence export</h2><label>Evidence JSON' +
+              '<textarea readonly rows="12">' + escape(json) + '</textarea></label>');
+            return;
+          }
           const url = URL.createObjectURL(
-            new Blob([JSON.stringify(bundle, null, 2)], {
+            new Blob([json], {
               type: 'application/json'
             })
           );
@@ -1442,7 +1466,7 @@
 
 // Exchange stays in the authenticated same-origin Gateway; no cookies/keys enter Core files.
 document.addEventListener('submit', async function (event) {
-  if (event.target.id !== 'local-exchange-form') return;
+  if (event.target.id !== 'local-exchange-form' || location.pathname !== '/app/core') return;
   event.preventDefault();
   const button = event.target.querySelector('button');
   button.disabled = true;

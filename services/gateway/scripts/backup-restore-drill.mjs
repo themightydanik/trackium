@@ -12,6 +12,7 @@ import { hash } from '../src/cargo/shared.js';
 import { readConfig } from '../src/config.js';
 import { persistPacket } from '../src/journal.js';
 import { changeCustomerAccess, customerStatus, provisionCustomer } from '../src/managed/service.js';
+import { createIntegritas } from '../src/proofs/integritas.js';
 import { verifyBundle } from '../src/proofs/verifier.js';
 import { createTelemetryService, provisionTenant } from '../src/telemetry/service.js';
 
@@ -84,6 +85,12 @@ async function fixture(db, runtime) {
   await runtime.shipments.change(owner.tenant_id, shipment.id, 'active');
   await notifications.tick();
   const [delivered] = (await notifications.status(owner.tenant_id)).notifications;
+  const integritas = createIntegritas(db);
+  const prepared = await integritas.prepare(owner.tenant_id, delivered.event_id);
+  await integritas.tick();
+  await integritas.tick();
+  await integritas.tick();
+  assert.equal((await integritas.bundle(owner.tenant_id, prepared.id)).proof.status, 'verified');
   assert.equal(delivered.state, 'delivered');
   assert.equal(delivered.attempts, 1);
   return { owner, other, device, bcd, shipment, managed, previousOwner };
@@ -115,6 +122,8 @@ async function snapshot(db) {
     ['cargo_notification_preferences', 'tenant_id'],
     ['cargo_notification_deliveries', 'event_id'],
     ['cargo_notification_inbox', 'event_id'],
+    ['cargo_integritas_requests', 'id'],
+    ['cargo_integritas_states', 'request_id'],
     ['cargo_proofs', 'sequence'],
     ['cargo_proof_states', 'id'],
     ['cargo_proof_attempts', 'id']
@@ -126,7 +135,7 @@ async function snapshot(db) {
 }
 
 async function verifyMigrations(rows) {
-  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   const directory = new URL('../migrations/', import.meta.url);
   const files = (await readdir(directory)).filter(file => /^\d{3}_.*\.sql$/.test(file)).sort();
   assert.equal(files.length, rows.length);
@@ -320,7 +329,7 @@ try {
   console.log('PASS: restored managed registration, current owner access and previous key revocation');
   console.log('Local dump and verified recovery (ms):', backupMs, Math.round(performance.now() - recoveryStart),
     '· fixture writes lost at quiescent cut: 0');
-  console.log('PASS: 001–009 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
+  console.log('PASS: 001–010 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
 
   await gateway.db.query(`
     CREATE FUNCTION drill_reject_outbox() RETURNS trigger LANGUAGE plpgsql AS $$

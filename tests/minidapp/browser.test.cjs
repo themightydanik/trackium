@@ -277,6 +277,10 @@ test('actual bundled MDS SDK with mocked node makes read-only status calls; bloc
     MDSPostMessage({ event: 'NEWBLOCK', data: { txpow: { header: { block: 4243 } } } })
   );
   assert.match(await page.locator('.runtime-panel').innerText(), /4243/);
+  await page.locator('#gateway-origin').fill('https://gateway.example.com');
+  await page.getByRole('button', { name: 'Save profile' }).click();
+  assert.equal(await page.getByRole('link', { name: 'Open Core proof workspace' }).getAttribute('href'),
+    'https://gateway.example.com/app/core#proofs');
   await navigate(page, 'proofs');
   assert.match(await page.locator('#main').innerText(), /No blockchain proofs published/);
   assert.equal(await page.getByRole('link', { name: 'Open Local Core Publisher' })

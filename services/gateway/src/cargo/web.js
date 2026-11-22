@@ -15,7 +15,8 @@ export function createWebHandler({ webEnabled, webRoot }) {
       res.end();
       return;
     }
-    const relative = url.pathname.slice('/app/'.length) || 'index.html';
+    const relative = url.pathname === '/app/core' ? 'index.html'
+      : url.pathname.slice('/app/'.length) || 'index.html';
     if (
       !['index.html', 'mds.js', 'icon.png'].includes(relative) &&
       !/^assets\/v2\/[a-z0-9-]+\.(js|css)$/.test(relative) &&

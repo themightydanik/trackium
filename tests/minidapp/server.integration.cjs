@@ -501,7 +501,7 @@ test('Managed customer lifecycle through the operator CLI, Gateway and Lite', { 
   const { readConfig } = await import('../../services/gateway/src/config.js');
   ({ gateway } = createRuntime(db, {
     ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, PROOF_MODE: 'disabled',
-      ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', ENABLE_LOCAL_NOTIFICATIONS: 'true', WEB_ROOT: ROOT }),
+      ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', ENABLE_LOCAL_NOTIFICATIONS: 'true', INTEGRITAS_MODE: 'test', WEB_ROOT: ROOT }),
     host: '127.0.0.1', httpPort
   }, { worker: true, logger: { info() {}, warn() {}, error() {} } }));
   await gateway.start();
@@ -643,6 +643,47 @@ test('Managed customer lifecycle through the operator CLI, Gateway and Lite', { 
   await pageB.locator('#navigation a[href="#settings"]').click();
   await pageB.getByText('No notifications.', { exact: true }).waitFor();
   assert.equal(await pageB.locator('li').filter({ hasText: shipment.id }).count(), 0);
+
+  const proofs = '/v1/integritas/proofs';
+  const { rows: [eligible] } = await db.query("SELECT id FROM cargo_events WHERE event_type='status_changed'");
+  assert.equal((await api(ownerB, proofs, 'POST', { event_id: eligible.id })).status, 404);
+  const prepared = await api(ownerA, proofs, 'POST', { event_id: eligible.id });
+  assert.equal(prepared.status, 202);
+  const { id: proofId } = await prepared.json();
+  assert.deepEqual(await (await api(ownerA, proofs, 'POST', { event_id: eligible.id })).json(), { id: proofId });
+  assert.equal((await api(ownerB, proofs + '/' + proofId + '/bundle')).status, 404);
+  assert.equal(await browserRequest(pageA, proofs, 'POST', true), 403);
+  await pageA.locator('#navigation a[href="#proofs"]').click();
+  await pageA.getByText('Test evidence checked', { exact: true }).waitFor();
+  await pageA.getByRole('button', { name: 'Recheck test evidence' }).click();
+  await pageA.getByRole('heading', { name: 'Integritas · TEST_ONLY' }).last().waitFor();
+  assert.equal((await (await api(ownerA, proofs + '/' + proofId + '/bundle')).json()).proof.on_chain_verified, false);
+  await pageA.getByRole('button', { name: 'Close details', exact: true }).click();
+  const downloaded = pageA.waitForEvent('download');
+  await pageA.getByRole('button', { name: 'Export test evidence' }).click();
+  const artifact = JSON.parse(await readFile(await (await downloaded).path(), 'utf8'));
+  assert.equal(artifact.proof.id, proofId);
+  assert.equal(artifact.proof.provider, 'integritas');
+  assert.equal(artifact.proof.on_chain_verified, false);
+  assert.equal(artifact.evidence.cargo_event.event_id, eligible.id);
+  await pageA.evaluate(() => Object.defineProperty(navigator, 'userAgent', {
+    value: navigator.userAgent + ' TrackiumLiteAndroid/0.1'
+  }));
+  await pageA.getByRole('button', { name: 'Export test evidence' }).click();
+  const androidExport = pageA.getByRole('textbox', { name: 'Evidence JSON' });
+  await androidExport.waitFor();
+  assert.equal(JSON.parse(await androidExport.inputValue()).proof.id, proofId);
+  await pageA.getByRole('button', { name: 'Close details', exact: true }).click();
+
+  assert.equal(await pageA.getByText('Native Minima proof history · read-only').count(), 1);
+  assert.equal(await pageA.locator('#local-exchange-form').count(), 0);
+  await pageA.goto(origin + '/app/core#proofs');
+  const advanced = pageA.getByText('Advanced publisher policy & Local Core exchange', { exact: true });
+  await advanced.waitFor();
+  await advanced.click();
+  assert.ok(await pageA.getByRole('button', { name: 'Check Core / wallet readiness' }).isDisabled());
+  assert.ok(await pageA.getByRole('button', { name: 'Import exchange & download acknowledgement' }).isDisabled());
+  assert.equal(await pageA.getByText('Integritas proofs', { exact: true }).count(), 0);
 
   await cli('managed-revoke', a, '--revision=1');
   assert.equal(await browserRequest(pageA, feed), 401);

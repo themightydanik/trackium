@@ -17,6 +17,7 @@ export function createCargoApi({
   authenticate: suppliedAuthenticate,
   native,
   proofs,
+  integritas,
   shipments,
   simulator,
   notifications,
@@ -187,11 +188,40 @@ export function createCargoApi({
       if (path === '/v1/session') {
         if (identity.kind !== 'session') throw new ApiError(403, 'browser session required');
         if (req.method === 'GET')
-          return reply(res, 200, notifications ? { ...identity, local_notifications: true } : identity);
+          return reply(res, 200, {
+            ...identity,
+            ...(notifications && { local_notifications: true }),
+            ...(integritas && { integritas_proofs: true })
+          });
         if (req.method === 'DELETE') {
           await pairing.revoke(identity, identity.id);
           pairing.clear(res);
           return reply(res, 200, { revoked: true });
+        }
+      }
+      if (integritas && path === '/v1/integritas/proofs') {
+        query(url, []);
+        if (req.method === 'GET') {
+          scope('read');
+          return reply(res, 200, await integritas.list(tenant));
+        }
+        if (req.method === 'POST') {
+          scope('admin');
+          const input = (await body(req)).input;
+          object(input, ['event_id']);
+          return reply(res, 202, await integritas.prepare(tenant, input.event_id));
+        }
+      }
+      const integritasProof = /^\/v1\/integritas\/proofs\/([^/]+)\/(bundle|verify)$/.exec(path);
+      if (integritas && integritasProof) {
+        scope('read');
+        query(url, []);
+        const [, id, action] = integritasProof;
+        if (action === 'bundle' && req.method === 'GET')
+          return reply(res, 200, await integritas.bundle(tenant, id));
+        if (action === 'verify' && req.method === 'POST') {
+          object((await body(req)).input, []);
+          return reply(res, 200, await integritas.verify(tenant, id));
         }
       }
       if (notifications && path === '/v1/notifications') {

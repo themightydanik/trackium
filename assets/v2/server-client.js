@@ -1,9 +1,11 @@
 (function (root) {
   'use strict';
   const enabled = (root.location.pathname || '').startsWith('/app/');
+  const nativeWorkspace = root.location.pathname === '/app/core';
   function create(onChange) {
     const state = {
       enabled,
+      nativeWorkspace,
       phase: enabled ? 'checking' : 'unpaired',
       pages: {
         shipments: { cursor: null, previous: [], next: null },
@@ -100,7 +102,7 @@
           change();
           return;
         }
-        const [shipments, devices, simulations, publisher, notifications] = await Promise.all([
+        const [shipments, devices, simulations, publisher, notifications, integritas] = await Promise.all([
           request(
             '/v1/shipments?limit=25' +
               (state.pages.shipments.cursor
@@ -114,8 +116,9 @@
                 : '')
           ),
           request('/v1/simulations'),
-          request('/v1/proof-publisher'),
-          session.local_notifications ? request('/v1/notifications') : null
+          nativeWorkspace ? request('/v1/proof-publisher') : null,
+          session.local_notifications ? request('/v1/notifications') : null,
+          !nativeWorkspace && session.integritas_proofs ? request('/v1/integritas/proofs') : null
         ]);
         const details = await Promise.all(
           shipments.shipments.map((s) => request('/v1/shipments/' + s.id))
@@ -141,6 +144,7 @@
         state.pages.devices.next = devices.next_cursor || null;
         csrf = session.csrf;
         state.data = {
+          nativeWorkspace,
           shipments: details,
           devices: deviceDetails,
           simulations: simulations.simulations,
@@ -148,7 +152,8 @@
           proofs: proofs.flatMap((e) => e.proofs),
           proofMode: proofs[0]?.engine_mode ?? 'disabled',
           publisher,
-          notifications
+          notifications,
+          integritas
         };
         state.loading = false;
         state.updated = new Date().toISOString();

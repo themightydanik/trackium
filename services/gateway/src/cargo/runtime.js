@@ -1,4 +1,5 @@
 import { createNativeSessions } from './native-session.js';
+import { createIntegritas, startIntegritasWorker } from '../proofs/integritas.js';
 import { createProofService, startProofWorker } from '../proofs/service.js';
 import { createGateway } from '../gateway.js';
 import { initialize, persistPacket } from '../journal.js';
@@ -29,6 +30,8 @@ export function createRuntime(
   const proofs = createProofService(pool, config.proofs, proofDependencies);
   const aovxObservations = createAovxObservations(pool);
   const aovxIngestion = createAovxIngestion(pool, { logger, onEvent: shipments.onTelemetry });
+  const integritas = config.integritasMode === 'test' ? createIntegritas(pool) : null;
+  let stopIntegritas = async () => {};
   const notifications = config.localNotificationsEnabled ? createNotifications(pool) : null;
   let stopNotifications = async () => {};
   let stopProofWorker = async () => {};
@@ -74,6 +77,7 @@ export function createRuntime(
         if (worker) aovxIngestion.start();
         if (worker && config.proofs?.mode !== 'disabled')
           stopProofWorker = startProofWorker(proofs, logger);
+        if (worker && integritas) stopIntegritas = startIntegritasWorker(integritas, logger);
         if (worker && notifications) stopNotifications = startNotificationWorker(notifications, logger);
         if (worker && config.simulatorEnabled) stopWorker = startWorker(simulator, logger);
         await checkpoint('background_workers_started');
@@ -88,7 +92,7 @@ export function createRuntime(
       },
       checkReady: () => pool.query('SELECT 1'),
       async close() {
-        await Promise.all([stopWorker(), stopProofWorker(), stopNotifications(), aovxIngestion.stop()]);
+        await Promise.all([stopWorker(), stopProofWorker(), stopNotifications(), stopIntegritas(), aovxIngestion.stop()]);
         await pool.end();
       }
     },
@@ -100,6 +104,7 @@ export function createRuntime(
       authenticate,
       native,
       proofs,
+      integritas,
       shipments,
       simulator,
       notifications,
