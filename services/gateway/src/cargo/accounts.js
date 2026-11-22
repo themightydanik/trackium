@@ -12,7 +12,7 @@ const token = () => randomBytes(32).toString('base64url');
 const roles = ['admin', 'dispatcher', 'viewer'];
 const credentialsError = () => new ApiError(401, 'Invalid email or password, or email not confirmed');
 
-function normalizedEmail(value) {
+export function normalizedEmail(value) {
   text(value, 254);
   const email = value.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) invalid('Enter a valid email address');
@@ -27,6 +27,9 @@ async function digest(value, salt) {
   const derived = await derive(value, salt, 64, { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 });
   return salt + ':' + derived.toString('hex');
 }
+export function createPasswordDigest(value) {
+  return digest(password(value), randomBytes(16).toString('hex'));
+}
 function safeEqual(left, right) {
   return typeof left === 'string' && left.length === right.length &&
     Buffer.byteLength(left) === Buffer.byteLength(right) &&
@@ -34,6 +37,7 @@ function safeEqual(left, right) {
 }
 
 export function createAccounts(pool, config, pairing, telemetry, mail) {
+  const demoMode = config.demoEnabled === true;
   let running = 0;
   function cookie(res, raw, age = 43200) {
     res.setHeader('Set-Cookie', 'trk_account=' + raw +
@@ -48,11 +52,14 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
     const raw = cookies.length === 1 ? cookies[0].slice('trk_account='.length) : '';
     if (!/^[A-Za-z0-9_-]{43}$/.test(raw)) throw new ApiError(401, 'Sign in to continue');
     const { rows: [result] } = await pool.query(
-      `SELECT s.id,s.account_id,s.tenant_id,s.expires_at,a.email,m.role,t.name AS company_name
+      `SELECT s.id,s.account_id,s.tenant_id,s.expires_at,a.email,m.role,t.name AS company_name,d.account_id IS NOT NULL AS demo
        FROM customer_sessions s JOIN customer_accounts a ON a.id=s.account_id
        LEFT JOIN customer_members m ON m.account_id=s.account_id AND m.tenant_id=s.tenant_id
        LEFT JOIN telemetry_tenants t ON t.id=m.tenant_id
-       WHERE s.token_hash=$1 AND s.expires_at>now() AND a.verified_at IS NOT NULL`, [hash(raw)]);
+       LEFT JOIN customer_demo d ON d.account_id=a.id
+       WHERE s.token_hash=$1 AND s.expires_at>now() AND a.verified_at IS NOT NULL
+       AND (CASE WHEN $2 THEN d.enabled AND d.tenant_id=s.tenant_id AND m.role='viewer'
+            ELSE d.account_id IS NULL END)`, [hash(raw), demoMode]);
     if (!result) throw new ApiError(401, 'Sign in to continue');
     if (write && !safeEqual(req.headers['x-csrf-token'], csrf(raw))) throw new ApiError(403, 'CSRF check failed');
     return { ...result, csrf: csrf(raw), kind: 'session', customer: true,
@@ -90,11 +97,14 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
       const action = url.pathname.slice('/v1/account/'.length);
       const write = req.method === 'POST';
       pairing.originCheck(req, write);
+      if (demoMode && !((write && action === 'login') || (req.method === 'GET' && action === 'session')))
+        throw new ApiError(404, 'Account operation not found');
       if (req.method === 'GET' && action === 'session') {
         const identity = await authenticated(req, false);
         const companies = await pool.query(
           `SELECT tenant_id AS id,t.name,m.role FROM customer_members m JOIN telemetry_tenants t ON t.id=m.tenant_id
-           WHERE account_id=$1 ORDER BY name,t.id`, [identity.account_id]);
+           WHERE account_id=$1 AND ($2::uuid IS NULL OR m.tenant_id=$2) ORDER BY name,t.id`,
+          [identity.account_id, identity.demo ? identity.tenant_id : null]);
         return reply(res, 200, { ...identity, companies: companies.rows });
       }
       if (req.method === 'GET' && action === 'members') {
@@ -136,13 +146,15 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
       if (action === 'recover') {
         const started = performance.now();
         await transaction(pool, null, async client => {
-          const { rows: [account] } = await client.query('SELECT id,verified_at FROM customer_accounts WHERE email=$1', [email]);
+          const { rows: [account] } = await client.query('SELECT id,verified_at FROM customer_accounts a WHERE email=$1 AND NOT EXISTS (SELECT 1 FROM customer_demo d WHERE d.account_id=a.id)', [email]);
           if (account) await mail.enqueue(client, account.verified_at ? 'reset' : 'verify', email, account.id);
         });
         await delay(Math.max(0, 150 - (performance.now() - started)));
         return reply(res, 202, { accepted: true });
       }
-      const { rows: [account] } = await pool.query('SELECT * FROM customer_accounts WHERE email=$1', [email]);
+      const { rows: [account] } = await pool.query(
+        `SELECT a.* FROM customer_accounts a LEFT JOIN customer_demo d ON d.account_id=a.id
+         WHERE a.email=$1 AND (CASE WHEN $2 THEN d.enabled ELSE d.account_id IS NULL END)`, [email,demoMode]);
       const candidate = await digest(password(input.password), account?.password_digest.split(':')[0] || '0'.repeat(32));
       if (!account?.verified_at || !safeEqual(candidate, account.password_digest)) throw credentialsError();
       await transaction(pool, null, async client => {
@@ -150,14 +162,17 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
           [account.id, candidate]);
         if (!locked.rowCount) throw credentialsError();
         const { rows: [company] } = await client.query(
-          'SELECT tenant_id FROM customer_members WHERE account_id=$1 ORDER BY tenant_id LIMIT 1', [account.id]);
+          `SELECT m.tenant_id FROM customer_members m LEFT JOIN customer_demo d ON d.account_id=m.account_id
+           WHERE m.account_id=$1 AND (CASE WHEN $2 THEN d.enabled AND d.tenant_id=m.tenant_id AND m.role='viewer'
+             ELSE d.account_id IS NULL END) ORDER BY m.tenant_id LIMIT 1`, [account.id,demoMode]);
+        if (demoMode && !company) throw credentialsError();
         await start(client, account.id, company?.tenant_id ?? null, res);
       });
       return reply(res, 200, { signed_in: true });
     }
     if (action === 'verify' || action === 'reset') {
       object(input, ['code','password']);
-      const encoded = await digest(password(input.password), randomBytes(16).toString('hex'));
+      const encoded = await createPasswordDigest(input.password);
       await transaction(pool, null, async client => {
         if (typeof input.code !== 'string' || input.code.length !== 43) invalid('Invalid or expired code');
         const account = await client.query(

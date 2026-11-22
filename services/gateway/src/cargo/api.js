@@ -167,6 +167,9 @@ export function createCargoApi({
         tenant = identity.tenant_id;
       if (identity.customer && !identity.role && path !== '/v1/session')
         throw new ApiError(403, 'Choose a company first');
+      if (identity.demo && (/^\/v1\/(?:proofs|proof-publisher)(?:\/|$)/.test(path) ||
+          /^\/v1\/shipments\/[^/]+\/proofs$/.test(path)))
+        throw new ApiError(404, 'Not found');
       const scope = (name) => {
         if (!identity.scopes.includes(name)) throw new ApiError(403, 'insufficient scope');
       };

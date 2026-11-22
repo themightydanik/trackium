@@ -77,8 +77,8 @@ export function createIntegritas(pool, provider = testIntegritas) {
     );
   }
   return {
-    async prepare(tenant, id) {
-      return transaction(pool, tenant, async (client) => {
+    async prepare(tenant, id, existingClient) {
+      const prepare = async (client) => {
         const { rows: [event] } = await client.query(
           'SELECT * FROM cargo_events WHERE tenant_id=$1 AND id=$2', [tenant, uuid(id)]);
         if (!event) throw new ApiError(404, 'cargo event not found');
@@ -94,7 +94,8 @@ export function createIntegritas(pool, provider = testIntegritas) {
           [requestId, tenant, id, evidence, digest(evidence)]);
         await client.query('INSERT INTO cargo_integritas_states(request_id) VALUES($1)', [requestId]);
         return { id: requestId };
-      });
+      };
+      return existingClient ? prepare(existingClient) : transaction(pool, tenant, prepare);
     },
     async list(tenant) {
       const { rows } = await pool.query(selection + ' WHERE r.tenant_id=$1 ORDER BY r.created_at DESC,r.id LIMIT 50', [tenant]);

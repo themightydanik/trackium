@@ -825,3 +825,59 @@ test('New customer registers, adds a company and creates a shipment visible on t
   assert.equal(new URL(page.url()).origin, origin);
   assert.deepEqual(failures,[]);
 });
+
+test('Closed demo uses normal password sign-in and shows only synthetic cargo and test proofs', { timeout: 40000 }, async (t) => {
+  const schema = 'customer_demo_' + randomUUID().replaceAll('-','');
+  const admin = new pg.Pool({ connectionString: DB });
+  await admin.query('CREATE SCHEMA ' + schema);
+  const db = new pg.Pool({ connectionString: DB, options:'-c search_path=' + schema });
+  const httpPort = await port();
+  const origin = 'http://127.0.0.1:' + httpPort;
+  const { readConfig } = await import('../../services/gateway/src/config.js');
+  const { createRuntime } = await import('../../services/gateway/src/cargo/runtime.js');
+  const { administerDemo } = await import('../../services/gateway/src/cargo/demo-admin.js');
+  const { createIntegritas } = await import('../../services/gateway/src/proofs/integritas.js');
+  const { gateway } = createRuntime(db, {
+    ...readConfig({ DATABASE_URL:DB, PUBLIC_ORIGIN:origin, ENABLE_WEB_WORKSPACE:'true', ENABLE_TCP_RECEIVER:'false',
+      CUSTOMER_DEMO_ENABLED:'true', INTEGRITAS_MODE:'test', WEB_ROOT:ROOT }),
+    host:'127.0.0.1', httpPort
+  }, { worker:false, logger:{ info(){}, error(){} } });
+  let browser;
+  t.after(async () => {
+    await browser?.close();
+    await gateway.shutdown();
+    await admin.query('DROP SCHEMA ' + schema + ' CASCADE');
+    await admin.end();
+  });
+  await gateway.start();
+  const email = 'viewer@example.test', password = 'local demo browser fixture password';
+  await administerDemo(db,'bootstrap',{email,password});
+  const proofs = createIntegritas(db);
+  for (let i=0;i<6;i++) await proofs.tick();
+  browser = await chromium.launch({ executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium', args:['--no-sandbox'] });
+  const page = await browser.newPage();
+  const requests = [];
+  page.on('request', req => requests.push(new URL(req.url()).pathname));
+  await page.goto(origin + '/app/');
+  await page.getByRole('heading', { name:'Sign in to Trackium' }).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Create account',exact:true}).count(),0);
+  await page.getByLabel('Work email').fill(email);
+  await page.getByLabel('Password',{exact:true}).fill(password);
+  await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  await page.getByRole('heading',{name:'Overview',exact:true}).waitFor();
+  await page.locator('#navigation a[href="#shipments"]').click();
+  await page.getByText('Demo · chilled cargo',{exact:true}).waitFor();
+  assert.ok(await page.getByRole('button',{name:'Create shipment',exact:true}).isDisabled());
+  await page.locator('#navigation a[href="#map"]').click();
+  await page.locator('.ux-route-stop').first().waitFor();
+  assert.equal(await page.locator('.ux-device-position').count(),0);
+  await page.locator('#navigation a[href="#proofs"]').click();
+  await page.getByText('Integritas · TEST_ONLY',{exact:true}).first().waitFor();
+  assert.equal(await page.getByText('Native Minima proof history · read-only').count(),0);
+  assert.ok(requests.every(path => !/^\/v1\/(?:proofs|proof-publisher)/.test(path) &&
+    !/^\/v1\/shipments\/[^/]+\/proofs$/.test(path)));
+  await page.locator('#navigation a[href="#settings"]').click();
+  await page.getByText('Viewer · synthetic examples').waitFor();
+  await page.getByRole('button',{name:'Sign out',exact:true}).click();
+  await page.getByRole('heading',{name:'Sign in to Trackium'}).waitFor();
+});

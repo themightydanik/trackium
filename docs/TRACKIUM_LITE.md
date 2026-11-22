@@ -16,3 +16,5 @@ The browser integration suite covers actual Gateway pairing, read-only scope rej
 Use the [Integritas test foundation](INTEGRITAS_PROOFS.md) for local proof evidence and the provider acceptance gates.
 
 For email sign-in and company onboarding, use the [Lite customer workspace setup](CUSTOMER_WORKSPACE.md).
+
+For a closed, mail-free demonstration, see [Minima demo access](MINIMA_DEMO_ACCESS.md).
