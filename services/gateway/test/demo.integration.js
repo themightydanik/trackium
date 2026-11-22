@@ -114,6 +114,22 @@ test('Demo CLI creates one synthetic Viewer and rotates and disables access with
   assert.match(lite,/data-customer-demo="true"/);
   assert.doesNotMatch(core,/data-customer-demo/);
 
+  // An independently approved Core browser session still uses its own tenant.
+  const challenge = await call('/v1/pairing/challenges',{data:{tenant_id:other.tenant_id}});
+  assert.equal(challenge.status,201);
+  const approval = await call('/v1/pairing/challenges/'+challenge.data.id+'/approve',{
+    extra:{authorization:'Bearer '+other.token},data:{scopes:['read']}
+  });
+  assert.equal(approval.status,200);
+  const paired = await call('/v1/pairing/session',{method:'POST',cookie:challenge.cookie});
+  assert.equal(paired.status,201);
+  const both = logged.cookie + '; ' + paired.cookie;
+  const coreRequest = {cookie:both,extra:{'x-trackium-workspace':'pairing'}};
+  assert.equal((await call('/v1/session',coreRequest)).data.tenant_id,other.tenant_id);
+  assert.equal((await call('/v1/proof-publisher',coreRequest)).status,200);
+  assert.equal((await call('/v1/session',{cookie:both})).data.tenant_id,demo.tenant_id);
+  assert.equal((await call('/v1/proof-publisher',{cookie:both})).status,404);
+
   await cli('revoke');
   assert.equal((await call('/v1/session',logged)).status,401);
   await cli('rotate','--password-file='+next);
