@@ -24,7 +24,7 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   await new Promise(resolve => listener.close(resolve));
   const origin = 'http://127.0.0.1:' + httpPort;
   const config = readConfig({ DATABASE_URL: url, ENABLE_WEB_WORKSPACE:'true', ENABLE_TCP_RECEIVER:'false',
-    PUBLIC_ORIGIN: origin, HTTP_PORT: String(httpPort), ACCOUNT_MAIL_DIRECTORY: directory });
+    PUBLIC_ORIGIN: origin.replace('http:', 'HTTPS:'), HTTP_PORT: String(httpPort), ACCOUNT_MAIL_DIRECTORY: directory });
   const { gateway } = createRuntime(db, { ...config, host:'127.0.0.1' }, { worker:false, logger:{ info(){}, error(){} } });
   t.after(async () => {
     await gateway.shutdown();
@@ -38,12 +38,12 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   async function call(c, path, data, { headers = {}, method = data === undefined ? 'GET' : 'POST' } = {}) {
     const res = await fetch(origin + path, {
       method, headers: { 'X-Trackium-Client':'cargo-v2', 'sec-fetch-site':'same-origin',
-        origin, cookie:c.cookie, 'x-csrf-token':c.csrf, 'content-type':'application/json', ...headers },
+        origin:origin.replace('http:', 'https:'), cookie:c.cookie, 'x-csrf-token':c.csrf, 'content-type':'application/json', ...headers },
       body: data === undefined ? undefined : JSON.stringify(data)
     });
     const set = res.headers.getSetCookie()[0];
     if (set) {
-      assert.match(set,/HttpOnly; SameSite=Strict/);
+      assert.match(set,/HttpOnly; SameSite=Strict; .*; Secure$/);
       c.cookie = set.split(';')[0];
     }
     const result = await res.json();
@@ -102,7 +102,8 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   assert.equal((await account(viewer,'switch',{company:a.tenant_id})).status,404);
   assert.equal((await call(owner,'/v1/session',undefined,{method:'DELETE'})).status,200);
   assert.equal((await call(owner,'/v1/session')).status,401);
-  assert.equal((await account(viewer,'recover',{email:viewerEmail})).status,202);
+  assert.deepEqual(await account(viewer,'recover',{email:viewerEmail}),
+    await account(customer(),'recover',{email:'nonexistent@example.test'}));
   const recovery = await mail(viewerEmail,'reset');
   assert.equal((await account(viewer,'reset',{code:recovery,password:'changed fixture password'})).status,200);
   assert.equal((await call(viewer,'/v1/session')).status,401);
