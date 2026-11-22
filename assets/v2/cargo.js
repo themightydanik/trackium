@@ -783,6 +783,7 @@
     if (!changedIdentity && renderedPage && renderedPage !== current)
       (serverViews[renderedPage] ||= {}).scroll = window.scrollY;
     const sameContext = renderedIdentity === identity && renderedPage === current;
+    const publisherOpen = sameContext && $('#native-publisher-controls')?.open;
     const draft = sameContext
       ? [...$('#main').querySelectorAll('input,select,textarea')]
           .filter((el) => !['password', 'file', 'hidden'].includes(el.type))
@@ -808,6 +809,8 @@
     const y = sameContext ? window.scrollY : serverViews[current]?.scroll || 0;
     TrackiumComponents.beforeRender(changedIdentity);
     function restoreView() {
+      const publisher = $('#native-publisher-controls');
+      if (publisherOpen && publisher) publisher.open = true;
       for (const saved of draft) {
         const el = [...$('#main').querySelectorAll('input,select,textarea')].find(
           (e) => (e.id || e.name) === saved.key && (e.type !== 'radio' || e.value === saved.value)
@@ -1435,7 +1438,8 @@
       };
       localStorage.setItem('trackium_v2_profile', JSON.stringify(profile));
       state.profile = profile;
-      feedback.textContent =
+      render();
+      $('#profile-feedback').textContent =
         'Profile saved locally. Open the Gateway workspace to pair — not connected here.';
     } catch (error) {
       feedback.textContent =

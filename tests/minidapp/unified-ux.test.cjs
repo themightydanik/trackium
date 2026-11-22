@@ -69,6 +69,8 @@ test('Core keeps native publisher controls while Lite exposes native proof histo
   try {
     await core.page.locator('#navigation a[href="#proofs"]').click();
     await core.page.getByText('Advanced publisher policy & Local Core exchange').click();
+    await core.page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await core.page.locator('#native-publisher-controls[open]').waitFor();
     assert.ok(await core.page.getByRole('button', { name: 'Check Core / wallet readiness' }).isEnabled());
     assert.ok(await core.page.getByRole('button', { name: 'Import exchange & download acknowledgement' }).isEnabled());
     const download = core.page.waitForEvent('download');
