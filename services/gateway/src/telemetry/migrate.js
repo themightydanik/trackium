@@ -10,7 +10,8 @@ export async function migrate(pool) {
     '008_managed_customers.sql',
     '009_cargo_notifications.sql',
     '010_integritas_proofs.sql',
-    '011_customer_accounts.sql'
+    '011_customer_accounts.sql',
+    '012_customer_mail_delivery.sql'
   ];
   const client = await pool.connect();
   try {

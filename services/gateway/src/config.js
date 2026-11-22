@@ -1,3 +1,4 @@
+import { customerMailConfig } from './cargo/customer-mail.js';
 import { proofConfig } from './proofs/config.js';
 function integer(env, name, fallback, max = 2147483647) {
   const value = env[name] ?? String(fallback);
@@ -62,7 +63,7 @@ export function readConfig(env = process.env) {
     throw new Error('TCP_PORT and HTTP_PORT must be different when TCP receiver is enabled');
   return {
     integritasMode,
-    accountMailDirectory: env.ACCOUNT_MAIL_DIRECTORY || undefined,
+    customerMail: customerMailConfig(env),
     railwayTest,
     railwayAovxPilot,
     tcpProtocol,

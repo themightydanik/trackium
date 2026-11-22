@@ -628,7 +628,7 @@
               'Publication stays governed by the existing owner policy.'
             )
           : '') +
-        (controls ? '<details class="panel ux-advanced"><summary>Advanced publisher policy & Local Core exchange</summary>' +
+        (controls ? '<details class="panel ux-advanced" id="native-publisher-controls"><summary>Advanced publisher policy & Local Core exchange</summary>' +
           controls.innerHTML + '</details>' : '');
     }
     if (page === 'settings' && state.session.customer)
