@@ -229,13 +229,21 @@
     map.attributionControl.setPrefix('');
     map.attributionControl.addAttribution('Leaflet (BSD-2-Clause) · Natural Earth (public domain)');
     const bounds = [];
-    for (const s of data.shipments) {
+    for (const s of (page === 'dashboard' ? data.shipments.filter(s => s.status === 'active') : data.shipments)) {
       const points = (s.route || []).filter(valid).map((p) => [p.latitude, p.longitude]);
       bounds.push(...points);
+      const details = '<button class="button secondary" data-server-action="view-shipment" data-server-id="' +
+        esc(s.id) + '">Shipment details</button>';
       if (points.length)
-        L.polyline(points, { color: accent, weight: 2, dashArray: '6 6' })
-          .bindTooltip('Planned route · ' + esc(s.name))
+        L.polyline(points, { color: accent, weight: 3, dashArray: '6 6' })
+          .bindPopup('<p>Planned route · ' + esc(s.name) + '</p>' + details, { minWidth: 170 })
           .addTo(map);
+      for (const [index, stop] of (s.route || []).entries()) {
+        if (!valid(stop)) continue;
+        const kind = index === 0 ? 'Origin' : index === s.route.length - 1 ? 'Destination' : 'Checkpoint';
+        L.circleMarker([stop.latitude,stop.longitude], { className: 'ux-route-stop', radius: 6, color: outline, fillColor: accent })
+          .bindPopup('<p>' + kind + ' · ' + esc(stop.name) + '</p>' + details, { minWidth: 170 }).addTo(map);
+      }
     }
     for (const d of data.devices) {
       const obs = reportedPosition(d);
@@ -254,6 +262,7 @@
             esc(d.registry.label) +
             '</strong><p>Last reported: ' +
             esc(date(obs.occurred_at)) +
+            ' · ' + (Date.now() - Date.parse(obs.occurred_at) > 15 * 60 * 1000 ? 'Older than 15 minutes' : 'Recent sample') +
             '</p><p>Source: ' +
             esc(obs.trust || 'unknown') +
             '</p><p>' +

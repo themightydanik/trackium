@@ -66,6 +66,7 @@
   };
   const server = TrackiumServer.create(() => render());
   const serverViews = {};
+  let customerScreen = 'login', companyMembers = null, companyMembersTenant = null, customerBusy = false;
   let navigationKey = null;
   let renderedIdentity = null;
   let renderedPage = null;
@@ -886,14 +887,37 @@
           ? 'Authenticated · snapshot'
           : 'Session verified · loading'
         : 'Not paired');
+    const customerMode = server.state.customerAccounts && customerScreen !== 'pairing';
+    document.documentElement.classList.toggle('customer-mode', customerMode);
+    if (customerMode) {
+      $('#workspace-label').textContent = server.state.account?.company_name || 'Customer workspace';
+      $('.connection-pill').textContent = server.state.connected ? 'Signed in' : 'Signed out';
+    }
     const serverBanner = $('#server-banner');
-    serverBanner.hidden = !server.state.connected || state.demo;
+    serverBanner.hidden = !server.state.connected || state.demo || customerMode;
+    if (customerMode && !state.demo && !server.state.connected) {
+      $('#main').innerHTML = server.state.phase === 'checking'
+        ? '<div class="loading-state" role="status">Checking your session…</div>'
+        : server.state.account ? TrackiumCustomer.company(server.state.account)
+        : TrackiumCustomer.auth(customerScreen, server.state.error, server.state.phase);
+      restoreView();
+      return;
+    }
     if (server.state.enabled && !state.demo) {
+      const membersOpen = $('#company-members')?.open;
       $('#main').innerHTML = server.state.connected
         ? TrackiumServerView.render(current, server.state, serverViews[current] || {})
         : TrackiumComponents.connection(server.state) +
           (server.state.phase === 'checking' ? '' : TrackiumServerView.pairing(server.state)) +
+          (server.state.customerAccounts && customerScreen === 'pairing'
+            ? '<button class="button secondary" data-customer-view="login">Back to sign in</button>' : '') +
           TrackiumAppearance.form();
+      if (server.state.connected && current === 'settings' && server.state.account) {
+        const account = server.state.account;
+        $('#main').insertAdjacentHTML('afterbegin', TrackiumCustomer.company(account,
+          companyMembersTenant === account.tenant_id ? companyMembers : null));
+        if (membersOpen && $('#company-members')) $('#company-members').open = true;
+      }
       if (server.state.connected && server.state.data)
         TrackiumComponents.mountMap(server.state.data, current);
       restoreView();
@@ -1219,7 +1243,7 @@
             label: 'Server simulator ' + (server.state.data.devices.length + 1)
           });
         else if (serverAction === 'create')
-          openDialog(TrackiumServerView.createForm(server.state.data.devices));
+          openDialog(TrackiumServerView.createForm(server.state.data.devices, null, server.state.session.customer));
         else if (serverAction === 'edit-draft') {
           const { data, session } = server.state;
           const draft = data?.shipments.find((shipment) => shipment.id === id);
@@ -1284,6 +1308,73 @@
       state.profile = null;
       render();
       toast('Connection profile cleared. No Gateway credentials were stored.');
+    }
+  });
+  document.addEventListener('click', async (event) => {
+    const view = event.target.closest('[data-customer-view]')?.dataset.customerView;
+    if (!view || customerBusy) return;
+    if (view === 'retry') {
+      await server.restore();
+    } else if (view === 'logout') {
+      companyMembers = null;
+      companyMembersTenant = null;
+      customerScreen = 'login';
+      try { await server.disconnect(); } catch (error) { toast(error.message); }
+    } else if (view === 'members') {
+      const tenant = server.state.account?.tenant_id;
+      try {
+        const { members } = await server.request('/v1/account/members');
+        if (tenant && server.state.account?.tenant_id === tenant) {
+          companyMembers = members;
+          companyMembersTenant = tenant;
+          render();
+          $('#company-members').open = true;
+        }
+      } catch (error) { toast(error.message); }
+    } else {
+      customerScreen = view;
+      server.customerConnection(view === 'pairing');
+      render();
+    }
+  });
+  document.addEventListener('submit', async (event) => {
+    const action = event.target.dataset.customerForm;
+    if (!action) return;
+    event.preventDefault();
+    if (customerBusy) return;
+    const submit = event.target.querySelector('[type=submit]');
+    const input = Object.fromEntries(new FormData(event.target));
+    if (action === 'member' && !input.role) input.role = null;
+    customerBusy = true;
+    submit.disabled = true;
+    try {
+      const result = await server.customerAction(action, input);
+      if (result.signed_in) {
+        companyMembers = null;
+        companyMembersTenant = null;
+        location.hash = 'dashboard';
+      } else if (action === 'register' || action === 'recover') {
+        customerScreen = action === 'register' ? 'verify' : 'reset';
+        render();
+        $('#customer-status').textContent = 'If the address is eligible, check your email for a code.';
+      } else if (action === 'verify' || action === 'reset') {
+        customerScreen = 'login';
+        render();
+        $('#customer-status').textContent = 'You can now sign in.';
+      } else {
+        if (action === 'member') companyMembers = null;
+        if (action === 'device') await server.refresh();
+        render();
+        const details = $('#company-members');
+        if (details) details.open = true;
+        $('#customer-status').textContent = action === 'invite' ? 'Invitation queued.' : 'Saved.';
+      }
+    } catch (error) {
+      const output = $('#customer-status');
+      if (output) output.textContent = error.message;
+    } finally {
+      customerBusy = false;
+      submit.disabled = false;
     }
   });
   document.addEventListener('submit', function (event) {

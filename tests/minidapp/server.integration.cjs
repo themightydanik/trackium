@@ -707,3 +707,103 @@ test('Managed customer lifecycle through the operator CLI, Gateway and Lite', { 
   assert.equal(await browserRequest(pageA, '/v1/session'), 401);
   assert.deepEqual(leaked, []);
 });
+
+test('New customer registers, adds a company and creates a shipment visible on the map', { timeout: 60000 }, async (t) => {
+  const { mkdtemp, readdir, readFile, rm } = require('node:fs/promises');
+  const { tmpdir } = require('node:os');
+  const directory = await mkdtemp(path.join(tmpdir(), 'trackium-customer-e2e-'));
+  const schema = 'customer_browser_' + randomUUID().replaceAll('-', '');
+  const admin = new pg.Pool({ connectionString: DB });
+  const db = new pg.Pool({ connectionString: DB, options: '-c search_path=' + schema });
+  await admin.query('CREATE SCHEMA ' + schema);
+  const httpPort = await port();
+  const origin = 'http://127.0.0.1:' + httpPort;
+  const { createRuntime } = await import('../../services/gateway/src/cargo/runtime.js');
+  const { readConfig } = await import('../../services/gateway/src/config.js');
+  const { gateway } = createRuntime(db, {
+    ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, ACCOUNT_MAIL_DIRECTORY: directory,
+      ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', INTEGRITAS_MODE: 'test', WEB_ROOT: ROOT }),
+    host: '127.0.0.1', httpPort
+  }, { worker: false, logger: { info(){}, error(){} } });
+  let browser;
+  t.after(async () => {
+    await browser?.close();
+    await gateway.shutdown();
+    await admin.query('DROP SCHEMA ' + schema + ' CASCADE');
+    await admin.end();
+    await rm(directory, { recursive:true, force:true });
+  });
+  await gateway.start();
+  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', args: ['--no-sandbox'] });
+  const context = await browser.newContext({ viewport:{width:1280,height:1000} });
+  const page = await context.newPage();
+  page.setDefaultTimeout(10000);
+  const failures = [];
+  page.on('pageerror', error => failures.push(error.message));
+  const screenshots = process.env.TRACKIUM_CUSTOMER_SCREENSHOTS;
+  const capture = name => screenshots && page.screenshot({path:path.join(screenshots,name+'.png')});
+  await page.goto(origin + '/app/');
+  await page.getByRole('heading', {name:'Sign in to Trackium'}).waitFor();
+  await capture('01-sign-in');
+  await page.getByRole('button', {name:'Create account',exact:true}).click();
+  await page.getByLabel('Work email').fill('new@example.test');
+  await page.getByRole('button', {name:'Send confirmation code'}).click();
+  await page.getByRole('heading', {name:'Confirm your email'}).waitFor();
+  const [message] = await readdir(directory);
+  const { code } = JSON.parse(await readFile(path.join(directory,message),'utf8'));
+  const password = 'customer fixture test secret';
+  await page.getByLabel('Email code').fill(code);
+  await page.getByLabel('New password').fill(password);
+  await page.getByRole('button', {name:'Confirm email'}).click();
+  await page.getByLabel('Work email').fill('new@example.test');
+  await page.getByLabel('Password', {exact:true}).fill(password);
+  await page.getByRole('button', {name:'Sign in',exact:true}).click();
+  await page.getByLabel('Company name').fill('Northline Logistics');
+  await page.getByRole('button', {name:'Create company'}).click();
+  await page.getByRole('heading', {name:'Overview',exact:true}).waitFor();
+  await capture('02-dashboard');
+  await page.locator('#navigation a[href="#settings"]').click();
+  await page.getByLabel('Device label').fill('Unbound pilot device');
+  await page.getByRole('button', {name:'Add device record'}).click();
+  await page.getByText('Saved.',{exact:true}).waitFor();
+  await page.locator('#navigation a[href="#shipments"]').click();
+  await page.getByRole('button', {name:'Create shipment',exact:true}).click();
+  await page.locator('#server-shipment-form [name=name]').fill('Northline pilot cargo');
+  for (const [index, stop] of [['Wrocław','51.11','17.04'],['Kyiv','50.45','30.52']].entries()) {
+    const form = page.locator('[data-route-stop]').nth(index);
+    for (const [field, value] of ['name','latitude','longitude'].map((field,i) => [field,stop[i]])) {
+      await form.locator('[data-route-field=' + field + ']').fill(value);
+    }
+  }
+  await page.getByRole('button', {name:'Save draft on Gateway'}).click();
+  await page.getByText('Northline pilot cargo',{exact:true}).first().waitFor();
+  await capture('03-shipments');
+  await page.locator('#navigation a[href="#map"]').click();
+  await page.locator('.leaflet-container').waitFor();
+  assert.equal(await page.locator('.ux-device-position').count(),0);
+  await page.locator('.ux-route-stop').first().click();
+  await page.locator('.leaflet-popup').getByRole('button',{name:'Shipment details'}).click();
+  await page.locator('#detail-dialog[open]').waitFor();
+  assert.match(await page.locator('#detail-dialog').innerText(), /Northline pilot cargo/);
+  await page.keyboard.press('Escape');
+  await capture('04-map');
+  await page.locator('#navigation a[href="#shipments"]').click();
+  await page.getByRole('button', { name:'Activate', exact:true }).click();
+  await until(async () => (await db.query("SELECT 1 FROM cargo_events WHERE event_type='status_changed'")).rowCount === 1);
+  const { createIntegritas } = await import('../../services/gateway/src/proofs/integritas.js');
+  const integritas = createIntegritas(db);
+  const { rows: [event] } = await db.query("SELECT id,tenant_id FROM cargo_events WHERE event_type='status_changed'");
+  await integritas.prepare(event.tenant_id,event.id);
+  for (let step=0;step<3;step++) await integritas.tick();
+  await page.locator('#navigation a[href="#proofs"]').click();
+  await page.getByText('Test evidence checked', {exact:true}).waitFor();
+  await capture('05-test-proof');
+  await page.setViewportSize({width:390,height:840});
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await capture('06-mobile-proof');
+  await page.setViewportSize({width:1280,height:1000});
+  await page.locator('#navigation a[href="#settings"]').click();
+  await page.getByRole('button', {name:'Sign out',exact:true}).click();
+  await page.getByRole('heading',{name:'Sign in to Trackium'}).waitFor();
+  assert.deepEqual(failures,[]);
+});
