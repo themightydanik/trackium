@@ -55,7 +55,7 @@ export function createAccounts(pool, config, pairing, telemetry) {
   function cookie(res, raw, age = 43200) {
     res.setHeader('Set-Cookie', 'trk_account=' + raw +
       '; Path=/v1/; HttpOnly; SameSite=Strict; Max-Age=' + age +
-      (config.publicOrigin.startsWith('https:') ? '; Secure' : ''));
+      (new URL(config.publicOrigin).protocol === 'https:' ? '; Secure' : ''));
   }
   async function session(req, write = false) {
     const cookies = (req.headers.cookie ?? '').split(';').map(value => value.trim())
