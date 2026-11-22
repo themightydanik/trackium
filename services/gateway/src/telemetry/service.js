@@ -58,11 +58,11 @@ export function createTelemetryService(pool, { onEvent } = {}) {
       if (!result.rowCount) throw new ApiError(401, 'invalid or revoked credential');
       return result.rows[0];
     },
-    async register(tenantId, input, identityKind) {
+    async register(tenantId, input, identityKind, existingClient) {
       object(input, ['label', 'mode']);
       text(input.label, 120);
       if (!['synthetic', 'real'].includes(input.mode)) invalid('mode must be synthetic or real');
-      return transaction(pool, async (client) => {
+      const register = async (client) => {
         const id = randomUUID();
         await client.query(
           'INSERT INTO telemetry_devices(id,tenant_id,label,mode,identity_kind) VALUES($1,$2,$3,$4,$5)',
@@ -79,7 +79,8 @@ export function createTelemetryService(pool, { onEvent } = {}) {
           [tenantId, id]
         );
         return device(client, tenantId, id);
-      });
+      };
+      return existingClient ? register(existingClient) : transaction(pool, register);
     },
     async bindAovxDevice(tenantId, actorKeyId, input) {
       object(input, ['device_id', 'device_id_bcd']);

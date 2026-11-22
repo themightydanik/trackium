@@ -11,7 +11,7 @@
   const email = field('Work email', 'email', 'email', 'email');
   const code = field('Email code', 'code', 'text', 'one-time-code');
   const newPassword = field('New password', 'password', 'password', 'new-password');
-  function auth(screen, error, phase) {
+  function auth(screen, error, phase, demo) {
     const content = {
       login: form('login', email + field('Password', 'password', 'password', 'current-password'), 'Sign in'),
       register: form('register', email, 'Send confirmation code'),
@@ -26,13 +26,16 @@
       '<div class="form-actions">' + [
         ['login','Sign in'], ['register','Create account'], ['verify','Enter confirmation code'],
         ['recover','Forgot password'], ['reset','Enter recovery code'], ['pairing','Specialized connection']
-      ].filter(([key]) => key !== screen).map(([key,label]) => mode(key,label)).join('') +
+      ].filter(([key]) => key !== screen && (!demo || key === 'pairing')).map(([key,label]) => mode(key,label)).join('') +
       '</div><p role="status" id="customer-status">' + esc(error) + '</p>' +
       (['offline','unavailable'].includes(phase) ? mode('retry','Retry connection') : '') + '</section>';
   }
   const title = (role) => role.charAt(0).toUpperCase() + role.slice(1);
   const roleOptions = (role) => role.map(key => '<option value="' + key + '">' + title(key) + '</option>').join('');
   function company(account, members) {
+    if (account.demo)
+      return '<section class="panel customer-access"><h2>Trackium Demo</h2><p>Viewer · synthetic examples</p>' +
+        mode('logout','Sign out') + '</section>';
     const manage = ['owner','admin'].includes(account.role);
     const visibleRoles = account.role === 'owner' ? ['viewer','dispatcher','admin'] : ['viewer','dispatcher'];
     const other = account.companies.filter(item => item.name && item.id !== account.tenant_id);

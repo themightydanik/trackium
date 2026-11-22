@@ -11,7 +11,8 @@
     "aovx:analyze": "node src/aovx/analyze-capture.js",
     "aovx:delivery": "node src/aovx/analyze-delivery.js",
     "aovx:duplicates": "node src/aovx/analyze-duplicates.js",
-    "aovx:batches": "node src/aovx/analyze-batches.js"
+    "aovx:batches": "node src/aovx/analyze-batches.js",
+    "demo:admin": "node src/cargo/demo-cli.js"
   },
   "dependencies": {
     "pg": "^8.13.1"

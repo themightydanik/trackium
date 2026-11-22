@@ -27,6 +27,17 @@ export function readConfig(env = process.env) {
   const integritasMode = env.INTEGRITAS_MODE ?? 'disabled';
   if (!['disabled', 'test'].includes(integritasMode))
     throw new Error('INTEGRITAS_MODE must be disabled or test');
+  const demoEnabled = (env.CUSTOMER_DEMO_ENABLED ?? 'false') === 'true';
+  if (env.CUSTOMER_DEMO_ENABLED !== undefined && !['true','false'].includes(env.CUSTOMER_DEMO_ENABLED))
+    throw new Error('Invalid CUSTOMER_DEMO_ENABLED');
+  if (demoEnabled && (env.CUSTOMER_ACCOUNTS_ENABLED === 'true' || env.ENABLE_WEB_WORKSPACE !== 'true' ||
+      integritasMode !== 'test' || (env.PROOF_MODE ?? 'disabled') !== 'disabled' ||
+      (env.PROOF_ALLOW_LIVE ?? 'false') !== 'false' || (env.PROOF_ALLOW_MAINNET ?? 'false') !== 'false'))
+    throw new Error('Customer demo requires Lite, Integritas test, and disabled public accounts and native proof publication');
+  if (demoEnabled && (env.NODE_ENV === 'production' || env.RAILWAY_ENVIRONMENT_ID) &&
+      (!env.PUBLIC_ORIGIN || new URL(env.PUBLIC_ORIGIN).protocol !== 'https:'))
+    throw new Error('Production customer demo requires HTTPS PUBLIC_ORIGIN');
+  if (demoEnabled && !env.PUBLIC_ORIGIN) throw new Error('Customer demo requires an explicit PUBLIC_ORIGIN');
   const profiles = ['railway-test', 'railway-aovx-pilot'];
   if (env.DEPLOYMENT_PROFILE !== undefined && !profiles.includes(env.DEPLOYMENT_PROFILE))
     throw new Error('Unknown DEPLOYMENT_PROFILE');
@@ -63,6 +74,7 @@ export function readConfig(env = process.env) {
     throw new Error('TCP_PORT and HTTP_PORT must be different when TCP receiver is enabled');
   return {
     integritasMode,
+    demoEnabled,
     customerMail: customerMailConfig(env),
     railwayTest,
     railwayAovxPilot,

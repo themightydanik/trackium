@@ -30,7 +30,7 @@ export function createRuntime(
   const simulator = createSimulator(pool, shipments, { enabled: config.simulatorEnabled });
   const pairing = createPairing(pool, config);
   const mail = config.customerMail ? createCustomerMail(pool, config.customerMail, accountMailFetch) : null;
-  const accounts = mail ? createAccounts(pool, config, pairing, telemetry, mail) : null;
+  const accounts = mail || config.demoEnabled ? createAccounts(pool, config, pairing, telemetry, mail) : null;
   let stopMail = async () => {};
   const proofs = createProofService(pool, config.proofs, proofDependencies);
   const aovxObservations = createAovxObservations(pool);

@@ -8,6 +8,7 @@
       enabled,
       nativeWorkspace,
       customerAccounts,
+      customerDemo: document.documentElement.dataset.customerDemo === 'true',
       account: null,
       phase: enabled ? 'checking' : 'unpaired',
       pages: {
@@ -140,7 +141,7 @@
         const events = await Promise.all(
           details.map((s) => request('/v1/shipments/' + s.id + '/events?limit=50'))
         );
-        const proofs = await Promise.all(
+        const proofs = session.demo ? [] : await Promise.all(
           details.map((s) => request('/v1/shipments/' + s.id + '/proofs?limit=50'))
         );
         if (version !== generation || serial !== refreshSerial) return;

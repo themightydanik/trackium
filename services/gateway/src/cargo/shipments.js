@@ -187,11 +187,11 @@ export async function transition(client, s, next, key, time = new Date().toISOSt
 }
 export function createShipmentService(pool) {
   return {
-    async create(tenant, input) {
+    async create(tenant, input, client) {
       object(input, ['name', 'device_id', 'route', 'conditions']);
       text(input.name, 120);
       const parsed = routeAndConditions(input.route, input.conditions);
-      return transaction(pool, tenant, async (c) => {
+      const create = async (c) => {
         const d = await boundDevice(c, tenant, input.device_id),
           id = randomUUID();
         await c.query(
@@ -216,7 +216,8 @@ export function createShipmentService(pool) {
           'created'
         );
         return s;
-      });
+      };
+      return client ? create(client) : transaction(pool, tenant, create);
     },
     async list(tenant, limit = 100, cursor) {
       if (!Number.isInteger(limit) || limit < 1 || limit > 200) invalid('invalid limit');

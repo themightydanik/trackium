@@ -615,7 +615,7 @@
       body = panel('Integritas proofs', cards.length ? cards.join('')
         : empty('No Integritas proofs', 'Ask the tenant owner to prepare test evidence.'));
     }
-    if (page === 'proofs') {
+    if (page === 'proofs' && !state.session.demo) {
       const controls = state.nativeWorkspace ? old().querySelector('section.panel.server-content') : null;
       body +=
         (state.nativeWorkspace ? '' : '<h2>Native Minima proof history · read-only</h2>') +

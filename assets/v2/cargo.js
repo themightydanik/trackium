@@ -902,7 +902,7 @@
       $('#main').innerHTML = server.state.phase === 'checking'
         ? '<div class="loading-state" role="status">Checking your session…</div>'
         : server.state.account ? TrackiumCustomer.company(server.state.account)
-        : TrackiumCustomer.auth(customerScreen, server.state.error, server.state.phase);
+        : TrackiumCustomer.auth(customerScreen, server.state.error, server.state.phase, server.state.customerDemo);
       restoreView();
       return;
     }

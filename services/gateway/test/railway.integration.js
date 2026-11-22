@@ -21,7 +21,7 @@ async function port() {
   const value = s.address().port; await new Promise((r) => s.close(r)); return value;
 }
 
-test('Railway process: upgrade 001–012, owner pairing, PostgreSQL persistence and SIGTERM restart with publication disabled',
+test('Railway process: upgrade 001–013, owner pairing, PostgreSQL persistence and SIGTERM restart with publication disabled',
   { timeout: 40000 }, async (t) => {
     const admin = new pg.Pool({ connectionString: database });
     const schema = 'railway_' + randomUUID().replaceAll('-', '');
@@ -57,7 +57,7 @@ test('Railway process: upgrade 001–012, owner pairing, PostgreSQL persistence 
     const other = await issueKey(db, b.tenant_id, ['read', 'admin', 'publish']);
     await Promise.all([migrate(db), migrate(db)]);
     const migrations = (await db.query('SELECT * FROM gateway_schema_migrations ORDER BY version')).rows;
-    assert.deepEqual(migrations.map((m) => m.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    assert.deepEqual(migrations.map((m) => m.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
     // A mismatch in any migration, including 007, must abort rather than replay.
     for (const row of migrations) {
       await db.query("UPDATE gateway_schema_migrations SET checksum='changed' WHERE version=$1", [row.version]);
