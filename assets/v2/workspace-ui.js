@@ -355,7 +355,7 @@
         : '<p>No reported device positions in this page. A planned route is not a measured journey.</p>')
     );
   }
-  function proofCards(items) {
+  function proofCards(items, nativeWorkspace) {
     return (
       '<div class="ux-card-grid">' +
       items
@@ -394,6 +394,9 @@
             action('Evidence details', 'view-proof', p.id) +
             action('Verify', 'proof-verify', p.id) +
             action('Export bundle', 'proof-export', p.id) +
+            (nativeWorkspace && p.publisher_kind === 'local'
+              ? action('Export Local Core job', 'local-job', p.id)
+              : '') +
             '</div></article>'
         )
         .join('') +
@@ -600,19 +603,24 @@
         ['Error', proof.error || 'None reported']
       ]) + action('Recheck test evidence', 'integritas-verify', proof.id) +
         action('Export test evidence', 'integritas-export', proof.id)));
-      body = cards.length ? cards.join('') : empty('No Integritas proofs', 'Ask the tenant owner to prepare test evidence.');
+      body = panel('Integritas proofs', cards.length ? cards.join('')
+        : empty('No Integritas proofs', 'Ask the tenant owner to prepare test evidence.'));
     }
-    if (page === 'proofs' && !d.integritas) {
-      body =
+    if (page === 'proofs') {
+      const controls = state.nativeWorkspace ? old().querySelector('section.panel.server-content') : null;
+      body +=
+        (state.nativeWorkspace ? '' : '<h2>Native Minima proof history · read-only</h2>') +
         '<div class="notice"><p>Submission, chain inclusion and physical sensor authenticity are different claims. Gateway confirmation is a past observation; Verify performs a fresh reader check. Test receipts are not blockchain transactions.</p></div>' +
         search(page, view, d) +
-        proofCards(selected(arr(d.proofs), view, 'created_at')) +
+        proofCards(selected(arr(d.proofs), view, 'created_at'), state.nativeWorkspace) +
         (!arr(d.proofs).filter((p) => matches(p, view)).length
           ? empty(
               'No matching proof records',
               'Publication stays governed by the existing owner policy.'
             )
-          : '');
+          : '') +
+        (controls ? '<details class="panel ux-advanced"><summary>Advanced publisher policy & Local Core exchange</summary>' +
+          controls.innerHTML + '</details>' : '');
     }
     if (page === 'settings') {
       const original = old().querySelector('section.settings-panel');
@@ -756,7 +764,7 @@
             )
             .join('') || 'No events'
         ) +
-        panel('Linked proofs', proofCards(arr(data.proofs).filter((p) => p.shipment_id === id)));
+        panel('Linked proofs', proofCards(arr(data.proofs).filter((p) => p.shipment_id === id), data.nativeWorkspace));
     } else if (type === 'device') {
       const d = data.devices.find((x) => x.registry.id === id);
       if (!d) return null;

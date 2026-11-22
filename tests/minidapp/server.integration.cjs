@@ -675,6 +675,16 @@ test('Managed customer lifecycle through the operator CLI, Gateway and Lite', { 
   assert.equal(JSON.parse(await androidExport.inputValue()).proof.id, proofId);
   await pageA.getByRole('button', { name: 'Close details', exact: true }).click();
 
+  assert.equal(await pageA.getByText('Native Minima proof history · read-only').count(), 1);
+  assert.equal(await pageA.locator('#local-exchange-form').count(), 0);
+  await pageA.goto(origin + '/app/core#proofs');
+  const advanced = pageA.getByText('Advanced publisher policy & Local Core exchange', { exact: true });
+  await advanced.waitFor();
+  await advanced.click();
+  assert.ok(await pageA.getByRole('button', { name: 'Check Core / wallet readiness' }).isDisabled());
+  assert.ok(await pageA.getByRole('button', { name: 'Import exchange & download acknowledgement' }).isDisabled());
+  assert.equal(await pageA.getByText('Integritas proofs', { exact: true }).count(), 0);
+
   await cli('managed-revoke', a, '--revision=1');
   assert.equal(await browserRequest(pageA, feed), 401);
   assert.equal((await status(a)).access, 'revoked');

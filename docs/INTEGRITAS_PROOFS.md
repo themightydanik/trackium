@@ -1,6 +1,6 @@
 # Integritas test foundation for Trackium Lite
 
-Lite consumes Integritas evidence through the Gateway. The provider identity is `integritas` and the only available network in this build is `test-only`. The Gateway will reject any `INTEGRITAS_MODE` other than `disabled` (default) or `test`. Neither mode makes real Integritas requests. The native proof engine and its endpoints remain available to existing Core consumers. Lite labels historical native records separately and exposes no signing controls.
+Lite consumes Integritas evidence through the Gateway. The provider identity is `integritas` and the only available network in this build is `test-only`. The Gateway will reject any `INTEGRITAS_MODE` other than `disabled` (default) or `test`. Neither mode makes real Integritas requests. At `/app/`, Lite displays Integritas proofs alongside a separate read-only `minima_native` history. Native records come from the existing tenant-scoped proof API for the currently loaded shipment page, regardless of Integritas mode. Lite supports native evidence details, verification and bundle export. Local Core job export, readiness and checkpoint/result import live at `/app/core#proofs`, on the same Gateway origin with the existing session, scopes and proof approval. The installed MiniDapp retains its separate Local Core Publisher link and signing flow. The Integritas feature flag has no effect on the Core workspace.
 
 ## Prepare and check a local proof
 

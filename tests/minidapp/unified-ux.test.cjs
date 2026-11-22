@@ -60,3 +60,31 @@ test('poll refresh preserves public drafts, focused search and structured route 
   );
   await context.close();
 });
+
+test('Core keeps native publisher controls while Lite exposes native proof history read-only', async () => {
+  const settings = { integritas: true, publisherKind: 'local', publisherEnabled: true,
+    scopes: ['read', 'shipments', 'publish'] };
+  const core = await fixturePage(1440, 'light', { ...settings, nativeWorkspace: true });
+  const lite = await fixturePage(1440, 'light', { ...settings });
+  try {
+    await core.page.locator('#navigation a[href="#proofs"]').click();
+    await core.page.getByText('Advanced publisher policy & Local Core exchange').click();
+    assert.ok(await core.page.getByRole('button', { name: 'Check Core / wallet readiness' }).isEnabled());
+    assert.ok(await core.page.getByRole('button', { name: 'Import exchange & download acknowledgement' }).isEnabled());
+    const download = core.page.waitForEvent('download');
+    await core.page.getByRole('button', { name: 'Export Local Core job' }).click();
+    assert.match((await download).suggestedFilename(), /^trackium-local-job-.*\.json$/);
+    assert.equal(await core.page.getByText('Integritas proofs', { exact: true }).count(), 0);
+
+    await lite.page.locator('#navigation a[href="#proofs"]').click();
+    await lite.page.getByText('Native Minima proof history · read-only').waitFor();
+    await lite.page.getByText('No Integritas proofs', { exact: true }).waitFor();
+    assert.equal(await lite.page.getByRole('button', { name: 'Verify', exact: true }).count(), 1);
+    assert.equal(await lite.page.getByRole('button', { name: 'Export bundle' }).count(), 1);
+    assert.equal(await lite.page.getByRole('button', { name: 'Export Local Core job' }).count(), 0);
+    assert.equal(await lite.page.locator('#local-exchange-form').count(), 0);
+  } finally {
+    await core.context.close();
+    await lite.context.close();
+  }
+});

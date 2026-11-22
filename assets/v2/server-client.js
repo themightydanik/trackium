@@ -1,9 +1,11 @@
 (function (root) {
   'use strict';
   const enabled = (root.location.pathname || '').startsWith('/app/');
+  const nativeWorkspace = root.location.pathname === '/app/core';
   function create(onChange) {
     const state = {
       enabled,
+      nativeWorkspace,
       phase: enabled ? 'checking' : 'unpaired',
       pages: {
         shipments: { cursor: null, previous: [], next: null },
@@ -114,9 +116,9 @@
                 : '')
           ),
           request('/v1/simulations'),
-          request('/v1/proof-publisher'),
+          nativeWorkspace ? request('/v1/proof-publisher') : null,
           session.local_notifications ? request('/v1/notifications') : null,
-          session.integritas_proofs ? request('/v1/integritas/proofs') : null
+          !nativeWorkspace && session.integritas_proofs ? request('/v1/integritas/proofs') : null
         ]);
         const details = await Promise.all(
           shipments.shipments.map((s) => request('/v1/shipments/' + s.id))
@@ -132,7 +134,7 @@
         const events = await Promise.all(
           details.map((s) => request('/v1/shipments/' + s.id + '/events?limit=50'))
         );
-        const proofs = integritas ? [] : await Promise.all(
+        const proofs = await Promise.all(
           details.map((s) => request('/v1/shipments/' + s.id + '/proofs?limit=50'))
         );
         if (version !== generation || serial !== refreshSerial) return;
@@ -142,6 +144,7 @@
         state.pages.devices.next = devices.next_cursor || null;
         csrf = session.csrf;
         state.data = {
+          nativeWorkspace,
           shipments: details,
           devices: deviceDetails,
           simulations: simulations.simulations,
