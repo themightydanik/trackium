@@ -3579,3 +3579,16 @@ td .button {
 /* Long headings must reflow at 200% text on compact screens. */
 h1,h2,h3 {overflow-wrap:anywhere;}
 .page-heading > div {min-width:0;}
+
+.customer-access {
+  width: min(100%, 40rem);
+  margin: 1rem auto;
+  padding: clamp(1rem, 4vw, 2rem);
+}
+.customer-access form { display: grid; gap: .75rem; margin-block: 1rem; }
+.customer-access form button { justify-self: start; }
+.customer-access select { max-width: 100%; }
+.customer-access .form-actions { flex-wrap: wrap; }
+.customer-mode .foundation-card,
+.customer-mode .sidebar-bottom .runtime,
+.customer-mode #demo-toggle { display: none; }

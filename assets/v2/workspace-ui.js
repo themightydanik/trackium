@@ -135,7 +135,8 @@
     })[p.state] || 'Unknown · inspect Gateway evidence';
 
   const heading = (page, state) =>
-    '<div class="page-heading"><div><div class="eyebrow">TRACKIUM LITE · TENANT WORKSPACE</div><h1>' +
+    '<div class="page-heading"><div><div class="eyebrow">' +
+    (state.session.customer ? esc(state.session.company_name) : 'TRACKIUM LITE · TENANT WORKSPACE') + '</div><h1>' +
     {
       dashboard: 'Overview',
       shipments: 'Shipments',
@@ -143,7 +144,7 @@
       map: 'Routes & reported positions',
       events: 'Event history',
       proofs: 'Proof records',
-      settings: 'Gateway settings'
+      settings: state.session.customer ? 'Company settings' : 'Gateway settings'
     }[page] +
     '</h1><p>' +
     (state.updated
@@ -443,10 +444,14 @@
       body =
         '<div class="summary-grid ux-summary">' +
         [
-          ['Shipments', d.shipments.length, 'shipments'],
-          ['Devices', d.devices.length, 'devices'],
-          ['Proof records', arr(d.proofs).length, 'proofs'],
-          ['Loaded events', d.events.length, 'events']
+          ['Active shipments', d.shipments.filter(s => s.status === 'active').length, 'shipments'],
+          ['Completed shipments', d.shipments.filter(s => s.status === 'completed').length, 'shipments'],
+          ['Shipments with issues', d.shipments.filter(s => s.route_violation || s.temperature_violation).length, 'shipments'],
+          ['Recently reporting devices', d.devices.filter(d => ['moving','stationary','alarm'].includes(d.status.status)
+            && Date.now() - Date.parse(d.status.last_event_at) <= 15 * 60 * 1000).length, 'devices'],
+          ['Devices reporting offline', d.devices.filter(d => d.status.status === 'offline').length, 'devices'],
+          ['Integritas proof records', arr(d.integritas?.proofs).length, 'proofs'],
+          ['Recent events', d.events.length, 'events']
         ]
           .map(
             ([label, n, path]) =>
@@ -503,7 +508,7 @@
     if (page === 'shipments')
       body =
         search(page, view, d) +
-        '<div class="toolbar"><p>Current shipment page · scoped to your tenant</p>' +
+        '<div class="toolbar"><p>Current shipment page · your company</p>' +
         action('Create shipment', 'create', '', !can('shipments')) +
         '</div><div class="ux-card-grid">' +
         selected(d.shipments, view, 'name')
@@ -521,7 +526,7 @@
       body =
         search(page, view, d) +
         panel(
-          'Tenant devices',
+          'Company devices',
           '<div class="toolbar"><p>Latest reported samples with measurement time and provenance.</p>' +
             action(
               'Create simulator identity',
@@ -598,7 +603,11 @@
         ['Shipment', proof.shipment_id], ['Cargo event', proof.event_type + ' · ' + proof.event_id],
         ['Provenance', proof.source_trust], ['Prepared', proof.created_at], ['Proof ID', proof.id],
         ['Operation ID', proof.operation_id || 'Unavailable'], ['Network', proof.network],
-        ['Status', proof.status === 'verified' ? 'Test evidence checked' : proof.status],
+        ['Status', ({
+          prepared: 'Evidence prepared', pending: 'Awaiting processing', submitted: 'Submitted to test transport',
+          anchored: 'Provider reports an anchor', verified: 'Test evidence checked',
+          unknown: 'Result unknown', failed: 'Processing failed'
+        })[proof.status] || 'Result unknown'],
         ['Verification', 'TEST_ONLY · No blockchain confirmation'],
         ['Error', proof.error || 'None reported']
       ]) + action('Recheck test evidence', 'integritas-verify', proof.id) +
@@ -622,7 +631,9 @@
         (controls ? '<details class="panel ux-advanced"><summary>Advanced publisher policy & Local Core exchange</summary>' +
           controls.innerHTML + '</details>' : '');
     }
-    if (page === 'settings') {
+    if (page === 'settings' && state.session.customer)
+      body = notificationPanel(d.notifications) + TrackiumAppearance.form();
+    if (page === 'settings' && !state.session.customer) {
       const original = old().querySelector('section.settings-panel');
       body =
         root.TrackiumAppearance.form() +
@@ -653,8 +664,8 @@
           : 'Authenticated observation',
         'teal'
       ) +
-      '<span>Gateway reached at last fetch · authorized scopes: ' +
-      esc(state.session.scopes.join(', ')) +
+      (state.session.customer ? '<span>Company snapshot' : '<span>Gateway reached at last fetch · authorized scopes: ' +
+      esc(state.session.scopes.join(', '))) +
       '</span>' +
       '<span>Current pages only · counts, search and sorting exclude unloaded records.</span>' +
       (age > 300000 ? badge('Snapshot older than five minutes · refresh', 'warning') : '') +
@@ -863,11 +874,11 @@
       '<button class="button secondary" type="button" data-route-remove>Remove stop</button></div>'
     );
   }
-  function createForm(devices, draft) {
+  function createForm(devices, draft, customer = false) {
     const t = document.createElement('template');
     t.innerHTML = legacy.createForm(devices, draft);
     const raw = t.content.querySelector('[name=route]');
-    const points = JSON.parse(raw.value);
+    const points = customer && !draft ? [{ radius_m: 200 }, { radius_m: 200 }] : JSON.parse(raw.value);
     raw.closest('label').outerHTML =
       '<fieldset class="ux-route-editor"><legend>Draft route · edit stops before saving</legend><div id="route-stops">' +
       points.map(stopFields).join('') +

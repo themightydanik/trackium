@@ -2,10 +2,13 @@
   'use strict';
   const enabled = (root.location.pathname || '').startsWith('/app/');
   const nativeWorkspace = root.location.pathname === '/app/core';
+  const customerAccounts = document.documentElement.dataset.customerAccounts === 'true';
   function create(onChange) {
     const state = {
       enabled,
       nativeWorkspace,
+      customerAccounts,
+      account: null,
       phase: enabled ? 'checking' : 'unpaired',
       pages: {
         shipments: { cursor: null, previous: [], next: null },
@@ -21,6 +24,7 @@
       data: null,
       updated: null
     };
+    let specialized = false;
     let csrf = '',
       generation = 0,
       refreshSerial = 0,
@@ -39,6 +43,7 @@
       state.loading = false;
       state.connected = false;
       state.session = null;
+      state.account = null;
       state.challenge = null;
       state.data = null;
       state.updated = null;
@@ -52,6 +57,7 @@
       const requestVersion = generation;
       if (navigator.onLine === false) throw new Error('Offline. Reconnect to the Gateway.');
       const headers = { 'X-Trackium-Client': 'cargo-v2' };
+      if (nativeWorkspace || specialized) headers['X-Trackium-Workspace'] = 'pairing';
       if (method !== 'GET' && csrf) headers['X-CSRF-Token'] = csrf;
       if (input !== undefined) headers['Content-Type'] = 'application/json';
       const controller = new AbortController();
@@ -72,7 +78,7 @@
         clearTimeout(timeout);
       }
       if (!res.ok) {
-        if (res.status === 401 && requestVersion === generation) {
+        if (res.status === 401 && !path.startsWith('/v1/account/') && requestVersion === generation) {
           generation++;
           clear(
             'Session expired or revoked. Reconnect to continue.',
@@ -139,6 +145,7 @@
         );
         if (version !== generation || serial !== refreshSerial) return;
         state.session = session;
+        if (state.account && session.customer) state.account = { ...state.account, ...session };
         state.phase = 'available';
         state.pages.shipments.next = shipments.next_cursor || null;
         state.pages.devices.next = devices.next_cursor || null;
@@ -180,11 +187,31 @@
         if (navigator.onLine === false) return this.offline();
         const version = ++generation;
         try {
-          const session = await request('/v1/session');
+          let account;
+          if (customerAccounts && !specialized) {
+            try { account = await request('/v1/account/session'); }
+            catch (error) { if (error.status !== 401) throw error; }
+            if (version !== generation) return;
+            if (!account) {
+              clear('', 'unpaired');
+              change();
+              return;
+            }
+          }
+          if (version !== generation) return;
+          if (account && !account.role) {
+            clear('', 'onboarding');
+            state.account = account;
+            csrf = account.csrf;
+            change();
+            return;
+          }
+          const session = account || await request('/v1/session');
           if (version !== generation) return;
           if (state.session && (state.session.id !== session.id || state.session.tenant_id !== session.tenant_id))
             clear();
           state.connected = true;
+          state.account = account || null;
           state.session = session;
           csrf = session.csrf;
           await refresh();
@@ -200,6 +227,23 @@
           );
           change();
         }
+      },
+      customerConnection(usePairing) {
+        if (specialized === usePairing) return;
+        specialized = usePairing;
+        generation++;
+        clear('', 'unpaired');
+        change();
+      },
+      async customerAction(action, input) {
+        const result = await request('/v1/account/' + action, 'POST', input);
+        if (result.signed_in) {
+          generation++;
+          clear('', 'checking');
+          change();
+          await this.restore();
+        }
+        return result;
       },
       async challenge(tenant) {
         if (state.connected) await this.disconnect();
@@ -232,7 +276,7 @@
       },
       async disconnect() {
         generation++;
-        const revoke = state.connected ? request('/v1/session', 'DELETE') : null;
+        const revoke = state.connected || state.account ? request('/v1/session', 'DELETE') : null;
         clear();
         change();
         await revoke;
@@ -240,7 +284,7 @@
       offline() {
         if (!enabled) return;
         generation++;
-        clear('Offline. Reconnect and check your session to load tenant data.', 'offline');
+        clear('Offline. Reconnect to load your company data.', 'offline');
         change();
       },
       openHistory(device) {

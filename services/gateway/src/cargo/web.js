@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-export function createWebHandler({ webEnabled, webRoot }) {
+export function createWebHandler({ webEnabled, webRoot, accountMailDirectory }) {
   const root = resolve(webRoot || fileURLToPath(new URL('../../../../', import.meta.url)));
   return async (req, res) => {
     const url = new URL(req.url, 'http://gateway.invalid');
@@ -47,6 +47,8 @@ export function createWebHandler({ webEnabled, webRoot }) {
       });
       res.end(relative === 'index.html'
         ? data.toString('utf8')
+          .replace('<html lang="en">', accountMailDirectory && url.pathname !== '/app/core'
+            ? '<html lang="en" data-customer-accounts="true">' : '<html lang="en">')
           .replace('assets/v2/brand/site.webmanifest', 'assets/v2/brand/lite.webmanifest')
           .replace('<script defer src="mds.js"></script>', '')
           .replace('<script defer src="assets/v2/mds-bridge.js"></script>', '')

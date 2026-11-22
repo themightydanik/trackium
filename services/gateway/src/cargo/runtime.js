@@ -1,3 +1,4 @@
+import { createAccounts } from './accounts.js';
 import { createNativeSessions } from './native-session.js';
 import { createIntegritas, startIntegritasWorker } from '../proofs/integritas.js';
 import { createProofService, startProofWorker } from '../proofs/service.js';
@@ -27,6 +28,7 @@ export function createRuntime(
   const telemetry = createTelemetryService(pool, { onEvent: shipments.onTelemetry });
   const simulator = createSimulator(pool, shipments, { enabled: config.simulatorEnabled });
   const pairing = createPairing(pool, config);
+  const accounts = config.webEnabled && config.accountMailDirectory ? createAccounts(pool, config, pairing, telemetry) : null;
   const proofs = createProofService(pool, config.proofs, proofDependencies);
   const aovxObservations = createAovxObservations(pool);
   const aovxIngestion = createAovxIngestion(pool, { logger, onEvent: shipments.onTelemetry });
@@ -36,12 +38,14 @@ export function createRuntime(
   let stopNotifications = async () => {};
   let stopProofWorker = async () => {};
   const native = createNativeSessions(pool, config);
-  const authenticate = (req) =>
+  const authenticate = async (req) =>
     req.headers.authorization?.startsWith('Bearer trk_native_')
       ? native.authenticate(req)
       : req.headers.authorization
         ? telemetry.authenticate(req.headers.authorization)
-        : pairing.authenticate(req, !['GET', 'HEAD'].includes(req.method));
+        : (req.headers['x-trackium-workspace'] !== 'pairing' &&
+          await accounts?.session(req, !['GET', 'HEAD'].includes(req.method))) ||
+          pairing.authenticate(req, !['GET', 'HEAD'].includes(req.method));
   const telemetryApi = createTelemetryApi(telemetry, {
     fixturesEnabled: config.fixturesEnabled,
     authenticate,
@@ -72,6 +76,7 @@ export function createRuntime(
         await checkpoint('journal_initialize_started');
         await initialize(pool);
         await migrate(pool);
+        await accounts?.initialize();
         await proofs.initialize();
         await checkpoint('database_and_proof_initialization_complete');
         if (worker) aovxIngestion.start();
@@ -98,6 +103,7 @@ export function createRuntime(
     },
     requestHandler: createCargoApi({
       pool,
+      accounts,
       aovxConfigQuery,
       aovxGnssEnable,
       telemetry,

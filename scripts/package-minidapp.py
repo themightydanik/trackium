@@ -33,6 +33,7 @@ FILES = (
     'assets/v2/local-core.js',
     'assets/v2/mds-bridge.js',
     'assets/v2/server-client.js',
+    'assets/v2/customer-ui.js',
     'assets/v2/server-workspace.js',
     'assets/v2/workspace-components.js',
     'assets/v2/workspace-ui.js',

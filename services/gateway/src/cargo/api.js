@@ -11,6 +11,7 @@ function requireEmptyRequestBody(req) {
 
 export function createCargoApi({
   pool,
+  accounts,
   aovxConfigQuery,
   aovxGnssEnable,
   telemetry,
@@ -161,8 +162,11 @@ export function createCargoApi({
           throw new ApiError(403, 'native client required');
         return reply(res, 201, await native.claim((await body(req)).input));
       }
+      if (accounts && path.startsWith('/v1/account/')) return await accounts.route(req, res, url);
       const identity = await authenticate(req),
         tenant = identity.tenant_id;
+      if (identity.customer && !identity.role && path !== '/v1/session')
+        throw new ApiError(403, 'Choose a company first');
       const scope = (name) => {
         if (!identity.scopes.includes(name)) throw new ApiError(403, 'insufficient scope');
       };
@@ -194,8 +198,13 @@ export function createCargoApi({
             ...(integritas && { integritas_proofs: true })
           });
         if (req.method === 'DELETE') {
-          await pairing.revoke(identity, identity.id);
-          pairing.clear(res);
+          if (identity.customer) {
+            await pool.query('DELETE FROM customer_sessions WHERE id=$1', [identity.id]);
+            accounts.clear(res);
+          } else {
+            await pairing.revoke(identity, identity.id);
+            pairing.clear(res);
+          }
           return reply(res, 200, { revoked: true });
         }
       }

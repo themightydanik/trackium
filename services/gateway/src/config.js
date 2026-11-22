@@ -62,6 +62,7 @@ export function readConfig(env = process.env) {
     throw new Error('TCP_PORT and HTTP_PORT must be different when TCP receiver is enabled');
   return {
     integritasMode,
+    accountMailDirectory: env.ACCOUNT_MAIL_DIRECTORY || undefined,
     railwayTest,
     railwayAovxPilot,
     tcpProtocol,

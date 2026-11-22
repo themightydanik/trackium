@@ -71,6 +71,12 @@ async function fixture(db, runtime) {
   await changeCustomerAccess(db, managed.customer_id, '0', credential => { previousOwner = credential; });
   await changeCustomerAccess(db, managed.customer_id, '1', credential => { owner = credential; });
   const other = await provisionTenant(db, 'Restore drill other tenant');
+  const account = randomUUID();
+  await db.query(
+    "INSERT INTO customer_accounts(id,email,password_digest,verified_at) VALUES($1,'drill@example.test','disabled-backup-fixture',now())",
+    [account]);
+  await db.query("INSERT INTO customer_members(account_id,tenant_id,role) VALUES($1,$2,'owner')",
+    [account, owner.tenant_id]);
   const telemetry = createTelemetryService(db);
   const device = await telemetry.register(owner.tenant_id, { label: 'Generated tracker', mode: 'real' });
   const bcd = '111222333444';
@@ -110,6 +116,10 @@ async function snapshot(db) {
   const tables = [
     ['gateway_schema_migrations', 'version'],
     ['managed_customers', 'customer_id'],
+    ['customer_accounts', 'id'],
+    ['customer_members', 'account_id'],
+    ['customer_sessions', 'id'],
+    ['customer_mail_tokens', 'token_hash'],
     ['telemetry_api_keys', 'id'],
     ['gateway_packets', 'id'],
     ['telemetry_aovx_device_bindings', 'id'],
@@ -135,7 +145,7 @@ async function snapshot(db) {
 }
 
 async function verifyMigrations(rows) {
-  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   const directory = new URL('../migrations/', import.meta.url);
   const files = (await readdir(directory)).filter(file => /^\d{3}_.*\.sql$/.test(file)).sort();
   assert.equal(files.length, rows.length);
@@ -329,7 +339,7 @@ try {
   console.log('PASS: restored managed registration, current owner access and previous key revocation');
   console.log('Local dump and verified recovery (ms):', backupMs, Math.round(performance.now() - recoveryStart),
     '· fixture writes lost at quiescent cut: 0');
-  console.log('PASS: 001–010 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
+  console.log('PASS: 001–011 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
 
   await gateway.db.query(`
     CREATE FUNCTION drill_reject_outbox() RETURNS trigger LANGUAGE plpgsql AS $$
