@@ -57,7 +57,7 @@ node --test tests/minidapp/*.test.cjs tests/minidapp/server.integration.cjs
 node services/gateway/scripts/backup-restore-drill.mjs
 ```
 
-The Managed browser scenario runs the operator CLI and real Gateway against an isolated schema. It checks two customer tenants, concurrent grants and conflicting provisioning, owner-approved pairing, shipment writes, device and proof isolation, scope and CSRF enforcement, revocation, rotation and reapproval. The Free browser and PostgreSQL regressions run in the same suite. Managed billing, notification delivery and independent Mainnet acceptance are tracked separately.
+The Managed browser scenario runs the operator CLI and real Gateway against an isolated schema. It checks two customer tenants, concurrent grants and conflicting provisioning, owner-approved pairing, shipment writes, device and proof isolation, scope and CSRF enforcement, revocation, rotation and reapproval. The Free browser and PostgreSQL regressions run in the same suite. Managed billing and independent Mainnet acceptance are tracked separately. The [local notification inbox](CARGO_NOTIFICATIONS.md) is an optional tenant feature.
 
 | Acceptance gate | Local evidence | Remaining external check |
 | --- | --- | --- |

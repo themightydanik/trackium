@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ApiError, invalid, object, text, uuid, canonicalize } from '../telemetry/schema.js';
 import { transaction, hash } from './shared.js';
+import { enqueueOutbox } from './outbox.js';
 export const transitions = {
   draft: ['active', 'cancelled'],
   active: ['delivered', 'cancelled'],
@@ -122,10 +123,7 @@ export async function appendEvent(client, s, type, data, key, time = new Date().
       s.head_hash
     ]
   );
-  await client.query('INSERT INTO cargo_outbox(event_id,tenant_id) VALUES($1,$2)', [
-    id,
-    s.tenant_id
-  ]);
+  await enqueueOutbox(client, s.tenant_id, id, type, s.source_trust);
   await client.query(
     'UPDATE cargo_shipments SET head_hash=$3,event_sequence=$4,updated_at=now() WHERE tenant_id=$1 AND id=$2',
     [s.tenant_id, s.id, digest, sequence]

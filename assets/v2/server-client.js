@@ -100,7 +100,7 @@
           change();
           return;
         }
-        const [shipments, devices, simulations, publisher] = await Promise.all([
+        const [shipments, devices, simulations, publisher, notifications] = await Promise.all([
           request(
             '/v1/shipments?limit=25' +
               (state.pages.shipments.cursor
@@ -114,7 +114,8 @@
                 : '')
           ),
           request('/v1/simulations'),
-          request('/v1/proof-publisher')
+          request('/v1/proof-publisher'),
+          session.local_notifications ? request('/v1/notifications') : null
         ]);
         const details = await Promise.all(
           shipments.shipments.map((s) => request('/v1/shipments/' + s.id))
@@ -146,7 +147,8 @@
           events: events.flatMap((e) => e.events),
           proofs: proofs.flatMap((e) => e.proofs),
           proofMode: proofs[0]?.engine_mode ?? 'disabled',
-          publisher
+          publisher,
+          notifications
         };
         state.loading = false;
         state.updated = new Date().toISOString();

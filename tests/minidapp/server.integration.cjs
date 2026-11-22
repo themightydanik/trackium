@@ -501,9 +501,9 @@ test('Managed customer lifecycle through the operator CLI, Gateway and Lite', { 
   const { readConfig } = await import('../../services/gateway/src/config.js');
   ({ gateway } = createRuntime(db, {
     ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, PROOF_MODE: 'disabled',
-      ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', WEB_ROOT: ROOT }),
+      ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', ENABLE_LOCAL_NOTIFICATIONS: 'true', WEB_ROOT: ROOT }),
     host: '127.0.0.1', httpPort
-  }, { worker: false, logger: { info() {}, warn() {}, error() {} } }));
+  }, { worker: true, logger: { info() {}, warn() {}, error() {} } }));
   await gateway.start();
   const cli = async (command, ...options) => {
     const { stdout } = await promisify(execFile)(process.execPath,
@@ -627,7 +627,25 @@ test('Managed customer lifecycle through the operator CLI, Gateway and Lite', { 
   assert.equal((await db.query('SELECT count(*)::int AS total FROM cargo_proofs')).rows[0].total, 0);
   assert.equal(Number((await cli('managed-capacity')).managed_customers), 2);
 
+  const feed = '/v1/notifications';
+  assert.equal((await api(ownerB, feed + '?tenant_id=' + customerA.tenant_id)).status, 400);
+  assert.equal((await api(ownerB, feed, 'PUT', { enabled: true, tenant_id: customerA.tenant_id })).status, 400);
+  assert.equal(await browserRequest(pageA, feed, 'PUT'), 403);
+  assert.equal(await browserRequest(pageA, feed, 'PUT', true), 403);
+  assert.equal((await api(ownerA, feed, 'PUT', { enabled: true })).status, 200);
+  assert.equal((await api(ownerA, url + '/transitions', 'POST', { status: 'active' })).status, 200);
+  await pageA.locator('#navigation a[href="#settings"]').click();
+  const notification = pageA.locator('li').filter({ hasText: 'status changed · active · shipment' });
+  await notification.filter({ hasText: 'delivered (1 attempt)' }).waitFor();
+  assert.match(await notification.innerText(), /unverified/);
+  const otherFeed = await (await api(ownerB, feed)).json();
+  assert.deepEqual(otherFeed, { preferences: { enabled: false, include_synthetic: false }, notifications: [] });
+  await pageB.locator('#navigation a[href="#settings"]').click();
+  await pageB.getByText('No notifications.', { exact: true }).waitFor();
+  assert.equal(await pageB.locator('li').filter({ hasText: shipment.id }).count(), 0);
+
   await cli('managed-revoke', a, '--revision=1');
+  assert.equal(await browserRequest(pageA, feed), 401);
   assert.equal((await status(a)).access, 'revoked');
   assert.equal((await status(a)).active_browser_sessions, 0);
   assert.equal((await api(ownerA, url)).status, 401);

@@ -19,6 +19,7 @@ export function createCargoApi({
   proofs,
   shipments,
   simulator,
+  notifications,
   pairing,
   aovxObservations,
   config,
@@ -185,11 +186,23 @@ export function createCargoApi({
       }
       if (path === '/v1/session') {
         if (identity.kind !== 'session') throw new ApiError(403, 'browser session required');
-        if (req.method === 'GET') return reply(res, 200, identity);
+        if (req.method === 'GET')
+          return reply(res, 200, notifications ? { ...identity, local_notifications: true } : identity);
         if (req.method === 'DELETE') {
           await pairing.revoke(identity, identity.id);
           pairing.clear(res);
           return reply(res, 200, { revoked: true });
+        }
+      }
+      if (notifications && path === '/v1/notifications') {
+        if (req.method === 'GET') {
+          scope('read');
+          query(url, []);
+          return reply(res, 200, await notifications.status(tenant));
+        }
+        if (req.method === 'PUT') {
+          scope('admin');
+          return reply(res, 200, await notifications.setPreferences(tenant, (await body(req)).input));
         }
       }
       const revoke = /^\/v1\/sessions\/([^/]+)$/.exec(path);
