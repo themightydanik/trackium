@@ -5,7 +5,7 @@ The demo uses one normal password account with one Viewer membership in a separa
 ## Approved rollout on the existing production Gateway
 
 1. Confirm approval for the exact production service, database, revision and rollout window. Verify the current web and proof configuration and take an approved PostgreSQL backup. If this Gateway currently requires public customer accounts or native publication, stop and resolve the incompatibility with its operator before selecting demo mode.
-2. With the demo gate off, apply the reviewed revision and confirm Gateway health and additive migration 013. Verify existing Core and pairing behavior. Obtain a restricted operator session with the intended private database connection. Set `DATABASE_URL` using the existing secret store. Do not expose PostgreSQL publicly for bootstrap.
+2. With the demo gate off, apply the reviewed revision and confirm Gateway health and additive migration 013. Verify existing Core and pairing behavior. Obtain a restricted operator session with the intended private database connection. Set `DATABASE_URL` using the existing secret store. Run from `services/gateway` in a trusted checkout or from the Gateway working directory in an approved operator shell. Do not expose PostgreSQL publicly for bootstrap.
 3. Place one generated password in an operator-owned regular file outside the checkout, using mode 0600 or 0400. Use an approved secret tool that does not put the password in shell history or arguments. Use a reserved, unused sign-in identifier. The address will not be contacted.
 
 ```sh
@@ -27,7 +27,7 @@ The command creates the new company, one Viewer and two reproducible synthetic s
 | `PROOF_ALLOW_LIVE`, `PROOF_ALLOW_MAINNET` | `false` |
 | `PUBLIC_ORIGIN` | Exact HTTPS origin for the existing Gateway |
 
-No mail provider settings are required. Railway variable changes can trigger rollout. Review the pending changes and perform the agreed rollout only with operator approval. Core browser access remains at `/app/core`. The existing native proof workflow still requires its normal configuration and approvals outside the demo.
+No mail provider settings are required. `INTEGRITAS_MODE` applies to this Gateway instance. Check existing pending test requests before turning it on. Railway variable changes can trigger rollout. Review the pending changes and perform the agreed rollout only with operator approval. Core browser access remains at `/app/core`. The existing native proof workflow still requires its normal configuration and approvals outside the demo.
 
 5. Confirm `/readyz`. Sign in at `/app/` through the normal Lite login and confirm only **Trackium Demo** is visible. Verify Viewer permissions, planned routes without device positions, and the `TEST_ONLY` label on Integritas proof cards and verification. The local worker advances the seeded test requests. Share the HTTPS link and identifier with the approved participants, then provide the password through the approved private channel. Rotate it after the demonstration.
 
