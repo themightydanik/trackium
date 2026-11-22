@@ -721,7 +721,7 @@ test('New customer registers, adds a company and creates a shipment visible on t
   const { createRuntime } = await import('../../services/gateway/src/cargo/runtime.js');
   const { readConfig } = await import('../../services/gateway/src/config.js');
   const { gateway } = createRuntime(db, {
-    ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, ACCOUNT_MAIL_DIRECTORY: directory,
+    ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, CUSTOMER_ACCOUNTS_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'local', ACCOUNT_MAIL_DIRECTORY: directory,
       ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', INTEGRITAS_MODE: 'test', WEB_ROOT: ROOT }),
     host: '127.0.0.1', httpPort
   }, { worker: false, logger: { info(){}, error(){} } });
@@ -735,7 +735,8 @@ test('New customer registers, adds a company and creates a shipment visible on t
   });
   await gateway.start();
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', args: ['--no-sandbox'] });
-  const context = await browser.newContext({ viewport:{width:1280,height:1000} });
+  const context = await browser.newContext({ viewport:{width:1280,height:1000},
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; wv) AppleWebKit/537.36 Chrome/135.0.0.0 Mobile Safari/537.36 TrackiumLiteAndroid/0.1' });
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
   const failures = [];
@@ -805,5 +806,22 @@ test('New customer registers, adds a company and creates a shipment visible on t
   await page.locator('#navigation a[href="#settings"]').click();
   await page.getByRole('button', {name:'Sign out',exact:true}).click();
   await page.getByRole('heading',{name:'Sign in to Trackium'}).waitFor();
+  await page.getByRole('button', {name:'Forgot password'}).click();
+  await page.getByLabel('Work email').fill('new@example.test');
+  await page.getByRole('button', {name:'Send recovery code'}).click();
+  await page.getByRole('heading', {name:'Set a new password'}).waitFor();
+  const messages = await Promise.all((await readdir(directory)).map(file =>
+    readFile(path.join(directory,file),'utf8').then(JSON.parse)));
+  const reset = messages.find(entry => entry.purpose === 'reset');
+  assert.ok(reset);
+  await page.getByLabel('Email code').fill(reset.code);
+  await page.getByLabel('New password').fill('new browser fixture password');
+  await page.getByRole('button', {name:'Reset password'}).click();
+  await page.getByRole('heading', {name:'Sign in to Trackium'}).waitFor();
+  await page.getByLabel('Work email').fill('new@example.test');
+  await page.getByLabel('Password', {exact:true}).fill('new browser fixture password');
+  await page.getByRole('button', {name:'Sign in',exact:true}).click();
+  await page.getByRole('heading', {name:'Overview',exact:true}).waitFor();
+  assert.equal(new URL(page.url()).origin, origin);
   assert.deepEqual(failures,[]);
 });

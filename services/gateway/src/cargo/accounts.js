@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
-import { writeFile, stat } from 'node:fs/promises';
-import { isAbsolute, join } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+import { limitCustomerRequest, takeCustomerRate } from './customer-rate.js';
 import { ApiError, invalid, object, text, uuid } from '../telemetry/schema.js';
 import { body, reply, query } from '../telemetry/api.js';
 import { csrf } from './pairing.js';
@@ -33,25 +33,8 @@ function safeEqual(left, right) {
     timingSafeEqual(Buffer.from(left), Buffer.from(right));
 }
 
-export function createAccounts(pool, config, pairing, telemetry) {
-  const directory = config.accountMailDirectory;
-  if (!isAbsolute(directory)) throw new Error('ACCOUNT_MAIL_DIRECTORY must be an absolute path');
-  const rates = new Map();
-  const emailRates = new Map();
-  let total = 0, windowStart = 0, running = 0;
-  function limit(req) {
-    if (Date.now() - windowStart >= 60000) {
-      windowStart = Date.now();
-      rates.clear();
-      emailRates.clear();
-      total = 0;
-    }
-    const ip = req.socket.remoteAddress;
-    const count = rates.get(ip) || 0;
-    if (count >= 30 || total >= 100 || running >= 4) throw new ApiError(429, 'Try again in a minute');
-    rates.set(ip, count + 1);
-    total++;
-  }
+export function createAccounts(pool, config, pairing, telemetry, mail) {
+  let running = 0;
   function cookie(res, raw, age = 43200) {
     res.setHeader('Set-Cookie', 'trk_account=' + raw +
       '; Path=/v1/; HttpOnly; SameSite=Strict; Max-Age=' + age +
@@ -83,16 +66,6 @@ export function createAccounts(pool, config, pairing, telemetry) {
       [randomUUID(), account, company, hash(raw)]);
     cookie(res, raw);
   }
-  async function mail(client, purpose, email, account = null, tenant = null, role = null, issuer = null) {
-    const code = token();
-    await client.query('DELETE FROM customer_mail_tokens WHERE expires_at<=now()');
-    await client.query(
-      `INSERT INTO customer_mail_tokens(token_hash,account_id,email,purpose,tenant_id,role,issuer_id,expires_at)
-       VALUES($1,$2,$3,$4,$5,$6,$7,now()+interval '30 minutes')`,
-      [hash(code), account, email, purpose, tenant, role, issuer]);
-    await writeFile(join(directory, randomUUID() + '.json'), JSON.stringify({ email, purpose, code }),
-      { flag: 'wx', mode: 0o600 });
-  }
   async function consume(client, code, purpose, email = null) {
     if (typeof code !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(code)) invalid('Invalid or expired code');
     const { rows: [result] } = await client.query(
@@ -112,10 +85,6 @@ export function createAccounts(pool, config, pairing, telemetry) {
   return {
     session,
     clear: res => cookie(res, '', 0),
-    async initialize() {
-      const info = await stat(directory);
-      if (!info.isDirectory() || (info.mode & 0o077)) throw new Error('Account mail directory must be private (0700)');
-    },
     async route(req, res, url) {
       query(url, []);
       const action = url.pathname.slice('/v1/account/'.length);
@@ -137,9 +106,10 @@ export function createAccounts(pool, config, pairing, telemetry) {
         return reply(res, 200, { members: members.rows });
       }
       if (!write) throw new ApiError(404, 'Account operation not found');
-      limit(req);
+      if (running >= 4) throw new ApiError(429, 'Try again in a minute');
       running++;
       try {
+        await limitCustomerRequest(pool, req);
         const { input } = await body(req, 4096);
         return await change(req, res, action, input);
       } finally {
@@ -152,25 +122,24 @@ export function createAccounts(pool, config, pairing, telemetry) {
     if (action === 'register' || action === 'login' || action === 'recover') {
       object(input, action === 'login' ? ['email', 'password'] : ['email']);
       const email = normalizedEmail(input.email);
-      const bucket = action + ':' + hash(email);
-      const attempts = emailRates.get(bucket) || 0;
-      if (attempts >= 5) throw new ApiError(429, 'Try again in a minute');
-      emailRates.set(bucket, attempts + 1);
+      await takeCustomerRate(pool, 'email:' + action + ':' + hash(email), 5);
       if (action === 'register') {
         const encoded = await digest(token(), randomBytes(16).toString('hex'));
         await transaction(pool, null, async client => {
           const { rows: [account] } = await client.query(
             `INSERT INTO customer_accounts(id,email,password_digest) VALUES($1,$2,$3)
              ON CONFLICT(email) DO NOTHING RETURNING id`, [randomUUID(), email, encoded]);
-          if (account) await mail(client, 'verify', email, account.id);
+          if (account) await mail.enqueue(client, 'verify', email, account.id);
         });
         return reply(res, 202, { accepted: true });
       }
       if (action === 'recover') {
+        const started = performance.now();
         await transaction(pool, null, async client => {
           const { rows: [account] } = await client.query('SELECT id,verified_at FROM customer_accounts WHERE email=$1', [email]);
-          if (account) await mail(client, account.verified_at ? 'reset' : 'verify', email, account.id);
+          if (account) await mail.enqueue(client, account.verified_at ? 'reset' : 'verify', email, account.id);
         });
+        await delay(Math.max(0, 150 - (performance.now() - started)));
         return reply(res, 202, { accepted: true });
       }
       const { rows: [account] } = await pool.query('SELECT * FROM customer_accounts WHERE email=$1', [email]);
@@ -243,6 +212,7 @@ export function createAccounts(pool, config, pairing, telemetry) {
         const membership = await client.query('SELECT 1 FROM customer_members WHERE account_id=$1 AND tenant_id=$2 FOR SHARE',
           [identity.account_id, nextCompany]);
         if (!membership.rowCount) throw new ApiError(404, 'Company not found');
+        await client.query('SELECT id FROM customer_accounts WHERE id=$1 FOR KEY SHARE', [identity.account_id]);
         const prior = await client.query('DELETE FROM customer_sessions WHERE id=$1 RETURNING id', [identity.id]);
         if (!prior.rowCount) throw new ApiError(401, 'Session expired');
         await start(client, identity.account_id, nextCompany, res);
@@ -264,7 +234,7 @@ export function createAccounts(pool, config, pairing, telemetry) {
           object(input, ['email','role']);
           if (!roles.includes(input.role) || (input.role === 'admin' && active.rows[0].role !== 'owner'))
             throw new ApiError(403, 'Cannot grant this role');
-          await mail(client, 'invite', normalizedEmail(input.email), null, identity.tenant_id, input.role, identity.account_id);
+          await mail.enqueue(client, 'invite', normalizedEmail(input.email), null, identity.tenant_id, input.role, identity.account_id);
         } else {
           object(input, ['member','role']);
           if (input.role !== null && !roles.includes(input.role)) invalid('Invalid role');
@@ -278,7 +248,7 @@ export function createAccounts(pool, config, pairing, telemetry) {
             await client.query('DELETE FROM customer_members WHERE tenant_id=$1 AND account_id=$2', [identity.tenant_id,member]);
           else await client.query('UPDATE customer_members SET role=$3 WHERE tenant_id=$1 AND account_id=$2',
             [identity.tenant_id,member,input.role]);
-          await client.query("DELETE FROM customer_mail_tokens WHERE tenant_id=$1 AND purpose='invite' AND email=(SELECT email FROM customer_accounts WHERE id=$2)",
+          await client.query("DELETE FROM customer_mail_tokens WHERE tenant_id=$1 AND purpose='invite' AND (issuer_id=$2 OR email=(SELECT email FROM customer_accounts WHERE id=$2))",
             [identity.tenant_id,member]);
         }
       });

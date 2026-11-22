@@ -3,9 +3,8 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { createCustomerMail } from '../src/cargo/customer-mail.js';
+import { takeCustomerRate, limitCustomerRequest } from '../src/cargo/customer-rate.js';
 import pg from 'pg';
 import { createRuntime } from '../src/cargo/runtime.js';
 import { readConfig } from '../src/config.js';
@@ -13,10 +12,11 @@ import { readConfig } from '../src/config.js';
 const url = process.env.TEST_DATABASE_URL;
 if (!url) throw new Error('TEST_DATABASE_URL required');
 test('Customer accounts verify, recover, revoke, manage company roles and rotate between isolated companies', async t => {
-  const directory = await mkdtemp(join(tmpdir(),'trackium-mail-'));
   const schema = 'accounts_' + randomUUID().replaceAll('-','');
   const admin = new pg.Pool({ connectionString: url });
-  const db = new pg.Pool({ connectionString: url, options: '-c search_path=' + schema });
+  const connection = { connectionString: url, options: '-c search_path=' + schema };
+  const db = new pg.Pool(connection);
+  const replica = new pg.Pool(connection);
   await admin.query('CREATE SCHEMA ' + schema);
   const listener = createServer().listen(0,'127.0.0.1');
   await once(listener,'listening');
@@ -24,13 +24,14 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   await new Promise(resolve => listener.close(resolve));
   const origin = 'http://127.0.0.1:' + httpPort;
   const config = readConfig({ DATABASE_URL: url, ENABLE_WEB_WORKSPACE:'true', ENABLE_TCP_RECEIVER:'false',
-    PUBLIC_ORIGIN: origin.replace('http:', 'HTTPS:'), HTTP_PORT: String(httpPort), ACCOUNT_MAIL_DIRECTORY: directory });
+    PUBLIC_ORIGIN: origin.replace('http:', 'HTTPS:'), HTTP_PORT: String(httpPort), CUSTOMER_ACCOUNTS_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'resend', RESEND_API_KEY: 're_test_only',
+    CUSTOMER_MAIL_FROM: 'accounts@example.test', CUSTOMER_MAIL_TOKEN_KEY: 'ab'.repeat(32) });
   const { gateway } = createRuntime(db, { ...config, host:'127.0.0.1' }, { worker:false, logger:{ info(){}, error(){} } });
   t.after(async () => {
     await gateway.shutdown();
+    await replica.end();
     await admin.query('DROP SCHEMA ' + schema + ' CASCADE');
     await admin.end();
-    await rm(directory,{ recursive:true, force:true });
   });
   await gateway.start();
   const customer = () => ({ cookie:'', csrf:'' });
@@ -50,18 +51,54 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
     if (result.csrf) c.csrf = result.csrf;
     return { status: res.status, ...result };
   }
+  const sent = [];
+  const transport = async (endpoint, {headers,method,body,signal,redirect}) => {
+    assert.equal(endpoint,'https://api.resend.com/emails');
+    assert.equal(method,'POST');
+    assert.equal(redirect,'error');
+    assert.ok(signal);
+    assert.equal(headers.authorization,'Bearer re_test_only');
+    const payload = JSON.parse(body);
+    sent.push({ key:headers['idempotency-key'], payload });
+    if (sent.length === 1) return new Response(null,{ status:503, headers:{'Retry-After':'10'} });
+    if (sent.length === 2) throw new Error('fixture timeout');
+    return new Response(null,{ status:200 });
+  };
+  const sender = createCustomerMail(db, config.customerMail, transport);
+  const otherSender = createCustomerMail(replica, config.customerMail, transport);
   const mail = async (email, purpose) => {
-    const entries = await Promise.all((await readdir(directory)).map(file =>
-      readFile(join(directory,file),'utf8').then(JSON.parse)));
-    const matches = entries.filter(m => m.email === email && m.purpose === purpose);
-    assert.equal(matches.length,1);
-    return matches[0].code;
+    await Promise.all([sender.tick(),otherSender.tick()]);
+    if (sent.length === 1) {
+      assert.equal((await db.query('SELECT attempts,outcome FROM customer_mail_jobs')).rows[0].outcome,null);
+      assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM customer_mail_jobs WHERE next_at>now()')).rows[0].n,1);
+      for (let i=0;i<2;i++) {
+        await db.query('UPDATE customer_mail_jobs SET next_at=now()');
+        await Promise.all([sender.tick(),otherSender.tick()]);
+      }
+      assert.equal(sent.length,3);
+      assert.deepEqual(sent[0],sent[1]);
+      assert.deepEqual(sent[0],sent[2]);
+    }
+    const delivered = sent.at(-1).payload;
+    assert.deepEqual(delivered.to,[email]);
+    assert.match(delivered.subject, {verify:/Confirm/,reset:/Reset/,invite:/Join/}[purpose]);
+    const code = /Code: ([a-zA-Z0-9_-]{43})/.exec(delivered.text)[1];
+    assert.ok(delivered.html.includes(code));
+    const rows = await db.query('SELECT to_jsonb(j)::text AS data FROM customer_mail_jobs j');
+    assert.equal(rows.rows.length,1);
+    assert.ok(rows.rows.every(job => !job.data.includes(code)));
+    assert.equal((await db.query('SELECT outcome FROM customer_mail_jobs')).rows[0].outcome,'accepted');
+    return code;
   };
   const secret = 'local fixture password 1';
   async function signup(c,email) {
     assert.equal((await account(c,'register',{email})).status,202);
     assert.equal((await account(c,'login',{email,password:secret})).status,401);
-    assert.equal((await account(c,'verify',{code:await mail(email,'verify'),password:secret})).status,200);
+    assert.equal((await account(c,'register',{email})).status,202);
+    const code = await mail(email,'verify');
+    const checks = await Promise.all([account(c,'verify',{code,password:secret}),
+      account(customer(),'verify',{code,password:secret})]);
+    assert.deepEqual(checks.map(result => result.status).sort(),[200,400]);
     assert.equal((await account(c,'login',{email,password:secret})).status,200);
     return account(c,'session');
   }
@@ -102,10 +139,41 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   assert.equal((await account(viewer,'switch',{company:a.tenant_id})).status,404);
   assert.equal((await call(owner,'/v1/session',undefined,{method:'DELETE'})).status,200);
   assert.equal((await call(owner,'/v1/session')).status,401);
+  await db.query('DELETE FROM customer_rate_buckets');
   assert.deepEqual(await account(viewer,'recover',{email:viewerEmail}),
     await account(customer(),'recover',{email:'nonexistent@example.test'}));
+  assert.equal((await account(viewer,'recover',{email:viewerEmail})).status,202);
   const recovery = await mail(viewerEmail,'reset');
   assert.equal((await account(viewer,'reset',{code:recovery,password:'changed fixture password'})).status,200);
   assert.equal((await call(viewer,'/v1/session')).status,401);
   assert.equal((await account(viewer,'login',{email:viewerEmail,password:'changed fixture password'})).status,200);
+
+  assert.equal((await account(customer(),'register',{email:'rejection@example.test'})).status,202);
+  let rejected = 0;
+  const permanentFailure = createCustomerMail(replica, config.customerMail, async () => {
+    rejected++;
+    return new Response(null,{status:422});
+  });
+  await permanentFailure.tick();
+  await permanentFailure.tick();
+  assert.equal(rejected,1);
+  assert.equal((await db.query("SELECT outcome FROM customer_mail_jobs")).rows[0].outcome,'rejected');
+  assert.equal((await account(customer(),'register',{email:'expired@example.test'})).status,202);
+  await db.query("UPDATE customer_mail_tokens SET expires_at=now() WHERE email='expired@example.test'");
+  await permanentFailure.tick();
+  assert.equal(rejected,1);
+  assert.equal((await db.query("SELECT outcome FROM customer_mail_jobs j JOIN customer_mail_tokens t USING(token_hash) WHERE t.email='expired@example.test'")).rows[0].outcome,'expired');
+
+  // The same database counter is enforced by different replica pools.
+  const emailRate = await Promise.allSettled(Array.from({length:8},(_,i) =>
+    takeCustomerRate(i%2 ? db : replica,'email:login:replica-fixture',5)));
+  assert.equal(emailRate.filter(result => result.status === 'fulfilled').length,5);
+  assert.ok(emailRate.filter(result => result.status === 'rejected').every(result => result.reason.status === 429));
+  await db.query('DELETE FROM customer_rate_buckets');
+  for (let i=0;i<30;i++) await limitCustomerRequest(i%2 ? db : replica,{
+    socket:{remoteAddress:'192.0.2.20'},headers:{'x-forwarded-for':'198.51.100.' + i}
+  });
+  await assert.rejects(limitCustomerRequest(replica,{
+    socket:{remoteAddress:'192.0.2.20'},headers:{'x-forwarded-for':'203.0.113.20'}
+  }),{status:429});
 });

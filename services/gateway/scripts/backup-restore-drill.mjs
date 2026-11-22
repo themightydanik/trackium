@@ -5,10 +5,11 @@ import { readdir, readFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import pg from 'pg';
 import { encodeAovxFrame, decodeAovxFrame } from '../src/aovx/frame.js';
+import { createCustomerMail } from '../src/cargo/customer-mail.js';
 import { createNotifications } from '../src/cargo/notifications.js';
 import { acknowledge, claimOutbox } from '../src/cargo/outbox.js';
 import { createRuntime } from '../src/cargo/runtime.js';
-import { hash } from '../src/cargo/shared.js';
+import { hash, transaction } from '../src/cargo/shared.js';
 import { readConfig } from '../src/config.js';
 import { persistPacket } from '../src/journal.js';
 import { changeCustomerAccess, customerStatus, provisionCustomer } from '../src/managed/service.js';
@@ -77,6 +78,9 @@ async function fixture(db, runtime) {
     [account]);
   await db.query("INSERT INTO customer_members(account_id,tenant_id,role) VALUES($1,$2,'owner')",
     [account, owner.tenant_id]);
+  const customerMail = createCustomerMail(db, { provider:'resend', from:'drill@example.test',
+    tokenKey:randomBytes(32), apiKey:'re_drill_fixture' }, async () => assert.fail('No external delivery in the restore drill'));
+  await transaction(db,null,client => customerMail.enqueue(client,'reset','drill@example.test',account));
   const telemetry = createTelemetryService(db);
   const device = await telemetry.register(owner.tenant_id, { label: 'Generated tracker', mode: 'real' });
   const bcd = '111222333444';
@@ -120,6 +124,7 @@ async function snapshot(db) {
     ['customer_members', 'account_id'],
     ['customer_sessions', 'id'],
     ['customer_mail_tokens', 'token_hash'],
+    ['customer_mail_jobs', 'id'],
     ['telemetry_api_keys', 'id'],
     ['gateway_packets', 'id'],
     ['telemetry_aovx_device_bindings', 'id'],
@@ -145,7 +150,7 @@ async function snapshot(db) {
 }
 
 async function verifyMigrations(rows) {
-  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   const directory = new URL('../migrations/', import.meta.url);
   const files = (await readdir(directory)).filter(file => /^\d{3}_.*\.sql$/.test(file)).sort();
   assert.equal(files.length, rows.length);
@@ -339,7 +344,7 @@ try {
   console.log('PASS: restored managed registration, current owner access and previous key revocation');
   console.log('Local dump and verified recovery (ms):', backupMs, Math.round(performance.now() - recoveryStart),
     '· fixture writes lost at quiescent cut: 0');
-  console.log('PASS: 001–011 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
+  console.log('PASS: 001–012 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
 
   await gateway.db.query(`
     CREATE FUNCTION drill_reject_outbox() RETURNS trigger LANGUAGE plpgsql AS $$

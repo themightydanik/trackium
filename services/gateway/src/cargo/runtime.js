@@ -1,3 +1,4 @@
+import { createCustomerMail, startCustomerMail } from './customer-mail.js';
 import { createAccounts } from './accounts.js';
 import { createNativeSessions } from './native-session.js';
 import { createIntegritas, startIntegritasWorker } from '../proofs/integritas.js';
@@ -21,14 +22,16 @@ import { diagnosePortConflict } from '../port-diagnostics.js';
 export function createRuntime(
   pool,
   config,
-  { worker = true, logger = console, proofDependencies } = {}
+  { worker = true, logger = console, proofDependencies, accountMailFetch } = {}
 ) {
   publicOrigin(config.publicOrigin);
   const shipments = createShipmentService(pool);
   const telemetry = createTelemetryService(pool, { onEvent: shipments.onTelemetry });
   const simulator = createSimulator(pool, shipments, { enabled: config.simulatorEnabled });
   const pairing = createPairing(pool, config);
-  const accounts = config.webEnabled && config.accountMailDirectory ? createAccounts(pool, config, pairing, telemetry) : null;
+  const mail = config.customerMail ? createCustomerMail(pool, config.customerMail, accountMailFetch) : null;
+  const accounts = mail ? createAccounts(pool, config, pairing, telemetry, mail) : null;
+  let stopMail = async () => {};
   const proofs = createProofService(pool, config.proofs, proofDependencies);
   const aovxObservations = createAovxObservations(pool);
   const aovxIngestion = createAovxIngestion(pool, { logger, onEvent: shipments.onTelemetry });
@@ -76,10 +79,11 @@ export function createRuntime(
         await checkpoint('journal_initialize_started');
         await initialize(pool);
         await migrate(pool);
-        await accounts?.initialize();
+        await mail?.initialize();
         await proofs.initialize();
         await checkpoint('database_and_proof_initialization_complete');
         if (worker) aovxIngestion.start();
+        if (worker && config.customerMail?.provider === 'resend') stopMail = startCustomerMail(mail, logger);
         if (worker && config.proofs?.mode !== 'disabled')
           stopProofWorker = startProofWorker(proofs, logger);
         if (worker && integritas) stopIntegritas = startIntegritasWorker(integritas, logger);
@@ -97,7 +101,7 @@ export function createRuntime(
       },
       checkReady: () => pool.query('SELECT 1'),
       async close() {
-        await Promise.all([stopWorker(), stopProofWorker(), stopNotifications(), stopIntegritas(), aovxIngestion.stop()]);
+        await Promise.all([stopWorker(), stopProofWorker(), stopNotifications(), stopIntegritas(), stopMail(), aovxIngestion.stop()]);
         await pool.end();
       }
     },
