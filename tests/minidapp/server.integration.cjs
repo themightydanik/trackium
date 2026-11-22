@@ -666,6 +666,14 @@ test('Managed customer lifecycle through the operator CLI, Gateway and Lite', { 
   assert.equal(artifact.proof.provider, 'integritas');
   assert.equal(artifact.proof.on_chain_verified, false);
   assert.equal(artifact.evidence.cargo_event.event_id, eligible.id);
+  await pageA.evaluate(() => Object.defineProperty(navigator, 'userAgent', {
+    value: navigator.userAgent + ' TrackiumLiteAndroid/0.1'
+  }));
+  await pageA.getByRole('button', { name: 'Export test evidence' }).click();
+  const androidExport = pageA.getByRole('textbox', { name: 'Evidence JSON' });
+  await androidExport.waitFor();
+  assert.equal(JSON.parse(await androidExport.inputValue()).proof.id, proofId);
+  await pageA.getByRole('button', { name: 'Close details', exact: true }).click();
 
   await cli('managed-revoke', a, '--revision=1');
   assert.equal(await browserRequest(pageA, feed), 401);
