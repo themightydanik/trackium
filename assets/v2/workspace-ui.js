@@ -680,6 +680,43 @@
       body
     );
   }
+  function deviceDiagnostics(d) {
+    const observation = d.observation;
+    const position = d.position;
+    const packet = d.packet;
+    const ingestion = {
+      pending: 'Pending processing or retry', rejected: 'Processing failure',
+      unbound: 'No eligible binding at ingestion', processed: 'Processed',
+      not_applicable: 'Packet is outside telemetry ingestion'
+    };
+    const reasons = {
+      device_disabled: 'Device disabled', unbound_device: 'Unbound device',
+      no_decoded_observation: 'No decoded observation', legacy_parser: 'Earlier parser version',
+      invalid_device_time: 'Clock anomaly: invalid timestamp',
+      future_device_time: 'Clock anomaly: future timestamp',
+      no_gnss_fix: 'GNSS Unfix', invalid_position: 'Invalid position',
+      buffered_report: 'Buffered report', delayed_report: 'Delayed report or clock lag',
+      out_of_order: 'Out-of-order observation', conflicting_fixes: 'Conflicting fixes in the same second',
+      eligible: 'Eligible real-time fix'
+    };
+    return '<p>' + esc(d.binding === 'active' ? 'Active binding' : 'Unbound device') +
+      ' · ' + esc(d.packet_recency === 'recent' ? 'Recent packet' : 'No recent data') +
+      ' · ' + provenanceBadge(d.trust) + '</p>' + fields([
+        ['Last packet received (UTC)', packet?.received_at],
+        ['Packet processing', packet?.decoding === 'failed' ? 'Processing failure'
+          : ingestion[packet?.ingestion]],
+        ['Last decoded observation received (UTC)', observation?.received_at],
+        ['Device measurement time (UTC)', observation?.measured_at],
+        ['Latest valid GNSS measurement (UTC)', d.last_valid_gnss_at],
+        ['GNSS', { fix: 'Fix', unfix: 'Unfix' }[observation?.gnss]],
+        ['Delivery', { buffered: 'Buffered', real_time: 'Real-time' }[observation?.delivery]],
+        ['Receive minus measurement', observation?.receive_lag_ms == null ? null : observation.receive_lag_ms + ' ms'],
+        ['Observation eligibility', reasons[position.reason]],
+        ['Last known fix (UTC)', position.conflict ? 'Unavailable: conflicting fixes' : position.last_known_at],
+        ['Parser version', observation?.parser_version],
+        ['Linked packet reference', observation?.packet_ref]
+      ]);
+  }
   function deviceHistory(device, history) {
     const events = arr(history?.page?.events);
     return '<section id="device-history" class="panel server-content" aria-labelledby="device-history-title">' +
@@ -802,6 +839,10 @@
         metric('Humidity', latest?.payload?.humidity_pct, ' %') +
         metric('Battery', latest?.payload?.battery_pct, ' %') +
         '</div>' +
+        (d.registry.identity_kind === 'physical' && !data.nativeWorkspace
+          ? panel('Device diagnostics', action('Load diagnostics', 'load-device-diagnostics', d.registry.id) +
+            '<div data-device-diagnostics aria-live="polite"></div>')
+          : '') +
         deviceHistory(d, history ?? { page: d.history });
     } else {
       record = arr(type === 'proof' ? data.proofs : data.events).find((e) => e.id === id);
@@ -965,6 +1006,7 @@
     ...legacy,
     render,
     detail,
+    deviceDiagnostics,
     deviceHistory,
     createForm,
     route,

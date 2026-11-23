@@ -125,7 +125,7 @@ export function createTelemetryApi(
         reply(res, 200, await service.revokeAovxDevice(tenant, aovxBinding[1]));
         return;
       }
-      const match = /^\/v1\/devices\/([^/]+)(?:\/(events|location|status))?$/.exec(url.pathname);
+      const match = /^\/v1\/devices\/([^/]+)(?:\/(events|location|status|diagnostics))?$/.exec(url.pathname);
       if (match) {
         const [, id, action] = match;
         if (req.method === 'PATCH' && !action) {
@@ -137,6 +137,10 @@ export function createTelemetryApi(
         if (req.method === 'GET') {
           requireScope('read');
           const q = query(url, action === 'events' ? ['limit', 'cursor', 'from', 'to'] : []);
+          if (action === 'diagnostics') {
+            reply(res, 200, await service.diagnostics(tenant, id));
+            return;
+          }
           const result =
             action === 'events'
               ? await service.history(tenant, id, q)

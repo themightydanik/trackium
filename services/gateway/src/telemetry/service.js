@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { ApiError, invalid, object, text, uuid, timestamp } from './schema.js';
+import { physicalPositionCtes, readAovxDiagnostics } from '../aovx/diagnostics.js';
 import { ingestSynthetic } from '../cargo/ingestion.js';
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const scopesAllowed = ['read', 'admin', 'fixture', 'shipments', 'simulate', 'publish'];
@@ -201,23 +202,20 @@ export function createTelemetryService(pool, { onEvent } = {}) {
           : null
       };
     },
+    async diagnostics(tenantId, id) {
+      const d = await device(pool, tenantId, id);
+      if (d.identity_kind !== 'physical') throw new ApiError(404, 'physical device not found');
+      return readAovxDiagnostics(pool, d);
+    },
     async latest(tenantId, id, locationOnly = false) {
       const d = await device(pool, tenantId, id);
       if (locationOnly && d.identity_kind === 'physical') {
         // A current candidate needs independently decoded time and a timely
         // real-time fix. At second precision conflicting positions are ambiguous.
+        if (!d.enabled) return { device_id: d.id, location: null };
         const { rows: [row] } = await pool.query(
-          `WITH newest AS (
-             SELECT id,received_at,payload FROM telemetry_events
-             WHERE tenant_id=$1 AND device_id=$2 AND source='aovx-gal-v1'
-               AND parser_version='aovx-gal-v2' AND trust='unverified'
-               AND payload->'extra'->'live_position_eligible' = 'true'::jsonb
-               AND payload->'extra'->'buffered' = 'false'::jsonb
-               AND payload->>'device_measured_at' IS NOT NULL
-               AND payload->'gps' <> 'null'::jsonb
-             ORDER BY payload->>'device_measured_at' DESC FETCH FIRST 1 ROW WITH TIES
-           )
-           SELECT * FROM newest WHERE (SELECT count(DISTINCT payload->'gps') FROM newest)=1
+          `WITH ${physicalPositionCtes}
+           SELECT * FROM newest WHERE NOT (SELECT conflict FROM position_summary)
            ORDER BY received_at,id LIMIT 1`, [tenantId,id]);
         return {
           device_id: d.id,
