@@ -150,7 +150,7 @@ async function snapshot(db) {
 }
 
 async function verifyMigrations(rows) {
-  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
   const directory = new URL('../migrations/', import.meta.url);
   const files = (await readdir(directory)).filter(file => /^\d{3}_.*\.sql$/.test(file)).sort();
   assert.equal(files.length, rows.length);
@@ -344,7 +344,7 @@ try {
   console.log('PASS: restored managed registration, current owner access and previous key revocation');
   console.log('Local dump and verified recovery (ms):', backupMs, Math.round(performance.now() - recoveryStart),
     '· fixture writes lost at quiescent cut: 0');
-  console.log('PASS: 001–013 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
+  console.log('PASS: 001–014 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
 
   await gateway.db.query(`
     CREATE FUNCTION drill_reject_outbox() RETURNS trigger LANGUAGE plpgsql AS $$

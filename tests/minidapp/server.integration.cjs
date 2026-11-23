@@ -850,8 +850,8 @@ test('Closed demo uses normal password sign-in and shows only synthetic cargo an
     await admin.end();
   });
   await gateway.start();
-  const email = 'viewer@example.test', password = 'local demo browser fixture password';
-  await administerDemo(db,'bootstrap',{email,password});
+  const password = 'local demo browser fixture password';
+  await administerDemo(db,'bootstrap',{password});
   const proofs = createIntegritas(db);
   for (let i=0;i<6;i++) await proofs.tick();
   browser = await chromium.launch({ executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium', args:['--no-sandbox'] });
@@ -861,7 +861,8 @@ test('Closed demo uses normal password sign-in and shows only synthetic cargo an
   await page.goto(origin + '/app/');
   await page.getByRole('heading', { name:'Sign in to Trackium' }).waitFor();
   assert.equal(await page.getByRole('button',{name:'Create account',exact:true}).count(),0);
-  await page.getByLabel('Work email').fill(email);
+  assert.equal(await page.getByLabel('Work email').count(),0);
+  await page.getByRole('textbox',{name:'Username'}).fill('trackium-demo');
   await page.getByLabel('Password',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
   await page.getByRole('heading',{name:'Overview',exact:true}).waitFor();

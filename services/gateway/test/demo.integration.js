@@ -5,7 +5,7 @@ import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, writeFile, chmod, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, chmod, rm, readdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import pg from 'pg';
@@ -13,6 +13,10 @@ import { createRuntime } from '../src/cargo/runtime.js';
 import { readConfig } from '../src/config.js';
 import { createPasswordDigest } from '../src/cargo/accounts.js';
 import { createIntegritas } from '../src/proofs/integritas.js';
+import { administerDemo } from '../src/cargo/demo-admin.js';
+import { initialize } from '../src/journal.js';
+import { hash } from '../src/cargo/shared.js';
+import { migrate } from '../src/telemetry/migrate.js';
 import { provisionTenant } from '../src/telemetry/service.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -57,11 +61,11 @@ test('Demo CLI creates one synthetic Viewer and rotates and disables access with
   await start(true);
   const cli = (...args) => promisify(execFile)(process.execPath,
     ['src/cargo/demo-cli.js', ...args], { env:{...process.env,DATABASE_URL:scoped.href} });
-  await assert.rejects(cli('bootstrap','--email=demo@example.test','--password-file='+insecure), /owner-only/);
-  const args = ['bootstrap','--email=demo@example.test','--password-file='+secret];
+  await assert.rejects(cli('bootstrap','--password-file='+insecure), /owner-only/);
+  const args = ['bootstrap','--password-file='+secret];
   const [a,b] = await Promise.all([cli(...args),cli(...args)]);
   assert.deepEqual([a,b].map(result => JSON.parse(result.stdout).status).sort(),['already-present','created']);
-  await assert.rejects(cli('bootstrap','--email=second@example.test','--password-file='+secret), /different demo/);
+  await assert.rejects(cli('bootstrap','--email=second@example.test','--password-file='+secret), /Unknown or malformed option/);
   const { rows:[demo] } = await db.query('SELECT * FROM customer_demo');
   const other = await provisionTenant(db,'Private fixture company');
   const privateDevice = await runtime.telemetry.register(other.tenant_id,{label:'Invisible fixture',mode:'real'});
@@ -77,7 +81,7 @@ test('Demo CLI creates one synthetic Viewer and rotates and disables access with
     return { status:response.status, data:await response.json(),
       cookie:response.headers.getSetCookie()[0]?.split(';')[0], set:response.headers.getSetCookie()[0] };
   };
-  const login = (password, email = 'demo@example.test') => call('/v1/account/login',{data:{email,password}});
+  const login = (password, username = 'trackium-demo') => call('/v1/account/login',{data:{username,password}});
   const creds = async (password) => {
     const result = await login(password);
     assert.equal(result.status,200);
@@ -86,10 +90,13 @@ test('Demo CLI creates one synthetic Viewer and rotates and disables access with
     return { cookie:result.cookie, csrf:session.data.csrf, session:session.data };
   };
   assert.equal((await login(pass,'ordinary@example.test')).status,401);
+  assert.equal((await login(pass,'demo@trackium.invalid')).status,401);
+  assert.equal((await call('/v1/account/login',{data:{email:'demo@trackium.invalid',password:pass}})).status,400);
   assert.equal((await call('/v1/account/register',{data:{email:'public@example.test'}})).status,404);
   assert.equal((await call('/v1/account/recover',{data:{email:'demo@example.test'}})).status,404);
   const logged = await creds(pass);
   assert.equal(logged.session.role,'viewer');
+  assert.equal(logged.session.email,undefined);
   assert.deepEqual(logged.session.scopes,['read']);
   assert.equal(logged.session.tenant_id,demo.tenant_id);
   assert.equal(logged.session.company_name,'Trackium Demo');
@@ -144,4 +151,47 @@ test('Demo CLI creates one synthetic Viewer and rotates and disables access with
   await start(false);
   assert.doesNotMatch(await (await fetch(origin+'/app/')).text(), /data-customer-demo/);
   assert.equal((await call('/v1/session',last)).status,401);
+});
+
+test('Migration 014 updates the existing 013 demo without replacing its evidence or company', async t => {
+  const schema = 'demo_upgrade_' + randomUUID().replaceAll('-', '');
+  const admin = new pg.Pool({connectionString:url});
+  await admin.query('CREATE SCHEMA ' + schema);
+  const db = new pg.Pool({connectionString:url,options:'-c search_path=' + schema});
+  t.after(async () => {
+    await db.end();
+    await admin.query('DROP SCHEMA ' + schema + ' CASCADE');
+    await admin.end();
+  });
+  await initialize(db);
+  const directory = new URL('../migrations/',import.meta.url);
+  const files = (await readdir(directory)).filter(file => /^01[0-3]_|^00[1-9]_/.test(file)).sort();
+  assert.equal(files.length,13);
+  await db.query('CREATE TABLE gateway_schema_migrations(version integer PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())');
+  for (const [index,file] of files.entries()) {
+    const sql = await readFile(new URL(file,directory),'utf8');
+    await db.query(sql);
+    await db.query('INSERT INTO gateway_schema_migrations(version,checksum) VALUES($1,$2)',[index+1,hash(sql)]);
+  }
+  await administerDemo(db,'bootstrap',{password:'migration fixture password'});
+  const {rows:[before]} = await db.query('SELECT * FROM customer_demo');
+  const snapshot = async () => {
+    const tables = ['customer_accounts','customer_members','telemetry_tenants','cargo_shipments','cargo_events','cargo_integritas_requests','cargo_integritas_states'];
+    return Promise.all(tables.map(table => db.query('SELECT to_jsonb(t) AS row FROM '+table+' t ORDER BY 1').then(result => result.rows)));
+  };
+  const regularId = randomUUID();
+  await db.query("INSERT INTO customer_accounts(id,email,password_digest) VALUES($1,'ordinary@example.test','fixture')",[regularId]);
+  await db.query('INSERT INTO customer_sessions(id,account_id,tenant_id,token_hash) VALUES($1,$2,$3,$4),($5,$6,NULL,$7)',
+    [randomUUID(),before.account_id,before.tenant_id,hash('prior demo cookie'),randomUUID(),regularId,hash('ordinary cookie')]);
+  const beforeUpgrade = await snapshot();
+  assert.equal(beforeUpgrade[3].length,2);
+  assert.equal(beforeUpgrade[5].length,2);
+  await migrate(db);
+  assert.deepEqual((await db.query('SELECT * FROM customer_demo')).rows,[{...before,username:'trackium-demo'}]);
+  assert.deepEqual(await snapshot(),beforeUpgrade);
+  assert.deepEqual((await db.query('SELECT account_id FROM customer_sessions')).rows,[{account_id:regularId}]);
+  await db.query('INSERT INTO customer_sessions(id,account_id,tenant_id,token_hash) VALUES($1,$2,$3,$4)',
+    [randomUUID(),before.account_id,before.tenant_id,hash('new demo cookie')]);
+  await migrate(db);
+  assert.equal((await db.query('SELECT count(*)::int AS n FROM customer_sessions')).rows[0].n,2);
 });

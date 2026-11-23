@@ -12,7 +12,8 @@ export async function migrate(pool) {
     '010_integritas_proofs.sql',
     '011_customer_accounts.sql',
     '012_customer_mail_delivery.sql',
-    '013_customer_demo.sql'
+    '013_customer_demo.sql',
+    '014_customer_demo_username.sql'
   ];
   const client = await pool.connect();
   try {
