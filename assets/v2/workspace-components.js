@@ -162,8 +162,11 @@
     Math.abs(p.longitude) <= 180;
   function historyPosition(device, event) {
     const payload = event.payload;
-    return device.identity_kind !== 'physical' && payload?.trust === 'synthetic' &&
-      valid(payload.gps) ? payload.gps : null;
+    const eligible = device.identity_kind === 'physical'
+      ? payload?.source === 'aovx-gal-v1' && payload.trust === 'unverified' &&
+        payload.device_measured_at && payload.extra?.gnss_fix === true
+      : payload?.trust === 'synthetic';
+    return eligible && valid(payload.gps) ? payload.gps : null;
   }
   function positionHistory(device, events) {
     const points = events.map((event) => historyPosition(device, event)).filter(Boolean);
@@ -172,7 +175,9 @@
     const longitudes = points.map((point) => point.longitude);
     const minLat = Math.min(...latitudes), minLon = Math.min(...longitudes);
     const latSpan = Math.max(...latitudes) - minLat, lonSpan = Math.max(...longitudes) - minLon;
-    return '<figure class="ux-chart"><figcaption>Synthetic position observations on this page</figcaption>' +
+    const caption = device.identity_kind === 'physical'
+      ? 'Unverified AOVX positions on this page' : 'Synthetic position observations on this page';
+    return '<figure class="ux-chart"><figcaption>' + caption + '</figcaption>' +
       '<svg viewBox="0 0 440 160" role="img" aria-label="Discrete historical positions">' +
       points.map((point) => {
         const x = lonSpan ? 20 + (point.longitude - minLon) / lonSpan * 400 : 220;
@@ -199,10 +204,10 @@
   }
   function reportedPosition(device) {
     const position = device.location?.location;
-    return device.registry.identity_kind !== 'physical' &&
-      position?.trust === 'synthetic' && valid(position.gps)
-      ? position
-      : null;
+    const eligible = device.registry.identity_kind === 'physical'
+      ? position?.trust === 'unverified' && position.received_at
+      : position?.trust === 'synthetic';
+    return eligible && valid(position.gps) ? position : null;
   }
   function mountMap(data, page) {
     const el = document.getElementById('workspace-map');
@@ -260,9 +265,10 @@
         .bindPopup(
           '<strong>' +
             esc(d.registry.label) +
-            '</strong><p>Last reported: ' +
-            esc(date(obs.occurred_at)) +
+            '</strong><p>' + (obs.trust === 'unverified' ? 'Last known fix: ' : 'Last reported: ') +
+            esc(obs.trust === 'unverified' ? obs.occurred_at : date(obs.occurred_at)) +
             ' · ' + (Date.now() - Date.parse(obs.occurred_at) > 15 * 60 * 1000 ? 'Older than 15 minutes' : 'Recent sample') +
+            (obs.received_at ? '</p><p>Gateway received: ' + esc(date(obs.received_at)) : '') +
             '</p><p>Source: ' +
             esc(obs.trust || 'unknown') +
             '</p><p>' +

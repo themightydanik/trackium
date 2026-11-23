@@ -47,7 +47,7 @@ For message `0x0200`, the workbook documents:
 - The workbook describes the AOVX frame delimiters and escaping: `0x7E` is the start/end flag, and occurrences of `0x7E` and `0x7D` inside the frame are escaped as `0x7D 0x02` and `0x7D 0x01`, respectively. It specifies the receive order as unescape, verify checksum, then parse.
 - Sensor extension data includes a data type and field mask. Data type 0 is periodic sampling; several trigger types are enumerated. The documented sensor record widths include Light (2), Temperature (2), Humidity (2), Accelerometer (6), and optional limit/barometer/reserved fields. Barometer is documented in hPa. Battery voltage is documented in mV; optional charge status and percentage are enumerated.
 
-The current parser intentionally retains raw bytes for fields where scale, signedness, byte order or conversion is not established. In particular, do not invent coordinate scale, altitude/speed units, mileage scale, cellular RSSI scale, temperature/humidity scale or accelerometer units. Do not turn an unset GNSS-fix bit or zero raw coordinates into a location. Preserve the six-byte device timestamp as BCD until the device timezone/UTC rule is established; the workbook does not establish a timezone in the extracted message definition.
+The parser retains raw bytes for fields without verified conversion rules. For 0x0200 GNSS coordinates and UTC BCD time, see the [manufacturer golden frame audit](AOVX_GOLDEN_FRAME_AUDIT.md). Altitude, speed, mileage, cellular RSSI, temperature, humidity and accelerometer units remain outside the normalized position contract.
 
 Observed TLV tag assignments and exact envelope patterns in the capture are implementation evidence, not a substitute for the workbook's model/configuration caveats. Keep unknown, malformed and unsupported extensions opaque and retain their original bytes.
 
@@ -64,7 +64,7 @@ The current backend has two distinct persistence paths:
 1. **Raw AOVX journal.** With `TCP_PROTOCOL=aovx`, the TCP receiver extracts framed packets, runs the current AOVX envelope/parser path and persists the original payload plus parsed metadata in `gateway_packets`. `gateway_aovx_device_observations` is an operational observation index keyed by the BCD device identifier. It is not a tenant-owned device registry and is not an authenticated device state model. The receiver currently does not implement a verified AOVX registration/authentication/ACK exchange.
 2. **Normalized telemetry and shipment pipeline.** The `telemetry_events` schema supports fixture/simulator events and unverified AOVX events from bound physical devices. The `ingestSynthetic` transaction creates telemetry events, calls the shared shipment telemetry handler, and can append immutable `cargo_events` plus `cargo_outbox` rows. The proof engine consumes approved cargo events; it must not receive every raw packet.
 
-AOVX packet processing is restart-recoverable: raw persistence happens first, pending packets are replayed by a bounded worker, and event creation plus packet-to-event linking is transactional. Unbound/revoked/disabled packets remain raw only. Device time is retained as raw BCD, while event ordering uses Gateway receive time. GPS and sensor measurements remain unnormalized. A new logical AOVX event and its packet link commit with the existing shipment handler’s ledger and outbox writes when the device has an active shipment. Exact repeats add only packet links. Missing measurements do not advance checkpoints or change condition state. Outbox rows are subject to the existing proof approval policy.
+AOVX packet processing is restart-recoverable: raw persistence happens first, pending packets are replayed by a bounded worker, and event creation plus packet-to-event linking is transactional. Unbound/revoked/disabled packets remain raw only. V2 retains raw BCD and adds a separately decoded UTC measurement time. History ordering uses Gateway receive time. Valid fixes can carry normalized coordinates. Ancillary sensor measurements remain null. A new logical AOVX event and its packet link commit with the existing shipment handler’s ledger and outbox writes when the device has an active shipment. Exact repeats add only packet links. Missing measurements do not advance checkpoints or change condition state. Outbox rows are subject to the existing proof approval policy.
 
 Relevant implementation references:
 
@@ -112,7 +112,7 @@ Minimum event provenance should distinguish:
 - `raw_status`, delivery mode (real-time/buffered), GNSS-fix flag, sampled flag, alarm bits and raw extension values.
 - Normalized measurements only when their units and transformations are verified; otherwise keep raw values and mark them unnormalized.
 
-Do not apply a UTC assumption to the device BCD clock. Until timezone and clock behavior are established, Gateway receive time is the only unambiguous instant for server ordering. If a receive-time fallback is used for the existing non-null `occurred_at` field, it must be explicitly labeled as receive-time-based; it must not be presented as the device's occurrence time. Once the device-time rule is verified, a later additive migration can store the resolved instant without rewriting the original raw timestamp.
+The manufacturer confirmed UTC for the 0x0200 BCD clock. New v2 events store the parsed instant as `payload.device_measured_at`, with raw BCD unchanged. `occurred_at` remains Gateway receipt time for physical event history. The physical device location endpoint uses measurement time as its `location.occurred_at` and separately returns `location.received_at`.
 
 ### Observation history and live state
 
@@ -120,7 +120,7 @@ Unique accepted AOVX observations remain in device history and, for an active sh
 
 Live device location and telemetry-driven shipment state currently accept only synthetic telemetry. For physical observations this applies even if a payload contains coordinates, the fix bit is set and the buffered bit is clear. The buffered bit can identify some delayed reports. A clear bit and receive time cannot establish measurement freshness. Physical observations therefore cannot visit checkpoints, auto-deliver a shipment, change route deviation or change temperature state.
 
-Enabling live physical positions requires verified coordinate encoding and an independently validated measurement-order rule for the supported device and firmware. Verify delayed and buffered delivery, clock resets, sequence wrap and equal or ambiguous measurement times. Only observations established as newer than the last eligible state may update it. Keep ambiguous observations in history and retain immutable telemetry, cargo records and proofs across rollout.
+The location endpoint selects the last known unverified v2 position by device measurement time from timely real-time reports. Delayed and buffered fixes remain in history, and conflicting newest fixes at the same instant suppress the last-known position. Physical observations remain ineligible for automated shipment state changes. Clock drift, resets and hardware behavior still need physical acceptance.
 
 ## 6. Duplicate and replay contract
 

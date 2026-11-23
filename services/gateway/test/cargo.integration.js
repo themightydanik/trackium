@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { connect as connectTcp } from 'node:net';
 import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -9,6 +10,7 @@ import { createRuntime } from '../src/cargo/runtime.js';
 import { readConfig } from '../src/config.js';
 import { provisionTenant, issueKey } from '../src/telemetry/service.js';
 import { canonicalize } from '../src/telemetry/schema.js';
+import { createIntegritas } from '../src/proofs/integritas.js';
 import { ingestSynthetic } from '../src/cargo/ingestion.js';
 import { transaction, tenantLock, hash } from '../src/cargo/shared.js';
 import { claimOutbox, acknowledge, retry } from '../src/cargo/outbox.js';
@@ -784,12 +786,15 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
     assert.equal(event.source, 'aovx-gal-v1');
     assert.equal(event.trust, 'unverified');
     assert.equal(event.identity_kind, 'physical');
-    assert.equal(event.parser_version, 'aovx-gal-v1');
+    assert.equal(event.parser_version, 'aovx-gal-v2');
     assert.equal(event.device_time_raw, '261119163552');
     assert.equal(event.event_time_basis, 'gateway_received_at');
     assert.equal(event.payload.occurred_at, packet.received_at.toISOString());
     assert.equal(event.received_at.toISOString(), packet.received_at.toISOString());
-    for (const field of ['gps', 'temperature_c', 'humidity_pct', 'battery_pct'])
+    assert.equal(event.payload.gps.latitude, 51.11);
+    assert.equal(event.payload.gps.longitude, 17.04);
+    assert.equal(event.payload.extra.live_position_eligible, false);
+    for (const field of ['temperature_c', 'humidity_pct', 'battery_pct'])
       assert.equal(event.payload[field], null);
     assert.equal(event.canonical_sha256, hash(event.canonical_event));
     assert.equal(event.source_event_id, hash(decodeAovxFrame(wire(1)).raw));
@@ -944,7 +949,7 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
     };
 
     // Test-only normalized payloads exercise both guards independently of the
-    // production adapter, which still emits null measurements.
+    // production adapter, which rejects these ambiguous measurements.
     for (const sample of [
       { buffered: true, gps: { latitude: 0, longitude: 10 }, temperature_c: 20, violation: false },
       { buffered: false, gps: { latitude: 51.11, longitude: 17.04 }, temperature_c: 5, violation: true }
@@ -1001,5 +1006,97 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
       const history = await read('events');
       assert.deepEqual(history.events.find(event => event.id === id).payload.gps, sample.gps);
     }
+  });
+  await t.test('only the newest timely real-time fix supplies a tenant-scoped last known location', async () => {
+    const { device, shipment } = await activeShipment(a);
+    const bcd = '111222333666';
+    await runtime.telemetry.bindAovxDevice(a, null, { device_id: device.id, device_id_bcd: bcd });
+    async function ingest(...args) {
+      const packet = await persist(...args);
+      return runtime.aovxIngestion.processPacket(packet.id);
+    }
+    const now = Math.floor(Date.now() / 1000) * 1000;
+    const iso = seconds => new Date(now + seconds * 1000).toISOString();
+    const bcdAt = seconds => iso(seconds).slice(2, 19).replace(/\D/g, '');
+    const read = tenant => runtime.telemetry.latest(tenant, device.id, true);
+    const before = await runtime.shipments.detail(a, shipment.id);
+    const ledger = await runtime.shipments.events(a, shipment.id);
+    const baseline = await count('telemetry_events');
+    const outbox = await count('cargo_outbox');
+    const proofs = await count('cargo_proofs');
+    const first = bcdAt(-20);
+    await ingest(90, bcd, 2, first);
+    const latest = (await read(a)).location;
+    assert.equal(latest.occurred_at, iso(-20));
+    assert.ok(new Date(latest.received_at).toISOString() > latest.occurred_at);
+    assert.equal(latest.trust, 'unverified');
+    assert.equal(latest.gps.latitude, 51.11);
+    await assert.rejects(read(b), { status: 404 });
+
+    assert.equal((await ingest(90, bcd, 2, first)).duplicate, true);
+    await ingest(91, bcd, 6, bcdAt(-30));
+    await ingest(92, bcd, 0x80000006, bcdAt(-10));
+    await ingest(93, bcd, 0, bcdAt(-8));
+    await ingest(94, bcd, 2, '26af23011130');
+    await ingest(95, bcd, 6, bcdAt(60));
+    assert.deepEqual((await read(a)).location, latest);
+    await ingest(90, bcd, 6, first); // Different frame, conflicting fix at the same UTC second.
+    assert.equal((await read(a)).location, null);
+    await ingest(96, bcd, 6, bcdAt(-5));
+    assert.equal((await read(a)).location.gps.latitude, -51.11);
+
+    const { rows: [buffered] } = await db.query(
+      `SELECT t.payload,p.raw_payload AS wire FROM gateway_packets p JOIN telemetry_aovx_packet_events l
+        ON p.id=l.packet_id JOIN telemetry_events t ON l.event_id=t.id WHERE t.id IN (
+          SELECT id FROM telemetry_events WHERE device_id=$1 AND payload->'extra'->>'sequence_number'='92'
+        )`, [device.id]
+    );
+    assert.equal(buffered.payload.device_measured_at, iso(-10));
+    assert.equal(buffered.payload.gps.latitude, -51.11);
+    assert.equal(buffered.payload.extra.buffered, true);
+    assert.deepEqual(buffered.wire, wire(92, bcd, 0x80000006, bcdAt(-10)));
+    assert.equal(await count('telemetry_events'), baseline + 8);
+    assert.equal(await count('cargo_outbox'), outbox + 8);
+    assert.equal(await count('cargo_proofs'), proofs);
+    const entries = (await runtime.shipments.events(a, shipment.id)).events.slice(ledger.events.length);
+    assert.equal(entries.length, 8);
+    const integritas = createIntegritas(db);
+    await assert.rejects(integritas.prepare(a, entries[0].id), { status: 409 });
+    assert.equal(await count('cargo_integritas_requests'), 0);
+    let previous = ledger.events.at(-1).sha256;
+    for (const entry of entries) {
+      assert.equal(entry.event_type, 'telemetry_recorded');
+      assert.equal(entry.previous_hash, previous);
+      assert.equal(entry.sha256, hash(entry.canonical_payload));
+      previous = entry.sha256;
+    }
+    const after = await runtime.shipments.detail(a, shipment.id);
+    assert.deepEqual(after.checkpoints, before.checkpoints);
+    assert.equal(after.route_violation, before.route_violation);
+    assert.equal(after.temperature_violation, before.temperature_violation);
+    assert.equal(after.head_hash, previous);
+  });
+  await t.test('manufacturer frame crosses the TCP framer and retains immutable raw lineage', async () => {
+    const raw = Buffer.from(readFileSync(new URL('./fixtures/aovx-manufacturer-0200.hex', import.meta.url), 'utf8')
+      .replace(/\s/g, ''), 'hex');
+    const physical = await runtime.telemetry.register(a, { label: 'Manufacturer fixture', mode: 'real' });
+    await runtime.telemetry.bindAovxDevice(a, null, {
+      device_id: physical.id, device_id_bcd: decodeAovxFrame(raw).deviceIdBcd.toString('hex')
+    });
+    const socket = connectTcp(runtime.gateway.tcp.address().port, '127.0.0.1');
+    const closed = once(socket, 'close');
+    socket.write(raw.subarray(0, 25));
+    socket.end(raw.subarray(25));
+    await closed;
+    const row = await waitFor(async () => (await db.query(
+      `SELECT p.raw_payload,t.payload,t.canonical_event,t.canonical_sha256,t.received_at
+         FROM telemetry_aovx_packet_events l JOIN gateway_packets p ON p.id=l.packet_id
+         JOIN telemetry_events t ON t.tenant_id=l.tenant_id AND t.id=l.event_id
+         WHERE l.tenant_id=$1 AND l.device_id=$2`, [a, physical.id]
+    )).rows[0]);
+    assert.deepEqual(row.raw_payload, raw);
+    assert.equal(row.payload.device_measured_at, '2026-11-23T01:11:30.000Z');
+    assert.equal(row.payload.occurred_at, row.received_at.toISOString());
+    assert.equal(row.canonical_sha256, hash(row.canonical_event));
   });
 });

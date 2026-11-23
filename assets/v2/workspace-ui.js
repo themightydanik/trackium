@@ -84,7 +84,8 @@
     receiptTime(event)
       ? [
           ['Gateway received', event.received_at ?? event.occurred_at],
-          ['Device measurement time', 'Unavailable']
+          [event.payload.device_measured_at ? 'Device measurement time (UTC)' : 'Device measurement time',
+            event.payload.device_measured_at ?? 'Unavailable']
         ]
       : [[
           event?.payload?.trust === 'synthetic' ? 'Synthetic sample time' : 'Device measurement time',
@@ -93,7 +94,10 @@
   const observationTime = (event) =>
     receiptTime(event)
       ? 'Gateway received: ' + date(event.received_at ?? event.occurred_at) +
-        ' · Device measurement time unavailable'
+        (event.payload.device_measured_at
+          ? ' · Device measurement time (UTC): ' + esc(event.payload.device_measured_at)
+          : ' · Device measurement time unavailable') +
+        (event.payload.extra?.buffered === true ? ' · Buffered' : '')
       : date(event?.occurred_at);
   const provenanceBadge = (trust) =>
     badge(trust || 'unknown', trust === 'synthetic' ? 'synthetic' : 'neutral');
@@ -114,7 +118,8 @@
     const position = C.reportedPosition(device);
     return position
       ? [
-          ['Synthetic position time', position.occurred_at],
+          [position.trust === 'synthetic' ? 'Synthetic position time' : 'Last known fix (UTC)', position.occurred_at],
+          ...(position.received_at ? [['Gateway received', position.received_at]] : []),
           ['Latitude', position.gps.latitude],
           ['Longitude', position.gps.longitude],
           ['Position trust', position.trust]
@@ -338,7 +343,8 @@
             provenanceBadge(p.trust) +
             '<small class="cell-note">' +
             observationTime(e) +
-            (d.registry.identity_kind === 'physical' ? '<br>Current position unavailable' : '') +
+            (d.registry.identity_kind === 'physical' ? (C.reportedPosition(d)
+              ? '<br>Last known fix · unverified' : '<br>Current position unavailable') : '') +
             '</small></td><td data-label="Details">' +
             action('Device details', 'view-device', d.registry.id) +
             '</td></tr>'

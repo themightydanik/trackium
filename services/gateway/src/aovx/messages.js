@@ -351,13 +351,18 @@ function parseObservedTelemetryExtensions(tail) {
 function parseBasicInformation(body) {
   // The workbook defines these fixed fields through GNSS count. Later fields are
   // model/configuration dependent; retain them as opaque bytes until decoded.
-  requireLength(body, 40, 0x0200);
+  // The manufacturer AL300 frame omits the mileage TLV. Only use this
+  // shorter layout when both following TLV headers match the capture.
+  const omitsMileage = body[28] === 0x30 && body[29] === 1 && body[31] === 0x31 && body[32] === 1;
+  const signalOffset = omitsMileage ? 28 : 34;
+  const prefixLength = signalOffset + 6;
+  requireLength(body, prefixLength, 0x0200);
   const timestampBcd = Buffer.from(body.subarray(22, 28));
-  const remainingBody = Buffer.from(body.subarray(40));
+  const remainingBody = Buffer.from(body.subarray(prefixLength));
   const observedExtensions = parseObservedTelemetryExtensions(remainingBody);
-  const mileageField = parseObservedTlvField(body.subarray(28, 34), 0x01, 4);
-  const cellularSignalField = parseObservedTlvField(body.subarray(34, 37), 0x30, 1);
-  const gnssSatellitesField = parseObservedTlvField(body.subarray(37, 40), 0x31, 1);
+  const mileageField = omitsMileage ? null : parseObservedTlvField(body.subarray(28, 34), 0x01, 4);
+  const cellularSignalField = parseObservedTlvField(body.subarray(signalOffset, signalOffset + 3), 0x30, 1);
+  const gnssSatellitesField = parseObservedTlvField(body.subarray(signalOffset + 3, prefixLength), 0x31, 1);
   return {
     alarm: body.readUInt32BE(0),
     status: body.readUInt32BE(4),
@@ -368,9 +373,9 @@ function parseBasicInformation(body) {
     directionRaw: body.readUInt16BE(20),
     timestampBcd,
     timestampBcdDigits: bcdDigitsOrNull(timestampBcd),
-    mileageRaw: readUInt48BE(body, 28),
-    cellularSignalRaw: Buffer.from(body.subarray(34, 37)),
-    gnssSatellitesRaw: Buffer.from(body.subarray(37, 40)),
+    mileageRaw: omitsMileage ? null : readUInt48BE(body, 28),
+    cellularSignalRaw: Buffer.from(body.subarray(signalOffset, signalOffset + 3)),
+    gnssSatellitesRaw: Buffer.from(body.subarray(signalOffset + 3, prefixLength)),
     mileageField,
     cellularSignalField,
     gnssSatellitesField,
@@ -378,7 +383,7 @@ function parseBasicInformation(body) {
     remainingBody,
     diagnostics: {
       bodyLength: body.length,
-      fixedPrefixLength: 40,
+      fixedPrefixLength: prefixLength,
       fields: {
         alarm: { offset: 0, length: 4 },
         status: { offset: 4, length: 4 },
@@ -388,15 +393,15 @@ function parseBasicInformation(body) {
         speedRaw: { offset: 18, length: 2 },
         directionRaw: { offset: 20, length: 2 },
         timestampBcd: { offset: 22, length: 6 },
-        mileageRaw: { offset: 28, length: 6 },
-        cellularSignalRaw: { offset: 34, length: 3 },
-        gnssSatellitesRaw: { offset: 37, length: 3 }
+        ...(omitsMileage ? {} : { mileageRaw: { offset: 28, length: 6 } }),
+        cellularSignalRaw: { offset: signalOffset, length: 3 },
+        gnssSatellitesRaw: { offset: signalOffset + 3, length: 3 }
       },
       remainingBody: {
-        offset: 40,
+        offset: prefixLength,
         length: remainingBody.length,
         hex: remainingBody.toString('hex'),
-        chunks: hexChunks(remainingBody, 40)
+        chunks: hexChunks(remainingBody, prefixLength)
       }
     }
   };

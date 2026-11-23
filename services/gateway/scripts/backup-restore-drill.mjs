@@ -179,7 +179,7 @@ function verifyHistory(state, seeded, { linkCount, sampleCount }) {
     assert.equal(event.device_id, link.device_id);
     assert.equal(event.source, 'aovx-gal-v1');
     assert.equal(event.trust, 'unverified');
-    assert.equal(event.parser_version, 'aovx-gal-v1');
+    assert.equal(event.parser_version, 'aovx-gal-v2');
     assert.equal(event.event_time_basis, 'gateway_received_at');
     assert.equal(event.device_time_raw, '241101123456');
     assert.equal(event.payload.gps, null);
