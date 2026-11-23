@@ -1113,6 +1113,24 @@
     const target = event.target.closest('button, a');
     if (!target) return;
     const serverAction = target.dataset.serverAction;
+    if (serverAction === 'load-device-diagnostics') {
+      const history = server.state.history;
+      const dialog = $('#detail-dialog');
+      if (!history || history.device.registry.id !== target.dataset.serverId || !dialog.contains(target)) return;
+      const output = target.parentElement.querySelector('[data-device-diagnostics]');
+      const stillOpen = () => dialog.open && dialog.contains(output) && server.state.history === history;
+      target.disabled = true;
+      output.textContent = 'Loading diagnostics…';
+      try {
+        const result = await server.request('/v1/devices/' + encodeURIComponent(target.dataset.serverId) + '/diagnostics');
+        if (stillOpen()) output.innerHTML = TrackiumServerView.deviceDiagnostics(result);
+      } catch {
+        if (stillOpen()) output.textContent = 'Diagnostics unavailable. Try again.';
+      } finally {
+        target.disabled = false;
+      }
+      return;
+    }
     if (serverAction?.startsWith('history-')) {
       if (!server.state.history || target.dataset.serverId !== server.state.history.device.registry.id) return;
       target.disabled = true;

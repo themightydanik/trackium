@@ -408,6 +408,12 @@ test(
     assert.match(await details.innerText(), /Unverified AOVX positions on this page/);
     assert.match(await details.innerText(), /2024-02-01T03:04:05.000Z · Buffered/);
     assert.match(await details.innerText(), /31.867795, 117.147473/);
+    const diagnostics = details.locator('[data-device-diagnostics]');
+    await details.getByRole('button', { name: 'Load diagnostics' }).click();
+    await diagnostics.getByText('Buffered report', { exact: true }).waitFor();
+    assert.match(await diagnostics.innerText(), /Last packet received \(UTC\)[\s\S]*Device measurement time \(UTC\)\s+2024-02-01T03:04:05.000Z/);
+    assert.match(await diagnostics.innerText(), /Processed[\s\S]*Buffered[\s\S]*aovx-gal-v2/);
+    assert.doesNotMatch(await diagnostics.innerText(), new RegExp(bcd));
     await details.locator('[data-action=close-dialog]').click();
     // A timely real-time fix is labelled last known and unverified on the map.
     body.writeUInt32BE(2, 4);

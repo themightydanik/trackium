@@ -702,7 +702,7 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
   let db, runtime;
   async function start(worker) {
     db = new pg.Pool({
-      connectionString: url, application_name: schema, options: '-c search_path=' + schema
+      connectionString: url, application_name: schema, options: '-c search_path=' + schema + ' -c timezone=Pacific/Auckland'
     });
     runtime = createRuntime(db, config, { worker, logger: silent });
     await runtime.gateway.start();
@@ -747,18 +747,18 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
     { status: 409 }
   );
 
-  function wire(sequenceNumber, deviceId = bcd, status = 0x12, deviceTime = '261119163552') {
+  function wire(sequenceNumber, deviceId = bcd, status = 0x12, deviceTime = '261119163552', latitude = 51110000) {
     const body = Buffer.alloc(40);
     body.writeUInt32BE(status, 4);
-    body.writeUInt32BE(51110000, 8);
+    body.writeUInt32BE(latitude, 8);
     body.writeUInt32BE(17040000, 12);
     Buffer.from(deviceTime, 'hex').copy(body, 22);
     return encodeAovxFrame({
       messageId: 0x0200, deviceIdBcd: Buffer.from(deviceId, 'hex'), sequenceNumber, body
     });
   }
-  const persist = (sequenceNumber, deviceId = bcd, status, deviceTime) => persistPacket({
-    payload: wire(sequenceNumber, deviceId, status, deviceTime),
+  const persist = (sequenceNumber, deviceId = bcd, status, deviceTime, latitude) => persistPacket({
+    payload: wire(sequenceNumber, deviceId, status, deviceTime, latitude),
     aovx: { messageId: 0x0200, deviceIdBcd: deviceId, sequenceNumber }
   }, db);
   const count = async (table) => (await db.query('SELECT count(*)::int AS n FROM ' + table)).rows[0].n;
@@ -1075,6 +1075,119 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
     assert.equal(after.route_violation, before.route_violation);
     assert.equal(after.temperature_violation, before.temperature_violation);
     assert.equal(after.head_hash, previous);
+  });
+  await t.test('diagnostics are read only, scoped to this binding, and explain packet and position outcomes', async () => {
+    const physical = await runtime.telemetry.register(a, { label: 'Diagnostics tracker', mode: 'real' });
+    const id = physical.id;
+    const bcd = '111222333777';
+    const path = `http://127.0.0.1:${runtime.gateway.api.address().port}/v1/devices/${id}/diagnostics`;
+    const [reader, outsider, restricted] = await Promise.all([
+      issueKey(db, a, ['read']), issueKey(db, b, ['read']), issueKey(db, a, ['admin'])
+    ]);
+    const request = (key, method = 'GET') => fetch(path, {
+      method, headers: key ? { authorization: 'Bearer ' + key.token } : {}
+    });
+    async function diagnostics() {
+      const response = await request(reader);
+      assert.equal(response.status, 200);
+      const raw = await response.text();
+      assert.ok(!raw.includes(bcd));
+      assert.doesNotMatch(raw, /raw_payload|remote_address|processing_error/);
+      return JSON.parse(raw);
+    }
+    async function expectReason(reason) {
+      const result = await diagnostics();
+      assert.equal(result.position.reason, reason);
+      assert.equal(result.position.observation_eligible, reason === 'eligible');
+      return result;
+    }
+    assert.equal((await request()).status, 401);
+    assert.equal((await request(outsider)).status, 404);
+    assert.equal((await request(restricted)).status, 403);
+    assert.equal((await request(reader, 'PATCH')).status, 404);
+    assert.equal((await expectReason('unbound_device')).packet, null);
+    // A previous tenant's packets under the same BCD must remain invisible.
+    const previousOwner = await runtime.telemetry.register(b, { label: 'Previous tracker', mode: 'real' });
+    await runtime.telemetry.bindAovxDevice(b, null, { device_id: previousOwner.id, device_id_bcd: bcd });
+    await persist(100, bcd);
+    await runtime.telemetry.revokeAovxDevice(b, bcd);
+    await delay(5);
+    await runtime.telemetry.bindAovxDevice(a, null, { device_id: id, device_id_bcd: bcd });
+    const empty = await expectReason('no_decoded_observation');
+    assert.equal(empty.packet_recency, 'no_recent_data');
+    assert.equal(empty.packet, null);
+
+    const now = Math.floor(Date.now() / 1000) * 1000;
+    const iso = seconds => new Date(now + seconds * 1000).toISOString();
+    const time = seconds => iso(seconds).slice(2, 19).replace(/\D/g, '');
+    const observe = async (sequence, status, deviceTime, latitude) => {
+      const packet = await persist(sequence, bcd, status, deviceTime, latitude);
+      return runtime.aovxIngestion.processPacket(packet.id);
+    };
+    const pending = await persist(101, bcd, 2, time(-20));
+    assert.equal((await expectReason('no_decoded_observation')).packet.ingestion, 'pending');
+    await runtime.aovxIngestion.processPacket(pending.id);
+    const first = await expectReason('eligible');
+    assert.equal(first.observation.measured_at, iso(-20));
+    assert.equal(first.packet_recency, 'recent');
+    assert.equal(first.packet.received_at, pending.received_at.toISOString());
+    assert.equal(first.observation.received_at, pending.received_at.toISOString());
+    assert.equal(first.observation.gnss, 'fix');
+    assert.equal(first.observation.delivery, 'real_time');
+    assert.equal(first.observation.parser_version, 'aovx-gal-v2');
+    assert.equal(first.observation.packet_ref, String(pending.id));
+    assert.ok(first.observation.receive_lag_ms >= 20000);
+    const duplicate = await observe(101, 2, time(-20));
+    assert.equal(duplicate.duplicate, true);
+    assert.equal((await expectReason('eligible')).observation.event_id, first.observation.event_id);
+
+    await observe(102, 2, time(-25));
+    await expectReason('out_of_order');
+    await observe(103, 2, time(-301)); // Also models a device clock jumping backward.
+    await expectReason('delayed_report');
+    await observe(104, 0x80000002, time(-10));
+    const buffered = await expectReason('buffered_report');
+    assert.equal(buffered.observation.delivery, 'buffered');
+    assert.equal(buffered.last_valid_gnss_at, iso(-10));
+    assert.equal(buffered.position.last_known_at, iso(-20));
+    await observe(111, 2, time(-9), 90000001);
+    await expectReason('invalid_position');
+    await observe(105, 0, time(-9));
+    assert.equal((await expectReason('no_gnss_fix')).observation.gnss, 'unfix');
+    await observe(106, 2, '261132011130');
+    assert.equal((await expectReason('invalid_device_time')).observation.clock, 'invalid_timestamp');
+    await observe(107, 2, time(30));
+    const future = await expectReason('future_device_time');
+    assert.equal(future.observation.clock, 'future_timestamp');
+    assert.ok(future.observation.receive_lag_ms < 0);
+
+    const raw = wire(108, bcd, 2, time(-8));
+    raw[raw.length - 2] ^= 1;
+    const rejected = await persistPacket({
+      payload: raw, aovx: { messageId: 0x0200, deviceIdBcd: bcd, checksumStatus: 'xor-mismatch' }
+    }, db);
+    assert.equal((await runtime.aovxIngestion.processPacket(rejected.id)).reason, 'rejected');
+    const failure = await diagnostics();
+    assert.equal(failure.packet.ingestion, 'rejected');
+    assert.equal(failure.packet.decoding, 'failed');
+    assert.equal(failure.observation.event_id, future.observation.event_id);
+
+    await observe(109, 6, time(-20));
+    const conflict = await expectReason('conflicting_fixes');
+    assert.equal(conflict.position.conflict, true);
+    assert.equal(conflict.position.last_known_at, null);
+    await observe(110, 6, time(-5));
+    await expectReason('eligible');
+    await runtime.telemetry.setEnabled(a, id, { enabled: false });
+    await expectReason('device_disabled');
+    assert.equal((await runtime.telemetry.latest(a, id, true)).location, null);
+    await runtime.telemetry.setEnabled(a, id, { enabled: true });
+    await runtime.telemetry.revokeAovxDevice(a, bcd);
+    assert.equal((await expectReason('unbound_device')).observation, null);
+    assert.equal((await runtime.telemetry.latest(a, id, true)).location, null);
+    await delay(5);
+    await runtime.telemetry.bindAovxDevice(a, null, { device_id: id, device_id_bcd: bcd });
+    assert.equal((await expectReason('no_decoded_observation')).position.last_known_at, null);
   });
   await t.test('manufacturer frame crosses the TCP framer and retains immutable raw lineage', async () => {
     const raw = Buffer.from(readFileSync(new URL('./fixtures/aovx-manufacturer-0200.hex', import.meta.url), 'utf8')

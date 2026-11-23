@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { canonicalize } from '../telemetry/schema.js';
 
 export const AOVX_TELEMETRY_PARSER_VERSION = 'aovx-gal-v2';
-const MAX_LIVE_RECEIVE_LAG_MS = 5 * 60 * 1000;
+export const MAX_LIVE_RECEIVE_LAG_MS = 5 * 60 * 1000;
 
 function utcMeasurement(digits) {
   if (!/^\d{12}$/.test(digits ?? '')) return null;
