@@ -339,7 +339,7 @@ test(
     await shipments.change(owner.tenant_id, shipment.id, 'active');
     const body = Buffer.alloc(40);
     body.writeUInt32BE(0x80000012, 4);
-    Buffer.from('240201030405', 'hex').copy(body, 22);
+    Buffer.from('240231030405', 'hex').copy(body, 22);
     const socket = net.connect(tcp, '127.0.0.1');
     const closed = once(socket, 'close');
     socket.end(encodeAovxFrame({
@@ -385,6 +385,49 @@ test(
     await recorded.getByRole('button', { name: 'Event details' }).click();
     assert.match(await details.innerText(), /Gateway received[\s\S]*Device measurement time\s+Unavailable/);
     await details.locator('[data-action=close-dialog]').click();
+    // A valid buffered fix is visible in history without becoming a map marker.
+    body.writeUInt32BE(31867795, 8);
+    body.writeUInt32BE(117147473, 12);
+    Buffer.from('240201030405', 'hex').copy(body, 22);
+    const bufferedSocket = net.connect(tcp, '127.0.0.1');
+    const bufferedClosed = once(bufferedSocket, 'close');
+    bufferedSocket.end(encodeAovxFrame({
+      messageId: 0x0200, deviceIdBcd: Buffer.from(bcd, 'hex'), sequenceNumber: 2, body
+    }));
+    await bufferedClosed;
+    await until(async () => (await db.query(
+      'SELECT count(*)::int AS n FROM telemetry_events WHERE tenant_id=$1 AND device_id=$2',
+      [owner.tenant_id, physical.id]
+    )).rows[0].n === 2);
+    await page.locator('#navigation a[href="#devices"]').click();
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await row.getByText(/2024-02-01T03:04:05.000Z.*Buffered/).waitFor();
+    await row.getByRole('button', { name: 'Device details' }).click();
+    assert.match(await details.innerText(), /Current position\s+Unavailable/);
+    await details.getByText('Unverified AOVX positions on this page', { exact: true }).waitFor();
+    assert.match(await details.innerText(), /Unverified AOVX positions on this page/);
+    assert.match(await details.innerText(), /2024-02-01T03:04:05.000Z · Buffered/);
+    assert.match(await details.innerText(), /31.867795, 117.147473/);
+    await details.locator('[data-action=close-dialog]').click();
+    // A timely real-time fix is labelled last known and unverified on the map.
+    body.writeUInt32BE(2, 4);
+    const measuredAt = new Date(Math.floor(Date.now() / 1000) * 1000 - 2000).toISOString();
+    Buffer.from(measuredAt.slice(2, 19).replace(/\D/g, ''), 'hex').copy(body, 22);
+    const realtimeSocket = net.connect(tcp, '127.0.0.1');
+    const realtimeClosed = once(realtimeSocket, 'close');
+    realtimeSocket.end(encodeAovxFrame({
+      messageId: 0x0200, deviceIdBcd: Buffer.from(bcd, 'hex'), sequenceNumber: 3, body
+    }));
+    await realtimeClosed;
+    await until(async () => (await db.query(
+      'SELECT count(*)::int AS n FROM telemetry_events WHERE tenant_id=$1 AND device_id=$2',
+      [owner.tenant_id, physical.id]
+    )).rows[0].n === 3);
+    await page.locator('#navigation a[href="#map"]').click();
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await card.getByText('Last known fix (UTC)', { exact: true }).waitFor();
+    assert.match(await card.innerText(), /Gateway received[\s\S]*unverified/);
+    assert.equal(await page.locator('.ux-device-position').count(), 2);
     // Browse actual PostgreSQL cursor pages in the browser-only workspace.
     const fixture = await telemetry.register(owner.tenant_id, { label: 'Synthetic history sample', mode: 'synthetic' });
     for (let index = 1; index <= 22; index++) {

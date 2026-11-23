@@ -202,9 +202,31 @@ export function createTelemetryService(pool, { onEvent } = {}) {
       };
     },
     async latest(tenantId, id, locationOnly = false) {
-      // Physical observations stay in history until measurement freshness can
-      // be established independently of the Gateway receive time.
       const d = await device(pool, tenantId, id);
+      if (locationOnly && d.identity_kind === 'physical') {
+        // A current candidate needs independently decoded time and a timely
+        // real-time fix. At second precision conflicting positions are ambiguous.
+        const { rows: [row] } = await pool.query(
+          `WITH newest AS (
+             SELECT id,received_at,payload FROM telemetry_events
+             WHERE tenant_id=$1 AND device_id=$2 AND source='aovx-gal-v1'
+               AND parser_version='aovx-gal-v2' AND trust='unverified'
+               AND payload->'extra'->'live_position_eligible' = 'true'::jsonb
+               AND payload->'extra'->'buffered' = 'false'::jsonb
+               AND payload->>'device_measured_at' IS NOT NULL
+               AND payload->'gps' <> 'null'::jsonb
+             ORDER BY payload->>'device_measured_at' DESC FETCH FIRST 1 ROW WITH TIES
+           )
+           SELECT * FROM newest WHERE (SELECT count(DISTINCT payload->'gps') FROM newest)=1
+           ORDER BY received_at,id LIMIT 1`, [tenantId,id]);
+        return {
+          device_id: d.id,
+          location: row ? {
+            event_id: row.id, occurred_at: row.payload.device_measured_at,
+            received_at: row.received_at, gps: row.payload.gps, trust: 'unverified'
+          } : null
+        };
+      }
       const result = await pool.query(
         `SELECT id,occurred_at,payload FROM telemetry_events WHERE tenant_id=$1 AND device_id=$2
         ${locationOnly ? "AND trust='synthetic' AND payload->'gps' <> 'null'::jsonb" : ''} ORDER BY occurred_at DESC,id DESC LIMIT 1`,
