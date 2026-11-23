@@ -13,7 +13,7 @@
   const newPassword = field('New password', 'password', 'password', 'new-password');
   function auth(screen, error, phase, demo) {
     const content = {
-      login: form('login', email + field('Password', 'password', 'password', 'current-password'), 'Sign in'),
+      login: form('login', (demo ? field('Username', 'username', 'text', 'username') : email) + field('Password', 'password', 'password', 'current-password'), 'Sign in'),
       register: form('register', email, 'Send confirmation code'),
       verify: form('verify', code + newPassword, 'Confirm email'),
       recover: form('recover', email, 'Send recovery code'),

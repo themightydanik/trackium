@@ -12,7 +12,7 @@ const token = () => randomBytes(32).toString('base64url');
 const roles = ['admin', 'dispatcher', 'viewer'];
 const credentialsError = () => new ApiError(401, 'Invalid email or password, or email not confirmed');
 
-export function normalizedEmail(value) {
+function normalizedEmail(value) {
   text(value, 254);
   const email = value.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) invalid('Enter a valid email address');
@@ -62,6 +62,7 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
             ELSE d.account_id IS NULL END)`, [hash(raw), demoMode]);
     if (!result) throw new ApiError(401, 'Sign in to continue');
     if (write && !safeEqual(req.headers['x-csrf-token'], csrf(raw))) throw new ApiError(403, 'CSRF check failed');
+    if (result.demo) delete result.email;
     return { ...result, csrf: csrf(raw), kind: 'session', customer: true,
       scopes: !result.role ? [] : result.role === 'viewer' ? ['read'] : ['read', 'shipments'],
       simulation_enabled: false };
@@ -129,8 +130,8 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
   };
 
   async function change(req, res, action, input) {
-    if (action === 'register' || action === 'login' || action === 'recover') {
-      object(input, action === 'login' ? ['email', 'password'] : ['email']);
+    if (action === 'register' || action === 'recover') {
+      object(input, ['email']);
       const email = normalizedEmail(input.email);
       await takeCustomerRate(pool, 'email:' + action + ':' + hash(email), 5);
       if (action === 'register') {
@@ -152,20 +153,32 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
         await delay(Math.max(0, 150 - (performance.now() - started)));
         return reply(res, 202, { accepted: true });
       }
+    }
+    if (action === 'login') {
+      const field = demoMode ? 'username' : 'email';
+      object(input, [field, 'password']);
+      const identifier = demoMode ? text(input.username, 128).trim() : normalizedEmail(input.email);
+      await takeCustomerRate(pool, field + ':login:' + hash(identifier), 5);
       const { rows: [account] } = await pool.query(
-        `SELECT a.* FROM customer_accounts a LEFT JOIN customer_demo d ON d.account_id=a.id
-         WHERE a.email=$1 AND (CASE WHEN $2 THEN d.enabled ELSE d.account_id IS NULL END)`, [email,demoMode]);
+        demoMode
+          ? `SELECT a.id,a.password_digest,a.verified_at FROM customer_demo d
+             JOIN customer_accounts a ON a.id=d.account_id WHERE d.username=$1 AND d.enabled`
+          : `SELECT a.id,a.password_digest,a.verified_at FROM customer_accounts a
+             WHERE a.email=$1 AND NOT EXISTS (SELECT 1 FROM customer_demo d WHERE d.account_id=a.id)`, [identifier]);
+      const invalidLogin = () => demoMode
+        ? new ApiError(401, 'Invalid username or password')
+        : credentialsError();
       const candidate = await digest(password(input.password), account?.password_digest.split(':')[0] || '0'.repeat(32));
-      if (!account?.verified_at || !safeEqual(candidate, account.password_digest)) throw credentialsError();
+      if (!account?.verified_at || !safeEqual(candidate, account.password_digest)) throw invalidLogin();
       await transaction(pool, null, async client => {
         const locked = await client.query('SELECT id FROM customer_accounts WHERE id=$1 AND password_digest=$2 FOR UPDATE',
           [account.id, candidate]);
-        if (!locked.rowCount) throw credentialsError();
+        if (!locked.rowCount) throw invalidLogin();
         const { rows: [company] } = await client.query(
           `SELECT m.tenant_id FROM customer_members m LEFT JOIN customer_demo d ON d.account_id=m.account_id
            WHERE m.account_id=$1 AND (CASE WHEN $2 THEN d.enabled AND d.tenant_id=m.tenant_id AND m.role='viewer'
              ELSE d.account_id IS NULL END) ORDER BY m.tenant_id LIMIT 1`, [account.id,demoMode]);
-        if (demoMode && !company) throw credentialsError();
+        if (demoMode && !company) throw invalidLogin();
         await start(client, account.id, company?.tenant_id ?? null, res);
       });
       return reply(res, 200, { signed_in: true });

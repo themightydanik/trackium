@@ -4,7 +4,7 @@ import { open } from 'node:fs/promises';
 import { ApiError } from '../telemetry/schema.js';
 import { createTelemetryService } from '../telemetry/service.js';
 import { createIntegritas } from '../proofs/integritas.js';
-import { createPasswordDigest, normalizedEmail } from './accounts.js';
+import { createPasswordDigest } from './accounts.js';
 import { createShipmentService, shipment, transition } from './shipments.js';
 import { tenantLock, transaction } from './shared.js';
 
@@ -50,21 +50,19 @@ async function seed(pool, client, tenant) {
   }
 }
 
-export async function administerDemo(pool, command, { email, password } = {}) {
+export async function administerDemo(pool, command, { password } = {}) {
   if (!['bootstrap', 'rotate', 'revoke', 'disable', 'enable'].includes(command))
     throw new ApiError(400, 'Use bootstrap, rotate, revoke, disable or enable');
-  if (command === 'bootstrap') email = normalizedEmail(email);
+  // Kept as an internal sentinel in the email-based account table. Demo login uses customer_demo.username.
+  const email = 'demo@trackium.invalid';
   const digest = ['bootstrap','rotate'].includes(command) ? await createPasswordDigest(password) : null;
   return transaction(pool, null, async client => {
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended('trackium-customer-demo',0))");
     const { rows: [existing] } = await client.query(
-      `SELECT d.account_id,d.tenant_id,d.enabled,a.email FROM customer_demo d
+      `SELECT d.account_id,d.tenant_id,d.enabled FROM customer_demo d
        JOIN customer_accounts a ON a.id=d.account_id FOR UPDATE OF a`);
     if (command === 'bootstrap') {
-      if (existing) {
-        if (existing.email !== email) throw new ApiError(409, 'A different demo account already exists');
-        return { status: 'already-present', enabled: existing.enabled };
-      }
+      if (existing) return { status: 'already-present', enabled: existing.enabled };
       const occupied = await client.query(
         "SELECT EXISTS(SELECT 1 FROM customer_accounts WHERE email=$1) OR EXISTS(SELECT 1 FROM telemetry_tenants WHERE name='Trackium Demo') AS occupied",
         [email]);

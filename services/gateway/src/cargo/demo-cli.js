@@ -6,7 +6,7 @@ const [command, ...args] = process.argv.slice(2);
 let pool;
 try {
   if (!process.env.DATABASE_URL) throw new ApiError(400, 'Set DATABASE_URL through the approved secret store');
-  const expected = { bootstrap: ['email', 'password-file'], rotate: ['password-file'], revoke: [], disable: [], enable: [] };
+  const expected = { bootstrap: ['password-file'], rotate: ['password-file'], revoke: [], disable: [], enable: [] };
   if (!Object.hasOwn(expected, command)) throw new ApiError(400, 'Use bootstrap, rotate, revoke, disable or enable');
   const options = Object.fromEntries(args.map(value => {
     const match = /^--([a-z-]+)=(.+)$/.exec(value);
@@ -17,9 +17,9 @@ try {
     throw new ApiError(400, 'Provide all required options once');
   const password = options['password-file'] ? await readDemoPassword(options['password-file']) : undefined;
   pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1, connectionTimeoutMillis: 5000 });
-  console.log(JSON.stringify(await administerDemo(pool, command, { email: options.email, password })));
+  console.log(JSON.stringify(await administerDemo(pool, command, { password })));
 } catch (error) {
-  console.error(error instanceof ApiError ? error.message : 'Demo operation failed. Check database access, migration 013 and secret-file permissions.');
+  console.error(error instanceof ApiError ? error.message : 'Demo operation failed. Check database access, migration 014 and secret-file permissions.');
   process.exitCode = 1;
 } finally {
   await pool?.end();
