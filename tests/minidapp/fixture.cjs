@@ -110,7 +110,10 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
       };
     else if (p.includes('/shipments/55555555-5555-4555-8555-555555555555/'))
       data = p.endsWith('/proofs') ? { proofs: [], engine_mode: 'test' } : { events: [] };
-    else if (p === `/v1/shipments/${id}`) data = fixture.shipment;
+    else if (p === `/v1/shipments/${id}`) data = {
+      ...fixture.shipment,
+      ...(source.shipmentName ? { name: source.shipmentName } : {})
+    };
     else if (p === `/v1/shipments/${id}/events`) data = { events: [fixture.event] };
     else if (p === `/v1/shipments/${id}/proofs`)
       data = { proofs: [{ ...fixture.proof, publisher_kind: source.publisherKind || 'server' }], engine_mode: 'test' };
@@ -168,7 +171,7 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
   });
   await page.goto(origin + (source.nativeWorkspace ? '/app/core' : '/app/'));
   await page
-    .locator(source.phase || source.offline ? '.connection-state' : '.ux-kpi')
+    .locator(source.phase || source.offline ? '.connection-state' : '.ops-stat')
     .first()
     .waitFor();
   if (source.errors?.length) throw new Error('Fixture script errors: ' + source.errors.join('; '));

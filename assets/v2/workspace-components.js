@@ -187,9 +187,9 @@
       }).join('') +
       '</svg><small>Positions are shown as individual samples. Lines between observations are omitted.</small></figure>';
   }
-  let mapInstance = null,
-    lastView = null,
-    currentPage = null;
+  let mapInstance = null, mapContainer = null, countries = null, mapStyle = '',
+    lastView = null, currentPage = null;
+  const mapLayers = new Map();
   function beforeRender(reset) {
     if (mapInstance) {
       lastView = {
@@ -199,6 +199,8 @@
       };
       mapInstance.remove();
       mapInstance = null;
+      mapContainer = null;
+      mapLayers.clear();
     }
     if (reset) lastView = null;
   }
@@ -217,24 +219,43 @@
       accent = style.getPropertyValue('--tc-accent').trim(),
       land = style.getPropertyValue('--tc-surface-raised').trim(),
       outline = style.getPropertyValue('--tc-outline').trim();
-    const map = (mapInstance = L.map(el, {
-      scrollWheelZoom: false,
-      zoomAnimation: false,
-      fadeAnimation: false,
-      markerZoomAnimation: false,
-      minZoom: 1,
-      maxZoom: 12,
-      attributionControl: true
-    }));
-    map.setView([25, 10], 2);
+    const fresh = mapContainer !== el;
+    if (fresh) {
+      beforeRender(false);
+      currentPage = page;
+      mapInstance = L.map(el, {
+        scrollWheelZoom: false, zoomAnimation: false, fadeAnimation: false,
+        markerZoomAnimation: false, minZoom: 1, maxZoom: 12, attributionControl: true
+      }).setView([25, 10], 2);
+      mapContainer = el;
+      countries = L.geoJSON(root.TrackiumWorldMap, { interactive: false }).addTo(mapInstance);
+      mapInstance.attributionControl.setPrefix('');
+      mapInstance.attributionControl.addAttribution('Leaflet (BSD-2-Clause) · Natural Earth (public domain)');
+      mapInstance.on('zoomend', countryLabels);
+    }
+    const map = mapInstance;
     const planColor = document.documentElement.classList.contains('lite-workspace')
       ? style.getPropertyValue('--tc-gold').trim() : accent;
-    const countries = L.geoJSON(root.TrackiumWorldMap, {
-      interactive: false,
-      style: { color: outline, weight: 1, fillColor: land, fillOpacity: 1 }
-    }).addTo(map);
-    map.attributionControl.setPrefix('');
-    map.attributionControl.addAttribution('Leaflet (BSD-2-Clause) · Natural Earth (public domain)');
+    const theme = [outline, land].join('/');
+    if (fresh || mapStyle !== theme) {
+      countries.setStyle({ color: outline, weight: 1, fillColor: land, fillOpacity: 1 });
+      mapStyle = theme;
+    }
+    const seen = new Set();
+    function place(key, signature, create) {
+      seen.add(key);
+      const previous = mapLayers.get(key);
+      if (previous?.signature === signature) return;
+      const open = previous?.layer.isPopupOpen();
+      previous?.layer.remove();
+      const layer = create().addTo(map);
+      mapLayers.set(key, { signature, layer });
+      if (open && layer.getPopup()) {
+        layer.getPopup().options.autoPan = false;
+        layer.openPopup();
+        layer.getPopup().options.autoPan = true;
+      }
+    }
     const bounds = [];
     for (const s of (page === 'dashboard' ? data.shipments.filter(s => s.status === 'active') : data.shipments)) {
       const points = (s.route || []).filter(valid).map((p) => [p.latitude, p.longitude]);
@@ -242,14 +263,15 @@
       const details = '<button class="button secondary" data-server-action="view-shipment" data-server-id="' +
         esc(s.id) + '">Shipment details</button>';
       if (points.length)
-        L.polyline(points, { color: planColor, weight: 3, dashArray: '6 6' })
-          .bindPopup('<p>Planned route · ' + esc(s.name) + '</p>' + details, { minWidth: 170 })
-          .addTo(map);
+        place('shipment:' + s.id, JSON.stringify([points,s.name,planColor]), () =>
+          L.polyline(points, { color: planColor, weight: 3, dashArray: '6 6' })
+            .bindPopup('<p>Planned route · ' + esc(s.name) + '</p>' + details, { minWidth: 170 }));
       for (const [index, stop] of (s.route || []).entries()) {
         if (!valid(stop)) continue;
         const kind = index === 0 ? 'Origin' : index === s.route.length - 1 ? 'Destination' : 'Checkpoint';
-        L.circleMarker([stop.latitude,stop.longitude], { className: 'ux-route-stop', radius: 6, color: outline, fillColor: planColor })
-          .bindPopup('<p>' + kind + ' · ' + esc(stop.name) + '</p>' + details, { minWidth: 170 }).addTo(map);
+        place('stop:' + s.id + ':' + index, JSON.stringify([stop,kind,outline,planColor]), () =>
+          L.circleMarker([stop.latitude,stop.longitude], { className: 'ux-route-stop', radius: 6, color: outline, fillColor: planColor })
+            .bindPopup('<p>' + kind + ' · ' + esc(stop.name) + '</p>' + details, { minWidth: 170 }));
       }
     }
     for (const d of data.devices) {
@@ -257,7 +279,8 @@
       if (!obs) continue;
       const p = [obs.gps.latitude, obs.gps.longitude];
       bounds.push(p);
-      L.circleMarker(p, {
+      const stale = Date.now() - Date.parse(obs.occurred_at) > 15 * 60 * 1000;
+      place('device:' + d.registry.id, JSON.stringify([obs,d.registry.label,stale,accent]), () => L.circleMarker(p, {
         className: 'ux-device-position',
         radius: 7,
         color: accent,
@@ -269,7 +292,7 @@
             esc(d.registry.label) +
             '</strong><p>' + (obs.trust === 'unverified' ? 'Last known fix: ' : 'Last reported: ') +
             esc(obs.trust === 'unverified' ? obs.occurred_at : date(obs.occurred_at)) +
-            ' · ' + (Date.now() - Date.parse(obs.occurred_at) > 15 * 60 * 1000 ? 'Older than 15 minutes' : 'Recent sample') +
+            ' · ' + (stale ? 'Older than 15 minutes' : 'Recent sample') +
             (obs.received_at ? '</p><p>Gateway received: ' + esc(date(obs.received_at)) : '') +
             '</p><p>Source: ' +
             esc(obs.trust || 'unknown') +
@@ -278,12 +301,18 @@
             ', ' +
             obs.gps.longitude +
             '</p>'
-        )
-        .addTo(map);
+        ));
     }
-    if (lastView?.page === page) map.setView(lastView.center, lastView.zoom);
-    else if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 7 });
-    else map.setView([25, 10], 2);
+    for (const [key, record] of mapLayers) if (!seen.has(key)) {
+      record.layer.remove();
+      mapLayers.delete(key);
+    }
+    if (fresh) {
+      if (lastView?.page === page) map.setView(lastView.center, lastView.zoom);
+      else if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 7 });
+      countryLabels();
+      map.invalidateSize();
+    }
     function countryLabels() {
       countries.eachLayer((layer) => {
         layer.unbindTooltip();
@@ -297,9 +326,16 @@
             .openTooltip();
       });
     }
-    map.on('zoomend', countryLabels);
-    countryLabels();
-    map.invalidateSize();
+  }
+  function focusMap(key) {
+    if (!mapInstance) return;
+    const target = mapLayers.get(key)?.layer;
+    const layers = target ? [target] : key ? [] : [...mapLayers.values()].map(record => record.layer);
+    if (!layers.length) return;
+    const bounds = L.latLngBounds([]);
+    for (const layer of layers) bounds.extend(layer.getBounds ? layer.getBounds() : layer.getLatLng());
+    mapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 });
+    target?.openPopup();
   }
   root.TrackiumComponents = {
     esc,
@@ -310,6 +346,7 @@
     connection,
     beforeRender,
     mountMap,
+    focusMap,
     reportedPosition,
     historyPosition,
     positionHistory

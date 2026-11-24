@@ -19,7 +19,7 @@
       recover: form('recover', email, 'Send recovery code'),
       reset: form('reset', code + newPassword, 'Reset password')
     };
-    return '<section class="panel customer-access lite-auth-screen"><h1>' + ({
+    return '<section class="panel customer-access lite-auth-screen"><div class="ops-auth-mark"><img src="assets/v2/brand/mark.png" width="52" height="44" alt=""></div><h1>' + ({
       login: 'Sign in to Trackium', register: 'Create your account', verify: 'Confirm your email',
       recover: 'Recover access', reset: 'Set a new password'
     })[screen] + '</h1>' + content[screen] +
@@ -58,8 +58,9 @@
       (other.length ? form('switch', '<label class="field-label">Company<select name="company">' +
         other.map(item => '<option value="' + esc(item.id) + '">' + esc(item.name) + '</option>').join('') +
         '</select></label>', 'Switch company') : '') +
-      form('company', field('Company name','name'), 'Create company') +
-      form('accept', field('Invitation code','code','text','one-time-code'), 'Join company') +
+      '<div class="ops-company-actions"><section><h3>Create a company</h3>' +
+      form('company', field('Company name','name'), 'Create company') + '</section><section><h3>Join a company</h3>' +
+      form('accept', field('Invitation code','code','text','one-time-code'), 'Join company') + '</section></div>' +
       (manage ? form('device', field('Device label','label'), 'Add device record') + '<details class="panel ux-advanced" id="company-members"><summary>Company access</summary>' +
         form('invite', email + '<label class="field-label">Role<select name="role">' + roleOptions(visibleRoles) + '</select></label>', 'Invite colleague') +
         '<button class="button secondary" data-customer-view="members">Load members</button>' +

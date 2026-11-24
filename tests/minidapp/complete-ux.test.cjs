@@ -102,7 +102,7 @@ test('empty, unpaired, unauthorized, offline and expired states clear tenant evi
   for (const phase of [401, 403]) {
     const { context, page } = await fixturePage(390, 'light', { phase });
     await page.locator('#pair-tenant').waitFor();
-    assert.equal(await page.locator('.ux-kpi').count(), 0);
+    assert.equal(await page.locator('.ops-stat').count(), 0);
     await context.close();
   }
   const empty = await fixturePage(320, 'light', { empty: true });
@@ -126,7 +126,7 @@ test('empty, unpaired, unauthorized, offline and expired states clear tenant evi
     assert.ok(
       !(await page.locator('#dialog-content').innerText()).includes('Synthetic fixture sensor')
     );
-    assert.equal(await page.locator('.ux-kpi').count(), 0);
+    assert.equal(await page.locator('.ops-stat').count(), 0);
     await context.close();
   }
 });

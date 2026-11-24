@@ -90,3 +90,69 @@ test('Core keeps native publisher controls while Lite exposes native proof histo
     await lite.context.close();
   }
 });
+
+test('quiet snapshots retain map viewport, popup, focused filter and open details across updates', async () => {
+  const source = {};
+  const { context, page } = await fixturePage(1440, 'dark', source);
+  try {
+    await page.evaluate(() => { location.hash = 'shipments'; });
+    const search = page.locator('#server-search');
+    await search.fill('cold');
+    const checkTime = async () => {
+      const previous = await page.locator('#lite-gateway-time').getAttribute('datetime');
+      await page.waitForFunction(prior => document.querySelector('#lite-gateway-time').dateTime !== prior, previous);
+    };
+    await search.evaluate(node => { window.pollSearch = node; window.filterTop = node.getBoundingClientRect().top; });
+    await checkTime();
+    await checkTime();
+    assert.ok(await search.evaluate(node => node === window.pollSearch &&
+      node === document.activeElement && node.getBoundingClientRect().top === window.filterTop));
+    assert.equal(await search.inputValue(), 'cold');
+    assert.equal(await page.getByText('Refreshing…', { exact: true }).count(), 0);
+
+    await page.evaluate(() => { location.hash = 'map'; });
+    const selection = page.locator('#map-selection');
+    await selection.selectOption({ index: 1 });
+    await page.getByRole('button', { name: 'Show on map' }).click();
+    const map = page.locator('#workspace-map');
+    await map.locator('.leaflet-popup').waitFor();
+    await map.evaluate(node => {
+      window.retainedMap = node;
+      window.retainedMapTransform = node.querySelector('.leaflet-map-pane').style.transform;
+    });
+    const selectedRecord = await selection.inputValue();
+    source.shipmentName = 'Cold cargo after update';
+    await map.locator('.leaflet-popup').getByText('Planned route · Cold cargo after update').waitFor();
+    assert.equal(await selection.inputValue(), selectedRecord);
+    assert.ok(await map.evaluate(node => node === window.retainedMap &&
+      node.querySelector('.leaflet-map-pane').style.transform === window.retainedMapTransform));
+    await map.getByRole('button', { name: 'Shipment details' }).click();
+    const dialog = page.locator('#detail-dialog');
+    await dialog.getByRole('heading', { name: 'Cold cargo after update' }).waitFor();
+    await checkTime();
+    assert.equal(await dialog.evaluate(node => node.open), true);
+    await page.keyboard.press('Escape');
+
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    const requestCount = source.requests.length;
+    await page.waitForTimeout(3200);
+    assert.equal(source.requests.length, requestCount);
+    await page.evaluate(() => {
+      delete document.hidden;
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await checkTime();
+
+    await context.setOffline(true);
+    await page.getByText('Offline', { exact: true }).first().waitFor();
+    assert.equal(await page.locator('#workspace-map').count(), 0);
+    await context.setOffline(false);
+    await page.locator('#workspace-map').waitFor();
+    await page.getByText('Gateway snapshot', { exact: true }).first().waitFor();
+  } finally {
+    await context.close();
+  }
+});
