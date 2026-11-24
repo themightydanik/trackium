@@ -1683,6 +1683,7 @@
     if (customerBusy) return;
     const submit = event.target.querySelector('[type=submit]');
     const input = Object.fromEntries(new FormData(event.target));
+    const entryRoute = location.hash;
     const enrollmentTenant = action === 'aovx-enroll' ? server.state.account?.tenant_id : null;
     if (action === 'member' && !input.role) input.role = null;
     customerBusy = true;
@@ -1693,7 +1694,7 @@
       if (result.signed_in) {
         companyMembers = null;
         companyMembersTenant = null;
-        location.hash = 'dashboard';
+        if (location.hash === entryRoute && page() !== 'dashboard') location.hash = 'dashboard';
       } else if (action === 'register' || action === 'recover') {
         customerScreen = action === 'register' ? 'verify' : 'reset';
         render();
