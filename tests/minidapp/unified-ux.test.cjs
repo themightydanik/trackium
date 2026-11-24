@@ -90,3 +90,118 @@ test('Core keeps native publisher controls while Lite exposes native proof histo
     await lite.context.close();
   }
 });
+
+test('quiet snapshots retain map viewport, popup, focused filter and open details across updates', async () => {
+  const source = {};
+  const { context, page } = await fixturePage(1440, 'dark', source);
+  try {
+    await page.evaluate(() => { location.hash = 'shipments'; });
+    const search = page.locator('#server-search');
+    await search.fill('cold');
+    const checkTime = async () => {
+      const previous = await page.locator('#lite-gateway-time').getAttribute('datetime');
+      await page.waitForFunction(prior => document.querySelector('#lite-gateway-time').dateTime !== prior, previous);
+    };
+    await search.evaluate(node => { window.pollSearch = node; window.filterTop = node.getBoundingClientRect().top; });
+    await checkTime();
+    await checkTime();
+    assert.ok(await search.evaluate(node => node === window.pollSearch &&
+      node === document.activeElement && node.getBoundingClientRect().top === window.filterTop));
+    assert.equal(await search.inputValue(), 'cold');
+    assert.equal(await page.getByText('Refreshing…', { exact: true }).count(), 0);
+
+    await page.setViewportSize({ width: 1440, height: 680 });
+    await page.evaluate(() => { location.hash = 'map'; });
+    const selection = page.locator('#map-selection');
+    await selection.selectOption({ index: 1 });
+    await page.getByRole('button', { name: 'Show on map' }).click();
+    const map = page.locator('#workspace-map');
+    await map.locator('.leaflet-popup').waitFor();
+    await map.evaluate(node => {
+      window.retainedMap = node;
+      window.retainedMapTransform = node.querySelector('.leaflet-map-pane').style.transform;
+    });
+    const scroll = await page.evaluate(() => {
+      window.scrollTo(0, 100);
+      return window.scrollY;
+    });
+    assert.ok(scroll > 0);
+    const selectedRecord = await selection.inputValue();
+    source.shipmentName = 'Cold cargo after update';
+    await map.locator('.leaflet-popup').getByText('Planned route · Cold cargo after update').waitFor();
+    assert.equal(await selection.inputValue(), selectedRecord);
+    assert.equal(await page.evaluate(() => window.scrollY), scroll);
+    assert.ok(await map.evaluate(node => node === window.retainedMap &&
+      node.querySelector('.leaflet-map-pane').style.transform === window.retainedMapTransform));
+    await map.getByRole('button', { name: 'Shipment details' }).click();
+    const dialog = page.locator('#detail-dialog');
+    await dialog.getByRole('heading', { name: 'Cold cargo after update' }).waitFor();
+    await checkTime();
+    assert.equal(await dialog.evaluate(node => node.open), true);
+    await page.keyboard.press('Escape');
+
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    const requestCount = source.requests.length;
+    await page.waitForTimeout(3200);
+    assert.equal(source.requests.length, requestCount);
+    await page.evaluate(() => {
+      delete document.hidden;
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await checkTime();
+
+    await context.setOffline(true);
+    await page.getByText('Offline', { exact: true }).first().waitFor();
+    assert.equal(await page.locator('#workspace-map').count(), 0);
+    await context.setOffline(false);
+    await page.locator('#workspace-map').waitFor();
+    await page.getByText('Gateway snapshot', { exact: true }).first().waitFor();
+  } finally {
+    await context.close();
+  }
+});
+
+test('Lite dispatch views tie diagrams to loaded records and keep test proofs explicit on phones', async () => {
+  const { context, page } = await fixturePage(390, 'dark', { visual: true, integritas: true });
+  const navigate = async (route, heading) => {
+    await page.evaluate(value => { location.hash = value; }, route);
+    await page.getByRole('heading', { level: 1, name: heading, exact: true }).waitFor();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  };
+  try {
+    const lifecycle = page.getByRole('list', {name: 'Shipment lifecycle breakdown'});
+    assert.equal(await lifecycle.locator('meter[aria-label="In transit"]').getAttribute('value'), '1');
+    assert.equal(await lifecycle.locator('meter[aria-label="Arrived"]').getAttribute('value'), '0');
+    const dispatch = page.locator('.dispatch-record');
+    assert.match(await dispatch.innerText(), /synthetic/i);
+    assert.match(await dispatch.getByRole('list', { name: 'Planned checkpoints' }).innerText(), /Start\s+Planned/);
+    await dispatch.getByRole('button', { name: 'Open shipment' }).click();
+    await page.locator('#detail-dialog').getByRole('heading', { name: 'Route & checkpoints' }).waitFor();
+    await page.keyboard.press('Escape');
+
+    await navigate('devices', 'Devices');
+    assert.match(await page.locator('.fleet-counters').innerText(), /Physical identities\s+0/);
+    assert.match(await page.getByRole('row').filter({hasText: 'Synthetic fixture sensor'}).innerText(), /0 °C/);
+    await page.getByRole('button', {name: 'Device details', exact: true}).click();
+    await page.getByRole('img', { name: 'Temperature observations over reported time' }).waitFor();
+    assert.equal(await page.getByRole('img', { name: 'Temperature observations over reported time' }).locator('circle').count(), 3);
+    await page.keyboard.press('Escape');
+
+    await navigate('events', 'Event history');
+    assert.match(await page.locator('.event-brief').innerText(), /Warnings\s+1/);
+    await page.locator('.ops-event-alert').getByRole('button', {name: 'Event details'}).click();
+    await page.locator('#detail-dialog[open]').waitFor();
+    await page.keyboard.press('Escape');
+
+    await navigate('proofs', 'Proof records');
+    const proof = page.locator('.ops-proof');
+    assert.match(await proof.innerText(), /TEST_ONLY[\s\S]*Evidence checked[\s\S]*No blockchain confirmation/);
+    await proof.getByText('Technical evidence', {exact: true}).click();
+    assert.equal(await proof.locator('details').evaluate(node => node.open), true);
+  } finally {
+    await context.close();
+  }
+});

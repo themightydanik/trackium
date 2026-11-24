@@ -29,9 +29,11 @@
     let csrf = '',
       generation = 0,
       refreshSerial = 0,
+      foreground = false,
       timer;
-    function change() {
-      onChange(state);
+    const quiet = enabled && !nativeWorkspace;
+    function change(reason) {
+      onChange(state, reason);
     }
     function clear(message = '', phase = 'unpaired') {
       state.phase = phase;
@@ -42,6 +44,7 @@
       state.verifications = {};
       state.history = null;
       state.loading = false;
+      foreground = false;
       state.connected = false;
       state.session = null;
       state.account = null;
@@ -99,13 +102,22 @@
       }
       return data;
     }
-    async function refresh() {
-      if (!state.connected) return;
+    function schedulePoll() {
+      if (state.connected && (!quiet || !document.hidden))
+        timer = setTimeout(() => refresh(quiet), 3000);
+    }
+    if (quiet) document.addEventListener('visibilitychange', () => {
+      clearTimeout(timer);
+      if (!document.hidden && state.connected && !state.loading) void refresh(true);
+    });
+    async function refresh(background = false) {
+      if (!state.connected || (background && (document.hidden || state.loading))) return;
       clearTimeout(timer);
       const version = generation,
         serial = ++refreshSerial;
       state.loading = true;
-      change();
+      foreground = !background;
+      if (!background) change(quiet && state.data ? 'status' : undefined);
       try {
         const session = await request('/v1/session');
         if (version !== generation || serial !== refreshSerial) return;
@@ -170,9 +182,10 @@
           integritas
         };
         state.loading = false;
+        foreground = false;
         state.updated = new Date().toISOString();
         state.error = '';
-        change();
+        change(quiet ? 'snapshot' : undefined);
       } catch (e) {
         if (version !== generation || serial !== refreshSerial) return;
         generation++;
@@ -184,7 +197,7 @@
         );
         change();
       }
-      if (state.connected) timer = setTimeout(refresh, 3000);
+      schedulePoll();
     }
     return {
       state,
@@ -193,6 +206,10 @@
         if (!enabled) return;
         if (navigator.onLine === false) return this.offline();
         const version = ++generation;
+        if (quiet && ['offline', 'unavailable'].includes(state.phase)) {
+          state.phase = 'reconnecting';
+          change();
+        }
         try {
           let account;
           if (customerAccounts && !specialized) {
@@ -332,7 +349,7 @@
         await refresh();
       },
       async turnPage(kind, direction) {
-        if (!['shipments', 'devices'].includes(kind) || state.loading) return;
+        if (!['shipments', 'devices'].includes(kind) || foreground) return;
         const p = state.pages[kind];
         if (direction === 'next' && p.next) {
           p.previous.push(p.cursor);
