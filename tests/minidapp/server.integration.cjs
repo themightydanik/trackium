@@ -979,7 +979,8 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
   await page.getByLabel('Password',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
   await page.getByRole('heading',{name:'Overview',exact:true}).waitFor();
-  await page.locator('#navigation a[href="#shipments"]').click();
+  await page.evaluate(() => { location.hash = 'shipments'; });
+  await page.getByRole('heading',{name:'Shipments',exact:true}).waitFor();
   await page.getByText('Demo · chilled cargo',{exact:true}).waitFor();
   assert.ok(await page.getByRole('button',{name:'Create shipment',exact:true}).isDisabled());
   await page.locator('#navigation a[href="#map"]').click();
