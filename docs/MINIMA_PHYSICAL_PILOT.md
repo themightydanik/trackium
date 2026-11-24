@@ -47,3 +47,7 @@ npm run pilot:admin -- rollback --password-file=/secure/pilot-rollback-password 
 Rollback revokes sessions, removes the pilot Owner membership and approvals and restores the legacy Viewer login using the rotated password if the account is enabled. The pilot tenant, enrolled devices, bindings, physical history and proofs are retained. The software flag can then be disabled. Receipt on existing bindings can continue; stopping collection requires separately authorized unbinding. Resume only with the same pilot company name and reapproved inventory. No migration is edited or removed.
 
 No local check verifies a production binding, HTTPS deployment or physical GL110-GL. The integration and Chromium tests use controlled frames and a disposable database.
+
+A tracker with a foreign binding requires the separate audited
+[AOVX custody transfer](AOVX_CUSTODY_TRANSFER.md). Promotion and Lite enrollment
+do not move an existing binding or its history.

@@ -90,6 +90,12 @@ export function createTelemetryService(pool, { onEvent } = {}) {
         invalid('device_id_bcd must contain exactly 12 decimal digits');
       const bind = async (client) => {
         await client.query("SELECT pg_advisory_xact_lock(hashtextextended('aovx-enroll:'||$1,0))", [input.device_id_bcd]);
+        const custody = await client.query(
+          `SELECT 1 FROM telemetry_aovx_transfers t
+           JOIN telemetry_aovx_device_bindings b ON b.id=t.destination_binding_id
+           WHERE b.device_id_bcd=$1 LIMIT 1`, [input.device_id_bcd]
+        );
+        if (custody.rowCount) throw new ApiError(409, 'Identifier requires operator custody review');
         if (existingClient) {
           const reserved = await client.query(
             `SELECT 1 FROM customer_aovx_approvals WHERE tenant_id=$1 AND identifier_sha256=$2
