@@ -127,7 +127,7 @@
     const safeEvents = events.map((event) => ({
       received_at: event.received_at ?? event.occurred_at ?? null,
       measured_at: event.payload?.device_measured_at ?? null,
-      parser_version: event.payload?.extra?.parser_version ?? null,
+      parser_version: event.parser_version ?? null,
       gnss_fix: event.payload?.extra?.gnss_fix ?? null,
       buffered: event.payload?.extra?.buffered ?? null,
       live_position_eligible: event.payload?.extra?.live_position_eligible ?? null,
