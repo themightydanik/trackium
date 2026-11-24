@@ -82,6 +82,75 @@
   };
   let toastTimer;
   let dialogAnchor = null;
+  let deviceLabTimer = null;
+  let deviceLabRun = 0;
+
+  function stopDeviceLab() {
+    clearTimeout(deviceLabTimer);
+    deviceLabTimer = null;
+    deviceLabRun++;
+  }
+
+  function deviceLabContext(deviceId, history) {
+    const dialog = $('#detail-dialog');
+    if (!server.state.connected || !dialog.open || server.state.history !== history ||
+        history?.device.registry.id !== deviceId) return null;
+    const output = dialog.querySelector('[data-device-diagnostics]');
+    const status = dialog.querySelector('[data-device-diagnostics-state]');
+    return output && status ? { output, status } : null;
+  }
+
+  async function readDeviceLab(deviceId, history, run, repeat = false) {
+    const ctx = deviceLabContext(deviceId, history);
+    if (!ctx || run !== deviceLabRun) return;
+    ctx.status.textContent = 'Checking Gateway diagnostics…';
+    try {
+      const result = await server.request('/v1/devices/' + encodeURIComponent(deviceId) + '/diagnostics');
+      const current = deviceLabContext(deviceId, history);
+      if (!current || run !== deviceLabRun) return;
+      current.output.innerHTML = TrackiumServerView.deviceDiagnostics(result);
+      current.status.textContent = (repeat ? 'Live check active · ' : 'Snapshot · ') +
+        'Gateway queried ' + new Date().toLocaleTimeString() +
+        ' · device connectivity is determined by packet recency, not this request.';
+    } catch {
+      const current = deviceLabContext(deviceId, history);
+      if (!current || run !== deviceLabRun) return;
+      current.status.textContent = 'Diagnostics unavailable. No cached reading is presented as current.';
+      current.output.replaceChildren();
+    } finally {
+      if (repeat && run === deviceLabRun && deviceLabContext(deviceId, history))
+        deviceLabTimer = setTimeout(() => readDeviceLab(deviceId, history, run, true), 10000);
+    }
+  }
+
+  function downloadDeviceLabSnapshot(device, diagnostic, events) {
+    const safeEvents = events.map((event) => ({
+      received_at: event.received_at ?? event.occurred_at ?? null,
+      measured_at: event.payload?.device_measured_at ?? null,
+      parser_version: event.payload?.extra?.parser_version ?? null,
+      gnss_fix: event.payload?.extra?.gnss_fix ?? null,
+      buffered: event.payload?.extra?.buffered ?? null,
+      live_position_eligible: event.payload?.extra?.live_position_eligible ?? null,
+      gps: event.payload?.gps ?? null
+    }));
+    const bundle = {
+      format: 'trackium-device-support-snapshot-v1',
+      exported_at: new Date().toISOString(),
+      scope: 'Last loaded history page only (maximum 20 observations), not a complete time-range export',
+      device_label: device.registry.label,
+      contains_location_data: true,
+      diagnostic,
+      observations: safeEvents
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(bundle, null, 2)], {
+      type: 'application/json'
+    }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'trackium-device-support-snapshot.json';
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   function loadProfile() {
     try {
       const saved = JSON.parse(localStorage.getItem('trackium_v2_profile'));
@@ -1113,23 +1182,36 @@
     const target = event.target.closest('button, a');
     if (!target) return;
     const serverAction = target.dataset.serverAction;
-    if (serverAction === 'load-device-diagnostics') {
+    if (['load-device-diagnostics', 'start-device-diagnostics',
+      'stop-device-diagnostics', 'export-device-diagnostics'].includes(serverAction)) {
       const history = server.state.history;
-      const dialog = $('#detail-dialog');
-      if (!history || history.device.registry.id !== target.dataset.serverId || !dialog.contains(target)) return;
-      const output = target.parentElement.querySelector('[data-device-diagnostics]');
-      const stillOpen = () => dialog.open && dialog.contains(output) && server.state.history === history;
-      target.disabled = true;
-      output.textContent = 'Loading diagnostics…';
-      try {
-        const result = await server.request('/v1/devices/' + encodeURIComponent(target.dataset.serverId) + '/diagnostics');
-        if (stillOpen()) output.innerHTML = TrackiumServerView.deviceDiagnostics(result);
-      } catch {
-        if (stillOpen()) output.textContent = 'Diagnostics unavailable. Try again.';
-      } finally {
-        target.disabled = false;
+      const id = target.dataset.serverId;
+      const ctx = deviceLabContext(id, history);
+      if (!ctx || !$('#detail-dialog').contains(target)) return;
+      if (serverAction === 'stop-device-diagnostics') {
+        stopDeviceLab();
+        ctx.status.textContent = 'Monitoring stopped. Previous snapshot is not live.';
+        return;
       }
-      return;
+      stopDeviceLab();
+      const run = deviceLabRun;
+      if (serverAction === 'export-device-diagnostics') {
+        target.disabled = true;
+        try {
+          const diagnostic = await server.request('/v1/devices/' + encodeURIComponent(id) + '/diagnostics');
+          if (!deviceLabContext(id, history) || run !== deviceLabRun) return;
+          downloadDeviceLabSnapshot(history.device, diagnostic, history.page?.events ?? []);
+          ctx.status.textContent = 'Downloaded a read-only support snapshot. The file contains location data.';
+        } catch {
+          if (deviceLabContext(id, history)) ctx.status.textContent = 'Support snapshot unavailable.';
+        } finally {
+          target.disabled = false;
+        }
+        return;
+      }
+      if (serverAction === 'start-device-diagnostics')
+        return readDeviceLab(id, history, run, true);
+      return readDeviceLab(id, history, run, false);
     }
     if (serverAction?.startsWith('history-')) {
       if (!server.state.history || target.dataset.serverId !== server.state.history.device.registry.id) return;
@@ -1167,6 +1249,7 @@
           const device = serverAction === 'view-device'
             ? server.state.data?.devices.find((row) => row.registry.id === id)
             : null;
+          stopDeviceLab();
           server.closeHistory();
           const html = TrackiumServerView.detail(
             serverAction.slice(5),
@@ -1515,6 +1598,7 @@
     state.query = '';
     closeMenu();
     dialogAnchor = null;
+    stopDeviceLab();
     $('#detail-dialog').close();
     render();
     $('#main').focus({ preventScroll: true });
@@ -1544,7 +1628,7 @@
     }
   });
   $('#detail-dialog').addEventListener('close', () => {
-    if (!$('#detail-dialog').open) server.closeHistory();
+    if (!$('#detail-dialog').open) { stopDeviceLab(); server.closeHistory(); }
     const anchor = dialogAnchor;
     dialogAnchor = null;
     const target = anchor?.id
