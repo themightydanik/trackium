@@ -110,11 +110,23 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
       };
     else if (p.includes('/shipments/55555555-5555-4555-8555-555555555555/'))
       data = p.endsWith('/proofs') ? { proofs: [], engine_mode: 'test' } : { events: [] };
-    else if (p === `/v1/shipments/${id}`) data = fixture.shipment;
+    else if (p === `/v1/shipments/${id}`) data = {
+      ...fixture.shipment,
+      ...(source.shipmentName ? { name: source.shipmentName } : {}),
+      ...(source.visual ? { checkpoints: [
+        { name: 'Start', latitude: 51, longitude: 17, visited_at: null, source_trust: 'synthetic' },
+        { name: 'Transfer', latitude: 50.5, longitude: 23.5, visited_at: null, source_trust: 'synthetic' },
+        { name: 'Destination', latitude: 50, longitude: 30, visited_at: null, source_trust: 'synthetic' }
+      ] } : {})
+    };
     else if (p === `/v1/shipments/${id}/events`) data = { events: [fixture.event] };
     else if (p === `/v1/shipments/${id}/proofs`)
       data = { proofs: [{ ...fixture.proof, publisher_kind: source.publisherKind || 'server' }], engine_mode: 'test' };
-    else if (p === '/v1/integritas/proofs') data = { proofs: [] };
+    else if (p === '/v1/integritas/proofs') data = { proofs: source.visual ? [{
+      id: proofId, shipment_id: id, event_id: eventId, event_type: fixture.event.event_type,
+      status: 'verified', created_at: fixture.event.event_time, network: 'test',
+      source_trust: 'synthetic', on_chain_verified: false
+    }] : [] };
     else if (p === '/v1/proofs/' + proofId + '/local-job') data = { proof_id: proofId };
     else if (p === '/v1/devices')
       data = { devices: source.empty ? [] : [fixture.registry], next_cursor: null };
@@ -168,7 +180,7 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
   });
   await page.goto(origin + (source.nativeWorkspace ? '/app/core' : '/app/'));
   await page
-    .locator(source.phase || source.offline ? '.connection-state' : '.ux-kpi')
+    .locator(source.phase || source.offline ? '.connection-state' : '.ops-stat')
     .first()
     .waitFor();
   if (source.errors?.length) throw new Error('Fixture script errors: ' + source.errors.join('; '));
