@@ -1,6 +1,7 @@
 import { AOVX_TELEMETRY_PARSER_VERSION, MAX_LIVE_RECEIVE_LAG_MS } from './telemetry-adapter.js';
 
 const RECENT_PACKET_MS = 15 * 60 * 1000;
+const RECENT_POSITION_MS = 15 * 60 * 1000;
 
 // Shared with /location so diagnostics and the public projection agree on ties.
 export const physicalPositionCtes = `
@@ -77,7 +78,10 @@ export async function readAovxDiagnostics(pool, device) {
        WHERE tenant_id=$1 AND device_id=$2 AND source='aovx-gal-v1' AND trust='unverified'
          AND occurred_at >= (SELECT created_at FROM active_binding)
          AND parser_version='${AOVX_TELEMETRY_PARSER_VERSION}' AND payload->'gps' <> 'null'::jsonb) AS last_valid_gnss_at,
-      (SELECT row_to_json(position_summary) FROM position_summary) AS summary
+      (SELECT row_to_json(position_summary) FROM position_summary) AS summary,
+      (SELECT json_build_object('received_at', received_at,
+        'latitude', payload->'gps'->'latitude', 'longitude', payload->'gps'->'longitude')
+       FROM newest ORDER BY received_at,id LIMIT 1) AS latest_position
   `, [device.tenant_id, device.id]);
   const { packet, event, bound, summary } = row;
   const lag = event?.measured_at ? Date.parse(event.received_at) - Date.parse(event.measured_at) : null;
@@ -107,7 +111,50 @@ export async function readAovxDiagnostics(pool, device) {
       observation_eligible: reason === 'eligible',
       reason,
       last_known_at: device.enabled && !summary.conflict ? summary.measurement : null,
-      conflict: summary.conflict
+      conflict: summary.conflict,
+      last_known: device.enabled && !summary.conflict && row.latest_position ? {
+        ...row.latest_position,
+        received_at: new Date(row.latest_position.received_at).toISOString(),
+        measured_at: summary.measurement,
+        stale: row.checked_at - Date.parse(summary.measurement) > RECENT_POSITION_MS
+      } : null
     }
+  };
+}
+
+// History is bounded by Gateway receipt so buffered and malformed observations
+// remain discoverable. Only the already normalized position is projected.
+export async function readAovxLabHistory(pool, device, { from, to, limit }) {
+  const { rows } = await pool.query(`
+    SELECT t.received_at, t.parser_version, t.payload->>'device_measured_at' AS measured_at,
+      t.payload->'extra'->'gnss_fix' AS fix, t.payload->'extra'->'buffered' AS buffered,
+      t.payload->'extra'->>'cellular_signal_raw_hex' AS signal,
+      t.payload->'extra'->>'gnss_satellites_raw_hex' AS satellites,
+      CASE WHEN t.parser_version=$6 THEN jsonb_build_object(
+        'latitude', t.payload->'gps'->'latitude', 'longitude', t.payload->'gps'->'longitude'
+      ) ELSE NULL END AS position,
+      (SELECT l.packet_id::text FROM telemetry_aovx_packet_events l
+       WHERE l.tenant_id=t.tenant_id AND l.device_id=t.device_id AND l.event_id=t.id LIMIT 1) AS packet_ref
+    FROM telemetry_events t
+    WHERE t.tenant_id=$1 AND t.device_id=$2 AND t.source='aovx-gal-v1' AND t.trust='unverified'
+      AND t.occurred_at BETWEEN $3 AND $4
+    ORDER BY t.occurred_at DESC,t.id DESC LIMIT $5
+  `, [device.tenant_id, device.id, from, to, limit + 1, AOVX_TELEMETRY_PARSER_VERSION]);
+  const fieldCode = (hex, header) => typeof hex === 'string' && hex.startsWith(header) &&
+    /^[0-9a-f]{6}$/.test(hex) ? Number.parseInt(hex.slice(4), 16) : null;
+  return {
+    format: 'trackium-aovx-history-v1',
+    trust: 'unverified',
+    time_basis: 'gateway_received_at',
+    from, to, limit,
+    truncated: rows.length > limit,
+    observations: rows.slice(0, limit).map(({ received_at, measured_at, parser_version, fix,
+      buffered, signal, satellites, position, packet_ref }) => ({
+      received_at, measured_at, parser_version, fix, buffered, packet_ref,
+      receive_lag_ms: measured_at ? received_at - Date.parse(measured_at) : null,
+      signal_raw_code: fieldCode(signal, '3001'),
+      satellites_raw_code: fieldCode(satellites, '3101'),
+      position: position?.latitude != null && position?.longitude != null ? position : null
+    }))
   };
 }

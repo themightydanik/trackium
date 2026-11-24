@@ -82,6 +82,197 @@
   };
   let toastTimer;
   let dialogAnchor = null;
+  let deviceLab = null;
+  const labIntervalMs = 10000;
+
+  function pauseDeviceLab(lab, message) {
+    clearTimeout(lab.timer);
+    lab.live = false;
+    lab.diagnostics?.abort();
+    lab.diagnostics = null;
+    lab.root.querySelector('[data-device-diagnostics]').replaceChildren();
+    lab.root.querySelector('[data-device-diagnostics-state]').textContent = message;
+    lab.latest = null;
+    drawDeviceLabMap(lab);
+  }
+
+  function stopDeviceLab() {
+    if (!deviceLab) return;
+    const lab = deviceLab;
+    deviceLab = null;
+    clearTimeout(lab.timer);
+    lab.diagnostics?.abort();
+    lab.rangeRequest?.abort();
+    lab.exportRequest?.abort();
+    lab.map?.remove();
+  }
+
+  function labIsCurrent(lab) {
+    return deviceLab === lab && server.state.connected && !state.demo &&
+      server.state.history === lab.history && $('#detail-dialog').open && lab.root.isConnected;
+  }
+
+  function drawDeviceLabMap(lab, fit = false) {
+    const L = window.L;
+    if (!L || !window.TrackiumWorldMap || !labIsCurrent(lab)) return;
+    const points = (lab.range?.observations ?? []).filter(row => row.position);
+    if (!lab.map && !points.length && !lab.latest) return;
+    if (!lab.map) {
+      const container = lab.root.querySelector('[data-device-lab-map]');
+      container.hidden = false;
+      lab.map = L.map(container, {
+        scrollWheelZoom: false, minZoom: 1, maxZoom: 12
+      }).setView([25, 10], 2);
+      L.geoJSON(window.TrackiumWorldMap, {
+        interactive: false, style: { color: '#657988', weight: 1, fillOpacity: 0.15 }
+      }).addTo(lab.map);
+      lab.map.attributionControl.setPrefix('');
+      lab.map.attributionControl.addAttribution('Leaflet · Natural Earth (public domain)');
+      lab.points = L.layerGroup().addTo(lab.map);
+      lab.current = L.layerGroup().addTo(lab.map);
+      fit = true;
+    }
+    const latLng = p => [p.latitude, p.longitude];
+    if (fit) {
+      lab.points.clearLayers();
+      for (const row of points) {
+        L.circleMarker(latLng(row.position), { radius: 4, className: 'ux-lab-history-point' })
+          .bindPopup('Unverified historical fix · ' + (row.buffered ? 'Buffered' : 'Real-time') +
+            '<br>Measured ' + escape(row.measured_at) + '<br>Received ' + escape(row.received_at))
+          .addTo(lab.points);
+      }
+      const bounds = points.map(row => latLng(row.position));
+      if (lab.latest) bounds.push(latLng(lab.latest));
+      if (bounds.length) lab.map.fitBounds(bounds, { padding: [20, 20], maxZoom: 9 });
+    }
+    lab.current.clearLayers();
+    if (lab.latest) {
+      L.circleMarker(latLng(lab.latest), { radius: 8, color: '#b94820', className: 'ux-lab-last-known' })
+        .bindPopup('Last known unverified fix' + (lab.latest.stale ? ' · Older than 15 minutes' : '') +
+          '<br>Measured ' + escape(lab.latest.measured_at) +
+          '<br>Received ' + escape(lab.latest.received_at)).addTo(lab.current);
+    }
+  }
+
+  async function readDeviceLab(lab) {
+    if (!labIsCurrent(lab) || document.hidden || lab.diagnostics) return;
+    const request = new AbortController();
+    lab.diagnostics = request;
+    const status = lab.root.querySelector('[data-device-diagnostics-state]');
+    const output = lab.root.querySelector('[data-device-diagnostics]');
+    status.textContent = 'Checking Gateway diagnostics…';
+    let interval = labIntervalMs;
+    try {
+      const result = await server.request(lab.path + '/diagnostics', 'GET', undefined, request.signal);
+      if (!labIsCurrent(lab) || request.signal.aborted) return;
+      output.innerHTML = TrackiumServerView.deviceDiagnostics(result);
+      lab.latest = result.position.last_known;
+      drawDeviceLabMap(lab);
+      status.textContent = (lab.live ? 'Monitoring on · ' : 'Snapshot · ') +
+        'Gateway queried ' + new Date().toISOString() + ' · TCP connection state is unavailable.';
+    } catch (error) {
+      if (!labIsCurrent(lab) || request.signal.aborted) return;
+      output.replaceChildren();
+      lab.latest = null;
+      drawDeviceLabMap(lab);
+      if (error.status >= 400 && error.status < 500 && ![408, 429].includes(error.status)) lab.live = false;
+      interval = 30000;
+      status.textContent = lab.live ? 'Diagnostics unavailable. Retrying in 30 seconds.'
+        : 'Diagnostics unavailable. Read again to retry.';
+    } finally {
+      if (lab.diagnostics === request) {
+        lab.diagnostics = null;
+        if (lab.live && labIsCurrent(lab) && !document.hidden)
+          lab.timer = setTimeout(() => readDeviceLab(lab), interval);
+      }
+    }
+  }
+
+  async function readDeviceLabRange(lab) {
+    const status = lab.root.querySelector('[data-device-lab-range-state]');
+    const toUtc = field => {
+      const value = lab.root.querySelector('[name=' + field + ']').value;
+      return value ? new Date(value + 'Z').toISOString() : '';
+    };
+    lab.rangeRequest?.abort();
+    lab.exportRequest?.abort();
+    lab.range = null;
+    lab.root.querySelector('[data-device-lab-rows]').replaceChildren();
+    lab.root.querySelector('[data-server-action="export-device-diagnostics"]').disabled = true;
+    drawDeviceLabMap(lab, true);
+    const request = new AbortController();
+    lab.rangeRequest = request;
+    try {
+      const from = toUtc('lab-from'), to = toUtc('lab-to');
+      if (!from || !to || from > to || Date.parse(to) - Date.parse(from) > 604800000) {
+        status.textContent = 'Select an ordered UTC receipt period of up to seven days.';
+        return;
+      }
+      status.textContent = 'Loading selected period…';
+      const query = new URLSearchParams({ from, to, limit: '200' });
+      const range = await server.request(lab.path + '/lab-history?' + query, 'GET', undefined, request.signal);
+      if (!labIsCurrent(lab) || request.signal.aborted) return;
+      lab.range = range;
+      lab.root.querySelector('[data-device-lab-rows]').innerHTML = TrackiumServerView.deviceLabHistory(range);
+      lab.root.querySelector('[data-server-action="export-device-diagnostics"]').disabled = range.truncated;
+      drawDeviceLabMap(lab, true);
+      status.textContent = range.truncated ? 'First 200 observations shown. Narrow the period to export.'
+        : range.observations.length + ' observations in the loaded UTC receipt period.';
+    } catch {
+      if (labIsCurrent(lab) && !request.signal.aborted) status.textContent = 'History unavailable. Try again.';
+    } finally {
+      if (lab.rangeRequest === request) lab.rangeRequest = null;
+    }
+  }
+
+  async function exportDeviceLabRange(lab, target) {
+    const selection = lab.range;
+    if (!selection || selection.truncated || lab.exportRequest) return;
+    const request = new AbortController();
+    lab.exportRequest = request;
+    const includeCoordinates = lab.root.querySelector('[name=lab-export-coordinates]').checked;
+    const status = lab.root.querySelector('[data-device-lab-range-state]');
+    target.disabled = true;
+    try {
+      const query = new URLSearchParams({ from: selection.from, to: selection.to, limit: String(selection.limit) });
+      const range = await server.request(lab.path + '/lab-history?' + query, 'GET', undefined, request.signal);
+      if (!labIsCurrent(lab) || request.signal.aborted) return;
+      if (range.truncated) {
+        lab.range = null;
+        status.textContent = 'More observations are now available. Narrow the period to export.';
+        return;
+      }
+      downloadDeviceLabRange(range, includeCoordinates);
+    } catch {
+      if (labIsCurrent(lab) && !request.signal.aborted) status.textContent = 'Export unavailable. Try again.';
+    } finally {
+      if (lab.exportRequest === request) {
+        lab.exportRequest = null;
+        if (labIsCurrent(lab) && lab.range === selection) target.disabled = false;
+      }
+    }
+  }
+
+  function downloadDeviceLabRange(range, includeCoordinates) {
+    const bundle = {
+      format: 'trackium-device-support-range-v1',
+      exported_at: new Date().toISOString(),
+      from: range.from, to: range.to, time_basis: range.time_basis, trust: range.trust,
+      contains_location_data: includeCoordinates && range.observations.some(row => row.position),
+      observations: range.observations.map(row => ({
+        received_at: row.received_at, measured_at: row.measured_at, parser_version: row.parser_version,
+        fix: row.fix, buffered: row.buffered, receive_lag_ms: row.receive_lag_ms,
+        signal_raw_code: row.signal_raw_code, satellites_raw_code: row.satellites_raw_code,
+        packet_ref: row.packet_ref, ...(includeCoordinates ? { position: row.position } : {})
+      }))
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'trackium-device-support-range.json';
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   function loadProfile() {
     try {
       const saved = JSON.parse(localStorage.getItem('trackium_v2_profile'));
@@ -777,6 +968,7 @@
       for (const key of Object.keys(serverViews)) delete serverViews[key];
     const changedIdentity = renderedIdentity !== null && renderedIdentity !== identity;
     if (changedIdentity) {
+      stopDeviceLab();
       $('#detail-dialog').close();
       $('#dialog-content').innerHTML = '';
     }
@@ -952,6 +1144,8 @@
   }
   async function demo(enabled) {
     const generation = ++state.generation;
+    stopDeviceLab();
+    $('#detail-dialog').close();
     state.demo = enabled;
     state.error = '';
     state.query = '';
@@ -981,6 +1175,7 @@
     }, 3500);
   }
   function openDialog(content) {
+    stopDeviceLab();
     if (!$('#detail-dialog').open && document.activeElement?.id)
       dialogAnchor = { id: document.activeElement.id };
     $('#dialog-content').innerHTML =
@@ -1113,21 +1308,29 @@
     const target = event.target.closest('button, a');
     if (!target) return;
     const serverAction = target.dataset.serverAction;
-    if (serverAction === 'load-device-diagnostics') {
+    const labRoot = target.closest('[data-device-lab]');
+    if (labRoot && serverAction) {
       const history = server.state.history;
-      const dialog = $('#detail-dialog');
-      if (!history || history.device.registry.id !== target.dataset.serverId || !dialog.contains(target)) return;
-      const output = target.parentElement.querySelector('[data-device-diagnostics]');
-      const stillOpen = () => dialog.open && dialog.contains(output) && server.state.history === history;
-      target.disabled = true;
-      output.textContent = 'Loading diagnostics…';
-      try {
-        const result = await server.request('/v1/devices/' + encodeURIComponent(target.dataset.serverId) + '/diagnostics');
-        if (stillOpen()) output.innerHTML = TrackiumServerView.deviceDiagnostics(result);
-      } catch {
-        if (stillOpen()) output.textContent = 'Diagnostics unavailable. Try again.';
-      } finally {
-        target.disabled = false;
+      const id = target.dataset.serverId;
+      if (!server.state.connected || state.demo || !$('#detail-dialog').open ||
+          history?.device.registry.id !== id) return;
+      if (deviceLab?.root !== labRoot) {
+        stopDeviceLab();
+        deviceLab = { root: labRoot, history, path: '/v1/devices/' + encodeURIComponent(id) };
+      }
+      const lab = deviceLab;
+      if (serverAction === 'stop-device-diagnostics') {
+        pauseDeviceLab(lab, 'Monitoring stopped.');
+      } else if (serverAction === 'load-device-diagnostics' || serverAction === 'start-device-diagnostics') {
+        clearTimeout(lab.timer);
+        lab.live = serverAction === 'start-device-diagnostics';
+        await readDeviceLab(lab);
+      } else if (serverAction === 'load-device-lab-range') {
+        await readDeviceLabRange(lab);
+      } else if (serverAction === 'fit-device-lab-map') {
+        drawDeviceLabMap(lab, true);
+      } else if (serverAction === 'export-device-diagnostics') {
+        await exportDeviceLabRange(lab, target);
       }
       return;
     }
@@ -1167,6 +1370,7 @@
           const device = serverAction === 'view-device'
             ? server.state.data?.devices.find((row) => row.registry.id === id)
             : null;
+          stopDeviceLab();
           server.closeHistory();
           const html = TrackiumServerView.detail(
             serverAction.slice(5),
@@ -1510,11 +1714,33 @@
   });
   window.addEventListener('offline', () => TrackiumServer.enabled ? server.offline() : render());
   window.addEventListener('online', render);
+  window.addEventListener('pagehide', () => {
+    if (!deviceLab) return;
+    stopDeviceLab();
+    $('#detail-dialog').close();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && deviceLab)
+      pauseDeviceLab(deviceLab, 'Monitoring paused while this tab is hidden. Start again to resume.');
+  });
+  document.addEventListener('input', event => {
+    if (!deviceLab || !deviceLab.root.contains(event.target) ||
+        !['lab-from', 'lab-to'].includes(event.target.name)) return;
+    const lab = deviceLab;
+    lab.rangeRequest?.abort();
+    lab.exportRequest?.abort();
+    lab.range = null;
+    lab.root.querySelector('[data-device-lab-rows]').replaceChildren();
+    lab.root.querySelector('[data-device-lab-range-state]').textContent = 'Load the edited period to update the results.';
+    lab.root.querySelector('[data-server-action="export-device-diagnostics"]').disabled = true;
+    drawDeviceLabMap(lab, true);
+  });
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   window.addEventListener('hashchange', () => {
     state.query = '';
     closeMenu();
     dialogAnchor = null;
+    stopDeviceLab();
     $('#detail-dialog').close();
     render();
     $('#main').focus({ preventScroll: true });
@@ -1544,7 +1770,7 @@
     }
   });
   $('#detail-dialog').addEventListener('close', () => {
-    if (!$('#detail-dialog').open) server.closeHistory();
+    if (!$('#detail-dialog').open) { stopDeviceLab(); server.closeHistory(); }
     const anchor = dialogAnchor;
     dialogAnchor = null;
     const target = anchor?.id

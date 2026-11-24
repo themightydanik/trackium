@@ -1178,6 +1178,32 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
     assert.equal(conflict.position.last_known_at, null);
     await observe(110, 6, time(-5));
     await expectReason('eligible');
+    const ranged = (key, from, to, limit = '200') => fetch(
+      path.replace('/diagnostics', '/lab-history') + '?' + new URLSearchParams({ from, to, limit }),
+      { headers: { authorization: 'Bearer ' + key.token } }
+    );
+    assert.equal((await ranged(outsider, iso(-60), iso(60))).status, 404);
+    assert.equal((await ranged(restricted, iso(-60), iso(60))).status, 403);
+    assert.equal((await ranged(reader, '', iso(60))).status, 400);
+    assert.equal((await ranged(reader, iso(60), iso(-60))).status, 400);
+    assert.equal((await ranged(reader, iso(-691200), iso(60))).status, 400);
+    const small = await (await ranged(reader, iso(-60), iso(60), '1')).json();
+    assert.equal(small.truncated, true);
+    assert.equal(small.observations.length, 1);
+    const response = await ranged(reader, iso(-60), iso(60));
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    const body = await response.text();
+    assert.equal(body.includes(bcd), false);
+    assert.doesNotMatch(body, /raw_payload|device_time_raw|source_event_id|canonical_event|remote_address/);
+    const range = JSON.parse(body);
+    assert.equal(range.truncated, false);
+    assert.equal(range.time_basis, 'gateway_received_at');
+    assert.equal(range.observations.filter(row => row.measured_at === iso(-20)).length, 2);
+    assert.equal(range.observations.find(row => row.buffered).position.latitude, 51.11);
+    assert.equal(range.observations.find(row => row.measured_at === iso(30)).position, null);
+    const emptyRange = await (await ranged(reader, iso(-120), iso(-61))).json();
+    assert.deepEqual(emptyRange.observations, []);
     await runtime.telemetry.setEnabled(a, id, { enabled: false });
     await expectReason('device_disabled');
     assert.equal((await runtime.telemetry.latest(a, id, true)).location, null);
