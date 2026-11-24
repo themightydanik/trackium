@@ -74,13 +74,16 @@ jobs:
           mkdir -p "$ANDROID_AVD_HOME"
           sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           "$sdkmanager" 'emulator' 'platform-tools' 'system-images;android-34;default;x86_64'
+          export PATH="$ANDROID_HOME/platform-tools:$PATH"
+          command -v adb
           printf 'no\n' | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
             -n LiteReview -k 'system-images;android-34;default;x86_64' -d pixel
           "$ANDROID_HOME/emulator/emulator" -avd LiteReview -no-window -no-audio -no-snapshot \
             -no-metrics -gpu swiftshader_indirect > "$RUNNER_TEMP/lite-emulator.log" 2>&1 &
           emulator_pid=$!
-          trap 'kill "$emulator_pid" 2>/dev/null || true' EXIT
-          timeout 240 sh -c 'adb wait-for-device; until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ]; do sleep 2; done'
+          trap 'status=$?; if [ "$status" -ne 0 ]; then tail -100 "$RUNNER_TEMP/lite-emulator.log"; fi; kill "$emulator_pid" 2>/dev/null || true' EXIT
+          timeout 90 adb wait-for-device
+          timeout 150 sh -ec 'until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ]; do sleep 2; done'
           adb shell cmd connectivity airplane-mode enable
           adb shell svc wifi disable
           adb install dist/lite-android/trackium-lite-debug.apk
