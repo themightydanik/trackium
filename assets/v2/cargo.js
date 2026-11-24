@@ -1,5 +1,7 @@
 (function () {
   'use strict';
+  const lite = TrackiumServer.enabled && location.pathname !== '/app/core';
+  document.documentElement.classList.toggle('lite-workspace', lite);
   const $ = (selector) => document.querySelector(selector);
   const escape = (value) =>
     String(value == null ? '' : value).replace(
@@ -147,7 +149,8 @@
     }
     lab.current.clearLayers();
     if (lab.latest) {
-      L.circleMarker(latLng(lab.latest), { radius: 8, color: '#b94820', className: 'ux-lab-last-known' })
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--tc-accent').trim();
+      L.circleMarker(latLng(lab.latest), { radius: 8, color: accent, fillOpacity: 0.85, className: 'ux-lab-last-known' })
         .bindPopup('Last known unverified fix' + (lab.latest.stale ? ' · Older than 15 minutes' : '') +
           '<br>Measured ' + escape(lab.latest.measured_at) +
           '<br>Received ' + escape(lab.latest.received_at)).addTo(lab.current);
@@ -1055,6 +1058,17 @@
         )
         .join('');
     }
+    if (lite) {
+      const quickNav = $('#lite-bottom-nav');
+      const quickPage = quickNav.querySelector('[aria-current="page"]')?.hash;
+      if (!quickNav.childElementCount || quickPage !== '#' + current) {
+        for (const link of quickNav.querySelectorAll('[aria-current]')) link.removeAttribute('aria-current');
+        if (!quickNav.childElementCount) quickNav.innerHTML = [
+          ['dashboard', 'Overview'], ['shipments', 'Shipments'], ['devices', 'Devices'], ['map', 'Map']
+        ].map(([id, label]) => '<a href="#' + id + '">' + icon(id) + '<span>' + label + '</span></a>').join('');
+        quickNav.querySelector('[href="#' + current + '"]')?.setAttribute('aria-current', 'page');
+      }
+    }
     $('#breadcrumb').textContent = pages.find((p) => p[0] === current)[1];
     $('#demo-toggle').setAttribute('aria-checked', String(state.demo));
     $('#demo-banner').hidden = !state.demo;
@@ -1084,6 +1098,8 @@
         : 'Not paired');
     const customerMode = server.state.customerAccounts && customerScreen !== 'pairing';
     document.documentElement.classList.toggle('customer-mode', customerMode);
+    document.documentElement.classList.toggle('lite-guest', lite && customerMode && !server.state.connected && !state.demo);
+    document.documentElement.classList.toggle('lite-session', lite && server.state.connected && !state.demo);
     if (customerMode) {
       $('#workspace-label').textContent = server.state.account?.company_name || 'Customer workspace';
       $('.connection-pill').textContent = server.state.connected ? 'Signed in' : 'Signed out';
@@ -1108,10 +1124,10 @@
             ? '<button class="button secondary" data-customer-view="login">Back to sign in</button>' : '') +
           TrackiumAppearance.form();
       if (customerMode && server.state.connected && current === 'devices' && server.state.account)
-        $('#main').insertAdjacentHTML('afterbegin', TrackiumCustomer.aovxEnrollment(server.state.account));
+        $('#main .page-heading').insertAdjacentHTML('afterend', TrackiumCustomer.aovxEnrollment(server.state.account));
       if (server.state.connected && current === 'settings' && server.state.account) {
         const account = server.state.account;
-        $('#main').insertAdjacentHTML('afterbegin', TrackiumCustomer.company(account,
+        $('#main .page-heading').insertAdjacentHTML('afterend', TrackiumCustomer.company(account,
           companyMembersTenant === account.tenant_id ? companyMembers : null));
         if (membersOpen && $('#company-members')) $('#company-members').open = true;
       }
