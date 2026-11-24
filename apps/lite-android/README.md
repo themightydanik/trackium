@@ -3,7 +3,7 @@
 Issue #86. A **separate Android app** with application ID `tech.trackium.lite`, not the native BlackBear companion (`tech.trackium.cargo`) and not the integrated Minima node (`tech.trackium.core.prototype`). Its source is in `apps/lite-android` with isolated Gradle settings. Existing Cargo/Core projects are untouched.
 
 The entry point is the existing **production HTTPS Lite workspace**:
-`https://trackium-gateway-production.up.railway.app/app/`. The current premium DS1 UI, shipment flows, devices/Physical Device Lab and the Leaflet map are rendered by the already deployed Gateway. The app asks users to **type their own** customer credentials on the server's sign-in page; it does not contain any password, account ID, tenant ID, OAuth token or private key. WebView first-party cookies use Android's sandboxed app storage. The server is authoritative for session expiry, membership, CSRF, and all company data; an Android package alone does not bypass these controls.
+`https://trackium-gateway-production.up.railway.app/app/`. The current premium DS1 UI, shipment flows, devices/Physical Device Lab and the Leaflet map are rendered by the live Gateway **only after** the premium Lite Web changes from PR #87 are separately deployed to Railway Production. A GitHub merge by itself does not update the running Gateway. The app asks users to **type their own** customer credentials on the server's sign-in page; it does not contain any password, account ID, tenant ID, OAuth token or private key. WebView first-party cookies use Android's sandboxed app storage. The server is authoritative for session expiry, membership, CSRF, and all company data; an Android package alone does not bypass these controls.
 
 ## Security boundaries
 
