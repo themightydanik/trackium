@@ -1,9 +1,18 @@
 <resources>
-    <style name="TrackiumLiteTheme" parent="android:style/Theme.Material.NoActionBar">
+    <style name="TrackiumLiteTheme" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">#0D1727</item>
-        <item name="android:navigationBarColor">#0D1727</item>
-        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#F5F8FC</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:statusBarColor">#F5F8FC</item>
+        <item name="android:navigationBarColor">#F5F8FC</item>
+        <item name="android:colorAccent">#007667</item>
+    </style>
+    <style name="TrackiumLiteDark" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">#0B1220</item>
+        <item name="android:statusBarColor">#0B1220</item>
+        <item name="android:navigationBarColor">#0B1220</item>
+        <item name="android:colorAccent">#41DCC1</item>
     </style>
 </resources>

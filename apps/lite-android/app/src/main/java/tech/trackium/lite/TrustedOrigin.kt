@@ -2,34 +2,32 @@ package tech.trackium.lite
 
 import java.net.URI
 
-/**
- * A Lite session belongs only to the operator-approved first-party HTTPS Gateway.
- * No arbitrary URL, localhost, file scheme, or alternate hostname is privileged.
- */
+/** One production origin. Entry documents and subresources have separate policies. */
 object TrustedOrigin {
     const val HOST = "trackium-gateway-production.up.railway.app"
-    const val HOME = "https://$HOST/app/"
+    const val ORIGIN = "https://$HOST"
+    const val HOME = "$ORIGIN/app/"
 
-    fun isTrusted(url: String): Boolean = try {
-        val uri = URI(url)
-        uri.scheme.equals("https", ignoreCase = true) &&
-            uri.host.equals(HOST, ignoreCase = true) &&
-            uri.port == -1 &&
-            uri.rawUserInfo == null &&
-            (uri.rawPath == "/app" || (uri.rawPath.startsWith("/app/") && !uri.rawPath.startsWith("/app/core")) ||
-                uri.rawPath.startsWith("/assets/") || uri.rawPath.startsWith("/v1/") ||
-                uri.rawPath == "/mds.js")
-    } catch (_: Exception) {
-        false
+    private fun parse(url: String): URI? = runCatching { URI(url) }.getOrNull()?.takeIf {
+        it.scheme == "https" && it.rawAuthority == HOST && it.host == HOST &&
+            it.port == -1 && it.rawUserInfo == null
     }
 
-    fun isDownloadOrigin(url: String): Boolean = try {
-        val uri = URI(url)
-        uri.scheme.equals("https", ignoreCase = true) &&
-            uri.host.equals(HOST, ignoreCase = true) &&
-            uri.port == -1 && uri.rawUserInfo == null &&
-            uri.rawPath.startsWith("/v1/")
-    } catch (_: Exception) {
-        false
+    private val routes = setOf("main", "dashboard", "shipments", "devices", "map", "events", "proofs", "settings")
+
+    fun isWorkspace(url: String): Boolean {
+        val uri = parse(url) ?: return false
+        return uri.rawPath in setOf("/app", "/app/") && uri.rawQuery == null &&
+            (uri.rawFragment == null || uri.rawFragment in routes)
+    }
+
+    fun isMessageOrigin(url: String): Boolean = url == ORIGIN || url == "$ORIGIN/"
+
+    fun isResource(url: String): Boolean {
+        val uri = parse(url) ?: return false
+        val path = uri.rawPath
+        if (path.any { it == '%' || it == '\\' } || path.contains("//") ||
+            path.split('/').any { it == "." || it == ".." }) return false
+        return isWorkspace(url) || path.startsWith("/app/assets/") || path.startsWith("/v1/") || path == "/app/icon.png"
     }
 }

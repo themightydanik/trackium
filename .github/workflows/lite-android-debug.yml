@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - 'apps/lite-android/**'
+      - 'assets/v2/cargo.js'
       - '.github/workflows/lite-android-debug.yml'
       - 'apps/android/gradle/wrapper/**'
       - 'apps/android/gradlew'
@@ -42,14 +43,14 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x apps/android/gradlew
-          apps/android/gradlew -p apps/lite-android --no-daemon :app:testDebugUnitTest :app:assembleDebug
+          apps/android/gradlew -p apps/lite-android --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
 
       - name: Verify installable APK and checksum
         run: |
           set -euo pipefail
           mkdir -p dist/lite-android
           cp apps/lite-android/app/build/outputs/apk/debug/app-debug.apk dist/lite-android/trackium-lite-debug.apk
-          "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify --verbose dist/lite-android/trackium-lite-debug.apk
+          "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify --verbose --print-certs dist/lite-android/trackium-lite-debug.apk > dist/lite-android/SIGNATURE.txt
           "${ANDROID_HOME}/build-tools/35.0.0/aapt" dump badging dist/lite-android/trackium-lite-debug.apk > dist/lite-android/APK_BADGING.txt
           grep -q "^package: name='tech.trackium.lite' " dist/lite-android/APK_BADGING.txt
           (cd dist/lite-android && sha256sum trackium-lite-debug.apk > SHA256SUMS)
@@ -63,3 +64,27 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+
+      - name: Run shell instrumentation on a disposable offline emulator
+        run: |
+          set -euo pipefail
+          test -c /dev/kvm
+          sudo chown "$USER" /dev/kvm
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/lite-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$sdkmanager" 'emulator' 'platform-tools' 'system-images;android-34;default;x86_64'
+          printf 'no\n' | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
+            -n LiteReview -k 'system-images;android-34;default;x86_64' -d pixel
+          "$ANDROID_HOME/emulator/emulator" -avd LiteReview -no-window -no-audio -no-snapshot \
+            -no-metrics -gpu swiftshader_indirect > "$RUNNER_TEMP/lite-emulator.log" 2>&1 &
+          emulator_pid=$!
+          trap 'kill "$emulator_pid" 2>/dev/null || true' EXIT
+          timeout 240 sh -c 'adb wait-for-device; until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ]; do sleep 2; done'
+          adb shell cmd connectivity airplane-mode enable
+          adb shell svc wifi disable
+          adb install dist/lite-android/trackium-lite-debug.apk
+          adb install apps/lite-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          adb shell am instrument -w -r -e offlineEmulator true \
+            tech.trackium.lite.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/lite-instrumentation.txt"
+          grep -Fq 'OK (2 tests)' "$RUNNER_TEMP/lite-instrumentation.txt"

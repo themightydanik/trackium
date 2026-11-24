@@ -269,12 +269,18 @@
         packet_ref: row.packet_ref, ...(includeCoordinates ? { position: row.position } : {})
       }))
     };
+    if (saveAndroidEvidence(bundle)) return;
     const url = URL.createObjectURL(new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' }));
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = 'trackium-device-support-range.json';
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function saveAndroidEvidence(bundle) {
+    if (!lite || typeof window.TrackiumLiteExport?.postMessage !== 'function') return false;
+    window.TrackiumLiteExport.postMessage(JSON.stringify(bundle));
+    return true;
   }
   function loadProfile() {
     try {
@@ -1463,6 +1469,7 @@
           const session = server.state.session?.id;
           const bundle = await server.request(path + id + '/bundle');
           if (!session || server.state.session?.id !== session) return;
+          if (saveAndroidEvidence(bundle)) return;
           const json = JSON.stringify(bundle, null, 2);
           if (navigator.userAgent.includes('TrackiumLiteAndroid/')) {
             openDialog('<h2 id="dialog-title">Evidence export</h2><label>Evidence JSON' +
