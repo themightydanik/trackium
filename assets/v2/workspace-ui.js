@@ -840,7 +840,14 @@
         metric('Battery', latest?.payload?.battery_pct, ' %') +
         '</div>' +
         (d.registry.identity_kind === 'physical' && !data.nativeWorkspace
-          ? panel('Device diagnostics', action('Load diagnostics', 'load-device-diagnostics', d.registry.id) +
+          ? panel('Physical Device Lab · live diagnostics',
+            '<p>Read-only diagnostic snapshots. Start monitoring to check every 10 seconds while this device is open; no configuration commands are sent.</p>' +
+            '<div class="form-actions">' +
+            action('Read now', 'load-device-diagnostics', d.registry.id) +
+            action('Start live check', 'start-device-diagnostics', d.registry.id) +
+            action('Stop live check', 'stop-device-diagnostics', d.registry.id) +
+            action('Export support snapshot', 'export-device-diagnostics', d.registry.id) +
+            '</div><p data-device-diagnostics-state role="status">Monitoring is off.</p>' +
             '<div data-device-diagnostics aria-live="polite"></div>')
           : '') +
         deviceHistory(d, history ?? { page: d.history });
