@@ -19,7 +19,7 @@
       recover: form('recover', email, 'Send recovery code'),
       reset: form('reset', code + newPassword, 'Reset password')
     };
-    return '<section class="panel customer-access"><h1>' + ({
+    return '<section class="panel customer-access lite-auth-screen"><h1>' + ({
       login: 'Sign in to Trackium', register: 'Create your account', verify: 'Confirm your email',
       recover: 'Recover access', reset: 'Set a new password'
     })[screen] + '</h1>' + content[screen] +

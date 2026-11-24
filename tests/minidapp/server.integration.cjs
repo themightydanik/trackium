@@ -959,10 +959,20 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
   for (let i=0;i<6;i++) await proofs.tick();
   browser = await chromium.launch({ executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium', args:['--no-sandbox'] });
   const page = await browser.newPage();
+  const premiumScreenshots = process.env.TRACKIUM_PREMIUM_SCREENSHOTS;
+  async function capture(name, width, target = page) {
+    if (!premiumScreenshots) return;
+    await page.setViewportSize({ width, height: width >= 768 ? 960 : 860 });
+    await target.screenshot({ path: path.join(premiumScreenshots, name + '-' + width + '.png'),
+      animations: 'disabled' });
+  }
+  if (premiumScreenshots) await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
   const requests = [];
   page.on('request', req => requests.push(new URL(req.url()).pathname));
   await page.goto(origin + '/app/');
   await page.getByRole('heading', { name:'Sign in to Trackium' }).waitFor();
+  await capture('login', 390);
+  if (premiumScreenshots) await page.setViewportSize({width:1280,height:900});
   assert.equal(await page.getByRole('button',{name:'Create account',exact:true}).count(),0);
   assert.equal(await page.getByLabel('Work email').count(),0);
   await page.getByRole('textbox',{name:'Username'}).fill('trackium-demo');
@@ -1007,6 +1017,36 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
     'SELECT device_id FROM telemetry_aovx_device_bindings WHERE tenant_id=$1 AND device_id_bcd=$2',
     [pilot,bcd]);
   assert.ok(bound.device_id);
+  const offlineViews = [
+    ['dashboard',1440,'Overview'], ['shipments',1024,'Shipments'], ['devices',768,'Devices'],
+    ['events',768,'Event history'], ['proofs',1024,'Proof records'],
+    ['settings',320,'Company settings'], ['map',1440,'Routes & reported positions']
+  ];
+  for (const [route, width, heading] of offlineViews) {
+    await page.setViewportSize({ width, height: width >= 768 ? 960 : 860 });
+    if (width <= 760) await page.getByRole('button',{name:'Open navigation'}).click();
+    await page.locator('#navigation a[href="#' + route + '"]').click();
+    await page.getByRole('heading',{name:heading,exact:true}).waitFor();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      'Pilot ' + route + ' should not overflow at ' + width);
+    await capture(route, width);
+  }
+  assert.equal(await page.locator('.ux-device-position').count(),0);
+  await page.setViewportSize({width:390,height:860});
+  const quickNav = page.getByRole('navigation',{name:'Quick navigation'});
+  await quickNav.getByRole('link',{name:'Devices',exact:true}).click();
+  await quickNav.locator('[href="#devices"][aria-current="page"]').waitFor();
+  const pendingTracker = row.getByText('No decoded telemetry',{exact:true});
+  await pendingTracker.waitFor();
+  await row.getByRole('button',{name:'Device details'}).click();
+  const offlineLab = page.locator('#detail-dialog');
+  await offlineLab.getByRole('button',{name:'Read now'}).click();
+  await offlineLab.getByText(/No recent data/).waitFor();
+  assert.equal(await offlineLab.locator('.ux-lab-last-known').count(),0);
+  assert.match(await offlineLab.innerText(), /Current position\s+Unavailable/);
+  await capture('device-lab',390);
+  await offlineLab.locator('[data-action=close-dialog]').click();
+  await page.setViewportSize({width:1280,height:900});
   const body = Buffer.alloc(40);
   body.writeUInt32BE(2, 4);
   body.writeUInt32BE(51110000, 8);
@@ -1048,9 +1088,17 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
     source_tenant:internal.tenant_id, source_device:source.id, source_binding:original.id,
     destination_tenant:pilot, destination_label:'Transferred tracker'
   });
+  const transferredRow = page.getByRole('row').filter({ hasText:'Transferred tracker' });
+  await transferredRow.getByRole('button',{name:'Device details'}).click();
+  await dialog.getByRole('button',{name:'Read now'}).click();
+  await dialog.getByText(/No recent data/).waitFor();
+  assert.equal(await dialog.locator('.ux-lab-last-known').count(),0);
+  await dialog.getByRole('button',{name:'Load period'}).click();
+  await dialog.getByText('0 observations in the loaded UTC receipt period.').waitFor();
+  assert.equal(await dialog.locator('.ux-lab-history-point').count(),0);
+  await dialog.locator('[data-action=close-dialog]').click();
   await new Promise(resolve => setTimeout(resolve, 1200));
   assert.equal((await ingest(11,0)).processed,true);
-  const transferredRow = page.getByRole('row').filter({ hasText:'Transferred tracker' });
   await transferredRow.getByRole('button',{name:'Device details'}).click();
   await dialog.getByRole('button',{name:'Read now'}).click();
   await dialog.locator('.ux-lab-last-known').waitFor();

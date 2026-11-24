@@ -122,7 +122,9 @@
           ...(position.received_at ? [['Gateway received', position.received_at]] : []),
           ['Latitude', position.gps.latitude],
           ['Longitude', position.gps.longitude],
-          ['Position trust', position.trust]
+          ['Position trust', position.trust],
+          ...(position.trust === 'unverified' && Date.now() - Date.parse(position.occurred_at) > 15 * 60000
+            ? [['Position age', 'Older than 15 minutes']] : [])
         ]
       : [['Current position', 'Unavailable']];
   }
@@ -297,7 +299,7 @@
       esc(s.name) +
       '</h2>' +
       badge(s.status) +
-      badge(s.source_trust, 'synthetic') +
+      provenanceBadge(s.source_trust) +
       '</div><p>' +
       esc(device?.registry.label || s.device_id) +
       '</p><ol class="ux-route">' +
@@ -332,7 +334,8 @@
             '</strong><small class="cell-note">' +
             esc(d.registry.id) +
             '</small></td><td data-label="Reported state">' +
-            badge(d.status?.status || 'unknown') +
+            (d.registry.enabled === false ? badge('Disabled', 'neutral') : d.registry.identity_kind === 'physical' && !e
+              ? badge('No decoded telemetry', 'neutral') : badge(d.status?.status || 'unknown')) +
             '</td><td data-label="Temperature">' +
             value(p.temperature_c, ' °C') +
             '</td><td data-label="Humidity">' +
@@ -342,7 +345,7 @@
             '</td><td data-label="Provenance / observation time">' +
             provenanceBadge(p.trust) +
             '<small class="cell-note">' +
-            observationTime(e) +
+            (d.registry.identity_kind === 'physical' && !e ? 'Awaiting a decoded observation' : observationTime(e)) +
             (d.registry.identity_kind === 'physical' ? (C.reportedPosition(d)
               ? '<br>Last known fix · unverified' : '<br>Current position unavailable') : '') +
             '</small></td><td data-label="Details">' +
@@ -356,10 +359,12 @@
   }
   function map(data) {
     return (
-      '<div id="workspace-map" class="ux-geo" role="region" aria-label="Geographic routes and last reported positions"></div><p class="map-caption">Bundled coarse geographic basemap · drag or use keyboard arrows, +/− to zoom. Dashed lines are planned routes, points are last reported positions. No live tracking, external tiles or navigation service.</p>' +
+      '<div id="workspace-map" class="ux-geo" role="region" aria-label="Geographic routes and last reported positions"></div>' +
+      '<div class="lite-map-key" aria-label="Map legend"><span class="planned">Planned route</span><span class="reported">Last reported position</span></div>' +
+      '<p class="map-caption">Coarse geographic basemap · drag or use keyboard arrows, +/− to zoom.</p>' +
       (data.devices.some(C.reportedPosition)
         ? ''
-        : '<p>No reported device positions in this page. A planned route is not a measured journey.</p>')
+        : '<p class="lite-position-state">No reported device positions in this page. Only eligible positions appear on the map.</p>')
     );
   }
   function proofCards(items, nativeWorkspace) {
@@ -453,8 +458,12 @@
           ['Active shipments', d.shipments.filter(s => s.status === 'active').length, 'shipments'],
           ['Completed shipments', d.shipments.filter(s => s.status === 'completed').length, 'shipments'],
           ['Shipments with issues', d.shipments.filter(s => s.route_violation || s.temperature_violation).length, 'shipments'],
-          ['Recently reporting devices', d.devices.filter(d => ['moving','stationary','alarm'].includes(d.status.status)
-            && Date.now() - Date.parse(d.status.last_event_at) <= 15 * 60 * 1000).length, 'devices'],
+          ['Devices with recent observations', d.devices.filter(device => {
+            const received = Date.parse(device.history?.events?.[0]?.received_at);
+            return Number.isFinite(received) && Date.now() - received >= 0 && Date.now() - received <= 15 * 60000;
+          }).length, 'devices'],
+          ['Physical devices without a position', d.devices.filter(device =>
+            device.registry.identity_kind === 'physical' && !C.reportedPosition(device)).length, 'devices'],
           ['Devices reporting offline', d.devices.filter(d => d.status.status === 'offline').length, 'devices'],
           ['Integritas proof records', arr(d.integritas?.proofs).length, 'proofs'],
           ['Recent events', d.events.length, 'events']
@@ -467,7 +476,7 @@
               label +
               '</span><strong>' +
               n +
-              '</strong><small>In the loaded snapshot →</small></a>'
+              '</strong></a>'
           )
           .join('') +
         '</div><div class="ux-dashboard-grid">' +
@@ -618,7 +627,7 @@
         ['Error', proof.error || 'None reported']
       ]) + action('Recheck test evidence', 'integritas-verify', proof.id) +
         action('Export test evidence', 'integritas-export', proof.id)));
-      body = panel('Integritas proofs', cards.length ? cards.join('')
+      body = panel('Integritas proofs', cards.length ? '<div class="lite-proof-grid">' + cards.join('') + '</div>'
         : empty('No Integritas proofs', 'Ask the tenant owner to prepare test evidence.'));
     }
     if (page === 'proofs' && !state.session.demo) {
@@ -873,6 +882,9 @@
         metric('Humidity', latest?.payload?.humidity_pct, ' %') +
         metric('Battery', latest?.payload?.battery_pct, ' %') +
         '</div>' +
+        (d.registry.identity_kind === 'physical' && !latest
+          ? '<p class="lite-position-state">No decoded telemetry yet. Check Gateway packet receipt in Physical Device Lab.</p>'
+          : '') +
         (d.registry.identity_kind === 'physical' && !data.nativeWorkspace
           ? physicalDeviceLab(d.registry.id)
           : '') +

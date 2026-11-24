@@ -227,6 +227,8 @@
       attributionControl: true
     }));
     map.setView([25, 10], 2);
+    const planColor = document.documentElement.classList.contains('lite-workspace')
+      ? style.getPropertyValue('--tc-gold').trim() : accent;
     const countries = L.geoJSON(root.TrackiumWorldMap, {
       interactive: false,
       style: { color: outline, weight: 1, fillColor: land, fillOpacity: 1 }
@@ -240,13 +242,13 @@
       const details = '<button class="button secondary" data-server-action="view-shipment" data-server-id="' +
         esc(s.id) + '">Shipment details</button>';
       if (points.length)
-        L.polyline(points, { color: accent, weight: 3, dashArray: '6 6' })
+        L.polyline(points, { color: planColor, weight: 3, dashArray: '6 6' })
           .bindPopup('<p>Planned route · ' + esc(s.name) + '</p>' + details, { minWidth: 170 })
           .addTo(map);
       for (const [index, stop] of (s.route || []).entries()) {
         if (!valid(stop)) continue;
         const kind = index === 0 ? 'Origin' : index === s.route.length - 1 ? 'Destination' : 'Checkpoint';
-        L.circleMarker([stop.latitude,stop.longitude], { className: 'ux-route-stop', radius: 6, color: outline, fillColor: accent })
+        L.circleMarker([stop.latitude,stop.longitude], { className: 'ux-route-stop', radius: 6, color: outline, fillColor: planColor })
           .bindPopup('<p>' + kind + ' · ' + esc(stop.name) + '</p>' + details, { minWidth: 170 }).addTo(map);
       }
     }
