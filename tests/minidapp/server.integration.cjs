@@ -979,7 +979,8 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
   await page.getByLabel('Password',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
   await page.getByRole('heading',{name:'Overview',exact:true}).waitFor();
-  await page.locator('#navigation a[href="#shipments"]').click();
+  await page.evaluate(() => { location.hash = 'shipments'; });
+  await page.getByRole('heading',{name:'Shipments',exact:true}).waitFor();
   await page.getByText('Demo · chilled cargo',{exact:true}).waitFor();
   assert.ok(await page.getByRole('button',{name:'Create shipment',exact:true}).isDisabled());
   await page.locator('#navigation a[href="#map"]').click();
@@ -987,6 +988,16 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
   assert.equal(await page.locator('.ux-device-position').count(),0);
   await page.locator('#navigation a[href="#proofs"]').click();
   await page.getByText('Integritas · TEST_ONLY',{exact:true}).first().waitFor();
+  await page.evaluate(() => {
+    window.androidExports = [];
+    window.TrackiumLiteExport = { postMessage: value => window.androidExports.push(JSON.parse(value)) };
+  });
+  await page.getByRole('button',{name:'Export test evidence'}).first().click();
+  await page.waitForFunction(() => window.androidExports.length === 1);
+  const androidProof = await page.evaluate(() => window.androidExports[0]);
+  assert.equal(androidProof.proof.provider, 'integritas');
+  assert.equal(androidProof.proof.on_chain_verified, false);
+  assert.ok(androidProof.evidence);
   assert.equal(await page.getByText('Native Minima proof history · read-only').count(),0);
   assert.ok(requests.every(path => !/^\/v1\/(?:proofs|proof-publisher)/.test(path) &&
     !/^\/v1\/shipments\/[^/]+\/proofs$/.test(path)));
@@ -1062,6 +1073,11 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
   await dialog.locator('.ux-lab-last-known').waitFor();
   await dialog.getByRole('button',{name:'Load period'}).click();
   await dialog.locator('.ux-lab-history-point').waitFor();
+  await dialog.getByRole('button',{name:'Export period JSON'}).click();
+  await page.waitForFunction(() => window.androidExports.length === 2);
+  const diagnosticsExport = await page.evaluate(() => window.androidExports[1]);
+  assert.equal(diagnosticsExport.format, 'trackium-device-support-range-v1');
+  assert.equal(diagnosticsExport.contains_location_data, false);
   assert.doesNotMatch(await dialog.innerText(), new RegExp(bcd));
 
   await dialog.locator('[data-action=close-dialog]').click();
