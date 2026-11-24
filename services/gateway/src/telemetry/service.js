@@ -83,12 +83,26 @@ export function createTelemetryService(pool, { onEvent } = {}) {
       };
       return existingClient ? register(existingClient) : transaction(pool, register);
     },
-    async bindAovxDevice(tenantId, actorKeyId, input) {
+    async bindAovxDevice(tenantId, actorKeyId, input, existingClient) {
       object(input, ['device_id', 'device_id_bcd']);
       const deviceId = uuid(input.device_id);
       if (typeof input.device_id_bcd !== 'string' || !/^[0-9]{12}$/.test(input.device_id_bcd))
         invalid('device_id_bcd must contain exactly 12 decimal digits');
-      return transaction(pool, async (client) => {
+      const bind = async (client) => {
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended('aovx-enroll:'||$1,0))", [input.device_id_bcd]);
+        if (existingClient) {
+          const reserved = await client.query(
+            `SELECT 1 FROM customer_aovx_approvals WHERE tenant_id=$1 AND identifier_sha256=$2
+             AND NOT EXISTS (SELECT 1 FROM telemetry_aovx_device_bindings WHERE device_id_bcd=$3 AND tenant_id<>$1)`,
+            [tenantId, hash(input.device_id_bcd), input.device_id_bcd]
+          );
+          if (!reserved.rowCount) throw new ApiError(409, 'Identifier unavailable for this company');
+          const revoked = await client.query(
+            "SELECT 1 FROM telemetry_aovx_device_bindings WHERE device_id_bcd=$1 AND tenant_id=$2 AND state='revoked' LIMIT 1",
+            [input.device_id_bcd, tenantId]
+          );
+          if (revoked.rowCount) throw new ApiError(409, 'Tracker binding was revoked; contact the operator');
+        }
         const result = await client.query(
           `SELECT id, mode, identity_kind, enabled FROM telemetry_devices
            WHERE tenant_id=$1 AND id=$2 FOR UPDATE`,
@@ -118,7 +132,8 @@ export function createTelemetryService(pool, { onEvent } = {}) {
           [id]
         );
         return binding.rows[0];
-      });
+      };
+      return existingClient ? bind(existingClient) : transaction(pool, bind);
     },
     async listAovxDevices(tenantId) {
       const result = await pool.query(

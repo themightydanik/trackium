@@ -9,15 +9,21 @@ import { createShipmentService, shipment, transition } from './shipments.js';
 import { tenantLock, transaction } from './shared.js';
 
 export async function readDemoPassword(path) {
+  const value = await readOwnerSecret(path, 257);
+  if (/[\r\n]/.test(value)) throw new ApiError(400, 'Use one password per secret file');
+  return value;
+}
+
+export async function readOwnerSecret(path, maxBytes) {
   const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
     const info = await file.stat();
-    if (!info.isFile() || (info.mode & 0o077) || info.uid !== process.getuid() || info.size > 257)
-      throw new ApiError(400, 'Use an owner-only regular secret file containing one password');
-    const buffer = Buffer.alloc(258);
+    if (!info.isFile() || (info.mode & 0o077) || info.uid !== process.getuid() || info.size > maxBytes)
+      throw new ApiError(400, 'Use an owner-only regular secret file');
+    const buffer = Buffer.alloc(maxBytes + 1);
     const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
     const value = new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, bytesRead)).replace(/\r?\n$/, '');
-    if (/[\r\n]/.test(value)) throw new ApiError(400, 'Use one password per secret file');
+    if (bytesRead > maxBytes) throw new ApiError(400, 'Secret file exceeds its size limit');
     return value;
   } finally {
     await file.close();

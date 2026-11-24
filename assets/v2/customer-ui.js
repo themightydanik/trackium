@@ -32,7 +32,21 @@
   }
   const title = (role) => role.charAt(0).toUpperCase() + role.slice(1);
   const roleOptions = (role) => role.map(key => '<option value="' + key + '">' + title(key) + '</option>').join('');
+  function aovxEnrollment(account) {
+    if (!account.can_enroll_aovx) return '';
+    return '<section class="panel customer-access"><h2>Add physical AOVX tracker</h2>' +
+      '<p>Use an identifier approved for this company. Physical observations remain unverified.</p>' +
+      form('aovx-enroll', field('Device label', 'label') +
+        '<label class="field-label">12-digit AOVX identifier<input class="text-input" name="device_id_bcd" ' +
+        'inputmode="numeric" pattern="[0-9]{12}" maxlength="12" autocomplete="off" required></label>' +
+        '<label><input name="ownership" type="checkbox" value="confirmed" required> ' +
+        'I confirm that this company controls the tracker and is authorized to collect its data.</label>',
+        'Register and bind tracker') + '<p id="customer-status" role="status"></p></section>';
+  }
   function company(account, members) {
+    if (account.pilot)
+      return '<section class="panel customer-access"><h2>' + esc(account.company_name) +
+        '</h2><p>Owner · restricted physical pilot</p>' + mode('logout','Sign out') + '</section>';
     if (account.demo)
       return '<section class="panel customer-access"><h2>Trackium Demo</h2><p>Viewer · synthetic examples</p>' +
         mode('logout','Sign out') + '</section>';
@@ -56,5 +70,5 @@
         ).join('') + '</details>' : '') +
       '<button class="button secondary" data-customer-view="logout">Sign out</button><p id="customer-status" role="status"></p></section>';
   }
-  root.TrackiumCustomer = { auth, company };
+  root.TrackiumCustomer = { auth, company, aovxEnrollment };
 })(window);

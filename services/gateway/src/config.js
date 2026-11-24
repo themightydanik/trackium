@@ -30,6 +30,11 @@ export function readConfig(env = process.env) {
   const demoEnabled = (env.CUSTOMER_DEMO_ENABLED ?? 'false') === 'true';
   if (env.CUSTOMER_DEMO_ENABLED !== undefined && !['true','false'].includes(env.CUSTOMER_DEMO_ENABLED))
     throw new Error('Invalid CUSTOMER_DEMO_ENABLED');
+  const pilotEnabled = env.CUSTOMER_DEMO_PILOT_ENABLED === 'true';
+  if (env.CUSTOMER_DEMO_PILOT_ENABLED !== undefined &&
+      !['true', 'false'].includes(env.CUSTOMER_DEMO_PILOT_ENABLED))
+    throw new Error('Invalid CUSTOMER_DEMO_PILOT_ENABLED');
+  if (pilotEnabled && !demoEnabled) throw new Error('Physical pilot requires CUSTOMER_DEMO_ENABLED');
   if (demoEnabled && (env.CUSTOMER_ACCOUNTS_ENABLED === 'true' || env.ENABLE_WEB_WORKSPACE !== 'true' ||
       integritasMode !== 'test' || (env.PROOF_MODE ?? 'disabled') !== 'disabled' ||
       (env.PROOF_ALLOW_LIVE ?? 'false') !== 'false' || (env.PROOF_ALLOW_MAINNET ?? 'false') !== 'false'))
@@ -75,6 +80,7 @@ export function readConfig(env = process.env) {
   return {
     integritasMode,
     demoEnabled,
+    pilotEnabled,
     customerMail: customerMailConfig(env),
     railwayTest,
     railwayAovxPilot,
