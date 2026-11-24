@@ -373,7 +373,7 @@ test(
     await details.locator('[data-action=close-dialog]').click();
 
     await page.locator('#navigation a[href="#map"]').click();
-    const card = page.locator('.ux-card-grid .panel').filter({ hasText: physical.label });
+    const card = page.locator('.geo-directory').getByRole('listitem').filter({ hasText: physical.label });
     assert.match(await card.innerText(), /Current position\s+Unavailable[\s\S]*unverified/);
     assert.doesNotMatch(await card.innerText(), /Latitude|Longitude/);
     assert.equal(await page.locator('.ux-device-position').count(), 1, 'only the simulator gets a point');

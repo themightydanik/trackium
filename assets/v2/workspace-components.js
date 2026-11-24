@@ -76,7 +76,7 @@
             samples.length +
             ' reported samples</figcaption><svg viewBox="0 0 440 160" role="img" aria-label="' +
             title +
-            ' observations over reported time"><path class="chart-axis" d="M45 15V125H425"/><text x="0" y="20">' +
+            ' observations over reported time"><path class="chart-grid" d="M45 25H425M45 70H425M45 115H425"/><path class="chart-axis" d="M45 15V125H425"/><text x="0" y="20">' +
             esc(ymax) +
             '</text><text x="0" y="125">' +
             esc(ymin) +

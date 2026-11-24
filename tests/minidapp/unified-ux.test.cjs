@@ -163,3 +163,45 @@ test('quiet snapshots retain map viewport, popup, focused filter and open detail
     await context.close();
   }
 });
+
+test('Lite dispatch views tie diagrams to loaded records and keep test proofs explicit on phones', async () => {
+  const { context, page } = await fixturePage(390, 'dark', { visual: true, integritas: true });
+  const navigate = async (route, heading) => {
+    await page.evaluate(value => { location.hash = value; }, route);
+    await page.getByRole('heading', { level: 1, name: heading, exact: true }).waitFor();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  };
+  try {
+    const lifecycle = page.getByRole('list', {name: 'Shipment lifecycle breakdown'});
+    assert.equal(await lifecycle.locator('meter[aria-label="In transit"]').getAttribute('value'), '1');
+    assert.equal(await lifecycle.locator('meter[aria-label="Arrived"]').getAttribute('value'), '0');
+    const dispatch = page.locator('.dispatch-record');
+    assert.match(await dispatch.innerText(), /synthetic/i);
+    assert.match(await dispatch.getByRole('list', { name: 'Planned checkpoints' }).innerText(), /Start\s+Planned/);
+    await dispatch.getByRole('button', { name: 'Open shipment' }).click();
+    await page.locator('#detail-dialog').getByRole('heading', { name: 'Route & checkpoints' }).waitFor();
+    await page.keyboard.press('Escape');
+
+    await navigate('devices', 'Devices');
+    assert.match(await page.locator('.fleet-counters').innerText(), /Physical identities\s+0/);
+    assert.match(await page.getByRole('row').filter({hasText: 'Synthetic fixture sensor'}).innerText(), /0 °C/);
+    await page.getByRole('button', {name: 'Device details', exact: true}).click();
+    await page.getByRole('img', { name: 'Temperature observations over reported time' }).waitFor();
+    assert.equal(await page.getByRole('img', { name: 'Temperature observations over reported time' }).locator('circle').count(), 3);
+    await page.keyboard.press('Escape');
+
+    await navigate('events', 'Event history');
+    assert.match(await page.locator('.event-brief').innerText(), /Warnings\s+1/);
+    await page.locator('.ops-event-alert').getByRole('button', {name: 'Event details'}).click();
+    await page.locator('#detail-dialog[open]').waitFor();
+    await page.keyboard.press('Escape');
+
+    await navigate('proofs', 'Proof records');
+    const proof = page.locator('.ops-proof');
+    assert.match(await proof.innerText(), /TEST_ONLY[\s\S]*Evidence checked[\s\S]*No blockchain confirmation/);
+    await proof.getByText('Technical evidence', {exact: true}).click();
+    assert.equal(await proof.locator('details').evaluate(node => node.open), true);
+  } finally {
+    await context.close();
+  }
+});

@@ -19,7 +19,15 @@
       recover: form('recover', email, 'Send recovery code'),
       reset: form('reset', code + newPassword, 'Reset password')
     };
-    return '<section class="panel customer-access lite-auth-screen"><div class="ops-auth-mark"><img src="assets/v2/brand/mark.png" width="52" height="44" alt=""></div><h1>' + ({
+    const artwork = '<div class="lite-auth-art" aria-hidden="true"><svg viewBox="0 0 560 360" fill="none">' +
+      '<path d="m28 247 245-142 259 145-245 84zM28 247v20l259 83 245-84v-16M287 334v16" stroke="currentColor" opacity=".4"/>' +
+      '<path d="m110 219 177 66 164-55-173-90zM197 174l172 84m-81-104-176 75m258-44-171 68" stroke="currentColor" opacity=".25"/>' +
+      '<path class="auth-art-route" d="m109 222 93 32 145-63 74 27" stroke-dasharray="7 5" stroke-width="3"/>' +
+      '<circle cx="109" cy="222" r="7" fill="currentColor"/><circle cx="421" cy="218" r="7" fill="currentColor"/>' +
+      '<path d="m217 115 65-38 80 46v58l-65 39-80-46zM217 115l80 47 65-39M297 162v58m-39-128 79 46" stroke="currentColor" stroke-width="2.5"/>' +
+      '<path d="M422 208v-72m-18 8a23 23 0 0 1 36 0m-47-11a38 38 0 0 1 58 0" stroke="currentColor" opacity=".7"/>' +
+      '</svg></div>';
+    return '<div class="lite-auth-layout">' + artwork + '<section class="panel customer-access lite-auth-screen"><div class="ops-auth-mark"><img src="assets/v2/brand/mark.png" width="52" height="44" alt=""></div><h1>' + ({
       login: 'Sign in to Trackium', register: 'Create your account', verify: 'Confirm your email',
       recover: 'Recover access', reset: 'Set a new password'
     })[screen] + '</h1>' + content[screen] +
@@ -28,7 +36,7 @@
         ['recover','Forgot password'], ['reset','Enter recovery code'], ['pairing','Specialized connection']
       ].filter(([key]) => key !== screen && (!demo || key === 'pairing')).map(([key,label]) => mode(key,label)).join('') +
       '</div><p role="status" id="customer-status">' + esc(error) + '</p>' +
-      (['offline','unavailable'].includes(phase) ? mode('retry','Retry connection') : '') + '</section>';
+      (['offline','unavailable'].includes(phase) ? mode('retry','Retry connection') : '') + '</section></div>';
   }
   const title = (role) => role.charAt(0).toUpperCase() + role.slice(1);
   const roleOptions = (role) => role.map(key => '<option value="' + key + '">' + title(key) + '</option>').join('');

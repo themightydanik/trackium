@@ -20,6 +20,8 @@
       key
     );
   const eventName = (e) => C.label(e.event_type);
+  const isAlert = (e) =>
+    ['temperature_violation', 'temperature_excursion', 'route_deviation'].includes(e.event_type);
   const deviceLink = (id, data) =>
     action(
       data.devices.find((d) => d.registry.id === id)?.registry.label || 'Device details',
@@ -70,8 +72,9 @@
     proofs: '<path d="M16 3l11 5v8c0 6-5 11-11 14-6-3-11-8-11-14V8zM11 16l3 3 7-7"/>',
     map: '<path d="M5 8l8 4 7-4 7 4v16l-7-4-7 4-8-4zM13 12v16m7-20v16"/>'
   }[kind] || '<path d="M5 26l7-8 6 3 8-13"/><circle cx="26" cy="8" r="3"/><circle cx="5" cy="26" r="2"/>') + '</svg>';
-  const empty = (title, text) =>
-    '<div class="ux-empty"><span class="empty-glyph" aria-hidden="true">' + glyph('map') + '</span><div><h3>' +
+  const empty = (title, text, kind = 'map') =>
+    '<div class="ux-empty"><span class="empty-glyph" aria-hidden="true">' +
+    (isLite() ? '<svg class="empty-orbit" viewBox="0 0 112 80" fill="none"><path d="M3 60 39 40l36 20-36 20zM39 40l35-20 36 20-35 20zM3 40l36-20 35 20-35 20z" stroke="currentColor" opacity=".35"/><path d="M17 54 44 39m24 8 26-15" stroke="currentColor" stroke-dasharray="3 4"/><circle cx="16" cy="55" r="3" fill="currentColor"/><circle cx="96" cy="30" r="3" fill="currentColor"/></svg>' : '') + glyph(kind) + '</span><div><h3>' +
     esc(title) +
     '</h3><p>' +
     esc(text) +
@@ -305,19 +308,21 @@
     const stops = arr(s.checkpoints);
     const visited = stops.filter(stop => stop.visited_at).length;
     const issues = [s.route_violation && 'Route deviation recorded', s.temperature_violation && 'Temperature violation recorded'].filter(Boolean);
+    const lite = isLite();
     return (
-      '<article class="panel server-content server-shipment" data-view-key="shipment:' + esc(s.id) + '"><div class="server-shipment-heading">' +
+      '<article class="panel server-content server-shipment" data-view-key="shipment:' + esc(s.id) + '">' + (lite ? '<div class="freight-record"><div>' : '') + '<div class="server-shipment-heading">' +
       '<span class="ops-glyph">' + glyph('shipments') + '</span><h2>' +
       esc(s.name) +
       '</h2>' +
       badge(s.status) +
       provenanceBadge(s.source_trust) +
       '</div><p>' +
-      esc(device?.registry.label || s.device_id) +
+      '<span class="freight-device">' + glyph('devices') + esc(device?.registry.label || s.device_id) + '</span>' +
       '</p>' + issues.map(issue => '<p class="ops-alert">' + esc(issue) + '</p>').join('') +
+      (lite ? '</div><div class="freight-checkpoints">' : '') +
       (stops.length ? '<label class="ops-progress">Checkpoint progress · ' + visited + ' / ' + stops.length +
         '<meter min="0" max="' + stops.length + '" value="' + visited + '"></meter></label>' : '') +
-      '<ol class="ux-route">' +
+      (isLite() ? routeStrip(stops) : '<ol class="ux-route">' +
       arr(s.checkpoints)
         .map(
           (cp) =>
@@ -330,10 +335,10 @@
             '</span></li>'
         )
         .join('') +
-      '</ol>' +
+      '</ol>') + (lite ? '</div></div><footer class="freight-actions">' : '') +
       action('Open shipment', 'view-shipment', s.id) +
       shipmentActions(s, state, data) +
-      '</article>'
+      (lite ? '</footer>' : '') + '</article>'
     );
   }
   function deviceTable(items) {
@@ -351,11 +356,11 @@
             '</small></td><td data-label="Reported state">' +
             (d.registry.enabled === false ? badge('Disabled', 'neutral') : d.registry.identity_kind === 'physical' && !e
               ? badge('No decoded telemetry', 'neutral') : badge(d.status?.status || 'unknown')) +
-            '</td><td data-label="Temperature">' +
+            '</td><td class="fleet-reading" data-label="Temperature">' +
             value(p.temperature_c, ' °C') +
-            '</td><td data-label="Humidity">' +
+            '</td><td class="fleet-reading" data-label="Humidity">' +
             value(p.humidity_pct, ' %') +
-            '</td><td data-label="Battery">' +
+            '</td><td class="fleet-reading" data-label="Battery">' +
             value(p.battery_pct, ' %') +
             '</td><td data-label="Provenance / observation time">' +
             provenanceBadge(p.trust) +
@@ -455,6 +460,81 @@
       '<p>' + preferences + ' Delivery means an entry reached this inbox.</p>' +
       (items.length ? '<ul>' + items.join('') + '</ul>' : '<p>No notifications.</p>'));
   }
+  function routeStrip(stops) {
+    if (!stops.length) return '<p class="freight-route-empty">Route not configured</p>';
+    return '<ol class="freight-legs" aria-label="Planned checkpoints">' + stops.map(stop =>
+      '<li class="' + (stop.visited_at ? 'reached' : '') + '"><span class="freight-node"></span><strong>' +
+      esc(stop.name) + '</strong><small>' + (stop.visited_at ? 'Reached' : 'Planned') + '</small></li>'
+    ).join('') + '</ol>';
+  }
+
+  function dispatchOverview(state) {
+    const d = state.data;
+    const active = d.shipments.filter(s => s.status === 'active');
+    const flagged = d.shipments.filter(s => s.route_violation || s.temperature_violation);
+    const recent = sorted(d.events, {sort: 'event_time', order: 'desc'}).slice(0, 4);
+    const devices = d.devices.filter(x => x.registry.identity_kind === 'physical');
+    const stats = [
+      ['Active shipments', active.length, 'shipments', 'shipments'],
+      ['Physical devices', devices.length, 'devices', 'devices'],
+      ['Shipments with issues', flagged.length, 'events', 'shipments'],
+      ['Integritas proof records', arr(d.integritas?.proofs).length, 'proofs', 'proofs']
+    ];
+    const stages = [['Planned', ['draft']], ['In transit', ['active']], ['Arrived', ['delivered','completed']]];
+    const portfolio = '<ul class="dispatch-portfolio" aria-label="Shipment lifecycle breakdown">' +
+      stages.map(([label, statuses]) => {
+        const count = d.shipments.filter(s => statuses.includes(s.status)).length;
+        return '<li><span>' + label + '</span><meter aria-label="' + label + '" min="0" max="' +
+          Math.max(d.shipments.length, 1) + '" value="' + count + '"></meter><strong>' + count + '</strong></li>';
+      }).join('') + '</ul>';
+    return '<div class="dispatch-stage"><section class="dispatch-map" aria-labelledby="dispatch-map-title">' +
+      '<header><div><h2 id="dispatch-map-title">Operations map</h2><p>Planned routes and eligible reported fixes</p></div>' +
+      '<a class="button secondary" href="#map">Explore map</a></header>' + map(d) + '</section>' +
+      '<aside class="dispatch-brief" aria-label="Dispatch summary"><h2>Fleet at a glance</h2><p>Loaded Gateway snapshot</p>' +
+      '<div class="dispatch-stats">' + stats.map(([label,n,icon,path]) =>
+        '<a class="ops-stat" href="#' + path + '"><span class="ops-glyph">' + glyph(icon) +
+        '</span><strong>' + n + '</strong><span>' + label + '</span></a>').join('') + '</div>' +
+      '<h3>Shipment lifecycle</h3>' + portfolio + '</aside></div>' +
+      '<div class="dispatch-lower">' + panel('Dispatch board',
+        (active.length ? active.slice(0, 4).map(s => '<article class="dispatch-record" data-view-key="dispatch:' +
+          esc(s.id) + '"><header><h3>' + esc(s.name) + '</h3>' + provenanceBadge(s.source_trust) + '</header>' +
+          routeStrip(arr(s.checkpoints)) + action('Open shipment', 'view-shipment', s.id) + '</article>').join('')
+          : empty('No active departures', 'Active shipments appear here with their planned checkpoints.', 'shipments')) +
+        '<a class="text-link" href="#shipments">Browse all shipments</a>', 'dispatch-board') +
+      panel('Recent activity', recent.length ? '<ol class="dispatch-feed">' + recent.map(e =>
+        '<li data-view-key="activity:' + esc(e.id) + '"><span class="ops-glyph">' + glyph('events') +
+        '</span><div><strong>' + esc(eventName(e)) + '</strong><time>' + cargoEventTime(e) + '</time>' +
+        provenanceBadge(e.source_trust) + '</div>' + action('Event details', 'view-event', e.id) + '</li>'
+      ).join('') + '</ol><a class="text-link" href="#events">Open event history</a>' :
+        empty('No recorded activity', 'Shipment events appear here after the Gateway records them.', 'events'), 'dispatch-activity') +
+      '</div>';
+  }
+
+  function mapWorkspace(data) {
+    return '<div class="geo-workspace">' + panel('Routes & last reported locations', map(data, true), 'geo-canvas') +
+      panel('Device directory', data.devices.length ? '<ul class="geo-directory">' + data.devices.map(d => {
+        const observation = d.history?.events?.[0];
+        return '<li data-view-key="geo:' + esc(d.registry.id) + '"><span class="ops-glyph">' + glyph('devices') +
+          '</span><div><strong>' + esc(d.registry.label) + '</strong>' +
+          fields(positionFields(d)) + (observation ? provenanceBadge(observation.payload?.trust) +
+            '<details class="ops-disclosure"><summary>Latest observation</summary>' +
+            fields(observationFields(observation)) + '</details>' : '') + '</div>' +
+          action('Device details', 'view-device', d.registry.id) + '</li>';
+      }).join('') + '</ul>' :
+        empty('No devices on this page', 'Register a device or open another page in Devices.', 'devices'), 'geo-side') + '</div>';
+  }
+
+  function proofJourney(proof) {
+    const checks = [
+      ['Prepared', ['prepared','submitted','pending','anchored','verified'].includes(proof.status)],
+      ['Test transport', ['submitted','anchored','verified'].includes(proof.status)],
+      ['Evidence checked', proof.status === 'verified']
+    ];
+    return '<ol class="proof-journey" aria-label="Test evidence progress">' + checks.map(([label, done]) =>
+      '<li class="' + (done ? 'reached' : '') + '"><span class="freight-node"></span>' + label +
+      '<span class="sr-only">' + (done ? ' · recorded' : ' · not shown as completed') + '</span></li>'
+    ).join('') + '</ol>';
+  }
   function render(page, state, view = {}) {
     verificationEvidence = state.verifications || {};
     if (!state.data)
@@ -473,7 +553,8 @@
         return t.content;
       };
     let body = '';
-    if (page === 'dashboard')
+    if (page === 'dashboard' && isLite()) body = dispatchOverview(state);
+    else if (page === 'dashboard')
       body =
         '<div class="ops-overview-metrics" aria-label="Loaded workspace metrics">' +
         [
@@ -529,9 +610,9 @@
     if (page === 'shipments')
       body =
         search(page, view, d) +
-        '<div class="toolbar"><p>Current shipment page · your company</p>' +
+        '<div class="toolbar freight-toolbar"><strong>Shipment manifest</strong>' +
         action('Create shipment', 'create', '', !can('shipments')) +
-        '</div><div class="ux-card-grid">' +
+        '</div><div class="' + (isLite() ? 'freight-manifest' : 'ux-card-grid') + '">' +
         selected(d.shipments, view, 'name')
           .map((s) => shipmentCard(s, state))
           .join('') +
@@ -547,7 +628,7 @@
       body =
         search(page, view, d) +
         panel(
-          'Company devices',
+          'Device inventory',
           '<div class="toolbar"><p>Latest reported samples with measurement time and provenance.</p>' +
             action(
               'Create simulator identity',
@@ -561,8 +642,18 @@
         (d.devices.filter((x) => matches(x.registry, view)).length
           ? ''
           : empty('No matching devices', 'No device records match the loaded snapshot.'));
+    if (page === 'devices' && isLite()) {
+      const physical = d.devices.filter(x => x.registry.identity_kind === 'physical');
+      const reported = d.devices.filter(C.reportedPosition);
+      body = '<dl class="fleet-counters" aria-label="Loaded device inventory">' +
+        [['Registered on this page', d.devices.length, 'devices'], ['Physical identities', physical.length, 'shipments'],
+         ['Eligible reported fixes', reported.length, 'map']].map(([label, n, icon]) =>
+           '<div><span class="ops-glyph">' + glyph(icon) + '</span><dt>' + label + '</dt><dd>' + n + '</dd></div>'
+         ).join('') + '</dl>' + body;
+    }
     if (page === 'devices') body += C.pagination('devices', state);
-    if (page === 'map')
+    if (page === 'map' && isLite()) body = mapWorkspace(d);
+    else if (page === 'map')
       body =
         panel('Routes & last reported locations', map(d, true)) +
         '<div class="ux-card-grid">' +
@@ -585,15 +676,18 @@
         '</div>';
     if (page === 'events')
       body =
+        (isLite() ? '<div class="event-brief"><span class="ops-glyph">' + glyph('events') +
+          '</span><div>Warnings <strong>' + d.events.filter(isAlert).length + '</strong></div>' +
+          '<div>Recorded events <strong>' + d.events.length + '</strong></div></div>' : '') +
         search(page, view, d) +
         panel(
           'Recorded event timeline',
-          '<p>Outbox state describes worker delivery, never blockchain confirmation. First 50 events per loaded shipment.</p><ol class="ux-timeline">' +
+          '<p>First 50 events per loaded shipment. Outbox status records delivery only.</p><ol class="ux-timeline event-register">' +
             selected(d.events, view, 'event_time')
               .map(
                 (e) =>
                   '<li data-view-key="event:' + esc(e.id) + '" class="' +
-                  (/violation|deviation|alert/.test(e.event_type) ? 'ops-event-alert' : 'ops-event') +
+                  (isAlert(e) ? 'ops-event-alert' : 'ops-event') +
                   '"><span class="ops-glyph">' + glyph('events') + '</span><div class="section-title"><h3>' +
                   esc(eventName(e)) +
                   '</h3>' +
@@ -634,7 +728,7 @@
           '<strong>' + esc(label) + '</strong></div></header>' +
           '<p>' + esc(shipment?.name || proof.shipment_id) + '</p><p>' + esc(C.label(proof.event_type)) +
           ' · ' + date(proof.created_at) + '</p>' + provenanceBadge(proof.source_trust) +
-          '<p class="ops-proof-boundary">No blockchain confirmation</p>' +
+          proofJourney(proof) + '<p class="ops-proof-boundary">No blockchain confirmation</p>' +
           '<div class="form-actions">' + action('Recheck test evidence', 'integritas-verify', proof.id) +
           action('Export test evidence', 'integritas-export', proof.id) + '</div>' +
           '<details class="ops-disclosure"><summary>Technical evidence</summary>' + fields([
@@ -662,12 +756,13 @@
           controls.innerHTML + '</details>' : '');
     }
     if (page === 'settings' && state.session.customer)
-      body = notificationPanel(d.notifications) + TrackiumAppearance.form();
+      body = '<div class="settings-workbench"><section aria-label="Appearance">' + TrackiumAppearance.form() +
+        '</section>' + (d.notifications ? '<section aria-label="Notifications">' + notificationPanel(d.notifications) +
+          '</section>' : '') + '</div>';
     if (page === 'settings' && !state.session.customer) {
       const original = old().querySelector('section.settings-panel');
-      body =
-        root.TrackiumAppearance.form() +
-        panel(
+      const appearance = root.TrackiumAppearance.form();
+      const connection = panel(
           'Gateway origin & tenant',
           fields([
             ['Origin', location.origin],
@@ -678,11 +773,12 @@
           ]) +
             '<p>Owner-approved, short-lived session. HttpOnly cookies remain unavailable to JavaScript. No owner key or bearer-token form.</p>' +
             action('Disconnect and revoke', 'disconnect')
-        ) +
-        notificationPanel(d.notifications) +
-        '<details class="panel ux-advanced"><summary>Session & technical details</summary>' +
-        (original?.innerHTML || '') +
-        '</details>';
+        );
+      const technical = '<details class="panel ux-advanced"><summary>Session & technical details</summary>' +
+        (original?.innerHTML || '') + '</details>';
+      body = (isLite() ? '<div class="settings-workbench"><section aria-label="Appearance">' + appearance +
+        '</section><section aria-label="Connection and access">' + connection + technical + '</section></div>' :
+        appearance + connection + technical) + notificationPanel(d.notifications);
     }
     const age = state.updated ? Date.now() - Date.parse(state.updated) : 0;
     return (
@@ -723,7 +819,7 @@
       out_of_order: 'Out-of-order observation', conflicting_fixes: 'Conflicting fixes in the same second',
       eligible: 'Eligible real-time fix'
     };
-    return '<p>' + esc(d.binding === 'active' ? 'Active binding' : 'Unbound device') +
+    return '<p class="lab-observation-state">' + esc(d.binding === 'active' ? 'Active binding' : 'Unbound device') +
       ' · ' + esc(d.packet_recency === 'recent' ? 'Recent packet' : 'No recent data') +
       ' · ' + provenanceBadge(d.trust) + '</p>' + fields([
         ['Last packet received (UTC)', packet?.received_at],
@@ -746,8 +842,9 @@
     const now = new Date(Math.ceil(Date.now() / 60000) * 60000);
     const yesterday = new Date(now - 86400000);
     return '<div data-device-lab>' + panel('Physical Device Lab',
-      '<p class="ops-lab-intro"><span class="ops-glyph">' + glyph('devices') +
-      '</span><span>Check what reached the Gateway and when the device measured it.</span></p>' +
+      '<div class="lab-signal-flow" aria-label="Device observation path"><span>' + glyph('devices') +
+      'Tracker</span><span>' + glyph('events') + 'Gateway receipt</span><span>' + glyph('map') +
+      'Measurement history</span></div>' +
       '<div class="form-actions">' +
       action('Read now', 'load-device-diagnostics', id) +
       action('Start monitoring', 'start-device-diagnostics', id) +
@@ -788,7 +885,7 @@
             return '<li><time>' + observationTime(event) + '</time>' +
               provenanceBadge(event.payload?.trust) +
               (point ? '<p>Reported position: ' + point.latitude + ', ' + point.longitude + '</p>' : '') +
-              '<div class="ux-sensors">' +
+              '<div class="ux-sensors freight-temperature">' +
               metric('Temperature', event.payload?.temperature_c, ' °C') +
               metric('Humidity', event.payload?.humidity_pct, ' %') +
               metric('Battery', event.payload?.battery_pct, ' %') + '</div></li>';
@@ -844,7 +941,7 @@
         ) +
         panel(
           'Route & checkpoints',
-          '<ol class="ux-timeline">' +
+          (isLite() ? routeStrip(arr(record.checkpoints)) : '') + '<ol class="ux-timeline">' +
             arr(record.checkpoints)
               .map(
                 (cp) =>
@@ -894,13 +991,13 @@
           ...observationFields(latest),
           ['Observation trust', latest?.payload?.trust]
         ]) +
-        '<div class="ux-sensors">' +
+        '<div class="ux-sensors freight-temperature">' +
         metric('Temperature', latest?.payload?.temperature_c, ' °C') +
         metric('Humidity', latest?.payload?.humidity_pct, ' %') +
         metric('Battery', latest?.payload?.battery_pct, ' %') +
         '</div>' +
         (d.registry.identity_kind === 'physical' && !latest
-          ? '<p class="lite-position-state">No decoded telemetry yet. Check Gateway packet receipt in Physical Device Lab.</p>'
+          ? empty('No decoded telemetry yet', 'Check Gateway packet receipt in Physical Device Lab.', 'devices')
           : '') +
         (d.registry.identity_kind === 'physical' && !data.nativeWorkspace
           ? physicalDeviceLab(d.registry.id)
