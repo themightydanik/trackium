@@ -52,7 +52,7 @@
       csrf = '';
       clearTimeout(timer);
     }
-    async function request(path, method = 'GET', input) {
+    async function request(path, method = 'GET', input, signal) {
       if (!enabled) throw new Error('Open the authenticated Gateway workspace first.');
       if (!path.startsWith('/v1/') || path.includes('#')) throw new Error('Invalid API path.');
       const requestVersion = generation;
@@ -62,7 +62,10 @@
       if (method !== 'GET' && csrf) headers['X-CSRF-Token'] = csrf;
       if (input !== undefined) headers['Content-Type'] = 'application/json';
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      const abort = () => controller.abort();
+      if (signal?.aborted) abort();
+      else signal?.addEventListener('abort', abort, { once: true });
+      const timeout = setTimeout(abort, 8000);
       let res, data;
       try {
         res = await fetch(path, {
@@ -77,7 +80,10 @@
         data = await res.json();
       } finally {
         clearTimeout(timeout);
+        signal?.removeEventListener('abort', abort);
       }
+      if (signal && (generation !== requestVersion || signal.aborted))
+        throw new DOMException('Workspace changed', 'AbortError');
       if (!res.ok) {
         if (res.status === 401 && !path.startsWith('/v1/account/') && requestVersion === generation) {
           generation++;

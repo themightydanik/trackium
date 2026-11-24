@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { ApiError, invalid, object, text, uuid, timestamp } from './schema.js';
-import { physicalPositionCtes, readAovxDiagnostics } from '../aovx/diagnostics.js';
+import { physicalPositionCtes, readAovxDiagnostics, readAovxLabHistory } from '../aovx/diagnostics.js';
 import { ingestSynthetic } from '../cargo/ingestion.js';
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const scopesAllowed = ['read', 'admin', 'fixture', 'shipments', 'simulate', 'publish'];
@@ -206,6 +206,11 @@ export function createTelemetryService(pool, { onEvent } = {}) {
       const d = await device(pool, tenantId, id);
       if (d.identity_kind !== 'physical') throw new ApiError(404, 'physical device not found');
       return readAovxDiagnostics(pool, d);
+    },
+    async labHistory(tenantId, id, range) {
+      const d = await device(pool, tenantId, id);
+      if (d.identity_kind !== 'physical') throw new ApiError(404, 'physical device not found');
+      return readAovxLabHistory(pool, d, range);
     },
     async latest(tenantId, id, locationOnly = false) {
       const d = await device(pool, tenantId, id);

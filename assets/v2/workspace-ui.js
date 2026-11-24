@@ -712,10 +712,44 @@
         ['Delivery', { buffered: 'Buffered', real_time: 'Real-time' }[observation?.delivery]],
         ['Receive minus measurement', observation?.receive_lag_ms == null ? null : observation.receive_lag_ms + ' ms'],
         ['Observation eligibility', reasons[position.reason]],
+        ['Last-known position age', position.last_known ? (position.last_known.stale ? 'Older than 15 minutes' : 'Within 15 minutes') : null],
         ['Last known fix (UTC)', position.conflict ? 'Unavailable: conflicting fixes' : position.last_known_at],
         ['Parser version', observation?.parser_version],
         ['Linked packet reference', observation?.packet_ref]
       ]);
+  }
+  function physicalDeviceLab(id) {
+    const now = new Date(Math.ceil(Date.now() / 60000) * 60000);
+    const yesterday = new Date(now - 86400000);
+    return '<div data-device-lab>' + panel('Physical Device Lab',
+      '<div class="form-actions">' +
+      action('Read now', 'load-device-diagnostics', id) +
+      action('Start monitoring', 'start-device-diagnostics', id) +
+      action('Stop monitoring', 'stop-device-diagnostics', id) +
+      '</div><p data-device-diagnostics-state role="status">Monitoring is off.</p>' +
+      '<div data-device-diagnostics></div>' +
+      '<h3>Position history</h3><p>Coarse geographic basemap. Points are discrete unverified fixes.</p>' +
+      '<div class="ux-geo" data-device-lab-map role="region" aria-label="Physical device positions" hidden></div>' +
+      action('Fit recorded positions', 'fit-device-lab-map', id) +
+      '<div class="form-actions"><label>From (UTC)<input class="text-input" type="datetime-local" name="lab-from" value="' +
+      yesterday.toISOString().slice(0, 16) + '"></label>' +
+      '<label>To (UTC)<input class="text-input" type="datetime-local" name="lab-to" value="' +
+      now.toISOString().slice(0, 16) + '"></label>' +
+      action('Load period', 'load-device-lab-range', id) + '</div>' +
+      '<p data-device-lab-range-state role="status"></p><div data-device-lab-rows></div>' +
+      '<label><input type="checkbox" name="lab-export-coordinates"> Include precise coordinates in JSON</label><p>Share diagnostic files only with authorized recipients.</p>' +
+      action('Export period JSON', 'export-device-diagnostics', id, true)) + '</div>';
+  }
+  function deviceLabHistory(range) {
+    return '<ol class="ux-timeline">' + range.observations.map(row => '<li>' + fields([
+      ['Gateway received (UTC)', row.received_at],
+      ['Measured (UTC)', row.measured_at],
+      ['GNSS', row.fix == null ? null : row.fix ? 'Fix' : 'Unfix'],
+      ['Delivery', row.buffered == null ? null : row.buffered ? 'Buffered' : 'Real-time'],
+      ['Signal (raw code)', row.signal_raw_code],
+      ['Satellites (raw code)', row.satellites_raw_code],
+      ['Unverified position', row.position ? row.position.latitude + ', ' + row.position.longitude : null]
+    ]) + '</li>').join('') + '</ol>';
   }
   function deviceHistory(device, history) {
     const events = arr(history?.page?.events);
@@ -840,15 +874,7 @@
         metric('Battery', latest?.payload?.battery_pct, ' %') +
         '</div>' +
         (d.registry.identity_kind === 'physical' && !data.nativeWorkspace
-          ? panel('Physical Device Lab · live diagnostics',
-            '<p>Read-only diagnostic snapshots. Start monitoring to check every 10 seconds while this device is open; no configuration commands are sent.</p>' +
-            '<div class="form-actions">' +
-            action('Read now', 'load-device-diagnostics', d.registry.id) +
-            action('Start live check', 'start-device-diagnostics', d.registry.id) +
-            action('Stop live check', 'stop-device-diagnostics', d.registry.id) +
-            action('Export support snapshot', 'export-device-diagnostics', d.registry.id) +
-            '</div><p data-device-diagnostics-state role="status">Monitoring is off.</p>' +
-            '<div data-device-diagnostics aria-live="polite"></div>')
+          ? physicalDeviceLab(d.registry.id)
           : '') +
         deviceHistory(d, history ?? { page: d.history });
     } else {
@@ -1014,6 +1040,7 @@
     render,
     detail,
     deviceDiagnostics,
+    deviceLabHistory,
     deviceHistory,
     createForm,
     route,

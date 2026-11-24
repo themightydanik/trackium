@@ -409,11 +409,56 @@ test(
     assert.match(await details.innerText(), /2024-02-01T03:04:05.000Z · Buffered/);
     assert.match(await details.innerText(), /31.867795, 117.147473/);
     const diagnostics = details.locator('[data-device-diagnostics]');
-    await details.getByRole('button', { name: 'Load diagnostics' }).click();
+    await details.getByRole('button', { name: 'Read now' }).click();
     await diagnostics.getByText('Buffered report', { exact: true }).waitFor();
     assert.match(await diagnostics.innerText(), /Last packet received \(UTC\)[\s\S]*Device measurement time \(UTC\)\s+2024-02-01T03:04:05.000Z/);
     assert.match(await diagnostics.innerText(), /Processed[\s\S]*Buffered[\s\S]*aovx-gal-v2/);
     assert.doesNotMatch(await diagnostics.innerText(), new RegExp(bcd));
+    const checkRange = details.getByRole('button', { name: 'Load period' });
+    await checkRange.click();
+    await details.getByText('2 observations in the loaded UTC receipt period.').waitFor();
+    assert.equal(await details.locator('.ux-lab-history-point').count(), 1);
+    assert.equal(await details.locator('.ux-lab-last-known').count(), 0);
+    const exportRange = details.getByRole('button', { name: 'Export period JSON' });
+    const downloadEvent = page.waitForEvent('download');
+    await exportRange.click();
+    const labDownload = await downloadEvent;
+    const { readFile: readDownload } = require('node:fs/promises');
+    const bundleText = await readDownload(await labDownload.path(), 'utf8');
+    const labBundle = JSON.parse(bundleText);
+    assert.equal(labBundle.format, 'trackium-device-support-range-v1');
+    assert.equal(labBundle.contains_location_data, false);
+    assert.ok(labBundle.observations.every(row => !Object.hasOwn(row, 'position')));
+    assert.doesNotMatch(bundleText, new RegExp(bcd + '|31.867795|117.147473'));
+    assert.equal(labBundle.observations.length, 2);
+    await details.getByLabel('Include precise coordinates in JSON').check();
+    const secondDownload = page.waitForEvent('download');
+    await exportRange.click();
+    const withPosition = JSON.parse(await readDownload(await (await secondDownload).path(), 'utf8'));
+    assert.equal(withPosition.contains_location_data, true);
+    assert.equal(withPosition.observations.find(row => row.position).position.latitude, 31.867795);
+
+    const diagnosticsPath = '**/v1/devices/' + physical.id + '/diagnostics';
+    let signalStarted, releaseRoute;
+    const started = new Promise(resolve => { signalStarted = resolve; });
+    const release = new Promise(resolve => { releaseRoute = resolve; });
+    const waitForStop = async route => {
+      signalStarted();
+      await release;
+      await route.abort().catch(() => {});
+    };
+    await page.route(diagnosticsPath, waitForStop);
+    await details.getByRole('button', { name: 'Start monitoring' }).click();
+    await started;
+    const canceled = page.waitForEvent('requestfailed', { predicate: req => req.url().endsWith('/diagnostics') });
+    await details.getByRole('button', { name: 'Stop monitoring' }).click();
+    await canceled;
+    releaseRoute();
+    await page.unroute(diagnosticsPath, waitForStop);
+    assert.equal(await diagnostics.innerText(), '');
+    await details.getByText('Monitoring stopped.', { exact: true }).waitFor();
+    await details.getByLabel('To (UTC)').fill('2024-02-02T12:00');
+    assert.ok(await exportRange.isDisabled());
     await details.locator('[data-action=close-dialog]').click();
     // A timely real-time fix is labelled last known and unverified on the map.
     body.writeUInt32BE(2, 4);
@@ -434,6 +479,12 @@ test(
     await card.getByText('Last known fix (UTC)', { exact: true }).waitFor();
     assert.match(await card.innerText(), /Gateway received[\s\S]*unverified/);
     assert.equal(await page.locator('.ux-device-position').count(), 2);
+    await page.locator('#navigation a[href="#devices"]').click();
+    await row.getByRole('button', { name: 'Device details' }).click();
+    await details.getByRole('button', { name: 'Read now' }).click();
+    await details.locator('.ux-lab-last-known').waitFor();
+    await details.getByText('Within 15 minutes', { exact: true }).waitFor();
+    await details.locator('[data-action=close-dialog]').click();
     // Browse actual PostgreSQL cursor pages in the browser-only workspace.
     const fixture = await telemetry.register(owner.tenant_id, { label: 'Synthetic history sample', mode: 'synthetic' });
     for (let index = 1; index <= 22; index++) {

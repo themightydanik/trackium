@@ -125,7 +125,7 @@ export function createTelemetryApi(
         reply(res, 200, await service.revokeAovxDevice(tenant, aovxBinding[1]));
         return;
       }
-      const match = /^\/v1\/devices\/([^/]+)(?:\/(events|location|status|diagnostics))?$/.exec(url.pathname);
+      const match = /^\/v1\/devices\/([^/]+)(?:\/(events|location|status|diagnostics|lab-history))?$/.exec(url.pathname);
       if (match) {
         const [, id, action] = match;
         if (req.method === 'PATCH' && !action) {
@@ -136,6 +136,14 @@ export function createTelemetryApi(
         }
         if (req.method === 'GET') {
           requireScope('read');
+          if (action === 'lab-history') {
+            const range = query(url, ['from', 'to', 'limit']);
+            if (!range.from || !range.to ||
+                Date.parse(range.to) - Date.parse(range.from) > 7 * 24 * 60 * 60 * 1000)
+              invalid('UTC from and to required, maximum range is 7 days');
+            reply(res, 200, await service.labHistory(tenant, id, range));
+            return;
+          }
           const q = query(url, action === 'events' ? ['limit', 'cursor', 'from', 'to'] : []);
           if (action === 'diagnostics') {
             reply(res, 200, await service.diagnostics(tenant, id));
