@@ -5,7 +5,7 @@ on:
   pull_request:
     paths:
       - 'apps/lite-android/**'
-      - 'assets/v2/cargo.js'
+      - 'assets/v2/**'
       - '.github/workflows/lite-android-debug.yml'
       - 'apps/android/gradle/wrapper/**'
       - 'apps/android/gradlew'

@@ -40,7 +40,9 @@ class MainActivity : Activity() {
     private lateinit var spinner: ProgressBar
     private lateinit var offline: LinearLayout
     private var exporting: JsonExport? = null
+    private var workspaceForeground = false
     private var revalidateOnResume = false
+    private var resumeEpoch = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val dark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
@@ -142,8 +144,13 @@ class MainActivity : Activity() {
 
             override fun onPageCommitVisible(view: WebView, url: String) {
                 if (browser === view && TrustedOrigin.isWorkspace(url) && offline.visibility != View.VISIBLE) {
-                    view.visibility = View.VISIBLE
-                    spinner.visibility = View.GONE
+                    if (workspaceForeground) {
+                        view.visibility = View.VISIBLE
+                        spinner.visibility = View.GONE
+                    } else {
+                        view.visibility = View.INVISIBLE
+                        revalidateOnResume = true
+                    }
                 }
             }
 
@@ -265,26 +272,62 @@ class MainActivity : Activity() {
     }
 
     override fun onStop() {
+        workspaceForeground = false
+        resumeEpoch++
         browser?.let { view ->
-            if (view.visibility == View.VISIBLE) {
-                view.visibility = View.INVISIBLE
-                revalidateOnResume = true
-            }
+            if (view.visibility == View.VISIBLE) view.visibility = View.INVISIBLE
+            if (view.visibility == View.INVISIBLE) revalidateOnResume = true
         }
         super.onStop()
     }
 
     override fun onResume() {
         super.onResume()
+        workspaceForeground = true
         browser?.onResume()
         if (revalidateOnResume) {
             revalidateOnResume = false
             spinner.visibility = View.VISIBLE
-            browser?.reload()
+            browser?.let(::resumeWorkspace)
+        }
+    }
+
+    private fun resumeWorkspace(view: WebView) {
+        val epoch = ++resumeEpoch
+        fun current() = !isDestroyed && workspaceForeground && browser === view && epoch == resumeEpoch
+        fun awaitValidation(attempt: Int) {
+            if (!current()) return
+            if (attempt == 60) {
+                view.reload()
+                return
+            }
+            view.evaluateJavascript("window.trackiumResumeSettled === true") { settled ->
+                if (!current()) return@evaluateJavascript
+                if (settled == "true") {
+                    view.visibility = View.VISIBLE
+                    spinner.visibility = View.GONE
+                } else view.postDelayed({ awaitValidation(attempt + 1) }, 250)
+            }
+        }
+        // A compatible workspace verifies authorization before revealing its
+        // existing DOM. Older Gateway versions retain the safe full reload.
+        if (!TrustedOrigin.isWorkspace(view.url.orEmpty())) {
+            connect()
+            return
+        }
+        view.evaluateJavascript("""(() => {
+            if (typeof window.TrackiumResume !== 'function') return false;
+            window.trackiumResumeSettled = false;
+            window.TrackiumResume().then(() => { window.trackiumResumeSettled = true; });
+            return true;
+        })()""") { handled ->
+            if (!current()) return@evaluateJavascript
+            if (handled == "true") awaitValidation(0) else view.reload()
         }
     }
 
     override fun onDestroy() {
+        resumeEpoch++
         exporting = null
         browser?.let { frame.removeView(it); it.stopLoading(); it.destroy() }
         browser = null

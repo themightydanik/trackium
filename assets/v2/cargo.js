@@ -66,7 +66,10 @@
     generation: 0,
     mds: { state: 'standalone', label: 'Standalone preview' }
   };
-  const server = TrackiumServer.create(() => render());
+  const server = TrackiumServer.create((_, reason) => {
+    if (reason === 'status') updateGatewayStatus();
+    else render(reason === 'snapshot');
+  });
   const serverViews = {};
   let customerScreen = 'login', companyMembers = null, companyMembersTenant = null, customerBusy = false;
   let navigationKey = null;
@@ -147,6 +150,9 @@
       if (lab.latest) bounds.push(latLng(lab.latest));
       if (bounds.length) lab.map.fitBounds(bounds, { padding: [20, 20], maxZoom: 9 });
     }
+    const signature = JSON.stringify(lab.latest ?? null);
+    if (lab.latestSignature === signature) return;
+    lab.latestSignature = signature;
     lab.current.clearLayers();
     if (lab.latest) {
       const accent = getComputedStyle(document.documentElement).getPropertyValue('--tc-accent').trim();
@@ -163,12 +169,14 @@
     lab.diagnostics = request;
     const status = lab.root.querySelector('[data-device-diagnostics-state]');
     const output = lab.root.querySelector('[data-device-diagnostics]');
-    status.textContent = 'Checking Gateway diagnostics…';
+    if (!output.childElementCount) status.textContent = 'Checking Gateway diagnostics…';
     let interval = labIntervalMs;
     try {
       const result = await server.request(lab.path + '/diagnostics', 'GET', undefined, request.signal);
       if (!labIsCurrent(lab) || request.signal.aborted) return;
-      output.innerHTML = TrackiumServerView.deviceDiagnostics(result);
+      const update = document.createElement('template');
+      update.innerHTML = TrackiumServerView.deviceDiagnostics(result);
+      reconcile(output, update.content);
       lab.latest = result.position.last_known;
       drawDeviceLabMap(lab);
       status.textContent = (lab.live ? 'Monitoring on · ' : 'Snapshot · ') +
@@ -962,7 +970,80 @@
       '</p></section></div></div>'
     );
   }
-  function render() {
+  function updateGatewayStatus() {
+    if (!lite) return;
+    const { phase, connected, loading, updated } = server.state;
+    const status = $('#lite-gateway-status');
+    const stamp = $('#lite-gateway-time');
+    const stale = updated && Date.now() - Date.parse(updated) > 300000;
+    const label = phase === 'offline' ? 'Offline' : phase === 'reconnecting' ? 'Reconnecting' :
+      phase === 'unavailable' ? 'Gateway unavailable' : phase === 'expired' ? 'Session expired' :
+      !connected ? 'Signed out' : stale ? 'Stale snapshot' : loading ? 'Checking Gateway' : 'Gateway snapshot';
+    if (status.textContent !== label) status.textContent = label;
+    if (stamp.dateTime !== (updated || '')) {
+      stamp.dateTime = updated || '';
+      stamp.textContent = updated ? new Date(updated).toLocaleTimeString() : 'Unavailable';
+    }
+  }
+
+  // Reconcile the trusted, escaped renderer output in place. Leaflet and the
+  // active forms own their interactive state and are never replaced by a poll.
+  function reconcile(parent, draft) {
+    const key = node => node.nodeType === Node.ELEMENT_NODE &&
+      (node.id || node.getAttribute('data-view-key'));
+    const existing = [...parent.childNodes];
+    const keyed = new Map(existing.filter(key).map(node => [key(node), node]));
+    let cursor = parent.firstChild;
+    for (const next of [...draft.childNodes]) {
+      const id = key(next);
+      const candidate = id ? keyed.get(id) : cursor && !key(cursor) ? cursor : null;
+      if (!candidate || candidate.nodeType !== next.nodeType || candidate.nodeName !== next.nodeName) {
+        parent.insertBefore(next, cursor);
+        continue;
+      }
+      if (candidate !== cursor) parent.insertBefore(candidate, cursor);
+      cursor = candidate.nextSibling;
+      if (candidate.isEqualNode(next)) continue;
+      if (candidate.nodeType !== Node.ELEMENT_NODE) {
+        candidate.nodeValue = next.nodeValue;
+        continue;
+      }
+      if (candidate.matches('#workspace-map, #customer-status')) continue;
+      const preserve = name => name === 'open' && candidate.tagName === 'DETAILS' ||
+        candidate.hasAttribute('data-ui-busy') && ['disabled','data-ui-busy'].includes(name) ||
+        ['value','checked','selected'].includes(name) && candidate.matches('input, textarea, option');
+      for (const attr of [...candidate.attributes])
+        if (!next.hasAttribute(attr.name) && !preserve(attr.name)) candidate.removeAttribute(attr.name);
+      for (const attr of next.attributes)
+        if (!preserve(attr.name) && candidate.getAttribute(attr.name) !== attr.value)
+          candidate.setAttribute(attr.name, attr.value);
+      const selection = candidate.matches('select') ? candidate.value : null;
+      if (!candidate.matches('input, textarea')) reconcile(candidate, next);
+      if (selection !== null && [...candidate.options].some(option => option.value === selection))
+        candidate.value = selection;
+    }
+    while (cursor) {
+      const previous = cursor;
+      cursor = cursor.nextSibling;
+      previous.remove();
+    }
+  }
+
+  function authenticatedMarkup(current) {
+    const template = document.createElement('template');
+    template.innerHTML = TrackiumServerView.render(current, server.state, serverViews[current] || {});
+    const account = server.state.account;
+    const heading = template.content.querySelector('.page-heading');
+    const extra = document.createElement('template');
+    if (account && current === 'devices' && customerScreen !== 'pairing')
+      extra.innerHTML = TrackiumCustomer.aovxEnrollment(account);
+    if (account && current === 'settings')
+      extra.innerHTML = TrackiumCustomer.company(account,
+        companyMembersTenant === account.tenant_id ? companyMembers : null);
+    heading.after(extra.content);
+    return template;
+  }
+  function render(snapshot = false) {
     const current = page();
     const identity = server.state.connected
       ? server.state.session?.tenant_id +
@@ -984,6 +1065,12 @@
     if (!changedIdentity && renderedPage && renderedPage !== current)
       (serverViews[renderedPage] ||= {}).scroll = window.scrollY;
     const sameContext = renderedIdentity === identity && renderedPage === current;
+    if (snapshot && lite && sameContext && server.state.connected && !state.demo && $('#main .page-heading')) {
+      reconcile($('#main'), authenticatedMarkup(current).content);
+      TrackiumComponents.mountMap(server.state.data, current);
+      updateGatewayStatus();
+      return;
+    }
     const publisherOpen = sameContext && $('#native-publisher-controls')?.open;
     const draft = sameContext
       ? [...$('#main').querySelectorAll('input,select,textarea')]
@@ -1110,6 +1197,7 @@
       $('#workspace-label').textContent = server.state.account?.company_name || 'Customer workspace';
       $('.connection-pill').textContent = server.state.connected ? 'Signed in' : 'Signed out';
     }
+    updateGatewayStatus();
     const serverBanner = $('#server-banner');
     serverBanner.hidden = !server.state.connected || state.demo || customerMode;
     if (customerMode && !state.demo && !server.state.connected) {
@@ -1122,21 +1210,16 @@
     }
     if (server.state.enabled && !state.demo) {
       const membersOpen = $('#company-members')?.open;
-      $('#main').innerHTML = server.state.connected
-        ? TrackiumServerView.render(current, server.state, serverViews[current] || {})
-        : TrackiumComponents.connection(server.state) +
+      if (server.state.connected) {
+        $('#main').replaceChildren(authenticatedMarkup(current).content);
+      } else {
+        $('#main').innerHTML = TrackiumComponents.connection(server.state) +
           (server.state.phase === 'checking' ? '' : TrackiumServerView.pairing(server.state)) +
           (server.state.customerAccounts && customerScreen === 'pairing'
             ? '<button class="button secondary" data-customer-view="login">Back to sign in</button>' : '') +
           TrackiumAppearance.form();
-      if (customerMode && server.state.connected && current === 'devices' && server.state.account)
-        $('#main .page-heading').insertAdjacentHTML('afterend', TrackiumCustomer.aovxEnrollment(server.state.account));
-      if (server.state.connected && current === 'settings' && server.state.account) {
-        const account = server.state.account;
-        $('#main .page-heading').insertAdjacentHTML('afterend', TrackiumCustomer.company(account,
-          companyMembersTenant === account.tenant_id ? companyMembers : null));
-        if (membersOpen && $('#company-members')) $('#company-members').open = true;
       }
+      if (membersOpen && $('#company-members')) $('#company-members').open = true;
       if (server.state.connected && server.state.data)
         TrackiumComponents.mountMap(server.state.data, current);
       restoreView();
@@ -1330,6 +1413,10 @@
   syncMenu();
   document.addEventListener('click', async function (event) {
     const target = event.target.closest('button, a');
+    if (target?.hasAttribute('data-fit-report-map')) {
+      TrackiumComponents.focusMap($('#map-selection')?.value ?? '');
+      return;
+    }
     if (!target) return;
     const serverAction = target.dataset.serverAction;
     const labRoot = target.closest('[data-device-lab]');
@@ -1377,6 +1464,7 @@
       return;
     }
     if (serverAction) {
+      target.setAttribute('data-ui-busy', '');
       target.disabled = true;
       try {
         const id = target.dataset.serverId;
@@ -1512,6 +1600,7 @@
       } catch (error) {
         toast(error.message);
       } finally {
+        target.removeAttribute('data-ui-busy');
         target.disabled = false;
       }
       return;
@@ -1594,16 +1683,18 @@
     if (customerBusy) return;
     const submit = event.target.querySelector('[type=submit]');
     const input = Object.fromEntries(new FormData(event.target));
+    const entryRoute = location.hash;
     const enrollmentTenant = action === 'aovx-enroll' ? server.state.account?.tenant_id : null;
     if (action === 'member' && !input.role) input.role = null;
     customerBusy = true;
+    submit.setAttribute('data-ui-busy', '');
     submit.disabled = true;
     try {
       const result = await server.customerAction(action, input);
       if (result.signed_in) {
         companyMembers = null;
         companyMembersTenant = null;
-        location.hash = 'dashboard';
+        if (location.hash === entryRoute && page() !== 'dashboard') location.hash = 'dashboard';
       } else if (action === 'register' || action === 'recover') {
         customerScreen = action === 'register' ? 'verify' : 'reset';
         render();
@@ -1636,6 +1727,7 @@
       if (output) output.textContent = error.message;
     } finally {
       customerBusy = false;
+      submit.removeAttribute('data-ui-busy');
       submit.disabled = false;
     }
   });
@@ -1750,7 +1842,15 @@
     }
   });
   window.addEventListener('offline', () => TrackiumServer.enabled ? server.offline() : render());
-  window.addEventListener('online', render);
+  window.addEventListener('online', () => {
+    if (lite && ['offline','unavailable'].includes(server.state.phase)) void server.restore();
+    else render();
+  });
+  window.TrackiumResume = async () => {
+    if (!lite) return;
+    if (server.state.connected) await server.refresh();
+    else await server.restore();
+  };
   window.addEventListener('pagehide', () => {
     if (!deviceLab) return;
     stopDeviceLab();
