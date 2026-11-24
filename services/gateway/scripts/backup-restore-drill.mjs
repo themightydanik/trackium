@@ -5,6 +5,8 @@ import { readdir, readFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import pg from 'pg';
 import { encodeAovxFrame, decodeAovxFrame } from '../src/aovx/frame.js';
+import { administerPilot } from '../src/cargo/pilot-admin.js';
+import { createPasswordDigest } from '../src/cargo/accounts.js';
 import { createCustomerMail } from '../src/cargo/customer-mail.js';
 import { createNotifications } from '../src/cargo/notifications.js';
 import { acknowledge, claimOutbox } from '../src/cargo/outbox.js';
@@ -121,6 +123,10 @@ async function snapshot(db) {
     ['gateway_schema_migrations', 'version'],
     ['managed_customers', 'customer_id'],
     ['customer_accounts', 'id'],
+    ['customer_demo', 'account_id'],
+    ['customer_demo_pilot', 'account_id'],
+    ['customer_aovx_approvals', 'identifier_sha256'],
+    ['customer_demo_pilot_audit', 'id'],
     ['customer_members', 'account_id'],
     ['customer_sessions', 'id'],
     ['customer_mail_tokens', 'token_hash'],
@@ -150,7 +156,7 @@ async function snapshot(db) {
 }
 
 async function verifyMigrations(rows) {
-  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
   const directory = new URL('../migrations/', import.meta.url);
   const files = (await readdir(directory)).filter(file => /^\d{3}_.*\.sql$/.test(file)).sort();
   assert.equal(files.length, rows.length);
@@ -279,6 +285,18 @@ try {
   assert.deepEqual(await runtime.aovxIngestion.processPacket(repeat.id), { ...firstEvent, duplicate: true });
   const pending = await packet(db, seeded.bcd, 2);
   await runtime.proofs.tick();
+  // Exercise restoration of a populated promotion without adding another shipment
+  // to the independent cargo-chain fixture.
+  const demoAccount = randomUUID();
+  const demoArchive = randomUUID();
+  await db.query("INSERT INTO telemetry_tenants(id,name) VALUES($1,'Backup demo archive')", [demoArchive]);
+  await db.query("INSERT INTO customer_accounts(id,email,password_digest,verified_at) VALUES($1,'restore-demo@example.test',$2,now())",
+    [demoAccount, await createPasswordDigest(randomBytes(24).toString('hex'))]);
+  await db.query("INSERT INTO customer_members(account_id,tenant_id,role) VALUES($1,$2,'viewer')", [demoAccount,demoArchive]);
+  await db.query('INSERT INTO customer_demo(account_id,tenant_id) VALUES($1,$2)', [demoAccount,demoArchive]);
+  const pilot = await administerPilot(db, 'promote', {
+    name: 'Backup physical pilot', identifiers: ['555222333444'], password: randomBytes(24).toString('hex')
+  });
   const baseline = await snapshot(db);
   await verifyMigrations(baseline.gateway_schema_migrations);
   verifyHistory(baseline, seeded, { linkCount: 2, sampleCount: 1 });
@@ -326,6 +344,11 @@ try {
   await verifyMigrations(restored.gateway_schema_migrations);
   assert.deepEqual(restored, baseline, 'restore and startup changed the backup evidence');
   verifyHistory(restored, seeded, { linkCount: 2, sampleCount: 1 });
+  const restoredPilot = await administerPilot(gateway.db, 'inspect');
+  assert.equal(restoredPilot.pilot_tenant_id, pilot.pilot_tenant_id);
+  assert.equal(restoredPilot.active, true);
+  assert.equal(restored.customer_aovx_approvals.length, 1);
+  assert.equal(restored.customer_demo_pilot_audit[0].action, 'promote');
   const restoredNotifications = createNotifications(gateway.db);
   await restoredNotifications.tick();
   assert.deepEqual((await snapshot(gateway.db)).cargo_notification_inbox, baseline.cargo_notification_inbox);
@@ -344,7 +367,7 @@ try {
   console.log('PASS: restored managed registration, current owner access and previous key revocation');
   console.log('Local dump and verified recovery (ms):', backupMs, Math.round(performance.now() - recoveryStart),
     '· fixture writes lost at quiescent cut: 0');
-  console.log('PASS: 001–014 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
+  console.log('PASS: 001–015 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
 
   await gateway.db.query(`
     CREATE FUNCTION drill_reject_outbox() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -373,6 +396,7 @@ try {
   verifyHistory(resumed, seeded, { linkCount: 4, sampleCount: 2 });
   assert.deepEqual(resumed.cargo_events.slice(0, baseline.cargo_events.length), baseline.cargo_events);
   assert.deepEqual(resumed.cargo_proofs, baseline.cargo_proofs);
+  console.log('PASS: restored physical pilot membership, verified inventory and migration audit');
   console.log('PASS: restart, outbox rollback, pending ingestion, duplicate replay, sequences and lease recovery');
 } finally {
   try {

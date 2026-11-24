@@ -13,7 +13,8 @@ export async function migrate(pool) {
     '011_customer_accounts.sql',
     '012_customer_mail_delivery.sql',
     '013_customer_demo.sql',
-    '014_customer_demo_username.sql'
+    '014_customer_demo_username.sql',
+    '015_customer_physical_pilot.sql'
   ];
   const client = await pool.connect();
   try {

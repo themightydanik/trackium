@@ -36,8 +36,18 @@ function safeEqual(left, right) {
     timingSafeEqual(Buffer.from(left), Buffer.from(right));
 }
 
+export async function matchesPasswordDigest(value, encoded) {
+  return safeEqual(await digest(password(value), encoded.split(':')[0]), encoded);
+}
+
 export function createAccounts(pool, config, pairing, telemetry, mail) {
   const demoMode = config.demoEnabled === true;
+  const pilotEnabled = config.pilotEnabled === true;
+  // The same predicate guards login and every existing cookie request.
+  const demoMembership = `d.enabled AND (
+    (COALESCE(p.active,false)=false AND d.tenant_id=m.tenant_id AND m.role='viewer')
+    OR ($3 AND p.active AND p.tenant_id=m.tenant_id AND m.role='owner')
+  )`;
   let running = 0;
   function cookie(res, raw, age = 43200) {
     res.setHeader('Set-Cookie', 'trk_account=' + raw +
@@ -52,14 +62,19 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
     const raw = cookies.length === 1 ? cookies[0].slice('trk_account='.length) : '';
     if (!/^[A-Za-z0-9_-]{43}$/.test(raw)) throw new ApiError(401, 'Sign in to continue');
     const { rows: [result] } = await pool.query(
-      `SELECT s.id,s.account_id,s.tenant_id,s.expires_at,a.email,m.role,t.name AS company_name,d.account_id IS NOT NULL AS demo
+      `SELECT s.id,s.account_id,s.tenant_id,s.expires_at,a.email,m.role,t.name AS company_name,d.account_id IS NOT NULL AS demo,
+         COALESCE(p.active,false) AS pilot,
+         m.role IN ('owner','admin') AND EXISTS (
+           SELECT 1 FROM customer_aovx_approvals x WHERE x.tenant_id=s.tenant_id
+         ) AS can_enroll_aovx
        FROM customer_sessions s JOIN customer_accounts a ON a.id=s.account_id
        LEFT JOIN customer_members m ON m.account_id=s.account_id AND m.tenant_id=s.tenant_id
        LEFT JOIN telemetry_tenants t ON t.id=m.tenant_id
        LEFT JOIN customer_demo d ON d.account_id=a.id
+       LEFT JOIN customer_demo_pilot p ON p.account_id=d.account_id
        WHERE s.token_hash=$1 AND s.expires_at>now() AND a.verified_at IS NOT NULL
-       AND (CASE WHEN $2 THEN d.enabled AND d.tenant_id=s.tenant_id AND m.role='viewer'
-            ELSE d.account_id IS NULL END)`, [hash(raw), demoMode]);
+       AND (CASE WHEN $2 THEN ${demoMembership}
+            ELSE d.account_id IS NULL END)`, [hash(raw), demoMode, pilotEnabled]);
     if (!result) throw new ApiError(401, 'Sign in to continue');
     if (write && !safeEqual(req.headers['x-csrf-token'], csrf(raw))) throw new ApiError(403, 'CSRF check failed');
     if (result.demo) delete result.email;
@@ -98,6 +113,30 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
       const action = url.pathname.slice('/v1/account/'.length);
       const write = req.method === 'POST';
       pairing.originCheck(req, write);
+      if (write && action === 'aovx-enroll') {
+        const identity = await authenticated(req, true);
+        manager(identity);
+        if (!identity.can_enroll_aovx) throw new ApiError(403, 'Physical enrollment is unavailable for this company');
+        await limitCustomerRequest(pool, req);
+        const { input } = await body(req, 4096);
+        object(input, ['label','device_id_bcd','ownership']);
+        if (input.ownership !== 'confirmed') invalid('Confirm that your company controls this tracker');
+        const device = await transaction(pool, identity.tenant_id, async client => {
+          await client.query('SELECT id FROM customer_accounts WHERE id=$1 FOR NO KEY UPDATE', [identity.account_id]);
+          const active = await client.query(
+            `SELECT 1 FROM customer_sessions s JOIN customer_members m
+               ON m.tenant_id=s.tenant_id AND m.account_id=s.account_id
+             WHERE s.id=$1 AND s.expires_at>now() AND m.role IN ('owner','admin')`, [identity.id]
+          );
+          if (!active.rowCount) throw new ApiError(403, 'Company management permission required');
+          const record = await telemetry.register(identity.tenant_id, { label: input.label, mode: 'real' }, 'physical', client);
+          await telemetry.bindAovxDevice(identity.tenant_id, null, {
+            device_id: record.id, device_id_bcd: input.device_id_bcd
+          }, client);
+          return record;
+        });
+        return reply(res, 201, device);
+      }
       if (demoMode && !((write && action === 'login') || (req.method === 'GET' && action === 'session')))
         throw new ApiError(404, 'Account operation not found');
       if (req.method === 'GET' && action === 'session') {
@@ -176,8 +215,9 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
         if (!locked.rowCount) throw invalidLogin();
         const { rows: [company] } = await client.query(
           `SELECT m.tenant_id FROM customer_members m LEFT JOIN customer_demo d ON d.account_id=m.account_id
-           WHERE m.account_id=$1 AND (CASE WHEN $2 THEN d.enabled AND d.tenant_id=m.tenant_id AND m.role='viewer'
-             ELSE d.account_id IS NULL END) ORDER BY m.tenant_id LIMIT 1`, [account.id,demoMode]);
+           LEFT JOIN customer_demo_pilot p ON p.account_id=d.account_id
+           WHERE m.account_id=$1 AND (CASE WHEN $2 THEN ${demoMembership}
+             ELSE d.account_id IS NULL END) ORDER BY m.tenant_id LIMIT 1`, [account.id,demoMode,pilotEnabled]);
         if (demoMode && !company) throw invalidLogin();
         await start(client, account.id, company?.tenant_id ?? null, res);
       });

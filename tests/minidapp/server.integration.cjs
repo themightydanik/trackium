@@ -926,7 +926,7 @@ test('New customer registers, adds a company and creates a shipment visible on t
   assert.deepEqual(failures,[]);
 });
 
-test('Closed demo uses normal password sign-in and shows only synthetic cargo and test proofs', { timeout: 40000 }, async (t) => {
+test('Closed demo preserves its login through promotion and enrolls a tracker from Lite', { timeout: 40000 }, async (t) => {
   const schema = 'customer_demo_' + randomUUID().replaceAll('-','');
   const admin = new pg.Pool({ connectionString: DB });
   await admin.query('CREATE SCHEMA ' + schema);
@@ -937,9 +937,12 @@ test('Closed demo uses normal password sign-in and shows only synthetic cargo an
   const { createRuntime } = await import('../../services/gateway/src/cargo/runtime.js');
   const { administerDemo } = await import('../../services/gateway/src/cargo/demo-admin.js');
   const { createIntegritas } = await import('../../services/gateway/src/proofs/integritas.js');
-  const { gateway } = createRuntime(db, {
+  const { administerPilot } = await import('../../services/gateway/src/cargo/pilot-admin.js');
+  const { persistPacket } = await import('../../services/gateway/src/journal.js');
+  const { encodeAovxFrame } = await import('../../services/gateway/src/aovx/frame.js');
+  const { gateway, aovxIngestion } = createRuntime(db, {
     ...readConfig({ DATABASE_URL:DB, PUBLIC_ORIGIN:origin, ENABLE_WEB_WORKSPACE:'true', ENABLE_TCP_RECEIVER:'false',
-      CUSTOMER_DEMO_ENABLED:'true', INTEGRITAS_MODE:'test', WEB_ROOT:ROOT }),
+      CUSTOMER_DEMO_ENABLED:'true', CUSTOMER_DEMO_PILOT_ENABLED:'true', INTEGRITAS_MODE:'test', WEB_ROOT:ROOT }),
     host:'127.0.0.1', httpPort
   }, { worker:false, logger:{ info(){}, error(){} } });
   let browser;
@@ -981,4 +984,44 @@ test('Closed demo uses normal password sign-in and shows only synthetic cargo an
   await page.getByText('Viewer · synthetic examples').waitFor();
   await page.getByRole('button',{name:'Sign out',exact:true}).click();
   await page.getByRole('heading',{name:'Sign in to Trackium'}).waitFor();
+  const pilotPassword = 'local pilot browser fixture password';
+  const bcd = '554444333222';
+  const { pilot_tenant_id: pilot } = await administerPilot(db,'promote',{
+    name: 'Field pilot', identifiers: [bcd], password: pilotPassword
+  });
+  await page.getByRole('textbox',{name:'Username'}).fill('trackium-demo');
+  await page.getByLabel('Password',{exact:true}).fill(pilotPassword);
+  await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  await page.getByRole('heading',{name:'Overview',exact:true}).waitFor();
+  await page.locator('#navigation a[href="#devices"]').click();
+  const enrollment = page.getByRole('button',{name:'Register and bind tracker'});
+  await enrollment.waitFor();
+  assert.equal(await page.getByText('Demo device 1',{exact:true}).count(), 0);
+  await page.getByLabel('Device label').fill('Field tracker');
+  await page.getByLabel('12-digit AOVX identifier').fill(bcd);
+  await page.getByRole('checkbox',{name:/I confirm/}).check();
+  await enrollment.click();
+  const row = page.getByRole('row').filter({ hasText: 'Field tracker' });
+  await row.getByText('Field tracker', { exact:true }).waitFor();
+  const { rows:[bound] } = await db.query(
+    'SELECT device_id FROM telemetry_aovx_device_bindings WHERE tenant_id=$1 AND device_id_bcd=$2',
+    [pilot,bcd]);
+  assert.ok(bound.device_id);
+  const body = Buffer.alloc(40);
+  body.writeUInt32BE(2, 4);
+  body.writeUInt32BE(51110000, 8);
+  body.writeUInt32BE(17040000, 12);
+  Buffer.from(new Date(Date.now()-2000).toISOString().slice(2,19).replace(/\D/g,''), 'hex').copy(body,22);
+  const packet = await persistPacket({ payload: encodeAovxFrame({
+    messageId:0x0200, deviceIdBcd:Buffer.from(bcd,'hex'), sequenceNumber:1, body
+  }), aovx: { messageId:0x0200, deviceIdBcd:bcd } }, db);
+  assert.equal((await aovxIngestion.processPacket(packet.id)).processed,true);
+  await row.getByRole('button',{name:'Device details'}).click();
+  const dialog = page.locator('#detail-dialog');
+  await dialog.getByRole('button',{name:'Read now'}).click();
+  await dialog.locator('.ux-lab-last-known').waitFor();
+  await dialog.getByRole('button',{name:'Load period'}).click();
+  await dialog.locator('.ux-lab-history-point').waitFor();
+  assert.doesNotMatch(await dialog.innerText(), new RegExp(bcd));
+
 });

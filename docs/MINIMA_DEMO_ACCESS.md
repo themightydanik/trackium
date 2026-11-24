@@ -46,3 +46,7 @@ To reopen a disabled account, deliberately use `npm run demo:admin -- enable` af
 ## Switch an existing demo to its username
 
 In an approved rollout, disable the demo gate on all old Gateway replicas before applying migration 014. The migration adds the fixed username to the existing demo mapping and revokes its browser sessions once. It preserves the password digest, company, Viewer membership, shipments and proofs. The old email field remains internal and the updated Gateway accepts only the username for demo sign-in. Skip bootstrap for an existing demo. Once only the reviewed revision is serving, enable the gate and sign in with the existing password. Keep the demo gate off if reverting to an older Gateway revision.
+
+The Viewer company stays separate from physical data. For approved promotion of
+the same username into a dedicated company, see the
+[closed physical pilot runbook](MINIMA_PHYSICAL_PILOT.md).

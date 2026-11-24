@@ -12,7 +12,8 @@
     "aovx:delivery": "node src/aovx/analyze-delivery.js",
     "aovx:duplicates": "node src/aovx/analyze-duplicates.js",
     "aovx:batches": "node src/aovx/analyze-batches.js",
-    "demo:admin": "node src/cargo/demo-cli.js"
+    "demo:admin": "node src/cargo/demo-cli.js",
+    "pilot:admin": "node src/cargo/pilot-cli.js"
   },
   "dependencies": {
     "pg": "^8.13.1"
