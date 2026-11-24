@@ -1,7 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnabled }) {
+import { createRoadTileHandler } from './road-tiles.js';
+export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnabled, roadTiles }) {
+  const serveTile = createRoadTileHandler(roadTiles);
   const root = resolve(webRoot || fileURLToPath(new URL('../../../../', import.meta.url)));
   return async (req, res) => {
     const url = new URL(req.url, 'http://gateway.invalid');
@@ -15,6 +17,7 @@ export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnable
       res.end();
       return;
     }
+    if (await serveTile(url.pathname, res)) return;
     const relative = url.pathname === '/app/core' ? 'index.html'
       : url.pathname.slice('/app/'.length) || 'index.html';
     if (
@@ -51,6 +54,8 @@ export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnable
             ? '<html lang="en" data-customer-accounts="true"' +
                 (demoEnabled ? ' data-customer-demo="true">' : '>')
             : '<html lang="en">')
+          .replace(/<html lang="en"/, (tag) => roadTiles && url.pathname === '/app/'
+            ? tag + ' data-road-tile-max-zoom="' + roadTiles.maxZoom + '"' : tag)
           .replace('assets/v2/brand/site.webmanifest', 'assets/v2/brand/lite.webmanifest')
           .replace('<script defer src="mds.js"></script>', '')
           .replace('<script defer src="assets/v2/mds-bridge.js"></script>', '')
