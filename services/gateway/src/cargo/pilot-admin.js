@@ -3,16 +3,17 @@ import { ApiError, text } from '../telemetry/schema.js';
 import { createPasswordDigest, matchesPasswordDigest } from './accounts.js';
 import { hash, transaction } from './shared.js';
 
-export async function administerPilot(pool, command, { name, identifiers, password } = {}) {
+export async function administerPilot(pool, command, { name, identifiers, password, transferOnly = false } = {}) {
   if (!['inspect','plan','promote','rollback'].includes(command)) throw new ApiError(400, 'Unknown pilot operation');
   const grant = command === 'plan' || command === 'promote';
   const writable = command === 'promote' || command === 'rollback';
   if (grant) {
     text(name, 120);
     name = name.trim();
-    if (!Array.isArray(identifiers) || identifiers.length < 1 || identifiers.length > 20 ||
+    if (!Array.isArray(identifiers) || identifiers.length > 20 ||
+        (transferOnly ? identifiers.length !== 0 : identifiers.length < 1) ||
         new Set(identifiers).size !== identifiers.length || identifiers.some(id => !/^\d{12}$/.test(id)))
-      throw new ApiError(400, 'Use a unique list of 1–20 verified decimal identifiers');
+      throw new ApiError(400, 'Use 1–20 verified decimal identifiers, or empty inventory for transfer-only setup');
   }
   const encoded = writable ? await createPasswordDigest(password) : null;
   return transaction(pool, null, async client => {

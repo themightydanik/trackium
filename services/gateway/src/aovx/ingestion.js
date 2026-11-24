@@ -4,6 +4,8 @@ import { parseAovxMessage } from './messages.js';
 import { adaptAovxTelemetry, AOVX_TELEMETRY_PARSER_VERSION } from './telemetry-adapter.js';
 import { tenantLock, transaction } from '../cargo/shared.js';
 
+const bindingChanged = Symbol('AOVX binding changed during ingestion');
+
 async function lockEligibleBinding(client, deviceIdBcd, receivedAt) {
   const { rows: [candidate] } = await client.query(
     `SELECT id,tenant_id,device_id FROM telemetry_aovx_device_bindings
@@ -18,15 +20,16 @@ async function lockEligibleBinding(client, deviceIdBcd, receivedAt) {
     'SELECT enabled,mode,identity_kind FROM telemetry_devices WHERE tenant_id=$1 AND id=$2 FOR UPDATE',
     [candidate.tenant_id, candidate.device_id]
   );
-  if (!device?.enabled || device.mode !== 'real' || device.identity_kind !== 'physical') return null;
 
   // Enrollment can change while we wait. Never switch tenants under this lock.
   const { rows: [binding] } = await client.query(
-    `SELECT tenant_id,device_id FROM telemetry_aovx_device_bindings
-     WHERE id=$1 AND tenant_id=$2 AND device_id=$3 AND state='active' FOR UPDATE`,
+    `SELECT b.tenant_id,b.device_id,t.effective_at
+     FROM telemetry_aovx_device_bindings b LEFT JOIN telemetry_aovx_transfers t ON t.destination_binding_id=b.id
+     WHERE b.id=$1 AND b.tenant_id=$2 AND b.device_id=$3 AND b.state='active' FOR UPDATE OF b`,
     [candidate.id, candidate.tenant_id, candidate.device_id]
   );
-  return binding ?? null;
+  if (!binding) return bindingChanged;
+  return device?.enabled && device.mode === 'real' && device.identity_kind === 'physical' ? binding : null;
 }
 
 export function createAovxIngestion(pool, { logger = console, pollMs = 5000, batchSize = 50, onEvent } = {}) {
@@ -35,9 +38,19 @@ export function createAovxIngestion(pool, { logger = console, pollMs = 5000, bat
   let stopped = false;
 
   async function processPacket(packetId) {
+    // Reacquire the binding in a new transaction and never take two tenant
+    // locks in an order determined by transfer timing.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const result = await processAttempt(packetId);
+      if (result !== bindingChanged) return result;
+    }
+    return { processed: false, reason: 'binding-changed' }; // Remains queued for replay.
+  }
+
+  async function processAttempt(packetId) {
     return transaction(pool, null, async client => {
       const packetResult = await client.query(
-        `SELECT id,received_at,raw_payload,aovx_processing_state
+        `SELECT id,received_at,received_at::text AS receive_cutoff,raw_payload,aovx_processing_state
          FROM gateway_packets WHERE id=$1 AND aovx_message_id=512 FOR UPDATE`,
         [packetId]
       );
@@ -68,7 +81,8 @@ export function createAovxIngestion(pool, { logger = console, pollMs = 5000, bat
         return { processed: false, reason: 'rejected' };
       }
 
-      const binding = await lockEligibleBinding(client, deviceIdBcd, packet.received_at);
+      const binding = await lockEligibleBinding(client, deviceIdBcd, packet.receive_cutoff);
+      if (binding === bindingChanged) return bindingChanged;
       if (!binding) {
         await client.query(
           `UPDATE gateway_packets SET aovx_processing_state='unbound',
@@ -82,6 +96,26 @@ export function createAovxIngestion(pool, { logger = console, pollMs = 5000, bat
         frame, parsed, receivedAt: packet.received_at,
         tenantId: binding.tenant_id, deviceId: binding.device_id
       });
+      if (binding.effective_at) {
+        const event = normalized.event;
+        const measurement = Date.parse(event.device_measured_at);
+        // Buffered/backdated samples can contain another company's custody
+        // history even when the transport delivers them after cutover.
+        const withinCustody = !event.extra.buffered && Number.isFinite(measurement) &&
+          measurement >= binding.effective_at.getTime() && measurement <= packet.received_at.getTime();
+        const historicalRepeat = withinCustody && (await client.query(
+          `SELECT 1 FROM telemetry_aovx_device_bindings b JOIN telemetry_events t
+             ON t.tenant_id=b.tenant_id AND t.device_id=b.device_id
+           WHERE b.device_id_bcd=$1 AND b.created_at<$2
+             AND t.source='aovx-gal-v1' AND t.source_event_id=$3 AND t.received_at<$2
+           LIMIT 1`, [deviceIdBcd,binding.effective_at,event.source_event_id])).rowCount > 0;
+        if (!withinCustody || historicalRepeat) {
+          await client.query(
+            "UPDATE gateway_packets SET aovx_processing_state='rejected',aovx_processing_error='outside transfer custody window' WHERE id=$1",
+            [packet.id]);
+          return { processed: false, reason: 'outside-custody-window' };
+        }
+      }
       const existing = await client.query(
         `SELECT id,payload FROM telemetry_events
          WHERE tenant_id=$1 AND device_id=$2 AND source='aovx-gal-v1' AND source_event_id=$3`,

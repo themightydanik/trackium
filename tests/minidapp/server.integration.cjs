@@ -1024,4 +1024,42 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
   await dialog.locator('.ux-lab-history-point').waitFor();
   assert.doesNotMatch(await dialog.innerText(), new RegExp(bcd));
 
+  await dialog.locator('[data-action=close-dialog]').click();
+  const { administerAovxTransfer } = await import('../../services/gateway/src/aovx/transfer.js');
+  const { createTelemetryService, provisionTenant } = await import('../../services/gateway/src/telemetry/service.js');
+  const internal = await provisionTenant(db, 'Trackium Internal');
+  const telemetry = createTelemetryService(db);
+  const source = await telemetry.register(internal.tenant_id, { label: 'Source tracker private history', mode: 'real' });
+  const transferred = '555111222333';
+  const original = await telemetry.bindAovxDevice(internal.tenant_id, internal.id,
+    { device_id: source.id, device_id_bcd: transferred });
+  async function ingest(sequenceNumber, offset) {
+    Buffer.from(new Date(Date.now() + offset).toISOString().slice(2,19).replace(/\D/g,''), 'hex').copy(body,22);
+    const wire = encodeAovxFrame({
+      messageId:0x0200, deviceIdBcd:Buffer.from(transferred,'hex'), sequenceNumber, body
+    });
+    const entry = await persistPacket({ payload:wire, aovx:{ messageId:0x0200, deviceIdBcd:transferred } }, db);
+    return aovxIngestion.processPacket(entry.id);
+  }
+  assert.equal((await ingest(10,-2000)).processed,true);
+  await administerAovxTransfer(db, 'apply-transfer', {
+    id:randomUUID(), source_approval:randomUUID(), destination_approval:randomUUID(),
+    custody_reference:randomUUID(), operator_reference:randomUUID(), identifier:transferred,
+    source_tenant:internal.tenant_id, source_device:source.id, source_binding:original.id,
+    destination_tenant:pilot, destination_label:'Transferred tracker'
+  });
+  await new Promise(resolve => setTimeout(resolve, 1200));
+  assert.equal((await ingest(11,0)).processed,true);
+  const transferredRow = page.getByRole('row').filter({ hasText:'Transferred tracker' });
+  await transferredRow.getByRole('button',{name:'Device details'}).click();
+  await dialog.getByRole('button',{name:'Read now'}).click();
+  await dialog.locator('.ux-lab-last-known').waitFor();
+  await dialog.getByRole('button',{name:'Load period'}).click();
+  await dialog.getByText('1 observations in the loaded UTC receipt period.').waitFor();
+  const denied = await page.evaluate(async id => (await fetch('/v1/devices/' + id + '/events', {
+    headers:{'X-Trackium-Client':'cargo-v2'}
+  })).status, source.id);
+  assert.equal(denied,404);
+  assert.equal(await page.getByText('Source tracker private history',{exact:true}).count(),0);
+
 });
