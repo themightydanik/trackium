@@ -16,7 +16,7 @@ object TrustedOrigin {
             uri.host.equals(HOST, ignoreCase = true) &&
             uri.port == -1 &&
             uri.rawUserInfo == null &&
-            (uri.rawPath == "/app" || uri.rawPath.startsWith("/app/") ||
+            (uri.rawPath == "/app" || (uri.rawPath.startsWith("/app/") && !uri.rawPath.startsWith("/app/core")) ||
                 uri.rawPath.startsWith("/assets/") || uri.rawPath.startsWith("/v1/") ||
                 uri.rawPath == "/mds.js")
     } catch (_: Exception) {
