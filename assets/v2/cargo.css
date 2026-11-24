@@ -3846,7 +3846,8 @@ h1,h2,h3 {overflow-wrap:anywhere;}
   align-content: center;
   grid-template-rows: 1.25em 1.25em;
   gap: 2px;
-  min-inline-size: 10.5rem;
+  inline-size: min(168px, 36vw);
+  min-inline-size: 0;
   color: var(--tc-text-secondary);
   font-size: var(--tc-type-caption);
   font-variant-numeric: tabular-nums;

@@ -412,6 +412,7 @@ test(
     await details.getByRole('button', { name: 'Read now' }).click();
     await diagnostics.getByText('Buffered report', { exact: true }).waitFor();
     assert.match(await diagnostics.innerText(), /Last packet received \(UTC\)[\s\S]*Device measurement time \(UTC\)\s+2024-02-01T03:04:05.000Z/);
+    await diagnostics.getByText('Packet & parser details', { exact: true }).click();
     assert.match(await diagnostics.innerText(), /Processed[\s\S]*Buffered[\s\S]*aovx-gal-v2/);
     assert.doesNotMatch(await diagnostics.innerText(), new RegExp(bcd));
     const checkRange = details.getByRole('button', { name: 'Load period' });
@@ -539,7 +540,6 @@ test(
     assert.equal(await history.count(), 0);
     assert.doesNotMatch(await page.locator('#main').innerText(), /Synthetic history sample/);
     await context.setOffline(false);
-    await page.getByRole('button', { name: 'Retry session check' }).click();
     await historyRow.getByRole('button', { name: 'Device details' }).click();
     await history.getByText('Page 1', { exact: true }).waitFor();
     await details.locator('[data-action=close-dialog]').click();
@@ -972,7 +972,7 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
   await page.goto(origin + '/app/');
   await page.getByRole('heading', { name:'Sign in to Trackium' }).waitFor();
   await capture('login', 390);
-  if (premiumScreenshots) await page.setViewportSize({width:1280,height:900});
+  await page.setViewportSize({width:1280,height:900});
   assert.equal(await page.getByRole('button',{name:'Create account',exact:true}).count(),0);
   assert.equal(await page.getByLabel('Work email').count(),0);
   await page.getByRole('textbox',{name:'Username'}).fill('trackium-demo');

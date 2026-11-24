@@ -47,7 +47,7 @@ test('all routes: five viewports, Light/Dark/System, keyboard and 200% text', as
         );
       }
       await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
-      for (const route of ['shipments', 'devices', 'proofs']) {
+      for (const route of routes) {
         await navigate(page, route);
         assert.ok(
           await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),

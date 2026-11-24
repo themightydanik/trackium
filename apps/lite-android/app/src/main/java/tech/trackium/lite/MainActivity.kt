@@ -40,6 +40,7 @@ class MainActivity : Activity() {
     private lateinit var spinner: ProgressBar
     private lateinit var offline: LinearLayout
     private var exporting: JsonExport? = null
+    private var workspaceForeground = false
     private var revalidateOnResume = false
     private var resumeEpoch = 0
 
@@ -143,8 +144,13 @@ class MainActivity : Activity() {
 
             override fun onPageCommitVisible(view: WebView, url: String) {
                 if (browser === view && TrustedOrigin.isWorkspace(url) && offline.visibility != View.VISIBLE) {
-                    view.visibility = View.VISIBLE
-                    spinner.visibility = View.GONE
+                    if (workspaceForeground) {
+                        view.visibility = View.VISIBLE
+                        spinner.visibility = View.GONE
+                    } else {
+                        view.visibility = View.INVISIBLE
+                        revalidateOnResume = true
+                    }
                 }
             }
 
@@ -266,6 +272,7 @@ class MainActivity : Activity() {
     }
 
     override fun onStop() {
+        workspaceForeground = false
         resumeEpoch++
         browser?.let { view ->
             if (view.visibility == View.VISIBLE) view.visibility = View.INVISIBLE
@@ -276,6 +283,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        workspaceForeground = true
         browser?.onResume()
         if (revalidateOnResume) {
             revalidateOnResume = false
@@ -286,7 +294,7 @@ class MainActivity : Activity() {
 
     private fun resumeWorkspace(view: WebView) {
         val epoch = ++resumeEpoch
-        fun current() = !isDestroyed && browser === view && epoch == resumeEpoch
+        fun current() = !isDestroyed && workspaceForeground && browser === view && epoch == resumeEpoch
         fun awaitValidation(attempt: Int) {
             if (!current()) return
             if (attempt == 60) {

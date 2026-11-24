@@ -110,6 +110,7 @@ test('quiet snapshots retain map viewport, popup, focused filter and open detail
     assert.equal(await search.inputValue(), 'cold');
     assert.equal(await page.getByText('Refreshing…', { exact: true }).count(), 0);
 
+    await page.setViewportSize({ width: 1440, height: 680 });
     await page.evaluate(() => { location.hash = 'map'; });
     const selection = page.locator('#map-selection');
     await selection.selectOption({ index: 1 });
@@ -120,10 +121,16 @@ test('quiet snapshots retain map viewport, popup, focused filter and open detail
       window.retainedMap = node;
       window.retainedMapTransform = node.querySelector('.leaflet-map-pane').style.transform;
     });
+    const scroll = await page.evaluate(() => {
+      window.scrollTo(0, 100);
+      return window.scrollY;
+    });
+    assert.ok(scroll > 0);
     const selectedRecord = await selection.inputValue();
     source.shipmentName = 'Cold cargo after update';
     await map.locator('.leaflet-popup').getByText('Planned route · Cold cargo after update').waitFor();
     assert.equal(await selection.inputValue(), selectedRecord);
+    assert.equal(await page.evaluate(() => window.scrollY), scroll);
     assert.ok(await map.evaluate(node => node === window.retainedMap &&
       node.querySelector('.leaflet-map-pane').style.transform === window.retainedMapTransform));
     await map.getByRole('button', { name: 'Shipment details' }).click();
