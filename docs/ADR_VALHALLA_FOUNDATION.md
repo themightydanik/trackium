@@ -64,3 +64,5 @@ Keep the full input coverage of the Ukrainian extract and sample graph routabili
 The published Europe PBF was 35.54 GB at the Stage A review. Two input copies alone need about 71 GB before temporary files, graph and rollback. This machine lacks that safe headroom. An expanded build needs separately budgeted scratch and a larger offline builder. Derive requirements from observed compilation runs, repeat with the chosen Europe snapshot and benchmark cold/warm concurrent workloads. Production resources and spend remain operator decisions.
 
 B2 follows with a bounded, tenant-aware Gateway adapter using the current Lite WebView session and same-origin API. Validate polyline6, lengths, durations and maneuver limits and return graph provenance. B3 adds immutable revisions, audited transitions and optimistic concurrency. Fleet Map V2, Android GPS and navigation remain later stages. Core retains its independent authentication, proof engine and data.
+
+[Measured graph sizes, timings, route and fixture evidence](valhalla-b1/README.md).

@@ -15,12 +15,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     env:
-      VALHALLA_GRAPH_DIR: ${{ runner.temp }}/trackium-valhalla
       COMPOSE_PROJECT_NAME: trackium-routing-fixture
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - name: Select disposable graph directory
+        run: echo "VALHALLA_GRAPH_DIR=$RUNNER_TEMP/trackium-valhalla" >> "$GITHUB_ENV"
       - name: Compile a deterministic synthetic restriction graph
         run: |
           python3 routing/valhalla/build-graph.py routing/valhalla/fixtures/restrictions.json "$VALHALLA_GRAPH_DIR"
