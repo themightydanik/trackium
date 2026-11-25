@@ -85,6 +85,8 @@ test('Fleet Map renders a bounded manifest, B3 legs, independent layers and stab
         const malformed = structuredClone(revision);
         malformed.calculation.route.legs[1].shape = '~'.repeat(20);
         assert.equal(await page.evaluate(rev => window.TrackiumComponents.roadGeometry(rev),malformed),null);
+        malformed.calculation.route.legs[1].shape = shape(stops.slice(0,2));
+        assert.equal(await page.evaluate(rev => window.TrackiumComponents.roadGeometry(rev),malformed),null);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         if (process.env.TRACKIUM_FLEET_SCREENSHOTS && [1440,390].includes(width)) {
           await search.fill('');

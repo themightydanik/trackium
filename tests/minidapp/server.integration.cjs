@@ -287,6 +287,7 @@ test(
         name: 'Geographic routes and last reported positions'
       })
       .waitFor();
+    await page.locator('.fleet-directory summary').click();
     assert.match(await page.locator('#main').innerText(), /30.52/);
     await page.setViewportSize({ width: 390, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -890,7 +891,7 @@ test('New customer registers, adds a company and creates a shipment visible on t
   const stops = [{latitude:51.11,longitude:17.04},{latitude:50.45,longitude:30.52}];
   const roadRoutes = createRouteRevisions(db,{calculate:async () => ({
     profile:'auto', calculated_at:'2026-01-01T00:00:00Z', graph:{id:'a'.repeat(64),engine_version:'3.6.3',osm_snapshot:null},
-    route:{geometry_format:'polyline6',distance_m:1050000,estimated_duration_s:40000,legs:[{shape:'_kxg`B_crl_@~b`|@_smxW',maneuvers:[]}]}
+    route:{geometry_format:'polyline6',distance_m:1050000,estimated_duration_s:40000,legs:[{shape:'_fon`B_g`o_@_xnD_kupF~ywl@_w`dQ',maneuvers:[]}]}
   })});
   const route = await roadRoutes.propose(member,keys,{profile:'auto', points:stops},0,randomUUID());
   await roadRoutes.transition(member,keys,route.revision.id,'approve',1);

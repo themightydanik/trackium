@@ -188,6 +188,13 @@
       '</svg><small>Positions are shown as individual samples. Lines between observations are omitted.</small></figure>';
   }
   const roadGeometryCache = new WeakMap();
+  function nearRoadStop(point, stop) {
+    const rad = Math.PI / 180;
+    const halfChord = Math.sin((point[0] - stop.latitude) * rad / 2) ** 2 +
+      Math.cos(point[0] * rad) * Math.cos(stop.latitude * rad) *
+      Math.sin((point[1] - stop.longitude) * rad / 2) ** 2;
+    return halfChord <= Math.sin(1000 / 12742000) ** 2;
+  }
   function roadGeometry(revision) {
     if (!revision || typeof revision !== 'object') return null;
     if (roadGeometryCache.has(revision)) return roadGeometryCache.get(revision);
@@ -198,7 +205,7 @@
           !Array.isArray(route.legs) || !route.legs.length || route.legs.length > 9 ||
           !Array.isArray(revision.stops) || revision.stops.length !== route.legs.length + 1 ||
           !revision.stops.every(valid)) throw new Error('Invalid route');
-      geometry = route.legs.map(({shape}) => {
+      geometry = route.legs.map(({shape}, index) => {
         if (typeof shape !== 'string' || shape.length > 300000) throw new Error('Invalid shape');
         let offset = 0, lat = 0, lon = 0;
         const points = [];
@@ -219,7 +226,8 @@
             throw new Error('Shape out of bounds');
           points.push([lat / 1e6, lon / 1e6]);
         }
-        if (points.length < 2) throw new Error('Incomplete shape');
+        if (points.length < 2 || !nearRoadStop(points[0], revision.stops[index]) ||
+            !nearRoadStop(points.at(-1), revision.stops[index + 1])) throw new Error('Incomplete shape');
         return points;
       });
     } catch (_) { geometry = null; }
