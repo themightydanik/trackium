@@ -1,0 +1,56 @@
+# Local B2 integration topology. Layer over compose.yaml.
+services:
+  valhalla:
+    entrypoint: ["python3", "/opt/trackium-routing/attested-service.py"]
+    volumes:
+      - ./attested-service.py:/opt/trackium-routing/attested-service.py:ro
+      - ./image.env:/opt/trackium-routing/image.env:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import json, urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8002/status',timeout=2); assert json.load(r)['has_tiles'] is True"]
+      start_period: 1m
+  gateway:
+    command: ["sh", "-c", "mkdir -p -m 700 /tmp/trackium-routing-mail && exec node src/server.js"]
+    build:
+      context: ../..
+      dockerfile: services/gateway/Dockerfile
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgres://trackium@db:5432/trackium
+      HTTP_PORT: "8080"
+      ENABLE_TCP_RECEIVER: "false"
+      ENABLE_WEB_WORKSPACE: "true"
+      CUSTOMER_ACCOUNTS_ENABLED: "true"
+      CUSTOMER_MAIL_PROVIDER: local
+      ACCOUNT_MAIL_DIRECTORY: /tmp/trackium-routing-mail
+      PUBLIC_ORIGIN: http://127.0.0.1:${B2_GATEWAY_PORT:-55471}
+      ROUTING_VALHALLA_ORIGIN: http://valhalla:8002
+      ROUTING_GRAPH_RELEASE_ID: ${ROUTING_GRAPH_RELEASE_ID:?select release ID}
+    ports:
+      - "127.0.0.1:${B2_GATEWAY_PORT:-55471}:8080"
+    networks: [edge, database, routing]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/readyz').then(r=>{if(!r.ok)process.exitCode=1}).catch(()=>{process.exitCode=1})"]
+      interval: 3s
+      timeout: 2s
+      retries: 15
+    depends_on:
+      db:
+        condition: service_healthy
+      valhalla:
+        condition: service_healthy
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: trackium
+      POSTGRES_DB: trackium
+      POSTGRES_HOST_AUTH_METHOD: trust
+    networks: [database]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "trackium"]
+      interval: 3s
+      timeout: 2s
+      retries: 15
+networks:
+  edge: {}
+  database:
+    internal: true
