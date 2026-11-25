@@ -24,7 +24,8 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   await new Promise(resolve => listener.close(resolve));
   const origin = 'http://127.0.0.1:' + httpPort;
   const config = readConfig({ DATABASE_URL: url, ENABLE_WEB_WORKSPACE:'true', ENABLE_TCP_RECEIVER:'false',
-    PUBLIC_ORIGIN: origin.replace('http:', 'HTTPS:'), HTTP_PORT: String(httpPort), CUSTOMER_ACCOUNTS_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'resend', RESEND_API_KEY: 're_test_only',
+    DEPLOYMENT_PROFILE:'railway-public', NODE_ENV:'production', ENABLE_NATIVE_CLIENTS:'true',
+    PUBLIC_ORIGIN: origin.replace('http:', 'https:'), HTTP_PORT: String(httpPort), CUSTOMER_ACCOUNTS_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'resend', RESEND_API_KEY: 're_test_only',
     CUSTOMER_MAIL_FROM: 'accounts@example.test', CUSTOMER_MAIL_TOKEN_KEY: 'ab'.repeat(32) });
   const { gateway } = createRuntime(db, { ...config, host:'127.0.0.1' }, { worker:false, logger:{ info(){}, error(){} } });
   t.after(async () => {

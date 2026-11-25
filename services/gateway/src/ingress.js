@@ -1,4 +1,4 @@
-// One-instance test deployment limits. Never derive identity or origin from
+// One-instance Railway deployment limits. Never derive identity or origin from
 // Forwarded/X-Forwarded-* headers: Railway terminates TLS, not authentication.
 import { publicOrigin } from './cargo/pairing.js';
 import { reply } from './telemetry/api.js';
@@ -30,6 +30,7 @@ export function createIngressGuard(config, { now = Date.now } = {}) {
         (req.headersDistinct?.host?.length ?? 1) !== 1 ||
         (req.headers.origin !== undefined && req.headers.origin !== origin))
       return deny(403, 'configured Host and Origin required');
+    if (config.railwayPublic) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
     // Global budgets deliberately share all proxy peers; spoofing an address
     // cannot create another bucket. Existing tenant/session quotas still apply.
     const isPairing = /^\/v1\/(native\/(challenges|claim)|pairing\/)/.test(req.url);
@@ -37,7 +38,7 @@ export function createIngressGuard(config, { now = Date.now } = {}) {
     if (isPairing) pairing++;
     if (requests > 1200 || (isPairing && pairing > 60) || active >= 32) {
       res.setHeader('Retry-After', '60');
-      return deny(429, 'test deployment request limit');
+      return deny(429, config.railwayPublic ? 'deployment request limit' : 'test deployment request limit');
     }
     active++;
     let released = false;

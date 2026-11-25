@@ -36,8 +36,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      valhalla:
-        condition: service_healthy
   db:
     image: postgres:16-alpine
     environment:

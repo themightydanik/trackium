@@ -3,7 +3,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:http';
 import test from 'node:test';
 import { decodeShape, MAX_RESPONSE, parseCalculation, providerRequest } from '../src/routing/contract.js';
-import { createRouting, readRoutingConfig } from '../src/routing/service.js';
+import { createRouting, privateRoutingLookup, readRoutingConfig } from '../src/routing/service.js';
 
 const start = {latitude: 0, longitude: 0};
 const end = {latitude: 0, longitude: 0.001};
@@ -53,6 +53,30 @@ test('routing requires paired fixed private operator configuration', () => {
     'http://valhalla:8002/route','http://valhalla','http://valhalla:65536','https://valhalla:8002'])
     assert.throws(() => readRoutingConfig({ROUTING_VALHALLA_ORIGIN:origin,ROUTING_GRAPH_RELEASE_ID:graphId}));
   assert.throws(() => readRoutingConfig({ROUTING_VALHALLA_ORIGIN:'http://valhalla:8002'}));
+});
+
+test('Railway private lookup permits ULA and private IPv4 but rejects mixed public or local aliases', async () => {
+  const origin = {ROUTING_VALHALLA_ORIGIN:'http://valhalla.railway.internal:8002', ROUTING_GRAPH_RELEASE_ID:graphId};
+  assert.throws(() => readRoutingConfig(origin));
+  assert.equal(readRoutingConfig({...origin, RAILWAY_ENVIRONMENT_ID:'test-id'}).railway, true);
+
+  const lookupWith = (records, railway = true) => new Promise((resolve, reject) =>
+    privateRoutingLookup(railway, (name, options, callback) => {
+      assert.equal(name, 'valhalla.railway.internal');
+      assert.deepEqual(options, {family:railway ? 0 : 4, all:true});
+      callback(null, records);
+    })('valhalla.railway.internal', {}, (err, address, family) =>
+      err ? reject(err) : resolve({address, family})));
+  const ula = {address:'fd12:3456::100', family:6};
+  const lan = {address:'10.1.2.3', family:4};
+  assert.deepEqual(await lookupWith([ula]), ula);
+  assert.deepEqual(await lookupWith([lan, ula]), lan);
+  for (const record of [
+    {address:'2606:4700::1111', family:6}, {address:'fe80::1', family:6},
+    {address:'::ffff:10.1.2.3', family:6}, {address:'::1', family:6},
+    {address:'127.0.0.1', family:4}, {address:'169.254.169.254', family:4}
+  ]) await assert.rejects(lookupWith([ula, record]), {routingCode:'ROUTING_UNAVAILABLE'});
+  await assert.rejects(lookupWith([ula], false), {routingCode:'ROUTING_UNAVAILABLE'});
 });
 
 async function rig(t, handler, opts, pool = {query:async () => ({rows:[{attempts:2}]})}) {

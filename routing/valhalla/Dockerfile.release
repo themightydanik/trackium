@@ -1,0 +1,9 @@
+# Build with package-release.sh, using a reviewed graph and dedicated context.
+FROM scratch # replaced with pinned image from image.env by package-release.sh
+USER 0:0
+COPY --chown=0:0 --chmod=0444 attested-service.py image.env /opt/trackium-routing/
+RUN chmod 0755 /opt/trackium-routing
+COPY --chown=0:0 graph/ /graph/
+ENV TRACKIUM_ROUTING_PRIVATE_LOGS=true
+USER 1000:1000
+ENTRYPOINT ["python3", "/opt/trackium-routing/attested-service.py"]

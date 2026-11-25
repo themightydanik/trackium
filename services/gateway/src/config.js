@@ -45,12 +45,26 @@ export function readConfig(env = process.env) {
       (!env.PUBLIC_ORIGIN || new URL(env.PUBLIC_ORIGIN).protocol !== 'https:'))
     throw new Error('Production customer demo requires HTTPS PUBLIC_ORIGIN');
   if (demoEnabled && !env.PUBLIC_ORIGIN) throw new Error('Customer demo requires an explicit PUBLIC_ORIGIN');
-  const profiles = ['railway-test', 'railway-aovx-pilot'];
+  const profiles = ['railway-test', 'railway-aovx-pilot', 'railway-public'];
   if (env.DEPLOYMENT_PROFILE !== undefined && !profiles.includes(env.DEPLOYMENT_PROFILE))
     throw new Error('Unknown DEPLOYMENT_PROFILE');
   const railwayTest = env.DEPLOYMENT_PROFILE === 'railway-test';
   const railwayAovxPilot = env.DEPLOYMENT_PROFILE === 'railway-aovx-pilot';
-  if (railwayTest || railwayAovxPilot) {
+  const railwayPublic = env.DEPLOYMENT_PROFILE === 'railway-public';
+  const routing = readRoutingConfig(env);
+  if (railwayPublic) {
+    let origin;
+    try { origin = new URL(env.PUBLIC_ORIGIN); }
+    catch { throw new Error('Railway public requires an explicit HTTPS PUBLIC_ORIGIN'); }
+    if (env.NODE_ENV !== 'production' || origin.protocol !== 'https:' || origin.origin !== env.PUBLIC_ORIGIN ||
+        env.ENABLE_WEB_WORKSPACE !== 'true' || demoEnabled || pilotEnabled ||
+        integritasMode !== 'disabled' || (routing && !routing.railway))
+      throw new Error('Railway public requires an HTTPS workspace, private Railway routing if configured, and disabled demo and Integritas modes');
+    if (env.ENABLE_TCP_RECEIVER !== 'false' &&
+        !(env.ENABLE_TCP_RECEIVER === 'true' && env.TCP_PROTOCOL === 'aovx'))
+      throw new Error('Railway public requires TCP disabled or an explicitly configured AOVX receiver');
+  }
+  if (railwayTest || railwayAovxPilot || railwayPublic) {
     if (env.ENABLE_NATIVE_CLIENTS !== 'true')
       throw new Error('Railway profiles require native clients');
     if (!env.PUBLIC_ORIGIN || new URL(env.PUBLIC_ORIGIN).protocol !== 'https:')
@@ -85,6 +99,7 @@ export function readConfig(env = process.env) {
     pilotEnabled,
     customerMail: customerMailConfig(env),
     railwayTest,
+    railwayPublic,
     railwayAovxPilot,
     tcpProtocol,
     aovxObservationsToken,
@@ -96,7 +111,7 @@ export function readConfig(env = process.env) {
     publicOrigin: env.PUBLIC_ORIGIN || 'http://127.0.0.1:8080',
     webRoot: env.WEB_ROOT,
     roadTiles: roadTilesConfig(env),
-    routing: readRoutingConfig(env),
+    routing,
     fixturesEnabled: env.ENABLE_FIXTURE_ADAPTER === 'true',
     tcpPort,
     tcpEnabled,

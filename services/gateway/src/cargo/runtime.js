@@ -63,7 +63,7 @@ export function createRuntime(
   const aovxGnssEnable = (deviceIdBcd) => gateway.enableAovxGnss(deviceIdBcd);
   gateway = createGateway({
     config,
-    ingressGuard: config.railwayTest ? createIngressGuard(config) : undefined,
+    ingressGuard: (config.railwayTest || config.railwayPublic) ? createIngressGuard(config) : undefined,
     logger,
     journal: {
       async initialize() {

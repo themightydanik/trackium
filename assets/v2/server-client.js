@@ -26,6 +26,7 @@
       updated: null
     };
     let roadRequest, roadCheckedAt = 0;
+    let nextSnapshotAt = 0;
     function clearRoadRoute() {
       roadRequest?.abort();
       roadRequest = null;
@@ -44,6 +45,7 @@
     }
     function clear(message = '', phase = 'unpaired') {
       clearRoadRoute();
+      nextSnapshotAt = 0;
       state.phase = phase;
       state.pages = {
         shipments: { cursor: null, previous: [], next: null },
@@ -111,13 +113,25 @@
       }
       return data;
     }
+    async function readBatches(rows, read, current) {
+      if (!quiet) return Promise.all(rows.map(read));
+      const results = [];
+      for (let i = 0; i < rows.length; i += 6) {
+        if (!current()) throw new DOMException('Workspace changed', 'AbortError');
+        results.push(...await Promise.all(rows.slice(i, i + 6).map(read)));
+      }
+      return results;
+    }
     function schedulePoll() {
       if (state.connected && (!quiet || !document.hidden))
         timer = setTimeout(() => refresh(quiet), 3000);
     }
     if (quiet) document.addEventListener('visibilitychange', () => {
       clearTimeout(timer);
-      if (!document.hidden && state.connected && !state.loading) void refresh(true);
+      if (!document.hidden && state.connected && !state.loading) {
+        nextSnapshotAt = 0;
+        void refresh(true);
+      }
     });
     async function refresh(background = false) {
       if (!state.connected || (background && (document.hidden || state.loading))) return;
@@ -134,6 +148,15 @@
           generation++;
           clear('Browser session changed. Check the new session to continue.', 'expired');
           change();
+          return;
+        }
+        // Fleet Map can reuse the previous full manifest while authorization is checked.
+        // Other views retain their existing cadence for events, device history and proofs.
+        const fleetMap = session.customer && (!root.location.hash || root.location.hash === '#map');
+        if (quiet && fleetMap && background && state.session.role === session.role && Date.now() < nextSnapshotAt) {
+          csrf = session.csrf;
+          state.loading = false;
+          schedulePoll();
           return;
         }
         const [shipments, devices, simulations, publisher, notifications, integritas] = await Promise.all([
@@ -154,22 +177,21 @@
           session.local_notifications ? request('/v1/notifications') : null,
           !nativeWorkspace && session.integritas_proofs ? request('/v1/integritas/proofs') : null
         ]);
-        const details = await Promise.all(
-          shipments.shipments.map((s) => request('/v1/shipments/' + s.id))
-        );
-        const deviceDetails = await Promise.all(
-          devices.devices.map(async (d) => ({
+        const current = () => version === generation && serial === refreshSerial;
+        const details = await readBatches(shipments.shipments, (s) => request('/v1/shipments/' + s.id), current);
+        const deviceDetails = await readBatches(
+          devices.devices, async (d) => ({
             registry: d,
             status: await request('/v1/devices/' + d.id + '/status'),
             location: await request('/v1/devices/' + d.id + '/location'),
             history: await request('/v1/devices/' + d.id + '/events?limit=20')
-          }))
+          }), current
         );
-        const events = await Promise.all(
-          details.map((s) => request('/v1/shipments/' + s.id + '/events?limit=50'))
+        const events = await readBatches(
+          details, (s) => request('/v1/shipments/' + s.id + '/events?limit=50'), current
         );
-        const proofs = session.demo ? [] : await Promise.all(
-          details.map((s) => request('/v1/shipments/' + s.id + '/proofs?limit=50'))
+        const proofs = session.demo ? [] : await readBatches(
+          details, (s) => request('/v1/shipments/' + s.id + '/proofs?limit=50'), current
         );
         if (version !== generation || serial !== refreshSerial) return;
         state.session = session;
@@ -193,6 +215,7 @@
         state.loading = false;
         foreground = false;
         state.updated = new Date().toISOString();
+        nextSnapshotAt = Date.now() + 15000;
         state.error = '';
         change(quiet ? 'snapshot' : undefined);
       } catch (e) {
