@@ -1,0 +1,12 @@
+{
+  "coverage": "Geofabrik Ukraine extract, no local crop",
+  "inputs": [
+    {
+      "file": "ukraine.osm.pbf",
+      "url": "https://download.geofabrik.de/europe/ukraine/ukraine-261124.osm.pbf",
+      "snapshot": "2026-11-24",
+      "sha256": "f0152372d34100e554308439448765cf7d2ed3ddeef00c8a93ed97944bac4e7e",
+      "bytes": 885655410
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "coverage": "synthetic restriction regression only",
+  "inputs": [
+    {
+      "file": "restrictions.osm.pbf",
+      "sha256": "8e5ceace09de00a5ff69f293c222e24e39928e6550d4ab4e9c0ec4f52a2f344c",
+      "bytes": 490
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "source": {
+    "coverage": "Geofabrik Ukraine extract, no local crop",
+    "inputs": [
+      {
+        "file": "ukraine.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/ukraine/ukraine-261124.osm.pbf",
+        "snapshot": "2026-11-24",
+        "sha256": "f0152372d34100e554308439448765cf7d2ed3ddeef00c8a93ed97944bac4e7e",
+        "bytes": 885655410
+      }
+    ]
+  },
+  "engine": "ghcr.io/valhalla/valhalla:3.6.3@sha256:2b19ea46551a9687b245022551183829d817fdee9b58c5e7b2adb6e422749c43",
+  "configuration_sha256": "04b4269d60331d29c8f3203107f83545979d9f76a90d1c025a060410576702b0",
+  "graph_manifest_sha256": "5ae24e90ae34a99ca13278f2c8396bd6e92f938f9094556af84626641b44171a",
+  "graph_id": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+  "built_at": "2026-11-25T11:37:36.443432+00:00",
+  "metrics": {
+    "wall_seconds": 442.15,
+    "cpu_user_seconds": 658.198927,
+    "cpu_system_seconds": 199.786707,
+    "peak_builder_rss_kib": 10186192,
+    "tile_count": 1523,
+    "tile_bytes": 997662952,
+    "graph_manifest_sha256": "5ae24e90ae34a99ca13278f2c8396bd6e92f938f9094556af84626641b44171a"
+  }
+}

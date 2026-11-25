@@ -1,0 +1,144 @@
+{
+  "graph_id": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+  "engine": {
+    "version": "3.6.3",
+    "has_tiles": true,
+    "has_admins": true,
+    "has_timezones": false,
+    "has_live_traffic": false,
+    "osm_changeset": 14413876615
+  },
+  "unavailable_service": "ConnectionRefusedError",
+  "service_before_routes": {
+    "VmHWM": 81264,
+    "VmRSS": 81264,
+    "cpu_seconds": 0.44
+  },
+  "first_route_after_start": {
+    "route": "Kyiv\u2013Lviv",
+    "profile": "auto",
+    "http_status": 200,
+    "latency_ms": 2241.97,
+    "distance_km": 544.243,
+    "duration_s": 22485.822,
+    "geometry_points": 5813,
+    "max_snap_m": 94.2,
+    "legs": 1,
+    "maneuvers": 28,
+    "warnings": [
+      "OSM snapshot. No live closures, delays or guarantee of access."
+    ]
+  },
+  "routes": [
+    {
+      "route": "Kyiv\u2013Lviv",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 1155.76,
+      "distance_km": 544.243,
+      "duration_s": 22485.822,
+      "geometry_points": 5813,
+      "max_snap_m": 94.2,
+      "legs": 1,
+      "maneuvers": 28,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    {
+      "route": "Lviv\u2013Kyiv",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 488.51,
+      "distance_km": 540.904,
+      "duration_s": 22304.667,
+      "geometry_points": 5770,
+      "max_snap_m": 94.2,
+      "legs": 1,
+      "maneuvers": 27,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    {
+      "route": "Burshtyn\u2013Holohory",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 37.73,
+      "distance_km": 77.723,
+      "duration_s": 4676.374,
+      "geometry_points": 936,
+      "max_snap_m": 35.7,
+      "legs": 1,
+      "maneuvers": 9,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    {
+      "route": "Lviv\u2013Burshtyn\u2013Holohory",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 99.12,
+      "distance_km": 173.387,
+      "duration_s": 10137.134,
+      "geometry_points": 2458,
+      "max_snap_m": 94.2,
+      "legs": 2,
+      "maneuvers": 28,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    {
+      "route": "Odesa\u2013Mykolaiv",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 141.24,
+      "distance_km": 133.557,
+      "duration_s": 6320.77,
+      "geometry_points": 1386,
+      "max_snap_m": 30.1,
+      "legs": 1,
+      "maneuvers": 12,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    {
+      "route": "Kyiv\u2013Lviv truck",
+      "profile": "truck",
+      "http_status": 200,
+      "latency_ms": 387.63,
+      "distance_km": 548.869,
+      "duration_s": 22853.56,
+      "geometry_points": 6002,
+      "max_snap_m": 94.2,
+      "legs": 1,
+      "maneuvers": 31,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access.",
+        "Missing HGV tags do not imply clearance."
+      ]
+    }
+  ],
+  "warm_sequential": {
+    "count": 20,
+    "failures": 0,
+    "p50_ms": 426.75,
+    "p95_ms": 587.19,
+    "p99_ms": 622.44
+  },
+  "warm_concurrency_4": {
+    "count": 32,
+    "failures": 0,
+    "p50_ms": 625.75,
+    "p95_ms": 934.96,
+    "p99_ms": 1202.64
+  },
+  "service_after_routes": {
+    "VmHWM": 773096,
+    "VmRSS": 773096,
+    "cpu_seconds": 23.5
+  }
+}

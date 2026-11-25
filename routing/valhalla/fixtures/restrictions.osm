@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="Trackium deterministic synthetic routing fixture">
+  <node id="1" version="1" lat="48" lon="11"/>
+  <node id="2" version="1" lat="48" lon="11.01"/>
+  <node id="3" version="1" lat="48" lon="11.03"/>
+  <node id="4" version="1" lat="48" lon="11.04"/>
+  <node id="5" version="1" lat="48.014" lon="11.01"/>
+  <node id="6" version="1" lat="48.014" lon="11.03"/>
+  <node id="7" version="1" lat="48.3" lon="11.07"/>
+  <node id="8" version="1" lat="48.3" lon="11.09"/>
+  <node id="9" version="1" lat="48" lon="11.08"/>
+  <node id="10" version="1" lat="48" lon="11.09"/>
+  <way id="100" version="1">
+    <nd ref="1"/><nd ref="2"/><tag k="highway" v="primary"/><tag k="name" v="West approach"/>
+  </way>
+  <way id="101" version="1">
+    <nd ref="2"/><nd ref="3"/><tag k="highway" v="primary"/><tag k="name" v="Restricted direct road"/>
+    <tag k="maxheight" v="3"/><tag k="maxwidth" v="2.2"/><tag k="maxlength" v="8"/>
+    <tag k="maxweight" v="8"/><tag k="maxaxleload" v="4"/>
+  </way>
+  <way id="102" version="1">
+    <nd ref="3"/><nd ref="4"/><tag k="highway" v="primary"/><tag k="name" v="East approach"/>
+  </way>
+  <way id="103" version="1">
+    <nd ref="2"/><nd ref="5"/><nd ref="6"/><nd ref="3"/><tag k="highway" v="primary"/><tag k="name" v="Unrestricted detour"/>
+  </way>
+  <way id="104" version="1">
+    <nd ref="7"/><nd ref="8"/><tag k="highway" v="primary"/><tag k="name" v="Isolated way"/>
+  </way>
+  <way id="105" version="1">
+    <nd ref="4"/><nd ref="9"/><tag k="highway" v="primary"/><tag k="motor_vehicle" v="no"/>
+  </way>
+  <way id="106" version="1">
+    <nd ref="9"/><nd ref="10"/><tag k="highway" v="primary"/><tag k="name" v="Closed approach"/>
+  </way>
+</osm>

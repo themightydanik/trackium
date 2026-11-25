@@ -1,0 +1,142 @@
+{
+  "graph_id": "3e8ec6ea127bfb15ec9a4cc3ac8914573ec9ed0aad48e244fccdc2d6182d941c",
+  "engine": {
+    "version": "3.6.3",
+    "has_tiles": true,
+    "has_admins": true,
+    "has_timezones": false,
+    "has_live_traffic": false,
+    "osm_changeset": 10
+  },
+  "unavailable_service": "ConnectionRefusedError",
+  "synthetic_restrictions": {
+    "passenger": {
+      "route": "synthetic restriction fixture",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 20.9,
+      "distance_km": 2.83,
+      "duration_s": 135.918,
+      "geometry_points": 4,
+      "max_snap_m": 0.0,
+      "legs": 1,
+      "maneuvers": 2,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    "truck_under_limits": {
+      "route": "synthetic restriction fixture",
+      "profile": "truck",
+      "http_status": 200,
+      "latency_ms": 154.0,
+      "distance_km": 2.83,
+      "duration_s": 135.918,
+      "geometry_points": 4,
+      "max_snap_m": 0.0,
+      "legs": 1,
+      "maneuvers": 2,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access.",
+        "Missing HGV tags do not imply clearance."
+      ]
+    },
+    "height": {
+      "route": "synthetic restriction fixture",
+      "profile": "truck",
+      "http_status": 200,
+      "latency_ms": 15.8,
+      "distance_km": 5.946,
+      "duration_s": 289.661,
+      "geometry_points": 6,
+      "max_snap_m": 0.0,
+      "legs": 1,
+      "maneuvers": 4,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access.",
+        "Missing HGV tags do not imply clearance."
+      ]
+    },
+    "width": {
+      "route": "synthetic restriction fixture",
+      "profile": "truck",
+      "http_status": 200,
+      "latency_ms": 6.59,
+      "distance_km": 5.946,
+      "duration_s": 289.661,
+      "geometry_points": 6,
+      "max_snap_m": 0.0,
+      "legs": 1,
+      "maneuvers": 4,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access.",
+        "Missing HGV tags do not imply clearance."
+      ]
+    },
+    "length": {
+      "route": "synthetic restriction fixture",
+      "profile": "truck",
+      "http_status": 200,
+      "latency_ms": 5.98,
+      "distance_km": 5.946,
+      "duration_s": 289.661,
+      "geometry_points": 6,
+      "max_snap_m": 0.0,
+      "legs": 1,
+      "maneuvers": 4,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access.",
+        "Missing HGV tags do not imply clearance."
+      ]
+    },
+    "weight": {
+      "route": "synthetic restriction fixture",
+      "profile": "truck",
+      "http_status": 200,
+      "latency_ms": 19.24,
+      "distance_km": 5.946,
+      "duration_s": 289.661,
+      "geometry_points": 6,
+      "max_snap_m": 0.0,
+      "legs": 1,
+      "maneuvers": 4,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access.",
+        "Missing HGV tags do not imply clearance."
+      ]
+    },
+    "axle_load": {
+      "route": "synthetic restriction fixture",
+      "profile": "truck",
+      "http_status": 200,
+      "latency_ms": 19.58,
+      "distance_km": 5.946,
+      "duration_s": 289.661,
+      "geometry_points": 6,
+      "max_snap_m": 0.0,
+      "legs": 1,
+      "maneuvers": 4,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access.",
+        "Missing HGV tags do not imply clearance."
+      ]
+    },
+    "disconnected": {
+      "route": "synthetic disconnected fixture",
+      "profile": "auto",
+      "http_status": 400,
+      "latency_ms": 5.09,
+      "error_code": 442,
+      "error": "No path could be found for input"
+    },
+    "closed": {
+      "route": "synthetic motor vehicle closure",
+      "profile": "auto",
+      "http_status": 400,
+      "latency_ms": 4.74,
+      "error_code": 442,
+      "error": "No path could be found for input"
+    },
+    "excessive_locations_http_status": 400
+  }
+}

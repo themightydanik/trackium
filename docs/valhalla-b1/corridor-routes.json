@@ -1,0 +1,159 @@
+{
+  "graph_id": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+  "engine": {
+    "version": "3.6.3",
+    "has_tiles": true,
+    "has_admins": true,
+    "has_timezones": false,
+    "has_live_traffic": false,
+    "osm_changeset": 14413876381
+  },
+  "unavailable_service": "ConnectionRefusedError",
+  "service_before_routes": {
+    "VmHWM": 81772,
+    "VmRSS": 81772,
+    "cpu_seconds": 0.32
+  },
+  "first_route_after_start": {
+    "route": "Warsaw\u2013Paris",
+    "profile": "auto",
+    "http_status": 200,
+    "latency_ms": 2001.05,
+    "distance_km": 1596.882,
+    "duration_s": 50520.027,
+    "geometry_points": 17828,
+    "max_snap_m": 130.8,
+    "legs": 1,
+    "maneuvers": 68,
+    "warnings": [
+      "OSM snapshot. No live closures, delays or guarantee of access."
+    ]
+  },
+  "routes": [
+    {
+      "route": "Kyiv\u2013Lviv",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 298.69,
+      "distance_km": 542.297,
+      "duration_s": 22248.878,
+      "geometry_points": 5693,
+      "max_snap_m": 100.0,
+      "legs": 1,
+      "maneuvers": 27,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    {
+      "route": "Lviv\u2013Rzesz\u00f3w",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 322.07,
+      "distance_km": 169.71,
+      "duration_s": 7916.166,
+      "geometry_points": 2251,
+      "max_snap_m": 187.3,
+      "legs": 1,
+      "maneuvers": 18,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    {
+      "route": "Kyiv\u2013Warsaw",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 287.5,
+      "distance_km": 775.709,
+      "duration_s": 34505.73,
+      "geometry_points": 7516,
+      "max_snap_m": 130.8,
+      "legs": 1,
+      "maneuvers": 51,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    {
+      "route": "Odesa\u2013Bucharest",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 170.85,
+      "distance_km": 565.191,
+      "duration_s": 27257.216,
+      "geometry_points": 5450,
+      "max_snap_m": 60.3,
+      "legs": 1,
+      "maneuvers": 69,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    {
+      "route": "Berlin\u2013Warsaw",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 357.58,
+      "distance_km": 574.373,
+      "duration_s": 17053.837,
+      "geometry_points": 6105,
+      "max_snap_m": 130.8,
+      "legs": 1,
+      "maneuvers": 37,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    {
+      "route": "Warsaw\u2013Paris",
+      "profile": "auto",
+      "http_status": 200,
+      "latency_ms": 213.62,
+      "distance_km": 1596.882,
+      "duration_s": 50520.027,
+      "geometry_points": 17828,
+      "max_snap_m": 130.8,
+      "legs": 1,
+      "maneuvers": 68,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access."
+      ]
+    },
+    {
+      "route": "Warsaw\u2013Lviv truck",
+      "profile": "truck",
+      "http_status": 200,
+      "latency_ms": 44.01,
+      "distance_km": 396.754,
+      "duration_s": 20539.535,
+      "geometry_points": 8132,
+      "max_snap_m": 130.8,
+      "legs": 1,
+      "maneuvers": 64,
+      "warnings": [
+        "OSM snapshot. No live closures, delays or guarantee of access.",
+        "Missing HGV tags do not imply clearance."
+      ]
+    }
+  ],
+  "warm_sequential": {
+    "count": 20,
+    "failures": 0,
+    "p50_ms": 178.75,
+    "p95_ms": 291.14,
+    "p99_ms": 1305.61
+  },
+  "warm_concurrency_4": {
+    "count": 32,
+    "failures": 0,
+    "p50_ms": 416.38,
+    "p95_ms": 635.31,
+    "p99_ms": 658.82
+  },
+  "service_after_routes": {
+    "VmHWM": 810176,
+    "VmRSS": 810176,
+    "cpu_seconds": 17.34
+  }
+}
