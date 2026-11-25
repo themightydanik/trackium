@@ -45,26 +45,32 @@ export function readConfig(env = process.env) {
       (!env.PUBLIC_ORIGIN || new URL(env.PUBLIC_ORIGIN).protocol !== 'https:'))
     throw new Error('Production customer demo requires HTTPS PUBLIC_ORIGIN');
   if (demoEnabled && !env.PUBLIC_ORIGIN) throw new Error('Customer demo requires an explicit PUBLIC_ORIGIN');
-  const profiles = ['railway-test', 'railway-aovx-pilot', 'railway-public'];
+  const profiles = ['railway-test', 'railway-aovx-pilot', 'railway-public', 'railway-demo'];
   if (env.DEPLOYMENT_PROFILE !== undefined && !profiles.includes(env.DEPLOYMENT_PROFILE))
     throw new Error('Unknown DEPLOYMENT_PROFILE');
   const railwayTest = env.DEPLOYMENT_PROFILE === 'railway-test';
   const railwayAovxPilot = env.DEPLOYMENT_PROFILE === 'railway-aovx-pilot';
   const railwayPublic = env.DEPLOYMENT_PROFILE === 'railway-public';
+  const railwayDemo = env.DEPLOYMENT_PROFILE === 'railway-demo';
+  const railwayHttps = railwayPublic || railwayDemo;
   const routing = readRoutingConfig(env);
-  if (railwayPublic) {
+  if (railwayHttps) {
     let origin;
     try { origin = new URL(env.PUBLIC_ORIGIN); }
-    catch { throw new Error('Railway public requires an explicit HTTPS PUBLIC_ORIGIN'); }
+    catch { throw new Error('Railway HTTPS profiles require an explicit HTTPS PUBLIC_ORIGIN'); }
     if (env.NODE_ENV !== 'production' || origin.protocol !== 'https:' || origin.origin !== env.PUBLIC_ORIGIN ||
-        env.ENABLE_WEB_WORKSPACE !== 'true' || demoEnabled || pilotEnabled ||
-        integritasMode !== 'disabled' || (routing && !routing.railway))
-      throw new Error('Railway public requires an HTTPS workspace, private Railway routing if configured, and disabled demo and Integritas modes');
+        env.ENABLE_WEB_WORKSPACE !== 'true' || (routing && !routing.railway))
+      throw new Error('Railway HTTPS profiles require an HTTPS workspace and private Railway routing if configured');
+    if (railwayPublic && (demoEnabled || pilotEnabled || integritasMode !== 'disabled'))
+      throw new Error('Railway public requires disabled demo and Integritas modes');
+    if (railwayDemo && ((env.CUSTOMER_ACCOUNTS_ENABLED ?? 'false') !== 'false' ||
+        (!demoEnabled && integritasMode !== 'disabled')))
+      throw new Error('Railway demo requires closed registration and disables Integritas while demo access is off');
     if (env.ENABLE_TCP_RECEIVER !== 'false' &&
         !(env.ENABLE_TCP_RECEIVER === 'true' && env.TCP_PROTOCOL === 'aovx'))
-      throw new Error('Railway public requires TCP disabled or an explicitly configured AOVX receiver');
+      throw new Error('Railway HTTPS profiles require TCP disabled or an explicitly configured AOVX receiver');
   }
-  if (railwayTest || railwayAovxPilot || railwayPublic) {
+  if (railwayTest || railwayAovxPilot || railwayHttps) {
     if (env.ENABLE_NATIVE_CLIENTS !== 'true')
       throw new Error('Railway profiles require native clients');
     if (!env.PUBLIC_ORIGIN || new URL(env.PUBLIC_ORIGIN).protocol !== 'https:')
@@ -100,6 +106,7 @@ export function readConfig(env = process.env) {
     customerMail: customerMailConfig(env),
     railwayTest,
     railwayPublic,
+    railwayHttps,
     railwayAovxPilot,
     tcpProtocol,
     aovxObservationsToken,

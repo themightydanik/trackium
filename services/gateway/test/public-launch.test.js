@@ -29,3 +29,25 @@ test('public profile requires HTTPS and keeps registration, routing and publishi
     {ROUTING_VALHALLA_ORIGIN:'http://valhalla:8002', ROUTING_GRAPH_RELEASE_ID:'b'.repeat(64)}
   ]) assert.throws(() => readConfig({...env, ...overrides}));
 });
+
+test('Railway demo allows only the existing closed demo identity and safe proof modes', () => {
+  const demo = {...env, DEPLOYMENT_PROFILE:'railway-demo', CUSTOMER_DEMO_ENABLED:'true',
+    CUSTOMER_DEMO_PILOT_ENABLED:'true', INTEGRITAS_MODE:'test',
+    ROUTING_VALHALLA_ORIGIN:'http://valhalla.railway.internal:8002',
+    ROUTING_GRAPH_RELEASE_ID:'b'.repeat(64)};
+  const config = readConfig(demo);
+  assert.equal(config.railwayHttps, true);
+  assert.equal(config.demoEnabled, true);
+  assert.equal(config.pilotEnabled, true);
+  assert.equal(config.customerMail, null);
+  assert.equal(config.routing.railway, true);
+  assert.equal(readConfig({...demo, ENABLE_TCP_RECEIVER:'true', TCP_PROTOCOL:'aovx'}).tcpEnabled, true);
+  for (const overrides of [
+    {CUSTOMER_ACCOUNTS_ENABLED:'true'}, {PROOF_ALLOW_LIVE:'true'}, {PROOF_ALLOW_MAINNET:'true'},
+    {ENABLE_SERVER_SIMULATOR:'true'}, {ENABLE_FIXTURE_ADAPTER:'true'}, {PUBLIC_ORIGIN:'http://gateway.test'},
+    {ENABLE_TCP_RECEIVER:'true', TCP_PROTOCOL:'raw'}, {ROUTING_VALHALLA_ORIGIN:'http://valhalla:8002'}
+  ]) assert.throws(() => readConfig({...demo, ...overrides}));
+  const disarmed = {...demo, CUSTOMER_DEMO_ENABLED:'false', CUSTOMER_DEMO_PILOT_ENABLED:'false'};
+  assert.throws(() => readConfig(disarmed));
+  assert.equal(readConfig({...disarmed, INTEGRITAS_MODE:'disabled'}).demoEnabled, false);
+});
