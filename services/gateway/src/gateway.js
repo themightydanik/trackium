@@ -244,7 +244,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
 
   const api = http.createServer(async (req, res) => {
     if (ingressGuard && !ingressGuard(req, res)) return;
-    if (config.railwayPublic && req.method === 'GET' && req.url === '/') {
+    if (config.railwayHttps && req.method === 'GET' && req.url === '/') {
       res.writeHead(302, { location: '/app/', 'cache-control': 'no-store' });
       res.end();
       return;

@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - 'apps/lite-android/**'
+      - 'docs/MINIMA_LIVE_DEMO_D3.md'
       - 'assets/v2/**'
       - '.github/workflows/lite-android-debug.yml'
       - 'apps/android/gradle/wrapper/**'

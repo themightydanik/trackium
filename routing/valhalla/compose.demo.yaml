@@ -1,0 +1,19 @@
+# Disposable D3 acceptance overlay only. Use with compose.yaml and compose.gateway.yaml.
+services:
+  gateway:
+    environment:
+      NODE_ENV: production
+      DEPLOYMENT_PROFILE: railway-demo
+      RAILWAY_ENVIRONMENT_ID: trackium-d3-disposable
+      PUBLIC_ORIGIN: https://demo.example.test
+      ENABLE_NATIVE_CLIENTS: "true"
+      CUSTOMER_ACCOUNTS_ENABLED: "false"
+      CUSTOMER_MAIL_PROVIDER: ""
+      CUSTOMER_DEMO_ENABLED: "true"
+      CUSTOMER_DEMO_PILOT_ENABLED: "true"
+      INTEGRITAS_MODE: test
+      ROUTING_VALHALLA_ORIGIN: http://valhalla.railway.internal:8002
+  valhalla:
+    networks:
+      routing:
+        aliases: [valhalla.railway.internal]
