@@ -38,6 +38,7 @@ jobs:
             and ((.services.gateway.networks | keys) == ["database","edge","routing"])'
           docker compose up --build -d --wait --wait-timeout 120
           docker compose exec -T gateway node --input-type=module - fixture < routing/valhalla/gateway-probe.mjs
+          docker compose exec -T gateway node --input-type=module - revisions < routing/valhalla/gateway-probe.mjs
       - name: Fail closed for a modified graph and isolate upstream loss
         run: |
           scratch="$RUNNER_TEMP/changed-graph"

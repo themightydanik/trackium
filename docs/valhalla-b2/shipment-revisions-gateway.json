@@ -1,0 +1,17 @@
+{
+  "profile": "revisions",
+  "graph": {
+    "id": "3e8ec6ea127bfb15ec9a4cc3ac8914573ec9ed0aad48e244fccdc2d6182d941c",
+    "osm_snapshot": null,
+    "engine_version": "3.6.3"
+  },
+  "auto_distance_m": 2830,
+  "truck_distance_m": 5946,
+  "audit": [
+    "proposed",
+    "approved",
+    "active",
+    "superseded"
+  ],
+  "final_generation": 6
+}

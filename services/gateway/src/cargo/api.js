@@ -28,6 +28,7 @@ export function createCargoApi({
   config,
   telemetryApi,
   routing,
+  roadRoutes,
   logger = console
 }) {
   const authenticate =
@@ -359,6 +360,47 @@ export function createCargoApi({
           scope('shipments');
           return reply(res, 201, await shipments.create(tenant, (await body(req)).input));
         }
+      }
+      const road = /^\/v1\/shipments\/([^/]+)\/road-routes(?:\/(active|compare|[^/]+)(?:\/(approve|activate))?)?$/.exec(path);
+      if (road) {
+        const [, shipmentId, segment, transition] = road;
+        if (identity.kind !== 'session' || identity.customer !== true || req.headers.authorization ||
+            !tenant || !identity.account_id)
+          throw new ApiError(403, 'customer routing permission required');
+        const keys = [tenant, uuid(shipmentId)];
+        if (req.method === 'GET' && !transition) {
+          scope('read');
+          if (segment === 'compare') {
+            query(url, ['base_revision','target_revision']);
+            const ids = ['base_revision','target_revision'].map(key => uuid(url.searchParams.get(key)));
+            if (ids[0] === ids[1]) throw new ApiError(400, 'choose two different revisions');
+            return reply(res, 200, await roadRoutes.read(keys, 'compare', ids));
+          }
+          query(url, []);
+          const action = !segment ? 'list' : segment === 'active' ? 'active' : 'detail';
+          return reply(res, 200, await roadRoutes.read(keys, action, action === 'detail' ? [uuid(segment)] : []));
+        }
+        if (req.method !== 'POST' || (segment && !transition)) throw new ApiError(405, 'method not allowed');
+        scope('shipments');
+        if (!(transition ? ['owner','admin'] : ['owner','admin','dispatcher']).includes(identity.role))
+          throw new ApiError(403, 'customer routing permission required');
+        query(url, []);
+        const {input} = await body(req, MAX_BODY);
+        object(input, transition ? ['expected_generation'] : ['expected_generation','request_id','calculation']);
+        const expected = input.expected_generation;
+        if (!Number.isInteger(expected) || expected < 0 || expected > 300)
+          throw new ApiError(400, 'invalid expected_generation');
+        if (transition)
+          return reply(res, 200, await roadRoutes.transition(identity, keys, uuid(segment), transition, expected));
+        const abort = new AbortController();
+        const disconnected = () => abort.abort();
+        if (res.destroyed) return;
+        res.once('close', disconnected);
+        try {
+          const result = await roadRoutes.propose(identity, keys, parseCalculation(input.calculation),
+            expected, uuid(input.request_id), abort.signal);
+          return reply(res, result.replayed ? 200 : 201, result);
+        } finally { res.off('close', disconnected); }
       }
       const match = /^\/v1\/shipments\/([^/]+)(?:\/(transitions|events|simulations))?$/.exec(path);
       if (match) {

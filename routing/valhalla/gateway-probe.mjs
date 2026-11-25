@@ -95,7 +95,75 @@ async function calculate(name, input, actor = owner) {
   return payload;
 }
 
-if (profile === 'fixture') {
+if (profile === 'revisions') {
+  const device = await call(owner,'/v1/account/device',{label:'Disposable route planning registry'});
+  assert.equal(device.status,201);
+  const shipment = await call(owner,'/v1/shipments',{
+    name:'Disposable road planning',device_id:device.payload.id,
+    route:[{...fixture.origin,name:'Planned origin'},{...fixture.destination,name:'Planned destination'}],
+    conditions:{temperature_min_c:0,temperature_max_c:10}
+  });
+  assert.equal(shipment.status,201);
+  const path = '/v1/shipments/' + shipment.payload.id + '/road-routes';
+  const proposal = {calculation:fixture,expected_generation:0,request_id:randomUUID()};
+  assert.equal((await call(other,path)).status,404);
+  assert.equal((await call(other,path,proposal)).status,404);
+  assert.equal((await call({...owner},path,proposal,{'x-csrf-token':''})).status,403);
+  assert.equal((await call(owner,path,{...proposal,graph_id:'forged'})).status,400);
+  assert.equal((await call(owner,path,{...proposal,version:99})).status,400);
+  const db = new pg.Pool({connectionString:process.env.DATABASE_URL});
+  try {
+    const apiKey = await provisionTenant(db,'Disposable route revisions API key');
+    assert.equal((await call({},path,undefined,{authorization:'Bearer ' + apiKey.token})).status,403);
+  } finally { await db.end(); }
+
+  const standalone = await calculate('standalone real engine calculation',fixture);
+  assert.equal((await call(owner,path)).payload.revisions.length,0);
+  const proposed = await call(owner,path,proposal);
+  assert.equal(proposed.status,201,JSON.stringify(proposed.payload));
+  const first = proposed.payload.revision;
+  assert.equal(first.state,'proposed');
+  assert.deepEqual(first.calculation.graph,standalone.graph);
+  assert.equal(first.calculation.route.legs[0].shape,standalone.route.legs[0].shape);
+  const duplicate = await call(owner,path,proposal);
+  assert.equal(duplicate.status,200);
+  assert.equal(duplicate.payload.revision.id,first.id);
+  const approved = await call(owner,path + '/' + first.id + '/approve',{expected_generation:1});
+  assert.equal(approved.status,200);
+  const activated = await call(owner,path + '/' + first.id + '/activate',{expected_generation:2});
+  assert.equal(activated.status,200);
+
+  const replacement = await call(owner,path,{
+    expected_generation:3,request_id:randomUUID(),calculation:{...fixture,profile:'truck',truck}
+  });
+  assert.equal(replacement.status,201);
+  const second = replacement.payload.revision;
+  assert.equal((await call(owner,path + '/active')).payload.revision.id,first.id);
+  const compared = await call(owner,path + '/compare?base_revision=' + first.id + '&target_revision=' + second.id);
+  assert.equal(compared.status,200);
+  assert.ok(compared.payload.delta.distance_m > 0);
+  assert.equal((await call(owner,path + '/' + second.id + '/approve',{expected_generation:4})).status,200);
+  const activations = await Promise.all([1,2].map(() =>
+    call({...owner},path + '/' + second.id + '/activate',{expected_generation:5})));
+  assert.deepEqual(activations.map(result => result.status).sort(),[200,409]);
+  assert.equal(activations.find(result => result.status === 409).payload.code,'ROUTE_GENERATION_CONFLICT');
+  const listing = (await call(owner,path)).payload;
+  assert.equal(listing.generation,6);
+  assert.deepEqual(listing.revisions.map(route => route.version),[2,1]);
+  const old = (await call(owner,path + '/' + first.id)).payload.revision;
+  assert.equal(old.state,'superseded');
+  assert.deepEqual(old.calculation,first.calculation);
+  assert.deepEqual(old.audit.map(entry => entry.state),['proposed','approved','active','superseded']);
+
+  assert.equal((await call(owner,'/v1/account/invite',{email,role:'viewer'})).status,200);
+  assert.equal((await call(other,'/v1/account/accept',{code:await mail(email,'invite')})).status,200);
+  assert.equal((await call(other,path + '/active')).payload.revision.id,second.id);
+  assert.equal((await call(other,path,proposal)).status,403);
+  assert.equal((await call(other,path + '/' + second.id + '/activate',{expected_generation:6})).status,403);
+  console.log(JSON.stringify({profile,graph:first.calculation.graph,
+    auto_distance_m:first.calculation.route.distance_m,truck_distance_m:second.calculation.route.distance_m,
+    audit:old.audit.map(entry => entry.state),final_generation:6},null,2));
+} else if (profile === 'fixture') {
   const car = await calculate('synthetic car',fixture);
   const hgv = await calculate('synthetic truck detour',{...fixture,profile:'truck',truck});
   assert.ok(hgv.route.distance_m > car.route.distance_m);
@@ -151,8 +219,10 @@ if (profile === 'fixture') {
       'COVERAGE_UNAVAILABLE');
 }
 
-assert.equal((await call(owner,'/v1/account/invite',{email,role:'viewer'})).status,200);
-assert.equal((await call(other,'/v1/account/accept',{code:await mail(email,'invite')})).status,200);
-assert.equal((await call(other,'/v1/account/session')).payload.role,'viewer');
-assert.equal((await call(other,routePath,fixture)).status,403);
-console.log(JSON.stringify({profile,routes:rows},null,2));
+if (profile !== 'revisions') {
+  assert.equal((await call(owner,'/v1/account/invite',{email,role:'viewer'})).status,200);
+  assert.equal((await call(other,'/v1/account/accept',{code:await mail(email,'invite')})).status,200);
+  assert.equal((await call(other,'/v1/account/session')).payload.role,'viewer');
+  assert.equal((await call(other,routePath,fixture)).status,403);
+  console.log(JSON.stringify({profile,routes:rows},null,2));
+}
