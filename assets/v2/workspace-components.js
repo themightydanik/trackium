@@ -235,6 +235,55 @@
     return geometry;
   }
 
+  function placeCountryLabels(map, countries) {
+    const labels = L.layerGroup().addTo(map);
+    const candidates = [];
+    const metrics = document.createElement('canvas').getContext('2d');
+    metrics.font = '11px system-ui';
+    countries.eachLayer(layer => {
+      const props = layer.feature.properties;
+      const name = props.NAME_EN || props.NAME;
+      const anchor = {latitude:props.LABEL_Y,longitude:props.LABEL_X};
+      if (name) candidates.push({
+        name, center:valid(anchor) ? [anchor.latitude,anchor.longitude] : layer.getBounds().getCenter(),
+        width:Math.ceil(metrics.measureText(name).width) + 8,
+        rank:props.LABELRANK, population:props.POP_EST
+      });
+    });
+    candidates.sort((a,b) => a.rank-b.rank || b.population-a.population);
+    let previous = '';
+    function layout() {
+      const size = map.getSize(), zoom = map.getZoom(), center = map.getCenter();
+      const signature = [zoom,center.lat,center.lng,size.x,size.y].join('/');
+      if (signature === previous) return;
+      previous = signature;
+      const narrow = size.x < 420;
+      const limit = narrow ? (zoom <= 5 ? 5 : 8) : 20;
+      const height = 16, margin = 4;
+      const taken = [];
+      labels.clearLayers();
+      if (zoom < 4) return;
+      for (const candidate of candidates) {
+        const point = map.latLngToContainerPoint(candidate.center);
+        const left = point.x - candidate.width/2, top = point.y - height/2;
+        const right = left + candidate.width, bottom = top + height;
+        if (left < 8 || right > size.x-8 || top < 8 || bottom > size.y-30 ||
+            (left < 56 && top < 82)) continue;
+        if (taken.some(box => left < box.right+margin && right+margin > box.left &&
+            top < box.bottom+margin && bottom+margin > box.top)) continue;
+        taken.push({left,top,right,bottom});
+        L.marker(candidate.center,{
+          pane:'fleetCountryLabels', interactive:false, keyboard:false,
+          icon:L.divIcon({className:'fleet-country-label',html:esc(candidate.name),
+            iconSize:[candidate.width,height], iconAnchor:[candidate.width/2,height/2]})
+        }).addTo(labels);
+        if (taken.length >= limit) break;
+      }
+    }
+    map.on('moveend resize', layout);
+    return layout;
+  }
+
   let mapInstance = null, mapContainer = null, countries = null, mapStyle = '',
     lastView = null, currentPage = null, syncRoadStyle = null;
   const mapLayers = new Map();
@@ -270,6 +319,7 @@
       land = style.getPropertyValue('--tc-surface-raised').trim(),
       outline = style.getPropertyValue('--tc-outline').trim();
     const fresh = mapContainer !== el;
+    let layoutLabels;
     if (fresh) {
       beforeRender(false);
       currentPage = page;
@@ -281,9 +331,17 @@
         markerZoomAnimation: false, minZoom: 1, maxZoom: roadEnabled ? 19 : 12, attributionControl: true
       }).setView([25, 10], 2);
       mapContainer = el;
-      if (roadEnabled) mapInstance.createPane('trackiumGeography').style.zIndex = '190';
+      if (roadEnabled || fleet) mapInstance.createPane('trackiumGeography').style.zIndex = '190';
+      if (fleet) {
+        for (const [name, z] of Object.entries({fleetCountryLabels:390,fleetOverview:400,
+          fleetPlan:410,fleetRoad:420,fleetPositions:430}))
+          mapInstance.createPane(name).style.zIndex = String(z);
+        const updateDensity = () => el.classList.toggle('fleet-wide-view',mapInstance.getZoom() <= 7);
+        mapInstance.on('zoomend',updateDensity);
+        updateDensity();
+      }
       countries = L.geoJSON(root.TrackiumWorldMap, {
-        interactive: false, className: 'workspace-map-land', pane: roadEnabled ? 'trackiumGeography' : 'overlayPane'
+        interactive: false, className: 'workspace-map-land', pane: roadEnabled || fleet ? 'trackiumGeography' : 'overlayPane'
       }).addTo(mapInstance);
       if (roadEnabled) {
         const media = matchMedia('(prefers-color-scheme: dark)');
@@ -313,9 +371,11 @@
       }
       mapInstance.attributionControl.setPrefix('');
       mapInstance.attributionControl.addAttribution('Leaflet (BSD-2-Clause) · Natural Earth (public domain)');
-      mapInstance.on('zoomend', countryLabels);
+      if (fleet) layoutLabels = placeCountryLabels(mapInstance,countries);
+      else mapInstance.on('zoomend', countryLabels);
     }
     const map = mapInstance;
+    if (fleet) el.classList.toggle('fleet-has-selection',Boolean(fleet.selected));
     syncRoadStyle?.();
     const planColor = document.documentElement.classList.contains('lite-workspace')
       ? style.getPropertyValue('--tc-gold').trim() : accent;
@@ -353,23 +413,27 @@
     }
     const bounds = [];
     if (fleet?.layers.planned !== false) for (const s of (page === 'dashboard' ? data.shipments.filter(s => s.status === 'active') : data.shipments)) {
+      const selected = fleet?.selected === s.id;
+      const pane = !fleet ? 'overlayPane' : selected ? 'fleetPlan' : 'fleetOverview';
+      const muted = fleet && !selected;
       const points = (s.route || []).filter(valid).map((p) => [p.latitude, p.longitude]);
       bounds.push(...points);
       const details = '<button class="button secondary" data-server-action="view-shipment" data-server-id="' +
         esc(s.id) + '">Shipment details</button>';
       if (points.length)
-        place('shipment:' + s.id, JSON.stringify([points,s.name,planColor,fleet?.selected === s.id]), () =>
-          L.polyline(points, { color: planColor, weight: fleet?.selected === s.id ? 4 : 3,
-              opacity: fleet?.selected && fleet.selected !== s.id ? .24 : .9, dashArray: '6 6' })
+        place('shipment:' + s.id, JSON.stringify([points,s.name,planColor,outline,selected]), () =>
+          L.polyline(points, { pane, color: muted ? outline : planColor, weight: !fleet ? 3 : muted ? 2 : 4,
+              opacity: fleet ? 1 : .9, dashArray: muted ? '3 5' : '6 6' })
             .bindPopup('<p>Planned route · ' + esc(s.name) + '</p>' + details, { minWidth: 170 }));
       for (const [index, stop] of (s.route || []).entries()) {
         if (!valid(stop)) continue;
         const kind = index === 0 ? 'Origin' : index === s.route.length - 1 ? 'Destination' : 'Checkpoint';
         const select = fleet ? '<button class="button secondary" data-fleet-shipment="' +
           esc(s.id) + '">Select shipment</button>' : '';
-        place('stop:' + s.id + ':' + index, JSON.stringify([stop,kind,outline,planColor,fleet?.selected === s.id]), () =>
-          L.circleMarker([stop.latitude,stop.longitude], { className: 'ux-route-stop', radius: fleet?.selected === s.id ? 8 : 6, color: outline, fillColor: planColor,
-              fillOpacity: fleet?.selected && fleet.selected !== s.id ? .25 : .85 })
+        place('stop:' + s.id + ':' + index, JSON.stringify([stop,kind,outline,planColor,selected]), () =>
+          L.circleMarker([stop.latitude,stop.longitude], { pane,className:'ux-route-stop',radius:!fleet ? 6 : muted ? 4 : 7,
+              color:!fleet || muted ? outline : planColor, weight:fleet ? 2 : 3,
+              fillColor:!fleet ? planColor : muted ? outline : land,fillOpacity:fleet ? 1 : .85 })
             .bindPopup('<p>' + kind + ' · ' + esc(stop.name) + '</p>' + select + details, { minWidth: 170 }));
       }
     }
@@ -378,11 +442,11 @@
     if (geometry) {
       const signature = revision.id + '/' + accent;
       place('road:' + fleet.selected, signature, () =>
-        L.polyline(geometry, {color:accent, weight:5, opacity:.95, className:'fleet-road-line', interactive:false}));
+        L.polyline(geometry, {pane:'fleetRoad',color:accent, weight:5, opacity:.95, className:'fleet-road-line', interactive:false}));
       for (const [index, stop] of revision.stops.entries()) {
         const title = index === 0 ? 'Road origin' : index === revision.stops.length - 1 ? 'Road destination' : 'Road waypoint ' + index;
         place('road-stop:' + index, signature, () => L.circleMarker([stop.latitude,stop.longitude],
-          {className:'fleet-road-stop',radius:6,color:accent,fillColor:land,fillOpacity:1}).bindPopup(title));
+          {pane:'fleetRoad',className:'fleet-road-stop',radius:6,color:accent,fillColor:land,fillOpacity:1}).bindPopup(title));
       }
     }
     if (fleet?.layers.observed !== false) for (const d of data.devices) {
@@ -392,6 +456,7 @@
       bounds.push(p);
       const stale = Date.now() - Date.parse(obs.occurred_at) > 15 * 60 * 1000;
       place('device:' + d.registry.id, JSON.stringify([obs,d.registry.label,stale,signalColor]), () => L.circleMarker(p, {
+        pane: fleet ? 'fleetPositions' : 'overlayPane',
         className: 'ux-device-position' + (stale ? ' fleet-stale-fix' : ''),
         radius: 7,
         color: signalColor,
@@ -421,8 +486,9 @@
     if (fresh) {
       if (lastView?.page === page) map.setView(lastView.center, lastView.zoom);
       else if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 7 });
-      countryLabels();
       map.invalidateSize();
+      if (layoutLabels) layoutLabels();
+      else countryLabels();
     }
     function countryLabels() {
       countries.eachLayer((layer) => {

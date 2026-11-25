@@ -57,7 +57,8 @@ const fixture = {
 async function fixturePage(width = 1440, scheme = 'light', source = {}) {
   const context = await browser.newContext({
     viewport: { width, height: 1000 },
-    colorScheme: scheme
+    colorScheme: scheme,
+    hasTouch: source.touch === true
   });
   await context.route('**/v1/**', async (route) => {
     const p = new URL(route.request().url()).pathname;

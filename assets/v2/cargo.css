@@ -3787,14 +3787,18 @@ h1,h2,h3 {overflow-wrap:anywhere;}
   .lite-workspace .page-heading { margin-bottom: 18px; padding-bottom: 15px; }
   .lite-workspace .topbar .breadcrumb-root { display: none; }
   .lite-workspace .detail-dialog { width: calc(100% - 20px); padding: 14px; }
-  .lite-workspace.lite-session .workspace-main { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .lite-workspace.lite-session { --lite-safe-bottom: env(safe-area-inset-bottom, 0px); }
+  .lite-workspace.lite-session .workspace-main { padding-bottom: calc(64px + var(--lite-safe-bottom)); }
+  .lite-workspace.lite-session:has(.fleet-map-workspace) {
+    scroll-padding-block-end: calc(72px + var(--lite-safe-bottom));
+  }
   .lite-workspace.lite-session .lite-bottom-nav {
     position: fixed;
     z-index: 30;
     inset: auto 0 0;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    padding: 4px 4px env(safe-area-inset-bottom);
+    padding: 4px 4px var(--lite-safe-bottom);
     background: var(--tc-surface);
     border-top: 1px solid var(--lite-border);
   }
@@ -4253,4 +4257,16 @@ h1,h2,h3 {overflow-wrap:anywhere;}
   }
   .fleet-map-canvas .ops-map-tools label { grid-column: 1/-1; }
   .fleet-map-canvas .ops-map-tools select { min-inline-size: 0; }
+}
+
+/* Composite the entire overview once so coincident plans cannot build opacity. */
+.fleet-map-canvas .leaflet-fleetOverview-pane { opacity: .65; }
+.fleet-wide-view .leaflet-fleetOverview-pane { opacity: .50; }
+.fleet-has-selection .leaflet-fleetOverview-pane { opacity: .36; }
+.fleet-has-selection.fleet-wide-view .leaflet-fleetOverview-pane { opacity: .25; }
+.fleet-country-label {
+  color: var(--tc-text-secondary);
+  text-align: center;
+  font: 11px/16px system-ui;
+  white-space: nowrap;
 }

@@ -41,16 +41,70 @@ const fleet = Array.from({length:25}, (_,i) => ({
   checkpoints:[]
 }));
 
+async function verifyMobileMap(page, width) {
+  const map = page.locator('#workspace-map');
+  const labels = await map.locator('.fleet-country-label').evaluateAll(nodes => nodes.map(node => {
+    const {left,right,top,bottom} = node.getBoundingClientRect();
+    return {left,right,top,bottom};
+  }));
+  assert.ok(labels.length >= 2 && labels.length <= 8, width + ' px should keep orientation without crowding');
+  for (const [index,a] of labels.entries())
+    for (const b of labels.slice(index+1))
+      assert.ok(a.right+2 <= b.left || b.right+2 <= a.left || a.bottom+2 <= b.top || b.bottom+2 <= a.top);
+  const marker = map.locator('.leaflet-fleetRoad-pane .fleet-road-stop').first();
+  const overview = map.locator('.leaflet-fleetOverview-pane');
+  const selected = map.locator('.leaflet-fleetPlan-pane');
+  const important = await marker.evaluate(node => Number(getComputedStyle(node.closest('.leaflet-pane')).zIndex));
+  assert.ok(important > await selected.evaluate(node => Number(getComputedStyle(node).zIndex)));
+  assert.ok(await selected.evaluate(node => Number(getComputedStyle(node).zIndex)) >
+    await overview.evaluate(node => Number(getComputedStyle(node).zIndex)));
+
+  async function aboveNav(locator) {
+    const result = await locator.evaluate(node => {
+      node.scrollIntoView({block:'end'});
+      const r = node.getBoundingClientRect();
+      const top = document.querySelector('.lite-bottom-nav').getBoundingClientRect().top;
+      return {gap:top-r.bottom,hit:node.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2))};
+    });
+    assert.ok(result.gap >= 0 && result.hit, JSON.stringify({width,...result}));
+    return result.gap;
+  }
+  const caption = page.locator('.fleet-map-canvas .map-caption');
+  const directory = page.locator('.fleet-directory summary');
+  const normalGap = await aboveNav(caption);
+  await aboveNav(directory);
+  await directory.tap();
+  await aboveNav(page.locator('.fleet-directory').getByRole('button',{name:'Device details'}));
+  await page.locator('.fleet-directory summary').tap();
+
+  // Exercise the same CSS path used by env(safe-area-inset-bottom) with a known inset.
+  await page.evaluate(() => document.documentElement.style.setProperty('--lite-safe-bottom','24px'));
+  const safeGap = await aboveNav(caption);
+  if (process.env.TRACKIUM_FLEET_SCREENSHOTS)
+    await page.screenshot({path:join(process.env.TRACKIUM_FLEET_SCREENSHOTS,'fleet-safe-area-'+width+'.png')});
+  const zoom = map.getByRole('button',{name:'Zoom in'});
+  await aboveNav(zoom);
+  await zoom.tap();
+  assert.equal(await marker.count(),1);
+  await map.getByRole('button',{name:'Zoom out'}).tap();
+  await aboveNav(directory);
+  await page.evaluate(() => document.documentElement.style.removeProperty('--lite-safe-bottom'));
+  if (process.env.TRACKIUM_FLEET_SCREENSHOTS)
+    console.log(JSON.stringify({width,labels:labels.length,normal_nav_gap_px:Math.round(normalGap),safe_nav_gap_px:Math.round(safeGap)}));
+}
+
 test('Fleet Map renders a bounded manifest, B3 legs, independent layers and stable camera', async () => {
   await start();
   try {
     for (const [width,theme] of [[1440,'dark'],[390,'light'],[320,'dark'],[768,'light']]) {
-      const source = {customer:true,road:revision,fleet};
+      const source = {customer:true,road:revision,fleet,touch:width <= 390};
       const {page,context} = await fixturePage(width,theme,source);
       try {
         await page.getByRole('heading',{name:'Fleet Map'}).waitFor();
         assert.equal(await page.locator('.fleet-manifest-list button').count(),25);
         assert.equal(source.requests.filter(path => path.includes('/road-routes')).length,0);
+        const fleetMap = page.locator('#workspace-map');
+        assert.equal(await fleetMap.locator('.leaflet-fleetOverview-pane .ux-route-stop').count(),75);
         const filter = page.getByRole('combobox',{name:'Shipment status'});
         await filter.selectOption('draft');
         assert.equal(await page.locator('.fleet-manifest-list button').count(),12);
@@ -78,6 +132,11 @@ test('Fleet Map renders a bounded manifest, B3 legs, independent layers and stab
         assert.equal((await line.getAttribute('d')).split('M').length-1,2);
         assert.equal(await map.locator('.fleet-road-stop').count(),3);
         assert.equal(await map.locator('.ux-route-stop').count(),75);
+        const overview = map.locator('.leaflet-fleetOverview-pane');
+        assert.ok(Number(await overview.evaluate(node => getComputedStyle(node).opacity)) <= .36);
+        assert.equal(await overview.locator('.ux-route-stop').count(),72);
+        assert.equal(await map.locator('.leaflet-fleetPlan-pane .ux-route-stop').count(),3);
+        if (width <= 390) await verifyMobileMap(page,width);
         assert.equal(await map.locator('.fleet-stale-fix').count(),1);
         assert.equal(await row.getAttribute('aria-pressed'),'true');
         const decoded = await page.evaluate(rev => window.TrackiumComponents.roadGeometry(rev),revision);
@@ -88,7 +147,7 @@ test('Fleet Map renders a bounded manifest, B3 legs, independent layers and stab
         malformed.calculation.route.legs[1].shape = shape(stops.slice(0,2));
         assert.equal(await page.evaluate(rev => window.TrackiumComponents.roadGeometry(rev),malformed),null);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-        if (process.env.TRACKIUM_FLEET_SCREENSHOTS && [1440,390].includes(width)) {
+        if (process.env.TRACKIUM_FLEET_SCREENSHOTS && [1440,390,320].includes(width)) {
           await search.fill('');
           await search.blur();
           for (const scheme of ['light','dark']) {
@@ -102,10 +161,13 @@ test('Fleet Map renders a bounded manifest, B3 legs, independent layers and stab
         assert.equal(await line.count(),0);
         await page.getByRole('checkbox',{name:'Road route'}).check();
         const pane = map.locator('.leaflet-map-pane');
-        await pane.evaluate(el => { window.fleetPane = [el,el.style.transform]; });
+        await pane.evaluate(el => {
+          window.fleetPane = [el,el.style.transform,el.querySelector('.fleet-country-label')];
+        });
         const time = await page.locator('#lite-gateway-time').getAttribute('datetime');
         await page.waitForFunction(before => document.querySelector('#lite-gateway-time').dateTime !== before,time);
-        assert.ok(await pane.evaluate(el => el === window.fleetPane[0] && el.style.transform === window.fleetPane[1]));
+        assert.ok(await pane.evaluate(el => el === window.fleetPane[0] &&
+          el.style.transform === window.fleetPane[1] && el.querySelector('.fleet-country-label') === window.fleetPane[2]));
         assert.equal(await row.getAttribute('aria-pressed'),'true');
         await page.getByRole('checkbox',{name:'Reported GPS'}).uncheck();
         assert.equal(await map.locator('.ux-device-position').count(),0);
