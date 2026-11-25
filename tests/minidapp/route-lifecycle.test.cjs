@@ -120,8 +120,8 @@ test('proposal confirmation, retry and repeated clicks use one logical operation
       assert.equal(await page.getByRole('button',{name:/Approve v|Activate v/}).count(),0);
       source.role = 'viewer';
       await page.getByRole('button',{name:'Refresh',exact:true}).click();
+      await page.locator('.fleet-planner').waitFor({state:'detached'});
       await page.locator('.lifecycle-revisions').getByText('v1 · Proposed',{exact:true}).waitFor();
-      assert.equal(await page.locator('.fleet-planner').count(),0);
       assert.equal(await page.getByRole('region',{name:'Revision details'}).count(),0);
     } finally { await context.close(); }
   } finally { await stop(); }
