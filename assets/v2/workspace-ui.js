@@ -159,13 +159,13 @@
       dashboard: 'Overview',
       shipments: 'Shipments',
       devices: 'Devices',
-      map: 'Routes & reported positions',
+      map: isLite() ? 'Fleet Map' : 'Routes & reported positions',
       events: 'Event history',
       proofs: 'Proof records',
       settings: state.session.customer ? 'Company settings' : 'Gateway settings'
     }[page] +
     '</h1><p>' +
-    (isLite() ? 'Gateway snapshot' : state.updated
+    (isLite() ? (page === 'map' ? '' : 'Gateway snapshot') : state.updated
       ? 'Observed ' + date(state.updated) + ' · loaded snapshot, not a live stream'
       : 'Waiting for an authenticated observation') +
     '</p></div>' +
@@ -377,7 +377,7 @@
       '</tbody></table></div>'
     );
   }
-  function map(data, picker = false) {
+  function map(data, picker = false, fleet) {
     const options = (prefix, records, name) => records.map(record =>
       '<option value="' + prefix + ':' + esc(record.id) + '">' + esc(name(record)) + '</option>').join('');
     return (
@@ -387,7 +387,9 @@
         options('device', data.devices.filter(C.reportedPosition).map(item => item.registry), item => item.label) +
         '</select><button class="button secondary" type="button" data-fit-report-map>Show on map</button></div>' : '') +
       '<div id="workspace-map" class="ux-geo" role="region" aria-label="Geographic routes and last reported positions"></div>' +
-      '<div class="lite-map-key" aria-label="Map legend"><span class="planned">Planned route</span><span class="reported">Last reported position</span></div>' +
+      '<div class="lite-map-key" aria-label="Map legend"><span class="planned">Planned checkpoints</span>' +
+      (fleet ? '<span class="calculated">Calculated road route</span>' : '') +
+      '<span class="reported">Last reported positions</span></div>' +
       '<p class="map-caption">' + (isLite() && document.documentElement.dataset.roadTileMaxZoom
         ? 'Road tiles where installed; geographic overview elsewhere. ' +
           (document.documentElement.dataset.roadTileDate
@@ -515,18 +517,101 @@
       '</div>';
   }
 
-  function mapWorkspace(data) {
-    return '<div class="geo-workspace">' + panel('Routes & last reported locations', map(data, true), 'geo-canvas') +
-      panel('Device directory', data.devices.length ? '<ul class="geo-directory">' + data.devices.map(d => {
-        const observation = d.history?.events?.[0];
-        return '<li data-view-key="geo:' + esc(d.registry.id) + '"><span class="ops-glyph">' + glyph('devices') +
-          '</span><div><strong>' + esc(d.registry.label) + '</strong>' +
-          fields(positionFields(d)) + (observation ? provenanceBadge(observation.payload?.trust) +
-            '<details class="ops-disclosure"><summary>Latest observation</summary>' +
-            fields(observationFields(observation)) + '</details>' : '') + '</div>' +
-          action('Device details', 'view-device', d.registry.id) + '</li>';
-      }).join('') + '</ul>' :
-        empty('No devices on this page', 'Register a device or open another page in Devices.', 'devices'), 'geo-side') + '</div>';
+  function fleetRoute(road, selected, customer) {
+    if (!selected) return '<p>Select a shipment to inspect its road plan.</p>';
+    if (!customer) return '<p>Road revisions require a company sign-in.</p>';
+    const entries = {
+      loading:'Loading road route…', unavailable:'Road route information is unavailable.',
+      pending:'Route revisions exist. No route is active.',
+      changed:'Route changed while loading. Checking again on the next refresh.',
+      none:'No active road route.'
+    };
+    const revision = road?.revision;
+    if (!revision) return '<p role="status">' + entries[road?.status || 'loading'] + '</p>' +
+      (road?.status === 'unavailable' ? '<button type="button" class="button secondary" data-fleet-retry>Retry route</button>' : '');
+    const calc = revision.calculation;
+    const route = calc?.route;
+    const distance = Number.isFinite(route?.distance_m) ? (route.distance_m / 1000).toLocaleString(undefined, {maximumFractionDigits:1}) + ' km' : 'Unavailable';
+    const minutes = Number.isFinite(route?.estimated_duration_s) ? Math.ceil(route.estimated_duration_s / 60) : null;
+    const duration = minutes === null ? 'Unavailable' : (minutes >= 60 ? Math.floor(minutes / 60) + ' h ' : '') + minutes % 60 + ' min';
+    const stops = C.roadGeometry(revision) ? revision.stops : [];
+    const warnings = {
+      STATIC_OSM_SNAPSHOT:'Calculated from static road data. ETA is an estimate.',
+      COVERAGE_MAY_BE_INCOMPLETE:'Road network coverage may be incomplete.',
+      HGV_RESTRICTIONS_MAY_BE_INCOMPLETE:'Truck restrictions may be incomplete.'
+    };
+    return '<div class="fleet-summary"><span class="badge">Active · v' + esc(revision.version) + '</span>' +
+      '<span>' + (calc?.profile === 'truck' ? 'Truck' : calc?.profile === 'auto' ? 'Passenger car' : 'Profile unavailable') +
+      '</span></div><dl class="fleet-estimates"><div><dt>Distance</dt><dd>' + distance +
+      '</dd></div><div><dt>Estimated duration</dt><dd>' + duration + '</dd></div></dl>' +
+      (stops.length ? '<ol class="fleet-stops" aria-label="Calculated route stops">' + stops.map((point, index) =>
+        '<li><strong>' + (index === 0 ? 'Origin' : index === stops.length - 1 ? 'Destination' : 'Waypoint ' + index) +
+        '</strong><span>' + point.latitude.toFixed(4) + ', ' + point.longitude.toFixed(4) + '</span></li>').join('') +
+        '</ol>' : '<p role="status">Road geometry unavailable.</p>') +
+      arr(calc?.warnings).filter(key => Object.hasOwn(warnings,key)).map(key => '<p class="fleet-warning">' + warnings[key] + '</p>').join('') +
+      '<details><summary>Graph provenance</summary>' + fields([
+        ['Graph release', calc?.graph?.id], ['Engine version', calc?.graph?.engine_version],
+        ['OSM snapshot', calc?.graph?.osm_snapshot], ['Calculated at', calc?.calculated_at]
+      ]) + '</details>';
+  }
+
+  function mapWorkspace(data, view, state) {
+    const selected = data.shipments.find(shipment => shipment.id === view.shipment);
+    const road = selected && state.roadRoute?.id === selected.id ? state.roadRoute : null;
+    const filter = view.fleetFilter || 'all';
+    const statuses = ['all','active','draft','delivered','completed','cancelled'];
+    const query = (view.fleetQuery || '').toLowerCase().trim();
+    const devices = new Map(data.devices.map(d => [d.registry.id,d]));
+    const list = data.shipments.filter(shipment => (filter === 'all' || shipment.status === filter) &&
+      [shipment.name, devices.get(shipment.device_id)?.registry.label].some(value => String(value || '').toLowerCase().includes(query)));
+    const deviceFacts = (d) => {
+      const observation = d.history?.events?.[0];
+      const position = C.reportedPosition(d);
+      const stamp = Date.parse(position?.occurred_at);
+      const age = Math.max(0,Math.floor((Date.now()-stamp)/60000));
+      const elapsed = age >= 1440 ? Math.floor(age/1440) + ' d' : age >= 60 ? Math.floor(age/60) + ' h' : age + ' min';
+      return fields([
+        ['Device state',d.status?.enabled === false ? 'Disabled' : d.status?.last_event_at ? 'Observation received' : 'No observations'],
+        ...positionFields(d),
+        ...(Number.isFinite(stamp) ? [['Observation age', elapsed + (age > 15 ? ' · stale' : '')]] : [])
+      ]) + (observation ? provenanceBadge(observation.payload?.trust) :
+        position ? provenanceBadge(position.trust) : '');
+    };
+    const linked = selected && devices.get(selected.device_id);
+    const layers = view.layers || {};
+    return '<div class="fleet-map-workspace"><section class="fleet-map-canvas" aria-label="Fleet map canvas">' +
+      '<div class="fleet-map-toolbar"><fieldset><legend class="sr-only">Map layers</legend>' +
+      [['planned','Planned'],['calculated','Road route'],['observed','Reported GPS']].map(([key,label]) =>
+        '<label><input type="checkbox" data-fleet-layer="' + key + '" ' + (layers[key] !== false ? 'checked' : '') + '>' +
+        '<span>' + label + '</span></label>').join('') + '</fieldset>' +
+        '</div>' +
+      map(data,true,true) + '</section><aside class="fleet-manifest" aria-labelledby="fleet-manifest-heading">' +
+      '<h2 id="fleet-manifest-heading">Shipments <span>' + data.shipments.length + '</span></h2>' +
+      '<label class="sr-only" for="fleet-query">Search shipments or devices</label><input id="fleet-query" class="text-input" type="search" placeholder="Search shipments or devices" value="' +
+      esc(view.fleetQuery || '') + '"><label class="sr-only" for="fleet-filter">Shipment status</label>' +
+      '<select class="text-input" id="fleet-filter">' + statuses.map(key => '<option value="' + key + '"' +
+        (filter === key ? ' selected' : '') + '>' + (key === 'all' ? 'All shipment statuses' : C.label(key)) + '</option>').join('') + '</select>' +
+      '<div class="fleet-manifest-list">' + (list.length ? list.map(s =>
+        '<button type="button" data-view-key="fleet:' + esc(s.id) + '" data-fleet-shipment="' + esc(s.id) + '" aria-pressed="' +
+        String(s === selected) + '"><span><strong>' + esc(s.name) + '</strong><small>' +
+        esc(devices.get(s.device_id)?.registry.label || 'Device not on this page') + '</small></span><span class="badge">' +
+        esc(C.label(s.status)) + '</span></button>').join('') : '<p>' +
+        (data.shipments.length ? 'No shipments match these filters.' : 'No shipments on this page.') + '</p>') + '</div>' +
+      C.pagination('shipments',state) + '</aside>' +
+      '<section class="fleet-context" aria-label="Shipment context"><header><div><h2>' +
+      (selected ? esc(selected.name) : 'Shipment context') + '</h2></div>' +
+      (selected ? '<div class="fleet-context-actions"><button class="button secondary" type="button" data-fleet-fit>Fit shipment</button>' +
+        action('Shipment details','view-shipment',selected.id) + '</div>' : '') + '</header>' +
+      '<div class="fleet-context-grid"><div><h3>Calculated road route</h3>' + fleetRoute(road,selected,state.session.customer) +
+      '</div><div><h3>Planned checkpoints</h3>' + (selected ? routeStrip(arr(selected.checkpoints?.length ? selected.checkpoints : selected.route)) :
+        '<p>Select a shipment to see its planned stops.</p>') +
+      (linked ? '<h3>' + esc(linked.registry.label) + '</h3>' + deviceFacts(linked) : '') + '</div></div></section>' +
+      '<details class="fleet-directory"><summary>Device observations · ' + data.devices.length + '</summary>' +
+      (data.devices.length ? '<ul class="geo-directory">' + data.devices.map(d =>
+        '<li data-view-key="geo:' + esc(d.registry.id) + '"><span class="ops-glyph">' + glyph('devices') +
+        '</span><div><strong>' + esc(d.registry.label) + '</strong>' + deviceFacts(d) + '</div>' +
+        action('Device details','view-device',d.registry.id) + '</li>').join('') + '</ul>' :
+        '<p>No devices on this page.</p>') + C.pagination('devices',state) + '</details></div>';
   }
 
   function proofJourney(proof) {
@@ -657,7 +742,7 @@
          ).join('') + '</dl>' + body;
     }
     if (page === 'devices') body += C.pagination('devices', state);
-    if (page === 'map' && isLite()) body = mapWorkspace(d);
+    if (page === 'map' && isLite()) body = mapWorkspace(d, view, state);
     else if (page === 'map')
       body =
         panel('Routes & last reported locations', map(d, true)) +

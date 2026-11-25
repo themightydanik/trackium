@@ -4114,3 +4114,143 @@ h1,h2,h3 {overflow-wrap:anywhere;}
 }
 .lite-workspace .leaflet-control-layers-expanded label { padding-block: 5px; }
 .lite-workspace .leaflet-control-attribution a { color: var(--tc-accent); }
+
+/* Fleet Map shares the existing Leaflet canvas and workspace tokens. */
+.fleet-map-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 20rem);
+  align-items: stretch;
+  gap: 16px;
+}
+.fleet-map-workspace > * {
+  min-inline-size: 0;
+  border: 1px solid var(--tc-outline-subtle);
+  border-radius: 16px;
+  background: var(--tc-surface);
+}
+.fleet-map-canvas { overflow: hidden; }
+.fleet-map-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 8px 14px;
+  border-block-end: 1px solid var(--tc-outline-subtle);
+}
+.fleet-map-toolbar fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.fleet-map-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 6px;
+  min-height: 44px;
+  font-size: .84rem;
+}
+.fleet-map-toolbar input { accent-color: var(--tc-accent); }
+.fleet-map-canvas .ops-map-tools { margin: 8px 14px; }
+.lite-workspace .fleet-map-canvas .ux-geo {
+  height: clamp(330px, 55dvh, 690px);
+  margin: 0;
+  border-radius: 0;
+}
+.fleet-map-canvas :is(.lite-map-key,.map-caption,.lite-position-state) { margin-inline: 14px; }
+.lite-workspace .lite-map-key .calculated::before {
+  content: '';
+  width: 17px;
+  border-top: 3px solid var(--tc-accent);
+}
+.fleet-map-canvas .fleet-stale-fix { stroke-dasharray: 2 3; fill-opacity: .46; }
+.fleet-map-canvas .ux-device-position { stroke: var(--tc-canvas); stroke-width: 2; }
+.fleet-manifest,.fleet-context,.fleet-directory { padding: 14px; }
+.fleet-manifest h2,.fleet-context h2 { margin: 0; }
+.fleet-manifest h2 span {
+  margin-inline-start: .4em;
+  font-size: .8rem;
+  color: var(--tc-text-secondary);
+}
+.fleet-manifest > :is(input,select) { inline-size: 100%; margin-block-start: 10px; }
+.fleet-manifest-list { margin-block-start: 12px; max-block-size: 50dvh; overflow: auto; }
+.fleet-manifest-list button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px;
+  color: var(--tc-text);
+  text-align: start;
+  border: 0;
+  border-block-end: 1px solid var(--tc-outline-subtle);
+  border-inline-start: 3px solid transparent;
+  background: var(--tc-surface);
+}
+.fleet-manifest-list button[aria-pressed=true] {
+  border-inline-start-color: var(--tc-accent);
+  background: var(--tc-surface-raised);
+}
+.fleet-manifest-list strong,.fleet-manifest-list small { display: block; overflow-wrap: anywhere; }
+.fleet-manifest-list small,.fleet-stops span,.fleet-estimates dt { color: var(--tc-text-secondary); }
+.fleet-context header,.fleet-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.fleet-context-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
+.fleet-context-grid h3 { font-size: 1rem; margin: 14px 0 8px; }
+.fleet-context,.fleet-directory { overflow-wrap: anywhere; }
+.fleet-estimates {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  padding-block: 8px;
+  gap: 8px;
+  border-block: 1px solid var(--tc-outline-subtle);
+}
+.fleet-estimates dd { margin: 0; font-size: 1.2rem; font-weight: 700; }
+.fleet-stops { padding-inline-start: 22px; }
+.fleet-stops li { padding: 4px 0; }
+.fleet-stops span { display: block; font-size: .83rem; }
+.fleet-warning { padding-inline-start: 8px; border-inline-start: 2px solid var(--tc-gold); }
+.fleet-directory summary,.fleet-context summary { cursor: pointer; min-height: 44px; align-content: center; }
+@media (max-width: 980px) {
+  .fleet-map-workspace { grid-template-columns: minmax(0,1fr); }
+  .fleet-manifest-list { max-block-size: 16rem; }
+}
+@media (max-width: 560px) {
+  .fleet-map-workspace { gap: 10px; }
+  .fleet-context-grid { grid-template-columns: minmax(0,1fr); }
+  .lite-workspace .fleet-map-canvas .ux-geo { height: clamp(280px, 48dvh, 440px); }
+  .fleet-map-canvas :is(input,select,button) { max-inline-size: 100%; }
+}
+.fleet-map-workspace { align-items: start; }
+.fleet-map-workspace .badge { flex: none; white-space: nowrap; }
+.lite-workspace .fleet-map-canvas .lite-map-key .reported::before { background: var(--tc-info); }
+.fleet-context-grid .evidence-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px 12px; }
+.fleet-context-grid .evidence-grid > div { padding: 4px 0; background: none; }
+.fleet-map-canvas .workspace-map-land { stroke: var(--tc-outline); fill: var(--tc-surface-raised); }
+.fleet-map-canvas :is(.fleet-road-line,.fleet-road-stop) { stroke: var(--tc-accent); }
+.fleet-map-canvas .fleet-road-stop { fill: var(--tc-surface-raised); }
+.fleet-map-canvas .ux-device-position { fill: var(--tc-info); }
+.fleet-context-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.fleet-map-toolbar fieldset { min-inline-size: 0; width: 100%; }
+.fleet-map-toolbar label { flex: 0 0 auto; }
+@media (max-width: 560px) {
+  .fleet-map-toolbar { padding: 2px 8px; }
+  .fleet-map-toolbar label { padding-inline: 4px; }
+  .fleet-map-canvas .ops-map-tools {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 6px;
+  }
+  .fleet-map-canvas .ops-map-tools label { grid-column: 1/-1; }
+  .fleet-map-canvas .ops-map-tools select { min-inline-size: 0; }
+}

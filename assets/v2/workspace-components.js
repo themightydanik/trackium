@@ -187,6 +187,46 @@
       }).join('') +
       '</svg><small>Positions are shown as individual samples. Lines between observations are omitted.</small></figure>';
   }
+  const roadGeometryCache = new WeakMap();
+  function roadGeometry(revision) {
+    if (!revision || typeof revision !== 'object') return null;
+    if (roadGeometryCache.has(revision)) return roadGeometryCache.get(revision);
+    const route = revision.calculation?.route;
+    let geometry = null, remaining = 30000;
+    try {
+      if (revision.state !== 'active' || route?.geometry_format !== 'polyline6' ||
+          !Array.isArray(route.legs) || !route.legs.length || route.legs.length > 9 ||
+          !Array.isArray(revision.stops) || revision.stops.length !== route.legs.length + 1 ||
+          !revision.stops.every(valid)) throw new Error('Invalid route');
+      geometry = route.legs.map(({shape}) => {
+        if (typeof shape !== 'string' || shape.length > 300000) throw new Error('Invalid shape');
+        let offset = 0, lat = 0, lon = 0;
+        const points = [];
+        function delta() {
+          let number = 0;
+          for (let shift = 0; shift <= 30; shift += 5) {
+            const part = shape.charCodeAt(offset++) - 63;
+            if (!(part >= 0 && part <= 63)) break;
+            number += (part & 31) * 2 ** shift;
+            if (part < 32) return number % 2 ? -Math.ceil(number / 2) : number / 2;
+          }
+          throw new Error('Invalid coordinate delta');
+        }
+        while (offset < shape.length) {
+          lat += delta();
+          lon += delta();
+          if (Math.abs(lat) > 90e6 || Math.abs(lon) > 180e6 || --remaining < 0)
+            throw new Error('Shape out of bounds');
+          points.push([lat / 1e6, lon / 1e6]);
+        }
+        if (points.length < 2) throw new Error('Incomplete shape');
+        return points;
+      });
+    } catch (_) { geometry = null; }
+    roadGeometryCache.set(revision, geometry);
+    return geometry;
+  }
+
   let mapInstance = null, mapContainer = null, countries = null, mapStyle = '',
     lastView = null, currentPage = null, syncRoadStyle = null;
   const mapLayers = new Map();
@@ -212,12 +252,13 @@
       : position?.trust === 'synthetic';
     return eligible && valid(position.gps) ? position : null;
   }
-  function mountMap(data, page) {
+  function mountMap(data, page, fleet) {
     const el = document.getElementById('workspace-map');
     if (!el || !root.L || !root.TrackiumWorldMap) return;
     currentPage = page;
     const style = getComputedStyle(document.documentElement),
       accent = style.getPropertyValue('--tc-accent').trim(),
+      signalColor = fleet ? style.getPropertyValue('--tc-info').trim() : accent,
       land = style.getPropertyValue('--tc-surface-raised').trim(),
       outline = style.getPropertyValue('--tc-outline').trim();
     const fresh = mapContainer !== el;
@@ -234,7 +275,7 @@
       mapContainer = el;
       if (roadEnabled) mapInstance.createPane('trackiumGeography').style.zIndex = '190';
       countries = L.geoJSON(root.TrackiumWorldMap, {
-        interactive: false, pane: roadEnabled ? 'trackiumGeography' : 'overlayPane'
+        interactive: false, className: 'workspace-map-land', pane: roadEnabled ? 'trackiumGeography' : 'overlayPane'
       }).addTo(mapInstance);
       if (roadEnabled) {
         const media = matchMedia('(prefers-color-scheme: dark)');
@@ -284,6 +325,18 @@
       previous?.layer.remove();
       const layer = create().addTo(map);
       mapLayers.set(key, { signature, layer });
+      const marker = key.startsWith('stop:') && fleet ? layer.getElement() : null;
+      if (marker) {
+        marker.setAttribute('tabindex','0');
+        marker.setAttribute('role','button');
+        marker.setAttribute('aria-label','Inspect planned checkpoint');
+        marker.addEventListener('keydown', event => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          layer.openPopup();
+          layer.getPopup().getElement()?.querySelector('button')?.focus();
+        });
+      }
       if (open && layer.getPopup()) {
         layer.getPopup().options.autoPan = false;
         layer.openPopup();
@@ -291,34 +344,50 @@
       }
     }
     const bounds = [];
-    for (const s of (page === 'dashboard' ? data.shipments.filter(s => s.status === 'active') : data.shipments)) {
+    if (fleet?.layers.planned !== false) for (const s of (page === 'dashboard' ? data.shipments.filter(s => s.status === 'active') : data.shipments)) {
       const points = (s.route || []).filter(valid).map((p) => [p.latitude, p.longitude]);
       bounds.push(...points);
       const details = '<button class="button secondary" data-server-action="view-shipment" data-server-id="' +
         esc(s.id) + '">Shipment details</button>';
       if (points.length)
-        place('shipment:' + s.id, JSON.stringify([points,s.name,planColor]), () =>
-          L.polyline(points, { color: planColor, weight: 3, dashArray: '6 6' })
+        place('shipment:' + s.id, JSON.stringify([points,s.name,planColor,fleet?.selected === s.id]), () =>
+          L.polyline(points, { color: planColor, weight: fleet?.selected === s.id ? 4 : 3,
+              opacity: fleet?.selected && fleet.selected !== s.id ? .24 : .9, dashArray: '6 6' })
             .bindPopup('<p>Planned route · ' + esc(s.name) + '</p>' + details, { minWidth: 170 }));
       for (const [index, stop] of (s.route || []).entries()) {
         if (!valid(stop)) continue;
         const kind = index === 0 ? 'Origin' : index === s.route.length - 1 ? 'Destination' : 'Checkpoint';
-        place('stop:' + s.id + ':' + index, JSON.stringify([stop,kind,outline,planColor]), () =>
-          L.circleMarker([stop.latitude,stop.longitude], { className: 'ux-route-stop', radius: 6, color: outline, fillColor: planColor })
-            .bindPopup('<p>' + kind + ' · ' + esc(stop.name) + '</p>' + details, { minWidth: 170 }));
+        const select = fleet ? '<button class="button secondary" data-fleet-shipment="' +
+          esc(s.id) + '">Select shipment</button>' : '';
+        place('stop:' + s.id + ':' + index, JSON.stringify([stop,kind,outline,planColor,fleet?.selected === s.id]), () =>
+          L.circleMarker([stop.latitude,stop.longitude], { className: 'ux-route-stop', radius: fleet?.selected === s.id ? 8 : 6, color: outline, fillColor: planColor,
+              fillOpacity: fleet?.selected && fleet.selected !== s.id ? .25 : .85 })
+            .bindPopup('<p>' + kind + ' · ' + esc(stop.name) + '</p>' + select + details, { minWidth: 170 }));
       }
     }
-    for (const d of data.devices) {
+    const revision = fleet?.road?.revision;
+    const geometry = fleet?.layers.calculated !== false && roadGeometry(revision);
+    if (geometry) {
+      const signature = revision.id + '/' + accent;
+      place('road:' + fleet.selected, signature, () =>
+        L.polyline(geometry, {color:accent, weight:5, opacity:.95, className:'fleet-road-line', interactive:false}));
+      for (const [index, stop] of revision.stops.entries()) {
+        const title = index === 0 ? 'Road origin' : index === revision.stops.length - 1 ? 'Road destination' : 'Road waypoint ' + index;
+        place('road-stop:' + index, signature, () => L.circleMarker([stop.latitude,stop.longitude],
+          {className:'fleet-road-stop',radius:6,color:accent,fillColor:land,fillOpacity:1}).bindPopup(title));
+      }
+    }
+    if (fleet?.layers.observed !== false) for (const d of data.devices) {
       const obs = reportedPosition(d);
       if (!obs) continue;
       const p = [obs.gps.latitude, obs.gps.longitude];
       bounds.push(p);
       const stale = Date.now() - Date.parse(obs.occurred_at) > 15 * 60 * 1000;
-      place('device:' + d.registry.id, JSON.stringify([obs,d.registry.label,stale,accent]), () => L.circleMarker(p, {
-        className: 'ux-device-position',
+      place('device:' + d.registry.id, JSON.stringify([obs,d.registry.label,stale,signalColor]), () => L.circleMarker(p, {
+        className: 'ux-device-position' + (stale ? ' fleet-stale-fix' : ''),
         radius: 7,
-        color: accent,
-        fillColor: accent,
+        color: signalColor,
+        fillColor: signalColor,
         fillOpacity: 0.9
       })
         .bindPopup(
@@ -369,7 +438,7 @@
     const bounds = L.latLngBounds([]);
     for (const layer of layers) bounds.extend(layer.getBounds ? layer.getBounds() : layer.getLatLng());
     mapInstance.fitBounds(bounds, {
-      padding: [30, 30], maxZoom: document.documentElement.dataset.roadTileMaxZoom ? 16 : 8
+      padding: [30, 30], animate: false, maxZoom: document.documentElement.dataset.roadTileMaxZoom ? 16 : 8
     });
     target?.openPopup();
   }
@@ -382,8 +451,12 @@
     connection,
     beforeRender,
     mountMap,
+    focusShipment(id) {
+      focusMap(mapLayers.has('road:' + id) ? 'road:' + id : 'shipment:' + id);
+    },
     focusMap,
     reportedPosition,
+    roadGeometry,
     historyPosition,
     positionHistory
   };

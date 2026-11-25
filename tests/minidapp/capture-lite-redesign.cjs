@@ -12,7 +12,7 @@ const root = path.resolve(assets), output = path.resolve(directory);
       const {page, context} = await fixturePage(width, 'dark', {integritas: true, visual: true});
       await page.emulateMedia({reducedMotion: 'reduce'});
       await page.clock.setFixedTime(new Date('2026-01-01T00:10:00Z'));
-      for (const [route, title] of Object.entries({dashboard:'Overview', shipments:'Shipments', devices:'Devices', map:'Routes & reported positions', events:'Event history', proofs:'Proof records', settings:'Gateway settings'})) {
+      for (const [route, title] of Object.entries({dashboard:'Overview', shipments:'Shipments', devices:'Devices', map:'Fleet Map', events:'Event history', proofs:'Proof records', settings:'Gateway settings'})) {
         await page.evaluate(r => { location.hash = r; window.scrollTo(0,0); }, route);
         await page.getByRole('heading',{level:1,name:title,exact:true}).waitFor();
         await page.screenshot({path: output+'/'+route+'-'+width+'.png', animations:'disabled',fullPage:true});

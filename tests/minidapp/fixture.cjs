@@ -78,6 +78,7 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
 
     if (p === '/v1/session')
       data = {
+        ...(source.customer ? {customer:true, company_name:'Northline · browser fixture'} : {}),
         tenant_id: source.tenant ?? 'synthetic-browser-fixture',
         audience: 'test-only',
         expires_at: '2099-01-01T00:00:00Z',
@@ -86,9 +87,15 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
         csrf: 'test-only',
         simulation_enabled: false
       };
+    else if (p.endsWith('/road-routes/active') && source.customer) {
+      if (source.roadError) return route.fulfill({status:source.roadError,json:{error:'Fixture routing failure'}});
+      data = {generation:source.road ? 3 : 1, revision:source.road || null};
+    }
+    else if (p.endsWith('/road-routes') && source.customer)
+      data = {generation:1,active_revision_id:null,revisions:source.proposed ? [{state:'proposed'}] : []};
     else if (p === '/v1/shipments')
       data = {
-        shipments: source.empty
+        shipments: source.fleet || (source.empty
           ? []
           : [
               {
@@ -97,11 +104,14 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
                   ? { id: '55555555-5555-4555-8555-555555555555', name: 'Synthetic second page' }
                   : {})
               }
-            ],
+            ]),
         next_cursor: new URL(route.request().url()).searchParams.has('cursor')
           ? null
           : 'next-fixture-page'
       };
+    else if (source.fleet?.some(s => p === '/v1/shipments/' + s.id)) data = source.fleet.find(s => p.endsWith('/' + s.id));
+    else if (source.fleet?.some(s => p.startsWith('/v1/shipments/' + s.id + '/')) && !p.includes('/road-routes'))
+      data = p.endsWith('/proofs') ? {proofs:[],engine_mode:'test'} : {events:[]};
     else if (p === '/v1/shipments/55555555-5555-4555-8555-555555555555')
       data = {
         ...fixture.shipment,
@@ -180,7 +190,7 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
   });
   await page.goto(origin + (source.nativeWorkspace ? '/app/core' : '/app/'));
   await page
-    .locator(source.phase || source.offline ? '.connection-state' : '.ops-stat')
+    .locator(source.phase || source.offline ? '.connection-state' : source.customer ? '.fleet-map-workspace' : '.ops-stat')
     .first()
     .waitFor();
   if (source.errors?.length) throw new Error('Fixture script errors: ' + source.errors.join('; '));

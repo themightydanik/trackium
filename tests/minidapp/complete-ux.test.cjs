@@ -13,7 +13,7 @@ async function navigate(page, route) {
           dashboard: 'Overview',
           shipments: 'Shipments',
           devices: 'Devices',
-          map: 'Live Map',
+          map: 'Fleet Map',
           events: 'Events',
           proofs: 'Proofs',
           settings: 'Settings'

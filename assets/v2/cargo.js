@@ -304,7 +304,8 @@
   }
   function page() {
     const route = location.hash.slice(1);
-    return pages.some((p) => p[0] === route) ? route : 'dashboard';
+    return pages.some((p) => p[0] === route) ? route :
+      !state.demo && server.state.session?.customer && !server.state.nativeWorkspace ? 'map' : 'dashboard';
   }
   function badge(text, kind = 'neutral') {
     return '<span class="badge ' + kind + '">' + escape(text) + '</span>';
@@ -1064,10 +1065,15 @@
     }
     if (!changedIdentity && renderedPage && renderedPage !== current)
       (serverViews[renderedPage] ||= {}).scroll = window.scrollY;
+    const fleet = lite && current === 'map' && server.state.connected && !state.demo && server.state.data
+      ? (serverViews.map ||= {}) : null;
+    if (fleet && !server.state.data.shipments.some(s => s.id === fleet.shipment)) fleet.shipment = null;
+    server.watchRoadRoute(fleet?.shipment);
+    const mapFleet = fleet ? {selected:fleet.shipment,layers:fleet.layers || {},road:server.state.roadRoute} : null;
     const sameContext = renderedIdentity === identity && renderedPage === current;
     if (snapshot && lite && sameContext && server.state.connected && !state.demo && $('#main .page-heading')) {
       reconcile($('#main'), authenticatedMarkup(current).content);
-      TrackiumComponents.mountMap(server.state.data, current);
+      TrackiumComponents.mountMap(server.state.data, current, mapFleet);
       updateGatewayStatus();
       return;
     }
@@ -1130,9 +1136,12 @@
       renderedIdentity = identity;
       renderedPage = current;
     }
+    const navPages = lite && !state.demo
+      ? [['map', 'Fleet Map'], ...pages.filter(([id]) => id !== 'map')]
+      : pages;
     if (navigationKey !== current + '/' + state.demo) {
       navigationKey = current + '/' + state.demo;
-      $('#navigation').innerHTML = pages
+      $('#navigation').innerHTML = navPages
         .map(
           ([id, label]) =>
             '<a href="#' +
@@ -1157,12 +1166,12 @@
       if (!quickNav.childElementCount || quickPage !== '#' + current) {
         for (const link of quickNav.querySelectorAll('[aria-current]')) link.removeAttribute('aria-current');
         if (!quickNav.childElementCount) quickNav.innerHTML = [
-          ['dashboard', 'Overview'], ['shipments', 'Shipments'], ['devices', 'Devices'], ['map', 'Map']
+          ['map', 'Map'], ['shipments', 'Shipments'], ['devices', 'Devices'], ['dashboard', 'Overview']
         ].map(([id, label]) => '<a href="#' + id + '">' + icon(id) + '<span>' + label + '</span></a>').join('');
         quickNav.querySelector('[href="#' + current + '"]')?.setAttribute('aria-current', 'page');
       }
     }
-    $('#breadcrumb').textContent = pages.find((p) => p[0] === current)[1];
+    $('#breadcrumb').textContent = navPages.find((p) => p[0] === current)[1];
     $('#demo-toggle').setAttribute('aria-checked', String(state.demo));
     $('#demo-banner').hidden = !state.demo;
     $('#workspace-label').textContent = state.demo
@@ -1170,7 +1179,7 @@
       : server.state.connected
         ? 'Tenant workspace · authenticated snapshot'
         : 'Local workspace · not paired';
-    document.title = pages.find((p) => p[0] === current)[1] +
+    document.title = navPages.find((p) => p[0] === current)[1] +
       (TrackiumServer.enabled ? ' · Trackium Lite' : ' · Trackium Core');
     const views = {
       dashboard,
@@ -1221,7 +1230,7 @@
       }
       if (membersOpen && $('#company-members')) $('#company-members').open = true;
       if (server.state.connected && server.state.data)
-        TrackiumComponents.mountMap(server.state.data, current);
+        TrackiumComponents.mountMap(server.state.data, current, mapFleet);
       restoreView();
       return;
     }
@@ -1233,7 +1242,7 @@
             'Gateway not paired. Open the HTTPS Gateway workspace configured in Settings; pairing happens on its own origin.'
         }) +
         '<section class="panel server-content"><h2>' +
-        escape(pages.find((p) => p[0] === current)[1]) +
+        escape(navPages.find((p) => p[0] === current)[1]) +
         '</h2><p>' +
         (current === 'proofs' ? 'No blockchain proofs published. ' : '') +
         'No authenticated records are loaded in this standalone workspace.</p><a class="button primary" href="#settings">Configure Gateway</a>' +
@@ -1413,8 +1422,25 @@
   syncMenu();
   document.addEventListener('click', async function (event) {
     const target = event.target.closest('button, a');
+    if (target?.hasAttribute('data-fleet-fit')) {
+      const id = serverViews.map?.shipment;
+      if (id) TrackiumComponents.focusShipment(id);
+      return;
+    }
+    if (target?.hasAttribute('data-fleet-retry')) {
+      server.watchRoadRoute(serverViews.map?.shipment,true);
+      return;
+    }
+    if (target?.dataset.fleetShipment) {
+      selectFleetShipment(target.dataset.fleetShipment);
+      const picker = $('#map-selection');
+      if (picker) picker.value = 'shipment:' + target.dataset.fleetShipment;
+      return;
+    }
     if (target?.hasAttribute('data-fit-report-map')) {
-      TrackiumComponents.focusMap($('#map-selection')?.value ?? '');
+      const key = $('#map-selection')?.value ?? '';
+      if (key.startsWith('shipment:')) TrackiumComponents.focusShipment(key.slice(9));
+      else TrackiumComponents.focusMap(key);
       return;
     }
     if (!target) return;
@@ -1694,7 +1720,7 @@
       if (result.signed_in) {
         companyMembers = null;
         companyMembersTenant = null;
-        if (location.hash === entryRoute && page() !== 'dashboard') location.hash = 'dashboard';
+        if (location.hash === entryRoute && page() !== 'map') location.hash = 'map';
       } else if (action === 'register' || action === 'recover') {
         customerScreen = action === 'register' ? 'verify' : 'reset';
         render();
@@ -1799,7 +1825,17 @@
           : 'Profile could not be saved. Browser storage may be unavailable.';
     }
   });
+  function selectFleetShipment(id) {
+    const view = (serverViews.map ||= {});
+    view.shipment = id;
+    render(true);
+  }
   document.addEventListener('input', function (event) {
+    if (event.target.id === 'fleet-query') {
+      (serverViews.map ||= {}).fleetQuery = event.target.value;
+      render(true);
+      return;
+    }
     if (event.target.id === 'server-search') {
       const view = (serverViews[page()] ||= {});
       view.query = event.target.value;
@@ -1820,6 +1856,22 @@
     }
   });
   document.addEventListener('change', function (event) {
+    if (event.target.id === 'fleet-filter') {
+      (serverViews.map ||= {}).fleetFilter = event.target.value;
+      render(true);
+      return;
+    }
+    if (event.target.id === 'map-selection' && lite) {
+      const key = event.target.value;
+      selectFleetShipment(key.startsWith('shipment:') ? key.slice(9) : null);
+      return;
+    }
+    if (event.target.dataset.fleetLayer) {
+      const view = (serverViews.map ||= {});
+      (view.layers ||= {})[event.target.dataset.fleetLayer] = event.target.checked;
+      render(true);
+      return;
+    }
     if (['server-sort', 'server-order'].includes(event.target.id)) {
       const view = (serverViews[page()] ||= {});
       view[event.target.id === 'server-sort' ? 'sort' : 'order'] = event.target.value;

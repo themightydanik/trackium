@@ -373,6 +373,7 @@ test(
     await details.locator('[data-action=close-dialog]').click();
 
     await page.locator('#navigation a[href="#map"]').click();
+    await page.locator('.fleet-directory summary').click();
     const card = page.locator('.geo-directory').getByRole('listitem').filter({ hasText: physical.label });
     assert.match(await card.innerText(), /Current position\s+Unavailable[\s\S]*unverified/);
     assert.doesNotMatch(await card.innerText(), /Latitude|Longitude/);
@@ -477,6 +478,7 @@ test(
     )).rows[0].n === 3);
     await page.locator('#navigation a[href="#map"]').click();
     await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await page.locator('.fleet-directory:not([open]) summary').click();
     await card.getByText('Last known fix (UTC)', { exact: true }).waitFor();
     assert.match(await card.innerText(), /Gateway received[\s\S]*unverified/);
     assert.equal(await page.locator('.ux-device-position').count(), 2);
@@ -861,7 +863,8 @@ test('New customer registers, adds a company and creates a shipment visible on t
   await page.getByRole('button', {name:'Sign in',exact:true}).click();
   await page.getByLabel('Company name').fill('Northline Logistics');
   await page.getByRole('button', {name:'Create company'}).click();
-  await page.getByRole('heading', {name:'Overview',exact:true}).waitFor();
+  await page.getByRole('heading', {name:'Fleet Map',exact:true}).waitFor();
+  await page.locator('#navigation a[href="#dashboard"]').click();
   await capture('02-dashboard');
   await page.locator('#navigation a[href="#settings"]').click();
   await page.getByLabel('Device label').fill('Unbound pilot device');
@@ -879,6 +882,20 @@ test('New customer registers, adds a company and creates a shipment visible on t
   await page.getByRole('button', {name:'Save draft on Gateway'}).click();
   await page.getByText('Northline pilot cargo',{exact:true}).first().waitFor();
   await capture('03-shipments');
+  const {rows:[shipment]} = await db.query("SELECT tenant_id,id FROM cargo_shipments WHERE name='Northline pilot cargo'");
+  const {rows:[member]} = await db.query("SELECT account_id FROM customer_members WHERE tenant_id=$1 AND role='owner'",
+    [shipment.tenant_id]);
+  const {createRouteRevisions} = await import('../../services/gateway/src/routing/revisions.js');
+  const keys = [shipment.tenant_id,shipment.id];
+  const stops = [{latitude:51.11,longitude:17.04},{latitude:50.45,longitude:30.52}];
+  const roadRoutes = createRouteRevisions(db,{calculate:async () => ({
+    profile:'auto', calculated_at:'2026-01-01T00:00:00Z', graph:{id:'a'.repeat(64),engine_version:'3.6.3',osm_snapshot:null},
+    route:{geometry_format:'polyline6',distance_m:1050000,estimated_duration_s:40000,legs:[{shape:'_kxg`B_crl_@~b`|@_smxW',maneuvers:[]}]}
+  })});
+  const route = await roadRoutes.propose(member,keys,{profile:'auto', points:stops},0,randomUUID());
+  await roadRoutes.transition(member,keys,route.revision.id,'approve',1);
+  await roadRoutes.transition(member,keys,route.revision.id,'activate',2);
+
   await page.locator('#navigation a[href="#map"]').click();
   await page.locator('.leaflet-container').waitFor();
   assert.equal(await page.locator('.ux-device-position').count(),0);
@@ -887,6 +904,10 @@ test('New customer registers, adds a company and creates a shipment visible on t
   await page.locator('#detail-dialog[open]').waitFor();
   assert.match(await page.locator('#detail-dialog').innerText(), /Northline pilot cargo/);
   await page.keyboard.press('Escape');
+  await page.locator('.fleet-manifest-list button').filter({hasText:'Northline pilot cargo'}).click();
+  await page.getByText('Active · v1',{exact:true}).waitFor();
+  await page.locator('.fleet-road-line').waitFor();
+  assert.equal(await page.locator('.ux-device-position').count(),0);
   await capture('04-map');
   await page.locator('#navigation a[href="#shipments"]').click();
   await page.getByRole('button', { name:'Activate', exact:true }).click();
@@ -921,7 +942,7 @@ test('New customer registers, adds a company and creates a shipment visible on t
   await page.getByLabel('Work email').fill('new@example.test');
   await page.getByLabel('Password', {exact:true}).fill('new browser fixture password');
   await page.getByRole('button', {name:'Sign in',exact:true}).click();
-  await page.getByRole('heading', {name:'Overview',exact:true}).waitFor();
+  await page.getByRole('heading', {name:'Fleet Map',exact:true}).waitFor();
   assert.equal(new URL(page.url()).origin, origin);
   assert.deepEqual(failures,[]);
 });
@@ -978,7 +999,7 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
   await page.getByRole('textbox',{name:'Username'}).fill('trackium-demo');
   await page.getByLabel('Password',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
-  await page.getByRole('heading',{name:'Overview',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Fleet Map',exact:true}).waitFor();
   await page.evaluate(() => { location.hash = 'shipments'; });
   await page.getByRole('heading',{name:'Shipments',exact:true}).waitFor();
   await page.getByText('Demo · chilled cargo',{exact:true}).waitFor();
@@ -1013,7 +1034,7 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
   await page.getByRole('textbox',{name:'Username'}).fill('trackium-demo');
   await page.getByLabel('Password',{exact:true}).fill(pilotPassword);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
-  await page.getByRole('heading',{name:'Overview',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Fleet Map',exact:true}).waitFor();
   await page.locator('#navigation a[href="#devices"]').click();
   const enrollment = page.getByRole('button',{name:'Register and bind tracker'});
   await enrollment.waitFor();
@@ -1031,7 +1052,7 @@ test('Closed demo preserves its login through promotion and enrolls a tracker fr
   const offlineViews = [
     ['dashboard',1440,'Overview'], ['shipments',1024,'Shipments'], ['devices',768,'Devices'],
     ['events',768,'Event history'], ['proofs',1024,'Proof records'],
-    ['settings',320,'Company settings'], ['map',1440,'Routes & reported positions']
+    ['settings',320,'Company settings'], ['map',1440,'Fleet Map']
   ];
   for (const [route, width, heading] of offlineViews) {
     await page.setViewportSize({ width, height: width >= 768 ? 960 : 860 });
