@@ -163,7 +163,7 @@ test('draft identity discards late calculations and protects selection, role and
       assert.equal(await page.getByRole('textbox',{name:'Origin latitude'}).inputValue(),'');
       await page.getByRole('textbox',{name:'Origin latitude'}).fill('48');
       page.once('dialog',dialog => dialog.dismiss());
-      await page.locator('#navigation a[href="#shipments"]').click();
+      await page.locator('#lite-bottom-nav a[href="#shipments"]').click();
       await page.waitForFunction(() => location.hash === '#map');
       assert.equal(await page.getByRole('textbox',{name:'Origin latitude'}).inputValue(),'48');
       source.tenant = 'replacement-company';
