@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { readdir, readFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, symlink } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import pg from 'pg';
 import { encodeAovxFrame, decodeAovxFrame } from '../src/aovx/frame.js';
 import { administerPilot } from '../src/cargo/pilot-admin.js';
@@ -17,6 +20,9 @@ import { persistPacket } from '../src/journal.js';
 import { changeCustomerAccess, customerStatus, provisionCustomer } from '../src/managed/service.js';
 import { createIntegritas } from '../src/proofs/integritas.js';
 import { verifyBundle } from '../src/proofs/verifier.js';
+import { decodeShape } from '../src/routing/contract.js';
+import { createRouteRevisions } from '../src/routing/revisions.js';
+import { migrate } from '../src/telemetry/migrate.js';
 import { createTelemetryService, provisionTenant } from '../src/telemetry/service.js';
 
 const image = 'postgres@sha256:1d5b02d3a9941fbd52437db4107f8c52d6297dac553ca1e5c299ebb3756b4857';
@@ -52,16 +58,16 @@ const restore = (database, archive) =>
   docker(['exec', '-i', name, 'pg_restore', '-U', 'postgres', '--single-transaction',
     '--exit-on-error', '--no-owner', '--no-acl', '-d', database], { input: archive });
 
-function openDatabase(port, database) {
+function openDatabase(port, database, options = '-c search_path=public') {
   return new pg.Pool({
     host: '127.0.0.1', port, database, user: 'postgres', password, ssl: false,
-    options: '-c search_path=public', connectionTimeoutMillis: 3000, statement_timeout: 10000
+    options, connectionTimeoutMillis: 3000, statement_timeout: 10000
   });
 }
 
-function gatewayFor(port, database) {
+function gatewayFor(port, database, runtimeFactory = createRuntime) {
   const db = openDatabase(port, database);
-  const runtime = createRuntime(db, {
+  const runtime = runtimeFactory(db, {
     ...readConfig({ DATABASE_URL: 'local-drill', PROOF_MODE: 'test', ENABLE_TCP_RECEIVER: 'false' }),
     host: '127.0.0.1', httpPort: 0
   }, { worker: false, logger: { info() {}, warn() {}, error() {} } });
@@ -105,7 +111,7 @@ async function fixture(db, runtime) {
   assert.equal((await integritas.bundle(owner.tenant_id, prepared.id)).proof.status, 'verified');
   assert.equal(delivered.state, 'delivered');
   assert.equal(delivered.attempts, 1);
-  return { owner, other, device, bcd, shipment, managed, previousOwner };
+  return { owner, other, device, bcd, shipment, managed, previousOwner, account };
 }
 
 function packet(db, bcd, sequenceNumber) {
@@ -118,7 +124,7 @@ function packet(db, bcd, sequenceNumber) {
   }, db);
 }
 
-async function snapshot(db) {
+async function snapshot(db, includeRoutes = true) {
   const tables = [
     ['gateway_schema_migrations', 'version'],
     ['managed_customers', 'customer_id'],
@@ -127,7 +133,7 @@ async function snapshot(db) {
     ['customer_demo_pilot', 'account_id'],
     ['customer_aovx_approvals', 'identifier_sha256'],
     ['customer_demo_pilot_audit', 'id'],
-    ['customer_members', 'account_id'],
+    ['customer_members', 'account_id, tenant_id'],
     ['customer_sessions', 'id'],
     ['customer_mail_tokens', 'token_hash'],
     ['customer_mail_jobs', 'id'],
@@ -138,8 +144,8 @@ async function snapshot(db) {
     ['telemetry_events', 'id'],
     ['telemetry_aovx_packet_events', 'packet_id'],
     ['cargo_shipments', 'id'],
-    ['cargo_checkpoints', 'ordinal'],
-    ['cargo_events', 'sequence'],
+    ['cargo_checkpoints', 'tenant_id, shipment_id, ordinal'],
+    ['cargo_events', 'tenant_id, shipment_id, sequence'],
     ['cargo_outbox', 'event_id'],
     ['cargo_notification_preferences', 'tenant_id'],
     ['cargo_notification_deliveries', 'event_id'],
@@ -150,6 +156,11 @@ async function snapshot(db) {
     ['cargo_proof_states', 'id'],
     ['cargo_proof_attempts', 'id']
   ];
+  if (includeRoutes) tables.push(
+    ['cargo_road_route_revisions', 'tenant_id, shipment_id, version'],
+    ['cargo_road_route_heads', 'tenant_id, shipment_id'],
+    ['cargo_road_route_audit', 'tenant_id, shipment_id, generation, state']
+  );
   const result = {};
   for (const [table, order] of tables)
     result[table] = (await db.query('SELECT * FROM ' + table + ' ORDER BY ' + order)).rows;
@@ -245,6 +256,98 @@ async function exportEvidence(runtime, { owner, other }, proofId) {
   return bundle;
 }
 
+const b2Commit = 'e97647e98d0c44b6e6c773dfc0c34d4a490ef01a';
+const gatewayDirectory = new URL('../', import.meta.url);
+let b2Directory;
+async function loadB2() {
+  b2Directory = await mkdtemp(join(tmpdir(), 'trackium-b2-source-'));
+  const archive = execFileSync('git', ['archive', b2Commit, 'services/gateway'], {
+    cwd: new URL('../../../', import.meta.url), maxBuffer: 16 * 1024 * 1024
+  });
+  execFileSync('tar', ['-xf', '-', '-C', b2Directory], {input:archive});
+  const oldGateway = join(b2Directory,'services/gateway');
+  assert.deepEqual(await readFile(join(oldGateway,'package-lock.json')),
+    await readFile(new URL('package-lock.json',gatewayDirectory)), 'B2 dependencies must match the pinned lockfile');
+  await symlink(fileURLToPath(new URL('node_modules',gatewayDirectory)), join(oldGateway,'node_modules'), 'dir');
+  return (await import(pathToFileURL(join(oldGateway,'src/cargo/runtime.js')).href)).createRuntime;
+}
+
+async function seedRoadRoutes(db, seeded) {
+  const keys = [seeded.owner.tenant_id, seeded.shipment.id];
+  const points = [{latitude:51,longitude:17},{latitude:50,longitude:30}];
+  const actor = {account_id:seeded.account};
+  const stored = [];
+  const shapes = ['_kxg`B_crl_@~b`|@_smxW','_kxg`B_crl_@~flW_{fjL~zrc@_wemJ'];
+  // Controlled road-planning results for storage acceptance only. No observations or engine calls.
+  for (const [index, digit] of ['1','2'].entries()) {
+    const calculation = {
+      profile:'auto', calculated_at:'2026-01-01T00:00:00.000Z',
+      graph:{id:digit.repeat(64),engine_version:'3.6.3',osm_snapshot:'2026-01-01'},
+      route:{geometry_format:'polyline6',distance_m:950000 + index * 1000,estimated_duration_s:36000 + index * 60,
+        legs:[{shape:shapes[index],distance_m:950000 + index * 1000,
+          estimated_duration_s:36000 + index * 60,
+          maneuvers:[{type:1,instruction:'Continue on fixture road',distance_m:950000 + index * 1000,
+            estimated_duration_s:36000 + index * 60,begin_shape_index:0,end_shape_index:index+1}]}]},
+      alternatives:{status:'unsupported',routes:[]},warnings:['STATIC_OSM_SNAPSHOT']
+    };
+    const service = createRouteRevisions(db,{calculate:async () => calculation});
+    const {revision} = await service.propose(actor,keys,{profile:'auto',points},index*3,randomUUID());
+    await service.transition(actor,keys,revision.id,'approve',index*3+1);
+    await service.transition(actor,keys,revision.id,'activate',index*3+2);
+    stored.push({id:revision.id,calculation});
+  }
+  return {keys,actor,stored,points};
+}
+
+async function verifyRoadRoutes(db, state, fixture) {
+  const {keys,actor,stored,points} = fixture;
+  const service = createRouteRevisions(db,null);
+  assert.equal(state.cargo_road_route_revisions.length,2);
+  assert.equal(state.cargo_road_route_heads.length,1);
+  assert.equal(state.cargo_road_route_audit.length,7);
+  const active = await service.read(keys,'active');
+  assert.equal(active.generation,6);
+  assert.equal(active.active_revision_id,stored[1].id);
+  assert.equal(active.revision.id,stored[1].id);
+  for (const [index, saved] of stored.entries()) {
+    const {revision} = await service.read(keys,'detail',[saved.id]);
+    assert.equal(revision.version,index+1);
+    assert.equal(revision.state,index === 0 ? 'superseded' : 'active');
+    assert.deepEqual(revision.stops,points);
+    assert.deepEqual(revision.calculation,saved.calculation);
+    const geometry = decodeShape(revision.calculation.route.legs[0].shape);
+    assert.deepEqual([geometry[0],geometry.at(-1)],points);
+    assert.deepEqual(revision.audit.map(row => row.state),index === 0
+      ? ['proposed','approved','active','superseded'] : ['proposed','approved','active']);
+    assert.deepEqual(revision.audit.map(row => row.generation),index === 0 ? [1,2,3,6] : [4,5,6]);
+    for (const row of revision.audit) {
+      assert.equal(row.actor_account_id,actor.account_id);
+      assert.ok(Number.isFinite(Date.parse(row.occurred_at)));
+    }
+  }
+}
+
+async function verifyRouteConstraints(db, fixture, otherTenant) {
+  const {keys,stored} = fixture;
+  const [first,second] = stored;
+  await assert.rejects(db.query('UPDATE cargo_road_route_revisions SET calculation=calculation WHERE id=$1',[first.id]),/immutable/);
+  await assert.rejects(db.query('DELETE FROM cargo_road_route_audit WHERE revision_id=$1',[first.id]),/immutable/);
+  await assert.rejects(db.query('UPDATE cargo_road_route_heads SET active_revision_id=$3 WHERE tenant_id=$1 AND shipment_id=$2',
+    [...keys,randomUUID()]),{code:'23503'});
+  // Heads on a different shipment, both within and outside the original tenant.
+  for (const tenant of [keys[0],otherTenant]) {
+    const id = randomUUID();
+    await assert.rejects(transaction(db,null,async client => {
+      const device = await createTelemetryService(db).register(tenant,
+        {mode:'synthetic',label:'Restore FK fixture'},undefined,client);
+      await client.query(`INSERT INTO cargo_shipments(id,tenant_id,name,device_id,source_trust,route,conditions)
+        VALUES($1,$2,'FK fixture',$3,'synthetic','[]','{}')`,[id,tenant,device.id]);
+      await client.query(`INSERT INTO cargo_road_route_heads(tenant_id,shipment_id,generation,active_revision_id)
+        VALUES($1,$2,6,$3)`,[tenant,id,second.id]);
+    }), {code:'23503'});
+  }
+}
+
 let clusterCreated = false;
 let gateway;
 try {
@@ -269,10 +372,68 @@ try {
   for (const database of [source, recovered, damaged, incomplete])
     inside('createdb', '-U', 'postgres', '-T', 'template0', database);
 
+  const b2 = await loadB2();
+  gateway = gatewayFor(port, source, b2);
+  await gateway.runtime.gateway.start();
+  const seeded = await fixture(gateway.db, gateway.runtime);
+  const before = await snapshot(gateway.db,false);
+  assert.equal(before.gateway_schema_migrations.at(-1).version,16);
+  assert.equal(before.cargo_shipments.length,1);
+  assert.equal(before.cargo_checkpoints.length,2);
+  await gateway.runtime.gateway.shutdown();
+  gateway = undefined;
+
+  const upgrade = openDatabase(port,source);
+  const bounded = openDatabase(port,source,'-c search_path=public -c lock_timeout=2s');
+  const blocker = await upgrade.connect();
+  try {
+    await blocker.query('BEGIN');
+    await blocker.query('LOCK TABLE cargo_shipments IN ROW EXCLUSIVE MODE');
+    const timedOut = assert.rejects(migrate(bounded),{code:'55P03'});
+    let waiting;
+    const lockDeadline = Date.now() + 1500;
+    do {
+      const {rows} = await upgrade.query(`SELECT mode FROM pg_locks
+        WHERE relation='cargo_shipments'::regclass AND NOT granted`);
+      waiting = rows.map(row => row.mode);
+      if (waiting.length) break;
+      await delay(25);
+    } while (Date.now() < lockDeadline);
+    await timedOut;
+    assert.deepEqual(waiting,['ShareRowExclusiveLock']);
+    assert.deepEqual(await snapshot(upgrade,false),before);
+    assert.equal((await upgrade.query("SELECT to_regclass('cargo_road_route_revisions') AS relation")).rows[0].relation,null);
+  } finally {
+    await blocker.query('ROLLBACK');
+    blocker.release();
+    await bounded.end();
+    await upgrade.end();
+  }
+
   gateway = gatewayFor(port, source);
   await gateway.runtime.gateway.start();
   const { db, runtime } = gateway;
-  const seeded = await fixture(db, runtime);
+  const after = await snapshot(db,false);
+  assert.equal(after.gateway_schema_migrations.pop().version,17);
+  assert.deepEqual(after,before);
+  const catalog = await db.query(`SELECT
+    (SELECT count(*)::int FROM pg_constraint WHERE conrelid IN
+      ('cargo_road_route_heads'::regclass,'cargo_road_route_audit'::regclass,'cargo_road_route_revisions'::regclass)
+      AND contype='f') AS foreign_keys,
+    to_regclass('cargo_road_route_audit_revision') IS NOT NULL AS audit_index,
+    (SELECT count(*)::int FROM pg_trigger WHERE NOT tgisinternal AND tgname IN
+      ('cargo_road_route_audit_immutable','cargo_road_route_revision_immutable')) AS immutable_triggers`);
+  assert.deepEqual(catalog.rows[0],{foreign_keys:5,audit_index:true,immutable_triggers:2});
+  const routes = await seedRoadRoutes(db,seeded);
+  const upgraded = await snapshot(db);
+  await verifyRoadRoutes(db,upgraded,routes);
+  await migrate(db);
+  assert.deepEqual(await snapshot(db),upgraded);
+  await db.query("UPDATE gateway_schema_migrations SET checksum='bad' WHERE version=17");
+  await assert.rejects(migrate(db),/checksum mismatch/);
+  await db.query("UPDATE gateway_schema_migrations SET checksum=$1 WHERE version=17",[upgraded.gateway_schema_migrations.at(-1).checksum]);
+  assert.deepEqual(await snapshot(db),upgraded);
+  console.log('PASS: populated v016 upgrade, DDL lock timeout rollback, idempotency and rejected v017 checksum mismatch');
   // Back up one acknowledged job, one expired lease and one pending job.
   const jobs = await claimOutbox(db);
   const created = jobs.find(job => job.event_type === 'shipment_created');
@@ -339,11 +500,25 @@ try {
 
   const recoveryStart = performance.now();
   restore(recovered, archive);
+  gateway = gatewayFor(port, recovered, b2);
+  await gateway.runtime.gateway.start();
+  const b2Response = await fetch('http://127.0.0.1:' + gateway.runtime.gateway.api.address().port +
+    '/v1/shipments/' + seeded.shipment.id, {
+    headers:{authorization:'Bearer ' + seeded.owner.token},signal:AbortSignal.timeout(5000)
+  });
+  assert.equal(b2Response.status,200);
+  assert.equal((await b2Response.json()).id,seeded.shipment.id);
+  assert.deepEqual(await snapshot(gateway.db),baseline);
+  await gateway.runtime.gateway.shutdown();
   gateway = gatewayFor(port, recovered);
   await gateway.runtime.gateway.start();
   const restored = await snapshot(gateway.db);
   await verifyMigrations(restored.gateway_schema_migrations);
   assert.deepEqual(restored, baseline, 'restore and startup changed the backup evidence');
+  await verifyRoadRoutes(gateway.db,restored,routes);
+  await verifyRouteConstraints(gateway.db,routes,seeded.other.tenant_id);
+  console.log('PASS: restored two road revisions, graphs, geometry, seven audit rows and active head at generation 6');
+  console.log('PASS: Gateway B3 → B2 (' + b2Commit + ') → B3 without modifying restored history; offline reads verified');
   verifyHistory(restored, seeded, { linkCount: 2, sampleCount: 1 });
   const restoredPilot = await administerPilot(gateway.db, 'inspect');
   assert.equal(restoredPilot.pilot_tenant_id, pilot.pilot_tenant_id);
@@ -403,6 +578,7 @@ try {
   try {
     await gateway?.runtime.gateway.shutdown();
   } finally {
-    if (clusterCreated) docker(['rm', '-f', '-v', name]);
+    try { if (clusterCreated) docker(['rm', '-f', '-v', name]); }
+    finally { if (b2Directory) await rm(b2Directory,{recursive:true,force:true}); }
   }
 }

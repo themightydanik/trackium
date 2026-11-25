@@ -110,6 +110,7 @@ if (profile === 'revisions') {
   assert.equal((await call(other,path,proposal)).status,404);
   assert.equal((await call({...owner},path,proposal,{'x-csrf-token':''})).status,403);
   assert.equal((await call(owner,path,{...proposal,graph_id:'forged'})).status,400);
+  assert.equal((await call(owner,path,{...proposal,version:99})).status,400);
   const db = new pg.Pool({connectionString:process.env.DATABASE_URL});
   try {
     const apiKey = await provisionTenant(db,'Disposable route revisions API key');
@@ -142,7 +143,13 @@ if (profile === 'revisions') {
   assert.equal(compared.status,200);
   assert.ok(compared.payload.delta.distance_m > 0);
   assert.equal((await call(owner,path + '/' + second.id + '/approve',{expected_generation:4})).status,200);
-  assert.equal((await call(owner,path + '/' + second.id + '/activate',{expected_generation:5})).status,200);
+  const activations = await Promise.all([1,2].map(() =>
+    call({...owner},path + '/' + second.id + '/activate',{expected_generation:5})));
+  assert.deepEqual(activations.map(result => result.status).sort(),[200,409]);
+  assert.equal(activations.find(result => result.status === 409).payload.code,'ROUTE_GENERATION_CONFLICT');
+  const listing = (await call(owner,path)).payload;
+  assert.equal(listing.generation,6);
+  assert.deepEqual(listing.revisions.map(route => route.version),[2,1]);
   const old = (await call(owner,path + '/' + first.id)).payload.revision;
   assert.equal(old.state,'superseded');
   assert.deepEqual(old.calculation,first.calculation);
