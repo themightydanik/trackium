@@ -41,6 +41,7 @@ jobs:
             jq -e '.networks.routing.internal and (.services.valhalla.ports // [] | length == 0)'
           export VALHALLA_RUN_AS="$(id -u):$(id -g)"
           docker compose -f routing/valhalla/compose.yaml up -d --wait --wait-timeout 120
+          docker compose -f routing/valhalla/compose.yaml exec -T valhalla python3 -c "from pathlib import Path; p=Path('/sys/fs/cgroup'); quota, period=map(int,(p/'cpu.max').read_text().split()); assert quota == period*2; assert int((p/'memory.max').read_text()) == 4*1024**3; assert int((p/'pids.max').read_text()) == 96"
           docker compose -f routing/valhalla/compose.yaml exec -T valhalla python3 - fixture < routing/valhalla/probe.py
       - name: Collect failure logs and shut down
         if: always()

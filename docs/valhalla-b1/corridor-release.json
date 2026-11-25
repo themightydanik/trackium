@@ -1,0 +1,152 @@
+{
+  "source": {
+    "coverage": "United pilot graph: Ukraine, Poland, Moldova, Romania, Belgium, Germany and Netherlands windows, selected northern French regions; arterial pilot, local street coverage is incomplete",
+    "snapshot_cutoff": "2026-11-25T00:00:00Z",
+    "sources": [
+      {
+        "file": "ukraine.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/ukraine/ukraine-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 885655410,
+        "sha256": "f0152372d34100e554308439448765cf7d2ed3ddeef00c8a93ed97944bac4e7e"
+      },
+      {
+        "file": "moldova.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/moldova/moldova-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 101581932,
+        "sha256": "50e5176a1aa91bc9c0ee0e6b82be2435ca56577f155ff2284c1c96c0d2f3a273"
+      },
+      {
+        "file": "romania.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/romania/romania-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 334106678,
+        "sha256": "01de6ef16ecb2cdb87fa80843f6c76a5e186ddb9b70628acb4e3fa1c9e917cbb"
+      },
+      {
+        "file": "poland.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/poland/poland-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 2122590075,
+        "sha256": "8d11b5d8b2ba2268e0f482d1f165a5335838f1dd8298ea890c33a27beb5d7dca"
+      },
+      {
+        "file": "germany.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/germany/germany-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 4890628310,
+        "sha256": "daf5527b6e2373cb866471fc73ce4273df33cb6c9290777903ef1633b6b19755",
+        "download_mirror": "https://ftp.gwdg.de/pub/misc/openstreetmap/download.geofabrik.de/germany-latest.osm.pbf",
+        "bounds": [
+          5.7,
+          50.3,
+          15.2,
+          53.25
+        ]
+      },
+      {
+        "file": "netherlands.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/netherlands/netherlands-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 1413268105,
+        "sha256": "f3b47b895c11aa402d29ebf9b145f6ac0101813b7d56bb8917021cf2c4f03506",
+        "bounds": [
+          4.6,
+          50.6,
+          7.35,
+          52.1
+        ]
+      },
+      {
+        "file": "belgium.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/belgium/belgium-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 699945414,
+        "sha256": "4a3ca1d24b0069ecf62904b6101d76a891c0e1640cfd5256ed8a177722078f40"
+      },
+      {
+        "file": "nord-pas-de-calais.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/france/nord-pas-de-calais/nord-pas-de-calais-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 242002358,
+        "sha256": "d6248953fec97549ca0c7ca6302031650dd6d3a95fc82b4b47b885ae490cf96b"
+      },
+      {
+        "file": "picardie.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/france/picardie/picardie-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 133707747,
+        "sha256": "fa2eb6087479c6b6e2026f694d9ff7ae21b028549cf475577fc201a15f2a22d7"
+      },
+      {
+        "file": "ile-de-france.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/france/ile-de-france/ile-de-france-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 340821627,
+        "sha256": "de61a44c79f0996775eeb3fad2b9d0a226ab9b03619c9f9ef5e6d2cf67f65b95"
+      },
+      {
+        "file": "champagne-ardenne.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/france/champagne-ardenne/champagne-ardenne-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 105885650,
+        "sha256": "964866973f64c4bd6637e225bb03c2994a9ba76da952b8183df58fe58463cf72"
+      },
+      {
+        "file": "lorraine.osm.pbf",
+        "url": "https://download.geofabrik.de/europe/france/lorraine/lorraine-261124.osm.pbf",
+        "snapshot": "2026-11-24T21:21:23Z",
+        "bytes": 172202378,
+        "sha256": "010a5abf7642e42e30e9109af095e7bbe36acd2ee3ff230bf729cd9dfb716914"
+      }
+    ],
+    "preprocessing": {
+      "osmium": "osmium version 1.18.0",
+      "filters": [
+        "w/highway",
+        "w/route=ferry",
+        "r/route=ferry",
+        "r/type=restriction",
+        "r/type=connectivity"
+      ],
+      "extract_strategy": "complete_ways",
+      "merge": "OSM object IDs then latest visible version at snapshot_cutoff"
+    },
+    "inputs": [
+      {
+        "file": "arterial.osm.pbf",
+        "sha256": "544a0d3b8bcbca1a0ae97440abed0dd5d42adb025b669836baeab9e35a3fdb8f",
+        "bytes": 299456255
+      }
+    ],
+    "arterial_selection": {
+      "parent_pbf": {
+        "file": "corridors.osm.pbf",
+        "sha256": "70c79f3c5c65a36fcaf4f40d74043f23ce80136d9376dc1ad5a5c2deef9fbf1e",
+        "bytes": 1813961085
+      },
+      "filters": [
+        "w/highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary,secondary_link,tertiary,tertiary_link",
+        "w/route=ferry",
+        "r/route=ferry",
+        "r/type=restriction",
+        "r/type=connectivity"
+      ]
+    }
+  },
+  "engine": "ghcr.io/valhalla/valhalla:3.6.3@sha256:2b19ea46551a9687b245022551183829d817fdee9b58c5e7b2adb6e422749c43",
+  "configuration_sha256": "04b4269d60331d29c8f3203107f83545979d9f76a90d1c025a060410576702b0",
+  "graph_manifest_sha256": "09faea6fff0298b6c1c3b955b35ef1c8ee62748ec11e2b8fdf94d08601b07674",
+  "graph_id": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+  "built_at": "2026-11-25T11:59:01.304900+00:00",
+  "metrics": {
+    "wall_seconds": 338.54,
+    "cpu_user_seconds": 574.964999,
+    "cpu_system_seconds": 280.102747,
+    "peak_builder_rss_kib": 7920648,
+    "tile_count": 3835,
+    "tile_bytes": 563481088,
+    "graph_manifest_sha256": "09faea6fff0298b6c1c3b955b35ef1c8ee62748ec11e2b8fdf94d08601b07674"
+  }
+}
