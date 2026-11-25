@@ -46,3 +46,51 @@ test('Lite layers use same-origin road imagery and preserve the viewport on poll
     await stop();
   }
 });
+
+const samples = require('../../services/gateway/test/fixtures/road-tiles/europe-samples.json');
+const tileRoot = resolve(__dirname, '../../services/gateway/test/fixtures/road-tiles');
+
+async function openRoadMap(page) {
+  await page.evaluate(() => { location.hash = 'map'; });
+  await page.locator('#map-selection').selectOption({ label: 'Synthetic fixture sensor' });
+}
+
+async function focusStreet(page, site, style = '') {
+  await page.getByRole('button', { name: 'Show on map' }).click();
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  const tile = page.locator('img[src$="road-tiles/' + style + site['17'] + '"].leaflet-tile-loaded');
+  await tile.waitFor();
+  return tile;
+}
+
+test('same map moves through Kyiv, the Ukrainian–Polish border, and Warsaw, with a separate dark source', async () => {
+  const source = { location: samples.kyiv };
+  await start(undefined, { directory: tileRoot, darkDirectory: resolve(tileRoot, 'dark'), maxZoom: 17, date: '2026-11-25' });
+  try {
+    const { page, context } = await fixturePage(390, 'light', source);
+    try {
+      await openRoadMap(page);
+      await focusStreet(page, samples.kyiv);
+      await page.getByText(/Dataset date: 2026-11-25/).waitFor();
+      const map = page.locator('#workspace-map');
+      await map.evaluate(el => { window.coverageMap = el; });
+      await page.emulateMedia({ colorScheme: 'dark' });
+      await page.locator('img[src$="road-tiles/dark/' + samples.kyiv['17'] + '"].leaflet-tile-loaded').waitFor();
+      for (const site of [samples['shehyni-medyka'], samples.warsaw]) {
+        source.location = site;
+        await page.getByText(String(site.longitude), { exact: true }).waitFor();
+        await focusStreet(page, site, 'dark/');
+        assert.ok(await map.evaluate(el => el === window.coverageMap));
+      }
+      await page.route('**/road-tiles/**', route => route.abort('failed'));
+      await page.getByRole('button', { name: 'Zoom out' }).click();
+      await page.locator('.leaflet-tile:not(.leaflet-tile-loaded)').first().waitFor({ state: 'attached' });
+      assert.ok(await map.locator('.leaflet-trackiumGeography-pane svg path').count() > 0);
+      assert.equal(await page.getByRole('link', { name: 'OpenStreetMap contributors' }).count(), 1);
+    } finally {
+      await context.close();
+    }
+  } finally {
+    await stop();
+  }
+});

@@ -4107,18 +4107,10 @@ h1,h2,h3 {overflow-wrap:anywhere;}
 .lite-workspace .geo-directory .evidence-grid { grid-template-columns:minmax(0,1fr); margin-block:8px; }
 .lite-workspace .geo-directory .evidence-grid div { padding:4px 0; background:transparent; border:0; }
 
-/* Raster source uses a daytime style. Keep map overlays in the original DS1 colors. */
-:root[data-tc-theme='dark'] .trackium-road-tiles {
-  filter: invert(.88) hue-rotate(180deg);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-tc-theme='light']) .trackium-road-tiles {
-    filter: invert(.88) hue-rotate(180deg);
-  }
-}
 .lite-workspace .leaflet-control-layers-expanded {
   color: var(--tc-text);
   background: var(--tc-surface);
   padding: 8px 10px;
 }
 .lite-workspace .leaflet-control-layers-expanded label { padding-block: 5px; }
+.lite-workspace .leaflet-control-attribution a { color: var(--tc-accent); }

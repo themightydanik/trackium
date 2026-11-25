@@ -389,7 +389,10 @@
       '<div id="workspace-map" class="ux-geo" role="region" aria-label="Geographic routes and last reported positions"></div>' +
       '<div class="lite-map-key" aria-label="Map legend"><span class="planned">Planned route</span><span class="reported">Last reported position</span></div>' +
       '<p class="map-caption">' + (isLite() && document.documentElement.dataset.roadTileMaxZoom
-        ? 'Road tiles where installed; geographic overview elsewhere. Drag or use keyboard arrows, +/− to zoom.'
+        ? 'Road tiles where installed; geographic overview elsewhere. ' +
+          (document.documentElement.dataset.roadTileDate
+            ? 'Dataset date: ' + esc(document.documentElement.dataset.roadTileDate) + '. '
+            : 'Dataset date unavailable. ') + 'Drag or use keyboard arrows, +/− to zoom.'
         : 'Coarse geographic basemap · drag or use keyboard arrows, +/− to zoom.') + '</p>' +
       (data.devices.some(C.reportedPosition)
         ? ''

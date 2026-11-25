@@ -188,7 +188,7 @@
       '</svg><small>Positions are shown as individual samples. Lines between observations are omitted.</small></figure>';
   }
   let mapInstance = null, mapContainer = null, countries = null, mapStyle = '',
-    lastView = null, currentPage = null;
+    lastView = null, currentPage = null, syncRoadStyle = null;
   const mapLayers = new Map();
   function beforeRender(reset) {
     if (mapInstance) {
@@ -198,6 +198,7 @@
         page: currentPage
       };
       mapInstance.remove();
+      syncRoadStyle = null;
       mapInstance = null;
       mapContainer = null;
       mapLayers.clear();
@@ -236,11 +237,26 @@
         interactive: false, pane: roadEnabled ? 'trackiumGeography' : 'overlayPane'
       }).addTo(mapInstance);
       if (roadEnabled) {
-        const roads = L.tileLayer('/app/assets/road-tiles/{z}/{x}/{y}.png', {
+        const media = matchMedia('(prefers-color-scheme: dark)');
+        const tilesUrl = () => {
+          const theme = document.documentElement.dataset.tcTheme;
+          const dark = theme === 'dark' || (!theme && media.matches);
+          const variant = dark && document.documentElement.dataset.roadTileDark === 'true' ? 'dark/' : '';
+          return '/app/assets/road-tiles/' + variant + '{z}/{x}/{y}.png';
+        };
+        let currentRoadUrl = tilesUrl();
+        const roads = L.tileLayer(currentRoadUrl, {
           maxNativeZoom, maxZoom: 19, noWrap: true, updateWhenIdle: true,
           className: 'trackium-road-tiles',
           attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
         }).addTo(mapInstance);
+        syncRoadStyle = () => {
+          const url = tilesUrl();
+          if (url !== currentRoadUrl) roads.setUrl(currentRoadUrl = url);
+        };
+        const updateStyle = syncRoadStyle;
+        media.addEventListener('change', updateStyle);
+        mapInstance.on('unload', () => media.removeEventListener('change', updateStyle));
         const chooser = L.control.layers({ 'Roads': roads, 'Geographic overview': L.layerGroup() }, {}, {
           collapsed: false, position: 'bottomleft'
         }).addTo(mapInstance);
@@ -251,6 +267,7 @@
       mapInstance.on('zoomend', countryLabels);
     }
     const map = mapInstance;
+    syncRoadStyle?.();
     const planColor = document.documentElement.classList.contains('lite-workspace')
       ? style.getPropertyValue('--tc-gold').trim() : accent;
     const theme = [outline, land].join('/');

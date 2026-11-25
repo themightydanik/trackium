@@ -55,7 +55,9 @@ export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnable
                 (demoEnabled ? ' data-customer-demo="true">' : '>')
             : '<html lang="en">')
           .replace(/<html lang="en"/, (tag) => roadTiles && url.pathname === '/app/'
-            ? tag + ' data-road-tile-max-zoom="' + roadTiles.maxZoom + '"' : tag)
+            ? tag + ' data-road-tile-max-zoom="' + roadTiles.maxZoom + '"' +
+              (roadTiles.darkDirectory ? ' data-road-tile-dark="true"' : '') +
+              (roadTiles.date ? ' data-road-tile-date="' + roadTiles.date + '"' : '') : tag)
           .replace('assets/v2/brand/site.webmanifest', 'assets/v2/brand/lite.webmanifest')
           .replace('<script defer src="mds.js"></script>', '')
           .replace('<script defer src="assets/v2/mds-bridge.js"></script>', '')

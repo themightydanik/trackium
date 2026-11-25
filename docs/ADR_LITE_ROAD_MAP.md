@@ -55,3 +55,7 @@ Local HTTP smoke on one warm fixture served 200 GETs with eight requests in flig
 - **E, navigation:** model the active session and maneuver progress, reroute after qualified deviations only. Evaluate native permission/background requirements with actual Android hardware. Maintain the Lite WebView origin/export rules.
 - **F, acceptance:** verify capacity, failure recovery, licensing, screenshots, browser and instrumented Android flows, and real GL110-GL pilot acceptance.
 - **Optional independent Core contract:** portable route/waypoint geometry and maneuver schema; independently deployed engine and owner-authorized position source. Core maintains independent node, proof engine and telemetry boundaries. Road data and route computation do not depend on Integritas or Lite SaaS login.
+
+## Ukraine and Europe extension
+
+See [the coverage matrix, operating model, measurements and repeatable prototype](LITE_ROAD_EUROPE_REVIEW.md) for the revised production recommendation and acceptance gates. The same-origin raster implementation remains the initial review path.

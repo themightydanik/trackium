@@ -1,0 +1,282 @@
+{
+  "release": "20261124",
+  "url": "https://build.protomaps.com/20261124.pmtiles",
+  "fileBytes": 139733387110,
+  "maxZoom": 15,
+  "requests": 55,
+  "bytes": 4701390,
+  "results": [
+    {
+      "country": "UA",
+      "site": "Kyiv",
+      "z": 14,
+      "x": 9581,
+      "y": 5524,
+      "roadFeatures": 111
+    },
+    {
+      "country": "UA",
+      "site": "Lviv",
+      "z": 14,
+      "x": 9285,
+      "y": 5567,
+      "roadFeatures": 362
+    },
+    {
+      "country": "UA",
+      "site": "Odesa",
+      "z": 14,
+      "x": 9590,
+      "y": 5796,
+      "roadFeatures": 125
+    },
+    {
+      "country": "UA",
+      "site": "Kharkiv",
+      "z": 14,
+      "x": 9840,
+      "y": 5557,
+      "roadFeatures": 160
+    },
+    {
+      "country": "UA",
+      "site": "Dnipro",
+      "z": 14,
+      "x": 9786,
+      "y": 5663,
+      "roadFeatures": 97
+    },
+    {
+      "country": "UA",
+      "site": "Burshtyn",
+      "z": 14,
+      "x": 9312,
+      "y": 5608,
+      "roadFeatures": 48
+    },
+    {
+      "country": "UA",
+      "site": "Holohory",
+      "z": 14,
+      "x": 9318,
+      "y": 5573,
+      "roadFeatures": 10
+    },
+    {
+      "country": "UA/PL",
+      "site": "Shehyni–Medyka",
+      "z": 14,
+      "x": 9236,
+      "y": 5570,
+      "roadFeatures": 31
+    },
+    {
+      "country": "DE",
+      "site": "Berlin",
+      "z": 14,
+      "x": 8802,
+      "y": 5373,
+      "roadFeatures": 239
+    },
+    {
+      "country": "PL",
+      "site": "Warsaw",
+      "z": 14,
+      "x": 9148,
+      "y": 5394,
+      "roadFeatures": 241
+    },
+    {
+      "country": "CZ",
+      "site": "Brno",
+      "z": 14,
+      "x": 8947,
+      "y": 5613,
+      "roadFeatures": 243
+    },
+    {
+      "country": "SK",
+      "site": "Bratislava",
+      "z": 14,
+      "x": 8970,
+      "y": 5685,
+      "roadFeatures": 362
+    },
+    {
+      "country": "RO",
+      "site": "Bucharest",
+      "z": 14,
+      "x": 9379,
+      "y": 5930,
+      "roadFeatures": 261
+    },
+    {
+      "country": "HU",
+      "site": "Budapest",
+      "z": 14,
+      "x": 9058,
+      "y": 5729,
+      "roadFeatures": 376
+    },
+    {
+      "country": "AT",
+      "site": "Vienna",
+      "z": 14,
+      "x": 8937,
+      "y": 5681,
+      "roadFeatures": 486
+    },
+    {
+      "country": "FR",
+      "site": "Paris",
+      "z": 14,
+      "x": 8299,
+      "y": 5636,
+      "roadFeatures": 559
+    },
+    {
+      "country": "IT",
+      "site": "Milan",
+      "z": 14,
+      "x": 8610,
+      "y": 5863,
+      "roadFeatures": 578
+    },
+    {
+      "country": "ES",
+      "site": "Madrid",
+      "z": 14,
+      "x": 8023,
+      "y": 6177,
+      "roadFeatures": 744
+    },
+    {
+      "country": "NL",
+      "site": "Amsterdam",
+      "z": 14,
+      "x": 8414,
+      "y": 5384,
+      "roadFeatures": 624
+    },
+    {
+      "country": "BE",
+      "site": "Brussels",
+      "z": 14,
+      "x": 8390,
+      "y": 5496,
+      "roadFeatures": 508
+    },
+    {
+      "country": "EE",
+      "site": "Tallinn",
+      "z": 14,
+      "x": 9318,
+      "y": 4808,
+      "roadFeatures": 254
+    },
+    {
+      "country": "LV",
+      "site": "Riga",
+      "z": 14,
+      "x": 9289,
+      "y": 5023,
+      "roadFeatures": 258
+    },
+    {
+      "country": "LT",
+      "site": "Vilnius",
+      "z": 14,
+      "x": 9342,
+      "y": 5206,
+      "roadFeatures": 129
+    },
+    {
+      "country": "SI",
+      "site": "Ljubljana",
+      "z": 14,
+      "x": 8852,
+      "y": 5825,
+      "roadFeatures": 582
+    },
+    {
+      "country": "HR",
+      "site": "Zagreb",
+      "z": 14,
+      "x": 8919,
+      "y": 5840,
+      "roadFeatures": 260
+    },
+    {
+      "country": "BA",
+      "site": "Sarajevo",
+      "z": 14,
+      "x": 9029,
+      "y": 5966,
+      "roadFeatures": 243
+    },
+    {
+      "country": "RS",
+      "site": "Belgrade",
+      "z": 14,
+      "x": 9123,
+      "y": 5905,
+      "roadFeatures": 298
+    },
+    {
+      "country": "ME",
+      "site": "Podgorica",
+      "z": 14,
+      "x": 9068,
+      "y": 6054,
+      "roadFeatures": 134
+    },
+    {
+      "country": "XK",
+      "site": "Pristina",
+      "z": 14,
+      "x": 9155,
+      "y": 6041,
+      "roadFeatures": 371
+    },
+    {
+      "country": "AL",
+      "site": "Tirana",
+      "z": 14,
+      "x": 9093,
+      "y": 6122,
+      "roadFeatures": 400
+    },
+    {
+      "country": "MK",
+      "site": "Skopje",
+      "z": 14,
+      "x": 9167,
+      "y": 6082,
+      "roadFeatures": 296
+    },
+    {
+      "country": "BG",
+      "site": "Sofia",
+      "z": 14,
+      "x": 9253,
+      "y": 6039,
+      "roadFeatures": 330
+    },
+    {
+      "country": "GR",
+      "site": "Athens",
+      "z": 14,
+      "x": 9271,
+      "y": 6320,
+      "roadFeatures": 699
+    },
+    {
+      "country": "MD",
+      "site": "Chișinău",
+      "z": 14,
+      "x": 9505,
+      "y": 5762,
+      "roadFeatures": 109
+    }
+  ]
+}
