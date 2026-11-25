@@ -65,7 +65,9 @@ def main():
         [args.osmium, '--version'], text=True).splitlines()[0], 'filters': FILTERS,
         'extract_strategy': 'complete_ways', 'merge': 'OSM object IDs then latest visible version at snapshot_cutoff'},
         'inputs': [{'file': merged.name, 'sha256': sha, 'bytes': merged.stat().st_size}]}
-    (output / 'corridors.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    pending = output / 'corridors.json.tmp'
+    pending.write_text(json.dumps(manifest, indent=2) + '\n')
+    pending.replace(output / 'corridors.json')
     print(f'Prepared {merged.stat().st_size} bytes', flush=True)
 
 

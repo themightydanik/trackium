@@ -22,6 +22,15 @@ jobs:
           persist-credentials: false
       - name: Select disposable graph directory
         run: echo "VALHALLA_GRAPH_DIR=$RUNNER_TEMP/trackium-valhalla" >> "$GITHUB_ENV"
+      - name: Reject modified source data before building
+        run: |
+          mkdir "$RUNNER_TEMP/trackium-tampered"
+          cp routing/valhalla/fixtures/restrictions.* "$RUNNER_TEMP/trackium-tampered/"
+          printf x >> "$RUNNER_TEMP/trackium-tampered/restrictions.osm.pbf"
+          if python3 routing/valhalla/build-graph.py "$RUNNER_TEMP/trackium-tampered/restrictions.json" "$RUNNER_TEMP/rejected-graph" > "$RUNNER_TEMP/rejection.log" 2>&1; then
+            exit 1
+          fi
+          grep -q 'checksum mismatch' "$RUNNER_TEMP/rejection.log"
       - name: Compile a deterministic synthetic restriction graph
         run: |
           python3 routing/valhalla/build-graph.py routing/valhalla/fixtures/restrictions.json "$VALHALLA_GRAPH_DIR"

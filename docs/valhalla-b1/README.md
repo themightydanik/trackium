@@ -29,7 +29,7 @@ All six tests returned HTTP 200 and real polyline6 geometry. The probe decoded e
 | Service RSS high-water mark after probes | 773,096 KiB |
 | Service CPU after probes, including process startup | 23.5 s |
 
-The builder used four threads. Requests ran through the private service with two workers. The first request follows the readiness check and can see filesystem cache from the compile. Resource readings are Linux process values; the environment had concurrent local preprocessing. The percentiles describe the stated small sample, not an SLA. The closed loopback port returned a connection refusal; B2 still owns the public service-error mapping.
+The builder used four threads. Requests ran through the private service with two workers. The first request follows the readiness check and can see filesystem cache from the compile. Resource readings are Linux process values; the environment had concurrent local preprocessing. The percentiles describe the stated small sample, not an SLA. The closed loopback port returned a connection refusal. A separate Kyiv–Paris request against the Ukraine-only graph returned HTTP 400 / Valhalla 171 (no suitable edges near the destination). B2 still owns the public service-error mapping.
 
 The [separate deterministic synthetic fixture](restriction-fixture.json) used the same Valhalla binary. The car and in-limit truck used a 2.830 km direct edge. Raising any one of height, width, length, gross weight or axle load selected a 5.946 km detour. Disconnected and motor-vehicle-closed cases returned HTTP 400 / Valhalla 442. Thirteen locations were rejected with HTTP 400.
 

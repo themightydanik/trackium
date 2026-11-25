@@ -178,14 +178,15 @@ def main():
         report['synthetic_restrictions'] = regression()
         print(json.dumps(report, indent=2))
         return
-    cases = UKRAINE + (CROSS_BORDER if mode == 'corridors' else [])
+    cases = [UKRAINE[0], *CROSS_BORDER] if mode == 'corridors' else UKRAINE
     report['service_before_routes'] = service_resources()
-    report['first_route_after_start'] = route(cases[0])
+    benchmark = CROSS_BORDER[4] if mode == 'corridors' else UKRAINE[0]
+    report['first_route_after_start'] = route(benchmark)
     report['routes'] = [route(case) for case in cases]
     if report['first_route_after_start']['http_status'] == 200:
-        report['warm_sequential'] = stats([route(cases[0]) for _ in range(20)])
+        report['warm_sequential'] = stats([route(benchmark) for _ in range(20)])
         with ThreadPoolExecutor(max_workers=4) as workers:
-            report['warm_concurrency_4'] = stats(list(workers.map(route, [cases[0]] * 32)))
+            report['warm_concurrency_4'] = stats(list(workers.map(route, [benchmark] * 32)))
     report['service_after_routes'] = service_resources()
     print(json.dumps(report, indent=2))
     if any(row['http_status'] != 200 for row in report['routes']):

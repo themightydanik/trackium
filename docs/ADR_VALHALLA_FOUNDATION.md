@@ -33,13 +33,14 @@ Clients have no access to the Valhalla network or hostname. Compose uses an inte
 
 1. Install Python 3.11+ and Docker Compose. For combined pilot preprocessing use Osmium 1.18.0. Choose a container UID/GID that owns the inputs and graph files, subject to the local daemon's mapping. The builder accepts `--container-user UID:GID` and runtime accepts `VALHALLA_RUN_AS`.
 2. Copy the [Ukraine manifest](../routing/valhalla/sources/ukraine.json) or [corridor recipe](../routing/valhalla/sources/sources.json) next to the PBFs. Use the exact downloaded snapshots and validate SHA-256 and size. Geofabrik can rotate dated exports. Reproduce from an archived byte-identical PBF when a dated URL expires.
-3. The Ukraine release uses its entire Geofabrik extract. The corridor release crops only declared bounding windows, retains highways/ferries and restriction/connectivity relations with available references, merges by OSM object identity and selects the latest visible version at the cutoff. Cropped boundaries can remove alternative paths. The route probe, rather than polygon overlap, verifies cross-border connectivity.
+3. The Ukraine release uses its entire Geofabrik extract. The corridor preparation crops only declared bounding windows, retains highways/ferries and restriction/connectivity relations with available references, merges by OSM object identity and selects the latest visible version at the cutoff. The measured intercity graph then selects motorway through tertiary classes and corresponding links, with ferry and restriction/connectivity references retained. Cropped boundaries and omitted unclassified/local streets can remove alternative paths. The route probe, rather than polygon overlap, verifies cross-border connectivity.
 4. Compile into a fresh empty directory. The builder publishes config, metrics and a manifest after a successful build. SHA-256 of sorted tile names and contents identifies the graph material. The release ID also binds source and configuration. Archive graph and manifests. Source OSM is ODbL. Retain attribution and satisfy derivative database obligations for any redistribution.
 
 ```sh
 python3 routing/valhalla/build-graph.py /path/to/inputs/ukraine.json /path/to/graph-ukraine
 python3 routing/valhalla/prepare-corridors.py /path/to/inputs/sources.json /path/to/prepared
-python3 routing/valhalla/build-graph.py /path/to/prepared/corridors.json /path/to/graph-corridors
+python3 routing/valhalla/select-arterial.py /path/to/prepared/corridors.json /path/to/arterial
+python3 routing/valhalla/build-graph.py /path/to/arterial/arterial.json /path/to/graph-corridors
 export VALHALLA_GRAPH_DIR=/path/to/graph-corridors
 export VALHALLA_RUN_AS="$(id -u):$(id -g)"
 docker compose -f routing/valhalla/compose.yaml up -d --wait --wait-timeout 120

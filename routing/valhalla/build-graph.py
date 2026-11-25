@@ -65,7 +65,9 @@ def main():
     graph_id = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
     metadata = {**identity, 'graph_id': graph_id, 'built_at': datetime.datetime.now(datetime.UTC).isoformat(),
                 'metrics': metrics}
-    (output / 'release.json').write_text(json.dumps(metadata, indent=2) + '\n')
+    pending = output / 'release.json.tmp'
+    pending.write_text(json.dumps(metadata, indent=2) + '\n')
+    pending.replace(output / 'release.json')
     print('Graph ID:', graph_id, flush=True)
 
 
