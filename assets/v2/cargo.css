@@ -4270,3 +4270,32 @@ h1,h2,h3 {overflow-wrap:anywhere;}
   font: 11px/16px system-ui;
   white-space: nowrap;
 }
+
+/* C2 draft and preview use a separate visual vocabulary from B3 and GPS. */
+.fleet-map-workspace { --planner-route: #7349a6; }
+html[data-tc-theme=dark] .fleet-map-workspace { --planner-route: #d2a9ff; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-tc-theme]) .fleet-map-workspace { --planner-route: #d2a9ff; }
+}
+.planner-preview-line,.planner-preview-stop,.planner-draft-stop { stroke: var(--planner-route); }
+.planner-preview-stop { fill: var(--tc-surface); }
+.fleet-planner { grid-column: 1/-1; padding: 16px; overflow-wrap: anywhere; }
+.fleet-planner h2 { margin-block: 0 10px; }
+.fleet-planner header,.planner-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fleet-planner header { justify-content: space-between; }
+.planner-stop { margin: 12px 0; padding: 10px; border: 1px solid var(--tc-outline-subtle); min-inline-size: 0; }
+.planner-coordinates { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-block: 8px; }
+.planner-coordinates label,.planner-profile { display: grid; gap: 4px; }
+.planner-coordinates input,.planner-profile select { min-inline-size: 0; width: 100%; }
+.planner-profile { max-width: 23rem; margin-block: 12px; }
+.fleet-planner summary { cursor: pointer; min-height: 44px; align-content: center; }
+.planner-map-note { margin: 4px 14px; color: var(--tc-text-secondary); }
+@media (min-width: 981px) {
+  .fleet-map-workspace:has(.fleet-planner) { grid-template-columns: minmax(0,1fr) minmax(19rem,23rem); }
+  .fleet-map-workspace:has(.fleet-planner) .fleet-planner { grid-column: 2; grid-row: 1 / span 3; }
+  .fleet-map-workspace:has(.fleet-planner) .fleet-directory { grid-column: 1; }
+  .fleet-map-workspace:has(.fleet-planner) .fleet-manifest { grid-column: 1; }
+  .fleet-map-workspace:has(.fleet-planner) .fleet-context { grid-column: 1; }
+}
+
+.fleet-planner section[aria-label='Calculated preview'] { border-block-start: 1px solid var(--tc-outline-subtle); padding-block-start: 12px; }

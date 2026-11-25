@@ -79,7 +79,7 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
 
     if (p === '/v1/session')
       data = {
-        ...(source.customer ? {customer:true, company_name:'Northline · browser fixture'} : {}),
+        ...(source.customer ? {customer:true, role:source.role || 'owner', company_name:'Northline · browser fixture'} : {}),
         tenant_id: source.tenant ?? 'synthetic-browser-fixture',
         audience: 'test-only',
         expires_at: '2099-01-01T00:00:00Z',
@@ -88,6 +88,12 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
         csrf: 'test-only',
         simulation_enabled: false
       };
+    else if (p === '/v1/routes/calculate' && source.calculate) {
+      const response = await source.calculate(route.request().postDataJSON());
+      try { await route.fulfill({status:response.status || 200,json:response.body}); }
+      catch (error) { if (!/closed|interception|Invalid/i.test(error.message)) throw error; }
+      return;
+    }
     else if (p.endsWith('/road-routes/active') && source.customer) {
       if (source.roadError) return route.fulfill({status:source.roadError,json:{error:'Fixture routing failure'}});
       data = {generation:source.road ? 3 : 1, revision:source.road || null};

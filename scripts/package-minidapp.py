@@ -36,6 +36,7 @@ FILES = (
     'assets/v2/customer-ui.js',
     'assets/v2/server-workspace.js',
     'assets/v2/workspace-components.js',
+    'assets/v2/route-planner.js',
     'assets/v2/workspace-ui.js',
     'assets/v2/world-map.js',
 )

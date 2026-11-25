@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'routing/valhalla/**'
+      - 'assets/v2/route-planner.js'
+      - 'tests/minidapp/route-planner.private.cjs'
       - 'services/gateway/**'
       - '.github/workflows/gateway-routing.yml'
   workflow_dispatch:
@@ -39,6 +41,11 @@ jobs:
           docker compose up --build -d --wait --wait-timeout 120
           docker compose exec -T gateway node --input-type=module - fixture < routing/valhalla/gateway-probe.mjs
           docker compose exec -T gateway node --input-type=module - revisions < routing/valhalla/gateway-probe.mjs
+      - name: Browser planner against private Valhalla
+        run: |
+          npm install --prefix "$RUNNER_TEMP/ui-tools" --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/ui-tools/node_modules/.bin/playwright" install --with-deps chromium
+          NODE_PATH="$RUNNER_TEMP/ui-tools/node_modules" node --test tests/minidapp/route-planner.private.cjs
       - name: Fail closed for a modified graph and isolate upstream loss
         run: |
           scratch="$RUNNER_TEMP/changed-graph"

@@ -71,6 +71,7 @@
     else render(reason === 'snapshot');
   });
   const serverViews = {};
+  const planner = TrackiumRoutePlanner.create(server.request, () => render(true));
   let customerScreen = 'login', companyMembers = null, companyMembersTenant = null, customerBusy = false;
   let navigationKey = null;
   let renderedIdentity = null;
@@ -1004,6 +1005,8 @@
       }
       if (candidate !== cursor) parent.insertBefore(candidate, cursor);
       cursor = candidate.nextSibling;
+      if (candidate.nodeType === Node.ELEMENT_NODE && candidate.matches('[data-planner-coordinate],[data-planner-truck]') &&
+          candidate.value !== next.value) candidate.value = next.value;
       if (candidate.isEqualNode(next)) continue;
       if (candidate.nodeType !== Node.ELEMENT_NODE) {
         candidate.nodeValue = next.nodeValue;
@@ -1058,7 +1061,10 @@
     if (renderedIdentity !== null && renderedIdentity !== identity)
       for (const key of Object.keys(serverViews)) delete serverViews[key];
     const changedIdentity = renderedIdentity !== null && renderedIdentity !== identity;
+    // Let the hashchange guard resolve pending navigation before reconciling a new page.
+    if (snapshot && !changedIdentity && renderedPage === 'map' && current !== 'map' && planner.draft) return;
     if (changedIdentity) {
+      planner.close(true);
       stopDeviceLab();
       $('#detail-dialog').close();
       $('#dialog-content').innerHTML = '';
@@ -1068,8 +1074,17 @@
     const fleet = lite && current === 'map' && server.state.connected && !state.demo && server.state.data
       ? (serverViews.map ||= {}) : null;
     if (fleet && !server.state.data.shipments.some(s => s.id === fleet.shipment)) fleet.shipment = null;
+    if (planner.draft && (!fleet || fleet.shipment !== planner.draft.shipment ||
+        !TrackiumRoutePlanner.allowed(server.state.session))) planner.close(true);
+    if (fleet) fleet.planner = planner.draft;
     server.watchRoadRoute(fleet?.shipment);
-    const mapFleet = fleet ? {selected:fleet.shipment,layers:fleet.layers || {},road:server.state.roadRoute} : null;
+    const mapFleet = fleet ? {selected:fleet.shipment,layers:fleet.layers || {},road:server.state.roadRoute,
+      draft:planner.draft,pick:planner.draft?.pick == null ? null : (coords,keyboard) => {
+        const index = planner.draft.pick;
+        planner.pick(coords);
+        if (keyboard) $('[data-planner-coordinate="latitude"][data-index="' + index + '"]')?.focus();
+        document.querySelector('#fleet-planner-form')?.scrollIntoView({block:'nearest'});
+      }} : null;
     const sameContext = renderedIdentity === identity && renderedPage === current;
     if (snapshot && lite && sameContext && server.state.connected && !state.demo && $('#main .page-heading')) {
       reconcile($('#main'), authenticatedMarkup(current).content);
@@ -1422,6 +1437,10 @@
   syncMenu();
   document.addEventListener('click', async function (event) {
     const target = event.target.closest('button, a');
+    if (target?.dataset.planner && page() === 'map' && TrackiumRoutePlanner.allowed(server.state.session)) {
+      handlePlanner(target);
+      return;
+    }
     if (target?.hasAttribute('data-fleet-fit')) {
       const id = serverViews.map?.shipment;
       if (id) TrackiumComponents.focusShipment(id);
@@ -1432,7 +1451,7 @@
       return;
     }
     if (target?.dataset.fleetShipment) {
-      selectFleetShipment(target.dataset.fleetShipment);
+      if (!selectFleetShipment(target.dataset.fleetShipment)) return;
       const picker = $('#map-selection');
       if (picker) picker.value = 'shipment:' + target.dataset.fleetShipment;
       return;
@@ -1522,6 +1541,7 @@
         } else if (serverAction === 'reconnect') await server.restore();
         else if (serverAction.startsWith('page-')) {
           const [, kind, direction] = serverAction.split('-');
+          if (kind === 'shipments' && page() === 'map' && !planner.close()) return;
           await server.turnPage(kind, direction);
         } else if (serverAction === 'refresh') await server.refresh();
         else if (serverAction === 'claim') await server.claim();
@@ -1632,7 +1652,7 @@
       return;
     }
     const action = target.dataset.action;
-    if (target.id === 'demo-toggle') demo(!state.demo);
+    if (target.id === 'demo-toggle' && planner.close()) demo(!state.demo);
     if (target.id === 'exit-demo' || action === 'demo-off') demo(false);
     if (action === 'demo-on') demo(true);
     if (target.id === 'menu-toggle') openMenu();
@@ -1825,12 +1845,71 @@
           : 'Profile could not be saved. Browser storage may be unavailable.';
     }
   });
+  function handlePlanner(target) {
+    const action = target.dataset.planner;
+    const shipment = server.state.data?.shipments.find(entry => entry.id === serverViews.map?.shipment);
+    if (!shipment) return;
+    if (['import','blank','reset'].includes(action)) {
+      if (!planner.close()) return;
+      planner.start(shipment,action === 'import');
+      render(true);
+      $('#planner-title').setAttribute('tabindex','-1');
+      $('#planner-title').focus();
+      return;
+    }
+    if (!planner.draft) return;
+    if (action === 'close') {
+      if (planner.close()) {
+        render(true);
+        $('[data-planner="import"]')?.focus();
+      }
+      return;
+    }
+    if (action === 'fit') {
+      TrackiumComponents.focusMap('planner-preview');
+      $('#workspace-map')?.focus();
+      return;
+    }
+    const index = Number(target.dataset.index);
+    if (action === 'pick' && planner.draft.rows[index]) {
+      planner.draft.pick = planner.draft.pick === index ? null : index;
+      render(true);
+      if (planner.draft.pick !== null) $('#workspace-map')?.focus();
+      return;
+    }
+    const last = planner.draft.rows.length - 1;
+    if (action === 'add' && last < 9) planner.edit(d => { d.rows.splice(last,0,{latitude:'',longitude:''}); d.pick = null; });
+    else if (index > 0 && index < last && action === 'remove')
+      planner.edit(d => { d.rows.splice(index,1); d.pick = null; });
+    else if ((action === 'up' && index > 1 && index < last) ||
+        (action === 'down' && index > 0 && index < last-1)) planner.edit(d => {
+      const other = index + (action === 'up' ? -1 : 1);
+      [d.rows[index],d.rows[other]] = [d.rows[other],d.rows[index]];
+      d.pick = null;
+    });
+  }
   function selectFleetShipment(id) {
     const view = (serverViews.map ||= {});
+    if (view.shipment !== id && !planner.close()) return false;
     view.shipment = id;
     render(true);
+    return true;
   }
+  document.addEventListener('submit', event => {
+    if (event.target.id !== 'fleet-planner-form') return;
+    event.preventDefault();
+    if (page() === 'map' && TrackiumRoutePlanner.allowed(server.state.session)) void planner.calculate();
+  });
   document.addEventListener('input', function (event) {
+    if (planner.draft && event.target.dataset.plannerCoordinate) {
+      const {index,plannerCoordinate} = event.target.dataset;
+      planner.edit(d => { d.rows[index][plannerCoordinate] = event.target.value; });
+      return;
+    }
+    if (planner.draft && event.target.dataset.plannerTruck) {
+      planner.edit(d => { d.truck[event.target.dataset.plannerTruck] = event.target.value; });
+      return;
+    }
     if (event.target.id === 'fleet-query') {
       (serverViews.map ||= {}).fleetQuery = event.target.value;
       render(true);
@@ -1861,9 +1940,14 @@
       render(true);
       return;
     }
+    if (event.target.id === 'planner-profile' && planner.draft) {
+      planner.edit(d => { d.profile = event.target.value; });
+      return;
+    }
     if (event.target.id === 'map-selection' && lite) {
       const key = event.target.value;
-      selectFleetShipment(key.startsWith('shipment:') ? key.slice(9) : null);
+      if (!selectFleetShipment(key.startsWith('shipment:') ? key.slice(9) : null))
+        event.target.value = 'shipment:' + serverViews.map.shipment;
       return;
     }
     if (event.target.dataset.fleetLayer) {
@@ -1925,7 +2009,14 @@
     drawDeviceLabMap(lab, true);
   });
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  window.addEventListener('beforeunload', event => {
+    if (planner.draft?.dirty) { event.preventDefault(); event.returnValue = ''; }
+  });
   window.addEventListener('hashchange', () => {
+    if (page() !== 'map' && !planner.close()) {
+      history.replaceState(null,'','#map');
+      return;
+    }
     state.query = '';
     closeMenu();
     dialogAnchor = null;
