@@ -196,12 +196,15 @@
     return halfChord <= Math.sin(1000 / 12742000) ** 2;
   }
   function roadGeometry(revision) {
+    return revision?.state === 'active' ? routeGeometry(revision) : null;
+  }
+  function routeGeometry(revision) {
     if (!revision || typeof revision !== 'object') return null;
     if (roadGeometryCache.has(revision)) return roadGeometryCache.get(revision);
     const route = revision.calculation?.route;
     let geometry = null, remaining = 30000;
     try {
-      if (revision.state !== 'active' || route?.geometry_format !== 'polyline6' ||
+      if (route?.geometry_format !== 'polyline6' ||
           !Array.isArray(route.legs) || !route.legs.length || route.legs.length > 9 ||
           !Array.isArray(revision.stops) || revision.stops.length !== route.legs.length + 1 ||
           !revision.stops.every(valid)) throw new Error('Invalid route');
@@ -287,7 +290,7 @@
   }
 
   let mapInstance = null, mapContainer = null, countries = null, mapStyle = '',
-    lastView = null, currentPage = null, syncRoadStyle = null;
+    lastView = null, currentPage = null, syncRoadStyle = null, pickDraftStop = null;
   const mapLayers = new Map();
   function beforeRender(reset) {
     if (mapInstance) {
@@ -299,6 +302,7 @@
       mapInstance.remove();
       syncRoadStyle = null;
       mapInstance = null;
+      pickDraftStop = null;
       mapContainer = null;
       mapLayers.clear();
     }
@@ -336,11 +340,20 @@
       if (roadEnabled || fleet) mapInstance.createPane('trackiumGeography').style.zIndex = '190';
       if (fleet) {
         for (const [name, z] of Object.entries({fleetCountryLabels:390,fleetOverview:400,
-          fleetPlan:410,fleetRoad:420,fleetPositions:430}))
+          fleetPlan:410,fleetRoad:420,fleetDraft:425,fleetPreview:426,fleetPositions:430}))
           mapInstance.createPane(name).style.zIndex = String(z);
         const updateDensity = () => el.classList.toggle('fleet-wide-view',mapInstance.getZoom() <= 7);
         mapInstance.on('zoomend',updateDensity);
         updateDensity();
+        const keyboardPick = event => {
+          if (event.target === el && event.key === 'Enter' && pickDraftStop) {
+            event.preventDefault();
+            pickDraftStop(mapInstance.getCenter(),true);
+          }
+        };
+        el.addEventListener('keydown', keyboardPick);
+        mapInstance.once('unload', () => el.removeEventListener('keydown', keyboardPick));
+        mapInstance.on('click', event => pickDraftStop?.(event.latlng));
       }
       countries = L.geoJSON(root.TrackiumWorldMap, {
         interactive: false, className: 'workspace-map-land', pane: roadEnabled || fleet ? 'trackiumGeography' : 'overlayPane'
@@ -377,6 +390,7 @@
       else mapInstance.on('zoomend', countryLabels);
     }
     const map = mapInstance;
+    pickDraftStop = fleet?.pick || null;
     if (fleet) el.classList.toggle('fleet-has-selection',Boolean(fleet.selected));
     syncRoadStyle?.();
     const planColor = document.documentElement.classList.contains('lite-workspace')
@@ -451,6 +465,25 @@
           {pane:'fleetRoad',className:'fleet-road-stop',radius:6,color:accent,fillColor:land,fillOpacity:1}).bindPopup(title));
       }
     }
+    if (fleet?.draft) {
+      const {draft} = fleet;
+      for (const [index,row] of draft.rows.entries()) {
+        const point = root.TrackiumRoutePlanner.point(row);
+        if (point) place('draft-stop:' + index,JSON.stringify(point), () =>
+          L.circleMarker([point.latitude,point.longitude],{pane:'fleetDraft',className:'planner-draft-stop',
+            radius:10,weight:2,dashArray:'2 3',fill:false,interactive:false}));
+      }
+      const preview = draft.preview;
+      const shapes = routeGeometry(preview);
+      if (shapes) {
+        place('planner-preview',String(preview.id), () => L.polyline(shapes,{pane:'fleetPreview',
+          className:'planner-preview-line',weight:5,dashArray:'8 4',interactive:false}));
+        preview.stops.forEach((stop,index) => place('preview-stop:' + index,String(preview.id), () =>
+          L.circleMarker([stop.latitude,stop.longitude],{pane:'fleetPreview',className:'planner-preview-stop',
+            radius:5,weight:2,fillOpacity:1,bubblingMouseEvents:false})
+            .bindPopup(root.TrackiumRoutePlanner.stopName(index,preview.stops.length))));
+      }
+    }
     if (fleet?.layers.observed !== false) for (const d of data.devices) {
       const obs = reportedPosition(d);
       if (!obs) continue;
@@ -514,7 +547,8 @@
     const bounds = L.latLngBounds([]);
     for (const layer of layers) bounds.extend(layer.getBounds ? layer.getBounds() : layer.getLatLng());
     mapInstance.fitBounds(bounds, {
-      padding: [30, 30], animate: false, maxZoom: document.documentElement.dataset.roadTileMaxZoom ? 16 : 8
+      padding: [30, 30], animate: false,
+      maxZoom: document.documentElement.dataset.roadTileMaxZoom ? 16 : key === 'planner-preview' ? 12 : 8
     });
     target?.openPopup();
   }
@@ -533,6 +567,7 @@
     focusMap,
     reportedPosition,
     roadGeometry,
+    routeGeometry,
     historyPosition,
     positionHistory
   };

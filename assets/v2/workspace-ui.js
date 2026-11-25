@@ -579,12 +579,16 @@
     };
     const linked = selected && devices.get(selected.device_id);
     const layers = view.layers || {};
+    const planner = root.TrackiumRoutePlanner;
     return '<div class="fleet-map-workspace"><section class="fleet-map-canvas" aria-label="Fleet map canvas">' +
       '<div class="fleet-map-toolbar"><fieldset><legend class="sr-only">Map layers</legend>' +
       [['planned','Planned'],['calculated','Road route'],['observed','Reported GPS']].map(([key,label]) =>
         '<label><input type="checkbox" data-fleet-layer="' + key + '" ' + (layers[key] !== false ? 'checked' : '') + '>' +
         '<span>' + label + '</span></label>').join('') + '</fieldset>' +
         '</div>' +
+      (view.planner ? '<p class="planner-map-note">' + (view.planner.pick == null
+        ? 'Dotted circles show draft stops. Dashed violet lines show the calculated preview.'
+        : 'Choose a point on the map or press Enter to use the map center.') + '</p>' : '') +
       map(data,true,true) + '</section><aside class="fleet-manifest" aria-labelledby="fleet-manifest-heading">' +
       '<h2 id="fleet-manifest-heading">Shipments <span>' + data.shipments.length + '</span></h2>' +
       '<label class="sr-only" for="fleet-query">Search shipments or devices</label><input id="fleet-query" class="text-input" type="search" placeholder="Search shipments or devices" value="' +
@@ -600,12 +604,16 @@
       C.pagination('shipments',state) + '</aside>' +
       '<section class="fleet-context" aria-label="Shipment context"><header><div><h2>' +
       (selected ? esc(selected.name) : 'Shipment context') + '</h2></div>' +
-      (selected ? '<div class="fleet-context-actions"><button class="button secondary" type="button" data-fleet-fit>Fit shipment</button>' +
+      (selected ? '<div class="fleet-context-actions">' +
+        (planner.allowed(state.session) && !view.planner ? '<button type="button" class="button secondary" data-planner="import">Plan from checkpoints</button>' +
+          '<button type="button" class="button secondary" data-planner="blank">Start blank route</button>' : '') +
+        '<button class="button secondary" type="button" data-fleet-fit>Fit shipment</button>' +
         action('Shipment details','view-shipment',selected.id) + '</div>' : '') + '</header>' +
       '<div class="fleet-context-grid"><div><h3>Calculated road route</h3>' + fleetRoute(road,selected,state.session.customer) +
       '</div><div><h3>Planned checkpoints</h3>' + (selected ? routeStrip(arr(selected.checkpoints?.length ? selected.checkpoints : selected.route)) :
         '<p>Select a shipment to see its planned stops.</p>') +
       (linked ? '<h3>' + esc(linked.registry.label) + '</h3>' + deviceFacts(linked) : '') + '</div></div></section>' +
+      (view.planner ? planner.render(view.planner) : '') +
       '<details class="fleet-directory"><summary>Device observations · ' + data.devices.length + '</summary>' +
       (data.devices.length ? '<ul class="geo-directory">' + data.devices.map(d =>
         '<li data-view-key="geo:' + esc(d.registry.id) + '"><span class="ops-glyph">' + glyph('devices') +

@@ -76,7 +76,7 @@
       const abort = () => controller.abort();
       if (signal?.aborted) abort();
       else signal?.addEventListener('abort', abort, { once: true });
-      const timeout = setTimeout(abort, 8000);
+      const timeout = setTimeout(abort, path === '/v1/routes/calculate' && method === 'POST' ? 12000 : 8000);
       let res, data;
       try {
         res = await fetch(path, {
@@ -106,6 +106,7 @@
         }
         const error = new Error(data.error || 'Gateway request failed');
         error.status = res.status;
+        error.code = data.code;
         throw error;
       }
       return data;
