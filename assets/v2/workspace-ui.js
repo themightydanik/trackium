@@ -613,7 +613,8 @@
       '</div><div><h3>Planned checkpoints</h3>' + (selected ? routeStrip(arr(selected.checkpoints?.length ? selected.checkpoints : selected.route)) :
         '<p>Select a shipment to see its planned stops.</p>') +
       (linked ? '<h3>' + esc(linked.registry.label) + '</h3>' + deviceFacts(linked) : '') + '</div></div></section>' +
-      (view.planner ? planner.render(view.planner) : '') +
+      (view.planner ? planner.render(view.planner,root.TrackiumRouteLifecycle.proposal(view.lifecycle,view.planner)) : '') +
+      root.TrackiumRouteLifecycle.render(view.lifecycle) +
       '<details class="fleet-directory"><summary>Device observations · ' + data.devices.length + '</summary>' +
       (data.devices.length ? '<ul class="geo-directory">' + data.devices.map(d =>
         '<li data-view-key="geo:' + esc(d.registry.id) + '"><span class="ops-glyph">' + glyph('devices') +

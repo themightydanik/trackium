@@ -94,12 +94,21 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
       catch (error) { if (!/closed|interception|Invalid/i.test(error.message)) throw error; }
       return;
     }
+    else if (p.includes('/road-routes') && source.lifecycle) {
+      const response = await source.lifecycle(p,route.request().method(),route.request().postDataJSON(),
+        new URL(route.request().url()).searchParams);
+      if (response.abort) await route.abort('failed');
+      else await route.fulfill({status:response.status || 200,json:response.body});
+      return;
+    }
     else if (p.endsWith('/road-routes/active') && source.customer) {
       if (source.roadError) return route.fulfill({status:source.roadError,json:{error:'Fixture routing failure'}});
       data = {generation:source.road ? 3 : 1, revision:source.road || null};
     }
     else if (p.endsWith('/road-routes') && source.customer)
-      data = {generation:1,active_revision_id:null,revisions:source.proposed ? [{state:'proposed'}] : []};
+      data = {generation:source.road ? 3 : 1,active_revision_id:source.road?.id ?? null,
+        revisions:source.road ? [{id:source.road.id,state:'active',version:source.road.version,profile:source.road.calculation?.profile}]
+          : source.proposed ? [{state:'proposed'}] : []};
     else if (p === '/v1/shipments')
       data = {
         shipments: source.fleet || (source.empty

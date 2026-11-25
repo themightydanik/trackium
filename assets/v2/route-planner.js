@@ -106,7 +106,7 @@
         try {
           const calculation = await request('/v1/routes/calculate','POST',input.result,controller.signal);
           if (draft !== owner || owner.pending !== controller) return;
-          const preview = {id:++serial, calculation, stops:input.stops};
+          const preview = {id:++serial, calculation, stops:input.stops, input:input.result};
           if (!Number.isFinite(calculation.route?.distance_m) || calculation.route.distance_m <= 0 ||
               !Number.isFinite(calculation.route?.estimated_duration_s) || calculation.route.estimated_duration_s <= 0 ||
               calculation.profile !== input.result.profile || !root.TrackiumComponents.routeGeometry(preview))
@@ -126,7 +126,7 @@
   const button = (label, action, index, disabled = false) =>
     '<button type="button" class="button secondary" data-planner="' + action + '"' +
     (index === undefined ? '' : ' data-index="' + index + '"') + (disabled ? ' disabled' : '') + '>' + label + '</button>';
-  function render(draft) {
+  function render(draft, proposal = '') {
     const preview = draft.preview?.calculation, route = preview?.route, graph = preview?.graph;
     const rows = draft.rows.map((row,i) => {
       const intermediate = i > 0 && i < draft.rows.length-1;
@@ -166,7 +166,7 @@
         '<p>Driving estimate excludes traffic, border delays and mandatory rests.</p>' +
         (preview.profile === 'truck' ? '<p class="fleet-warning">Truck restrictions may be incomplete. Verify legal clearance independently.</p>' : '') +
         (preview.warnings?.includes('COVERAGE_MAY_BE_INCOMPLETE') ? '<p class="fleet-warning">Road network coverage may be incomplete.</p>' : '') +
-        button('Fit preview','fit') +
+        button('Fit preview','fit') + proposal +
         '<details><summary>Preview stops</summary><ol>' + draft.preview.stops.map((stop,index,stops) =>
           '<li>' + stopName(index,stops.length) + ' · ' + stop.latitude + ', ' + stop.longitude + '</li>').join('') +
         '</ol></details>' +

@@ -340,7 +340,7 @@
       if (roadEnabled || fleet) mapInstance.createPane('trackiumGeography').style.zIndex = '190';
       if (fleet) {
         for (const [name, z] of Object.entries({fleetCountryLabels:390,fleetOverview:400,
-          fleetPlan:410,fleetRoad:420,fleetDraft:425,fleetPreview:426,fleetPositions:430}))
+          fleetPlan:410,fleetComparison:415,fleetRoad:420,fleetDraft:425,fleetPreview:426,fleetPositions:430}))
           mapInstance.createPane(name).style.zIndex = String(z);
         const updateDensity = () => el.classList.toggle('fleet-wide-view',mapInstance.getZoom() <= 7);
         mapInstance.on('zoomend',updateDensity);
@@ -465,6 +465,15 @@
           {pane:'fleetRoad',className:'fleet-road-stop',radius:6,color:accent,fillColor:land,fillOpacity:1}).bindPopup(title));
       }
     }
+    if (fleet?.comparison) {
+      fleet.comparison.forEach((revision,index) => {
+        const shapes = routeGeometry(revision);
+        if (shapes) place('road-comparison:' + index,revision.id, () => L.polyline(shapes,{
+          pane:'fleetComparison',className:'route-comparison-' + (index === 0 ? 'base' : 'target'),
+          weight:8,dashArray:index === 0 ? '10 8' : '2 5',interactive:false
+        }));
+      });
+    }
     if (fleet?.draft) {
       const {draft} = fleet;
       for (const [index,row] of draft.rows.entries()) {
@@ -542,7 +551,9 @@
   function focusMap(key) {
     if (!mapInstance) return;
     const target = mapLayers.get(key)?.layer;
-    const layers = target ? [target] : key ? [] : [...mapLayers.values()].map(record => record.layer);
+    const layers = target ? [target] : key === 'road-comparison' ?
+      [...mapLayers].filter(([id]) => id.startsWith('road-comparison:')).map(([,record]) => record.layer) :
+      key ? [] : [...mapLayers.values()].map(record => record.layer);
     if (!layers.length) return;
     const bounds = L.latLngBounds([]);
     for (const layer of layers) bounds.extend(layer.getBounds ? layer.getBounds() : layer.getLatLng());

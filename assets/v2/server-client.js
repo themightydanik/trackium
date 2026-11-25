@@ -76,7 +76,7 @@
       const abort = () => controller.abort();
       if (signal?.aborted) abort();
       else signal?.addEventListener('abort', abort, { once: true });
-      const timeout = setTimeout(abort, path === '/v1/routes/calculate' && method === 'POST' ? 12000 : 8000);
+      const timeout = setTimeout(abort, method === 'POST' && (path === '/v1/routes/calculate' || /\/road-routes$/.test(path)) ? 12000 : 8000);
       let res, data;
       try {
         res = await fetch(path, {
@@ -220,6 +220,10 @@
           clearRoadRoute();
           state.roadRoute = {id, status:'loading'};
         }
+        if (retry && roadRequest) {
+          roadRequest.abort();
+          roadRequest = null;
+        }
         if (roadRequest || document.hidden || (!retry && Date.now() - roadCheckedAt < 15000)) return;
         const controller = new AbortController();
         roadRequest = controller;
@@ -228,22 +232,24 @@
         void (async () => {
           let result;
           try {
-            const active = await request(path + '/active', 'GET', undefined, controller.signal);
-            if (active.revision) {
-              const revision = active.revision.id && active.revision.id === previous.revision?.id
-                ? previous.revision : active.revision;
-              result = {id, status:'active', revision};
+            const [active, history] = await Promise.all([
+              request(path + '/active', 'GET', undefined, controller.signal),
+              request(path, 'GET', undefined, controller.signal)
+            ]);
+            if (history.generation !== active.generation ||
+                (history.active_revision_id ?? null) !== (active.revision?.id ?? null)) {
+              result = {id, status:'changed'};
             } else {
-              const history = await request(path, 'GET', undefined, controller.signal);
-              if (history.generation !== active.generation || history.active_revision_id)
-                result = {id, status:'changed'};
-              else result = {id,status:history.revisions.some(r => r.state === 'proposed' || r.state === 'approved')
-                ? 'pending' : 'none'};
+              const revision = active.revision?.id && active.revision.id === previous.revision?.id ?
+                previous.revision : active.revision;
+              result = {id,history,revision,status:revision ? 'active' :
+                history.revisions.some(r => r.state === 'proposed' || r.state === 'approved') ? 'pending' : 'none'};
             }
           } catch (_) {
             result = {id, status:'unavailable'};
           } finally {
             if (roadRequest === controller && !controller.signal.aborted) {
+              controller.abort();
               roadRequest = null;
               roadCheckedAt = Date.now();
               state.roadRoute = result;
