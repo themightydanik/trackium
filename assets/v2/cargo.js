@@ -72,6 +72,9 @@
   });
   const serverViews = {};
   const planner = TrackiumRoutePlanner.create(server.request, () => render(true));
+  let lifecycleScope;
+  const lifecycle = TrackiumRouteLifecycle.create(server.request, () => render(true),
+    (id,force) => server.watchRoadRoute(id,force), document.getElementById('route-confirmation'));
   let customerScreen = 'login', companyMembers = null, companyMembersTenant = null, customerBusy = false;
   let navigationKey = null;
   let renderedIdentity = null;
@@ -1077,9 +1080,18 @@
     if (planner.draft && (!fleet || fleet.shipment !== planner.draft.shipment ||
         !TrackiumRoutePlanner.allowed(server.state.session))) planner.close(true);
     if (fleet) fleet.planner = planner.draft;
-    server.watchRoadRoute(fleet?.shipment);
+    const session = server.state.session;
+    const selected = fleet && server.state.data.shipments.find(shipment => shipment.id === fleet.shipment);
+    const routeScope = [identity,session?.role,session?.scopes?.join('/')].join('/');
+    if (lifecycleScope !== routeScope) {
+      lifecycleScope = routeScope;
+      server.watchRoadRoute(null);
+    }
+    server.watchRoadRoute(TrackiumRouteLifecycle.readAllowed(session) ? selected?.id : null);
+    lifecycle.sync(routeScope, selected, session, server.state.roadRoute);
+    if (fleet) fleet.lifecycle = lifecycle.view;
     const mapFleet = fleet ? {selected:fleet.shipment,layers:fleet.layers || {},road:server.state.roadRoute,
-      draft:planner.draft,pick:planner.draft?.pick == null ? null : (coords,keyboard) => {
+      comparison:fleet.lifecycle?.comparison?.routes,draft:planner.draft,pick:planner.draft?.pick == null ? null : (coords,keyboard) => {
         const index = planner.draft.pick;
         planner.pick(coords);
         if (keyboard) $('[data-planner-coordinate="latitude"][data-index="' + index + '"]')?.focus();
@@ -1437,6 +1449,16 @@
   syncMenu();
   document.addEventListener('click', async function (event) {
     const target = event.target.closest('button, a');
+    if (target?.dataset.routeAction && page() === 'map' && lifecycle.view) {
+      const type = target.dataset.routeAction;
+      const value = target.dataset.routeValue;
+      if (type === 'inspect') lifecycle.inspect(value);
+      else if (type === 'refresh') server.watchRoadRoute(lifecycle.view.shipment.id,true);
+      else if (type === 'clear') lifecycle.clearComparison();
+      else if (type === 'fit') TrackiumComponents.focusMap('road-comparison');
+      else lifecycle.ask(type,planner.draft,value);
+      return;
+    }
     if (target?.dataset.planner && page() === 'map' && TrackiumRoutePlanner.allowed(server.state.session)) {
       handlePlanner(target);
       return;
@@ -1896,6 +1918,12 @@
     return true;
   }
   document.addEventListener('submit', event => {
+    if (event.target.id === 'route-compare' && lifecycle.view) {
+      event.preventDefault();
+      const choices = new FormData(event.target);
+      lifecycle.compare(choices.get('base'),choices.get('target'));
+      return;
+    }
     if (event.target.id !== 'fleet-planner-form') return;
     event.preventDefault();
     if (page() === 'map' && TrackiumRoutePlanner.allowed(server.state.session)) void planner.calculate();

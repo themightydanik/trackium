@@ -29,6 +29,7 @@
     <script defer src="assets/v2/world-map.js"></script>
     <script defer src="assets/v2/workspace-components.js"></script>
     <script defer src="assets/v2/route-planner.js"></script>
+    <script defer src="assets/v2/route-lifecycle.js"></script>
     <script defer src="assets/v2/workspace-ui.js"></script>
     <script defer src="assets/v2/cargo.js"></script>
   </head>
@@ -122,6 +123,15 @@
         </footer>
       </div>
     </div>
+    <dialog id="route-confirmation" class="detail-dialog" aria-labelledby="route-confirmation-title">
+      <form method="dialog">
+        <div id="route-confirmation-content"></div>
+        <div class="planner-actions">
+          <button class="button secondary" value="cancel" autofocus>Cancel</button>
+          <button class="button" id="route-confirm-submit" value="confirm">Confirm</button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="detail-dialog" class="detail-dialog" aria-labelledby="dialog-title">
       <div id="dialog-content"></div>
     </dialog>

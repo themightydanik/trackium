@@ -5,6 +5,7 @@ on:
     paths:
       - 'routing/valhalla/**'
       - 'assets/v2/route-planner.js'
+      - 'assets/v2/route-lifecycle.js'
       - 'tests/minidapp/route-planner.private.cjs'
       - 'services/gateway/**'
       - '.github/workflows/gateway-routing.yml'

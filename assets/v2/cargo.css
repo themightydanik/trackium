@@ -4299,3 +4299,24 @@ html[data-tc-theme=dark] .fleet-map-workspace { --planner-route: #d2a9ff; }
 }
 
 .fleet-planner section[aria-label='Calculated preview'] { border-block-start: 1px solid var(--tc-outline-subtle); padding-block-start: 12px; }
+
+.fleet-lifecycle { grid-column: 1/-1; padding: 16px; overflow-wrap: anywhere; }
+.fleet-lifecycle h3,.fleet-lifecycle h4 { margin-block: 4px 8px; }
+.lifecycle-revisions { margin: 0; padding: 0; list-style: none; max-height: 24rem; overflow: auto; }
+.lifecycle-revisions li { display:flex; flex-wrap:wrap; align-items:center; gap: 8px 14px; padding: 8px 0;
+  border-block-end: 1px solid var(--tc-outline-subtle); }
+.lifecycle-revisions li strong { min-width: 9rem; }
+.lifecycle-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap: 8px 14px; }
+.lifecycle-facts dt { color: var(--tc-text-secondary); }
+.lifecycle-facts dd { margin: 0; overflow-wrap: anywhere; }
+.fleet-lifecycle section { padding-top: 10px; margin-block-start: 12px; border-block-start: 1px solid var(--tc-outline-subtle); }
+#route-compare { display:flex; align-items:end; flex-wrap:wrap; gap:8px; margin-block:12px; }
+#route-compare label { display:grid; gap:4px; }
+.lifecycle-comparison { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.route-comparison-base { stroke: #bd6847; opacity:.85; }
+.route-comparison-target { stroke: var(--tc-info); opacity:.85; }
+#route-confirmation { max-block-size: min(82dvh,48rem); overflow:auto; }
+#route-confirmation .planner-actions { justify-content:end; }
+@media (max-width: 560px) {
+  .lifecycle-comparison { grid-template-columns:minmax(0,1fr); }
+}
