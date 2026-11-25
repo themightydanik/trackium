@@ -1,0 +1,18 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "deploy": {
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3,
+    "numReplicas": 1,
+    "overlapSeconds": 0,
+    "drainingSeconds": 10,
+    "healthcheckPath": "/status",
+    "healthcheckTimeout": 180,
+    "limitOverride": {
+      "containers": {
+        "cpu": 2,
+        "memoryBytes": 4294967296
+      }
+    }
+  }
+}

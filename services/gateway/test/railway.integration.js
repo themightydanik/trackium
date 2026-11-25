@@ -84,7 +84,7 @@ test('Railway process: upgrade 001–017, owner pairing, PostgreSQL persistence 
               for (const [key, value] of Object.entries(response.headers))
                 for (const item of Array.isArray(value) ? value : [value])
                   resultHeaders.append(key, item);
-              resolve({ status: response.statusCode, data: JSON.parse(raw), headers: resultHeaders });
+              resolve({ status: response.statusCode, data: resultHeaders.get('content-type')?.includes('application/json') ? JSON.parse(raw) : raw, headers: resultHeaders });
             } catch (e) { reject(e); }
           });
         });
@@ -92,13 +92,13 @@ test('Railway process: upgrade 001–017, owner pairing, PostgreSQL persistence 
         req.end(body === undefined ? undefined : JSON.stringify(body));
       });
     }
-    async function start(webEnabled = false) {
+    async function start(webEnabled = false, profile = 'railway-test') {
       let output = '';
       child = spawn(process.execPath, ['src/server.js'], {
         cwd: new URL('../', import.meta.url),
         // Deliberately minimal: no inherited Minima RPC credentials or flags.
         env: { PATH: process.env.PATH, DATABASE_URL: connection.href, PORT: String(await port()),
-          HTTP_PORT: String(httpPort), DEPLOYMENT_PROFILE: 'railway-test',
+          HTTP_PORT: String(httpPort), DEPLOYMENT_PROFILE: profile, NODE_ENV: 'production',
           ENABLE_TCP_RECEIVER: 'false', ENABLE_NATIVE_CLIENTS: 'true',
           ENABLE_WEB_WORKSPACE: String(webEnabled), PUBLIC_ORIGIN: 'https://gateway.test',
           ENABLE_SERVER_SIMULATOR: 'false', ENABLE_FIXTURE_ADAPTER: 'false',
@@ -210,4 +210,15 @@ test('Railway process: upgrade 001–017, owner pairing, PostgreSQL persistence 
     assert.equal((await request('/v1/pairing/session', { method: 'POST', body: {}, headers: { ...browserHeaders, cookie } })).status, 401);
     assert.equal((await request('/v1/session', { headers: { ...browserHeaders,
       cookie: browserSession.headers.getSetCookie()[0].split(';')[0] } })).status, 200);
+    await stop();
+    await start(true, 'railway-public');
+    const landing = await request('/');
+    assert.equal(landing.status, 302);
+    assert.equal(landing.headers.get('location'), '/app/');
+    assert.equal(landing.headers.get('strict-transport-security'), 'max-age=31536000');
+    assert.equal((await request('/', {headers:{host:'untrusted.test'}})).status, 403);
+    assert.equal((await request('/app/')).status, 200);
+    for (const path of ['/v1/shipments','/v1/devices'])
+      assert.equal((await request(path, {headers:browserHeaders})).status, 401);
+
   });

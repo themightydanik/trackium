@@ -1,6 +1,6 @@
 import { lookup } from 'node:dns';
 import { request } from 'node:http';
-import { isIPv4 } from 'node:net';
+import { isIPv4, isIPv6 } from 'node:net';
 import { performance } from 'node:perf_hooks';
 import { takeCustomerRate } from '../cargo/customer-rate.js';
 import { hash } from '../cargo/shared.js';
@@ -26,17 +26,22 @@ export function readRoutingConfig(env) {
   if (!match || Number(match[2]) > 65535 || !/^[a-f0-9]{64}$/.test(graphId ?? ''))
     throw new Error('Routing requires a private HTTP origin with explicit port and a SHA-256 graph release ID');
   const host = match[1];
-  if (!(privateV4(host) || /^[a-z][a-z0-9-]{0,62}$/.test(host) || /^[a-z][a-z0-9.-]*\.railway\.internal$/.test(host)))
-    throw new Error('Routing origin must be a private IPv4 address or private service name');
-  return {host, port: Number(match[2]), graphId, allowFixture: env.NODE_ENV === 'test' && !env.RAILWAY_ENVIRONMENT_ID};
+  const railway = Boolean(env.RAILWAY_ENVIRONMENT_ID) && /^[a-z][a-z0-9-]{0,62}\.railway\.internal$/.test(host);
+  if (!(privateV4(host) || /^[a-z][a-z0-9-]{0,62}$/.test(host) || railway))
+    throw new Error('Routing origin must be a private IPv4 address or private service name in the configured environment');
+  return {host, port: Number(match[2]), graphId, railway, allowFixture: env.NODE_ENV === 'test' && !env.RAILWAY_ENVIRONMENT_ID};
 }
 
-function pinnedLookup(hostname, _options, callback) {
-  lookup(hostname, {family: 4, all: true}, (error, addresses) => {
-    if (error || !addresses.length || addresses.some(({address}) => !privateV4(address)))
-      return callback(unavailable());
-    callback(null, addresses[0].address, 4);
-  });
+export function privateRoutingLookup(railway, resolve = lookup) {
+  return (hostname, _options, callback) => {
+    resolve(hostname, {family: railway ? 0 : 4, all: true}, (error, addresses) => {
+      if (error || !addresses.length || addresses.some(({address, family}) => !(
+        (family === 4 && privateV4(address) && (!railway || !address.startsWith('127.'))) ||
+        (railway && family === 6 && isIPv6(address) && /^f[cd][0-9a-f]{2}:/i.test(address))
+      ))) return callback(unavailable());
+      callback(null, addresses[0].address, addresses[0].family);
+    });
+  };
 }
 
 function graphFromHeaders(headers, config) {
@@ -73,8 +78,8 @@ function exchange(config, path, data, {connectMs, totalMs, signal}) {
     }
     const body = data === undefined ? undefined : JSON.stringify(data);
     const req = request({
-      hostname: config.host, port: config.port, path, family: 4, autoSelectFamily: false,
-      method: body ? 'POST' : 'GET', agent: false, lookup: pinnedLookup, signal,
+      hostname: config.host, port: config.port, path, autoSelectFamily: false,
+      method: body ? 'POST' : 'GET', agent: false, lookup: privateRoutingLookup(config.railway), signal,
       headers: {accept: 'application/json', ...(body && {
         'content-type': 'application/json', 'content-length': Buffer.byteLength(body)
       })}

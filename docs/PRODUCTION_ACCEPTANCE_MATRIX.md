@@ -71,3 +71,18 @@ All thresholds below are **proposed pending pilot approval**, not measured SLOs.
 - If a B3 startup or migration fails, inspect the advisory and FK lock waits. Use an approved bounded lock window and verify no partially applied migration. Rehearse B2 on v017 where applicable, preserving tables. Validate Cargo read/write, then restore B3 and compare its active pointer, lifecycle audit and exact historic graph metadata. Do not drop B3 schema or restore over the live database as an application-rollback step.
 - Restore to a separate PostgreSQL first. Validate route generations, active pointers, ordered history, audit actors/timestamps, telemetry lineage, shipment checkpoints, cargo hashes/outbox and proof states. Compare counts and invariants, then document reconciliation of any writes after the backup time. Route audit is append-only PostgreSQL history. The earlier recovery CI also verifies the independent Cargo hash chain.
 - Reopen access only after redacted checks pass, a known-good browser and APK can authenticate, operations confirms dashboards/alerts and the incident owner records the decision.
+
+## D2 evidence update
+
+This section updates the D1 decisions for D2's single-production-environment release. The earlier staging and pilot sections are historical planning. D2 uses disposable local and CI resources and an explicitly authorized production cutover, without separate release environments or customer allowlists. [D2 launch procedure](PUBLIC_PRODUCTION_D2.md)
+
+| Gate | D2 status | Outstanding evidence |
+| --- | --- | --- |
+| Public HTTPS and customer access | **PASS** locally with HTTPS proxy semantics, public root and fake-provider registration. **NOT VERIFIED** on target. | Confirm actual public URL, certificate, private ingress setting, verified sender/mail and rate/role enforcement. Review the existing demo and TCP dependencies before selecting the public profile. |
+| Private network and attestation | **PASS** in Compose and DNS unit tests. The provider documents environment-local IPv4/IPv6 and WireGuard. **NOT VERIFIED** on target. | Operator verifies actual private resolutions, absence of public database/Valhalla ingress and matching graph/image through runtime readiness. |
+| Resource enforcement | **FAIL** in local delegated Docker; **NOT VERIFIED** on target. | Inspect effective CPU/RAM/PID isolation on approved provider plan and demonstrate capacity at realistic load. |
+| Polling and service recovery | **PASS** for request budget (770 → 158 per five ticks with 25 shipments and devices) and local Valhalla outage/read/restart. | Quantify target capacity, verify operational alert delivery and measure DB/edge limits. |
+| Geographic scope | **PASS** for seven end-to-end B2 road calculations on the candidate arterial graph. | Approve the limited coverage statement, verify operating restrictions for any claimed HGV locations, and avoid extrapolating street or country coverage. |
+| Database and rollback | **PASS** for disposable v016 upgrade, failed lock recovery, restored lineage/history and actual B3 → B2 → B3. | Confirm current DB major, backups/PITR, custody, recovery objectives and cutover window. |
+| Android | **PASS** for local build and debug verification; **NOT VERIFIED** for production signing and physical device acceptance. | Review release signature and install/update behavior; test Android against authorized production HTTPS. |
+| Public launch | **NO-GO**. Documentation and implementation are ready for review. | Open registration and routing only after closing the deployment gates with operator approval. |

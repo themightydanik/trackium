@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'routing/valhalla/**'
+      - 'deployment/railway/**'
+      - 'assets/v2/server-client.js'
       - 'assets/v2/route-planner.js'
       - 'assets/v2/route-lifecycle.js'
       - 'tests/minidapp/route-planner.private.cjs'
@@ -39,7 +41,11 @@ jobs:
             and ((.services.valhalla.ports // []) | length == 0)
             and ((.services.valhalla.networks | keys) == ["routing"])
             and ((.services.gateway.networks | keys) == ["database","edge","routing"])'
-          docker compose up --build -d --wait --wait-timeout 120
+          docker compose up --build -d --wait --wait-timeout 120 gateway
+          curl -fsS http://127.0.0.1:55471/readyz
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:55471/readyz/routing)" = 503
+          docker compose up -d --wait --wait-timeout 120 valhalla
+          sleep 6
           docker compose exec -T gateway node --input-type=module - fixture < routing/valhalla/gateway-probe.mjs
           docker compose exec -T gateway node --input-type=module - revisions < routing/valhalla/gateway-probe.mjs
       - name: Browser planner against private Valhalla
@@ -62,6 +68,17 @@ jobs:
           sleep 6
           curl -fsS http://127.0.0.1:55471/readyz
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:55471/readyz/routing)" = 503
+      - name: Verify routing recovery and package an immutable fixture image
+        run: |
+          docker compose up -d --wait --wait-timeout 120 valhalla
+          for attempt in $(seq 1 10); do
+            if curl -fsS http://127.0.0.1:55471/readyz/routing; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:55471/readyz/routing
+          routing/valhalla/package-release.sh "$VALHALLA_GRAPH_DIR" trackium-valhalla-release:ci
+          docker run --rm --network none --entrypoint python3 trackium-valhalla-release:ci -c \
+            "import runpy; assert runpy.run_path('/opt/trackium-routing/attested-service.py')['verified_release']()[1] == 'synthetic'"
       - name: Shut down disposable containers
         if: always()
         run: |

@@ -5,8 +5,10 @@ from http.client import HTTPConnection, HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
+import os
 import re
 import signal
+import socket
 import subprocess
 import tempfile
 import threading
@@ -15,6 +17,7 @@ MAX_REQUEST = 8192
 MAX_RESPONSE = 1024 * 1024
 ENGINE = '3.6.3'
 ROOT = Path('/graph')
+ASSETS = Path(__file__).resolve().parent
 
 
 def digest(path):
@@ -29,7 +32,7 @@ def verified_release():
     expected = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
     if expected != manifest['graph_id'] or digest(ROOT / 'config.json') != identity['configuration_sha256']:
         raise ValueError('Invalid graph release or configuration digest')
-    pinned = Path('/opt/trackium-routing/image.env').read_text().strip().split('=', 1)[1]
+    pinned = (ASSETS / 'image.env').read_text().strip().split('=', 1)[1]
     if identity['engine'] != pinned or subprocess.check_output(
             ['valhalla_service', '--version'], text=True).strip() != ENGINE:
         raise ValueError('Unexpected engine')
@@ -62,7 +65,12 @@ def verified_release():
 
 
 class BoundedServer(ThreadingHTTPServer):
+    address_family = socket.AF_INET6
     daemon_threads = True
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
     slots = threading.BoundedSemaphore(8)
 
     def process_request(self, request, client_address):
@@ -135,15 +143,18 @@ def start(graph_id, snapshot):
                 return
             self.forward('/route', self.rfile.read(int(length[0])))
 
-    return BoundedServer(('0.0.0.0', 8002), Handler)
+    return BoundedServer(('::', 8002), Handler)
 
 
 if __name__ == '__main__':
     release_id, osm_snapshot, engine_config = verified_release()
+    engine_exited = False
     with tempfile.TemporaryDirectory() as scratch:
         config_path = Path(scratch) / 'config.json'
         config_path.write_text(json.dumps(engine_config))
-        engine = subprocess.Popen(['valhalla_service', str(config_path), '2'])
+        # Release containers log bounded Gateway outcomes rather than native request logs.
+        output = subprocess.DEVNULL if os.environ.get('TRACKIUM_ROUTING_PRIVATE_LOGS') == 'true' else None
+        engine = subprocess.Popen(['valhalla_service', str(config_path), '2'], stdout=output, stderr=output)
         def stop(_signum, _frame):
             raise KeyboardInterrupt
         signal.signal(signal.SIGTERM, stop)
@@ -152,6 +163,7 @@ if __name__ == '__main__':
                 server.timeout = 1
                 while engine.poll() is None:
                     server.handle_request()
+                engine_exited = True
         except KeyboardInterrupt:
             pass
         finally:
@@ -162,3 +174,6 @@ if __name__ == '__main__':
                 except subprocess.TimeoutExpired:
                     engine.kill()
                     engine.wait()
+
+    if engine_exited:
+        raise SystemExit('Valhalla engine exited unexpectedly')
