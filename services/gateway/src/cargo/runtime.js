@@ -14,6 +14,7 @@ import { createNotifications, startNotificationWorker } from './notifications.js
 import { createShipmentService } from './shipments.js';
 import { createSimulator, startWorker } from './simulator.js';
 import { createPairing, publicOrigin } from './pairing.js';
+import { createRouting } from '../routing/service.js';
 import { createCargoApi } from './api.js';
 import { createWebHandler } from './web.js';
 import { createIngressGuard } from '../ingress.js';
@@ -25,6 +26,7 @@ export function createRuntime(
   { worker = true, logger = console, proofDependencies, accountMailFetch } = {}
 ) {
   publicOrigin(config.publicOrigin);
+  const routing = createRouting(config.routing, pool, logger);
   const shipments = createShipmentService(pool);
   const telemetry = createTelemetryService(pool, { onEvent: shipments.onTelemetry });
   const simulator = createSimulator(pool, shipments, { enabled: config.simulatorEnabled });
@@ -100,6 +102,7 @@ export function createRuntime(
         return stored;
       },
       checkReady: () => pool.query('SELECT 1'),
+      checkRoutingReady: routing?.checkReady,
       async close() {
         await Promise.all([stopWorker(), stopProofWorker(), stopNotifications(), stopIntegritas(), stopMail(), aovxIngestion.stop()]);
         await pool.end();
@@ -122,6 +125,7 @@ export function createRuntime(
       aovxObservations,
       config,
       telemetryApi,
+      routing,
       logger
     }),
     assetHandler: createWebHandler(config)

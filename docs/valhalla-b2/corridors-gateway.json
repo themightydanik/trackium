@@ -1,0 +1,118 @@
+{
+  "profile": "corridors",
+  "routes": [
+    {
+      "name": "Kyiv–Lviv",
+      "profile": "auto",
+      "graph": {
+        "id": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+        "engine_version": "3.6.3",
+        "osm_snapshot": "2026-11-24T21:21:23Z"
+      },
+      "distance_m": 542297,
+      "estimated_duration_s": 22249,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE"
+      ]
+    },
+    {
+      "name": "Lviv–Rzeszów",
+      "profile": "auto",
+      "graph": {
+        "id": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+        "engine_version": "3.6.3",
+        "osm_snapshot": "2026-11-24T21:21:23Z"
+      },
+      "distance_m": 169710,
+      "estimated_duration_s": 7916,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE"
+      ]
+    },
+    {
+      "name": "Kyiv–Warsaw",
+      "profile": "auto",
+      "graph": {
+        "id": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+        "engine_version": "3.6.3",
+        "osm_snapshot": "2026-11-24T21:21:23Z"
+      },
+      "distance_m": 775709,
+      "estimated_duration_s": 34506,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE"
+      ]
+    },
+    {
+      "name": "Odesa–Bucharest",
+      "profile": "auto",
+      "graph": {
+        "id": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+        "engine_version": "3.6.3",
+        "osm_snapshot": "2026-11-24T21:21:23Z"
+      },
+      "distance_m": 565191,
+      "estimated_duration_s": 27257,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE"
+      ]
+    },
+    {
+      "name": "Berlin–Warsaw",
+      "profile": "auto",
+      "graph": {
+        "id": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+        "engine_version": "3.6.3",
+        "osm_snapshot": "2026-11-24T21:21:23Z"
+      },
+      "distance_m": 574373,
+      "estimated_duration_s": 17054,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE"
+      ]
+    },
+    {
+      "name": "Warsaw–Paris",
+      "profile": "auto",
+      "graph": {
+        "id": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+        "engine_version": "3.6.3",
+        "osm_snapshot": "2026-11-24T21:21:23Z"
+      },
+      "distance_m": 1596882,
+      "estimated_duration_s": 50520,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE"
+      ]
+    },
+    {
+      "name": "Truck",
+      "profile": "truck",
+      "graph": {
+        "id": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+        "engine_version": "3.6.3",
+        "osm_snapshot": "2026-11-24T21:21:23Z"
+      },
+      "distance_m": 548248,
+      "estimated_duration_s": 22739,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE",
+        "HGV_RESTRICTIONS_MAY_BE_INCOMPLETE"
+      ]
+    }
+  ]
+}

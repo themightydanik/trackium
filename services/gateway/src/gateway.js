@@ -250,7 +250,8 @@ export function createGateway({ journal, config, logger = console, requestHandle
       await requestHandler(req, res);
       return;
     }
-    if (req.method !== 'GET' || !['/healthz', '/readyz'].includes(req.url)) {
+    const routingReady = req.url === '/readyz/routing' && journal.checkRoutingReady;
+    if (req.method !== 'GET' || (!routingReady && !['/healthz', '/readyz'].includes(req.url))) {
       res.writeHead(404, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ error: 'not found' }));
       return;
@@ -258,6 +259,10 @@ export function createGateway({ journal, config, logger = console, requestHandle
     let ok = !stopping;
     if (req.url === '/readyz' && ok) {
       try { await journal.checkReady(); } catch { ok = false; }
+      ok &&= !stopping;
+    }
+    if (routingReady && ok) {
+      try { await journal.checkRoutingReady(); } catch { ok = false; }
       ok &&= !stopping;
     }
     res.writeHead(ok ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });

@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { ApiError, object, text, uuid } from '../telemetry/schema.js';
 import { reply, body, query } from '../telemetry/api.js';
+import { MAX_BODY, parseCalculation } from '../routing/contract.js';
 function requireEmptyRequestBody(req) {
   const contentLength = req.headers['content-length'];
   if (req.headers['transfer-encoding'] ||
@@ -26,6 +27,7 @@ export function createCargoApi({
   aovxObservations,
   config,
   telemetryApi,
+  routing,
   logger = console
 }) {
   const authenticate =
@@ -173,6 +175,24 @@ export function createCargoApi({
       const scope = (name) => {
         if (!identity.scopes.includes(name)) throw new ApiError(403, 'insufficient scope');
       };
+      if (path === '/v1/routes/calculate') {
+        if (!routing) throw new ApiError(404, 'not found');
+        if (req.method !== 'POST') throw new ApiError(405, 'method not allowed');
+        if (identity.kind !== 'session' || identity.customer !== true || req.headers.authorization ||
+            !tenant || !identity.account_id || !['owner', 'admin', 'dispatcher'].includes(identity.role))
+          throw new ApiError(403, 'customer routing permission required');
+        scope('shipments');
+        const calculation = parseCalculation((await body(req, MAX_BODY)).input);
+        const abort = new AbortController();
+        const disconnected = () => abort.abort();
+        res.once('close', disconnected);
+        if (res.destroyed) return;
+        try {
+          return reply(res, 200, await routing.calculate(identity, calculation, abort.signal));
+        } finally {
+          res.off('close', disconnected);
+        }
+      }
       const nativeApproval = /^\/v1\/native\/challenges\/([^/]+)\/approve$/.exec(path);
       if (nativeApproval && req.method === 'POST') {
         object((await body(req)).input, []);
@@ -397,6 +417,7 @@ export function createCargoApi({
         logger.error('cargo request failed', err.code ?? 'internal');
       if (!res.destroyed && !res.headersSent)
         reply(res, err instanceof ApiError ? err.status : err.code === '23505' ? 409 : 503, {
+          ...(err.routingCode && {code: err.routingCode}),
           error:
             err instanceof ApiError
               ? err.message

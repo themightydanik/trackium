@@ -1,0 +1,62 @@
+name: Private Gateway routing
+
+on:
+  pull_request:
+    paths:
+      - 'routing/valhalla/**'
+      - 'services/gateway/**'
+      - '.github/workflows/gateway-routing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  private-graph:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      COMPOSE_PROJECT_NAME: trackium-b2-ci
+      COMPOSE_FILE: routing/valhalla/compose.yaml:routing/valhalla/compose.gateway.yaml
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile pinned synthetic road fixture
+        run: |
+          graph="$RUNNER_TEMP/trackium-valhalla"
+          python3 routing/valhalla/build-graph.py routing/valhalla/fixtures/restrictions.json "$graph"
+          echo "VALHALLA_GRAPH_DIR=$graph" >> "$GITHUB_ENV"
+          echo "ROUTING_GRAPH_RELEASE_ID=$(jq -er .graph_id "$graph/release.json")" >> "$GITHUB_ENV"
+          echo "VALHALLA_RUN_AS=$(id -u):$(id -g)" >> "$GITHUB_ENV"
+      - name: Verify private topology and real Gateway routing
+        run: |
+          docker compose config --format json | jq -e '
+            .networks.routing.internal and .networks.database.internal
+            and ((.services.valhalla.ports // []) | length == 0)
+            and ((.services.valhalla.networks | keys) == ["routing"])
+            and ((.services.gateway.networks | keys) == ["database","edge","routing"])'
+          docker compose up --build -d --wait --wait-timeout 120
+          docker compose exec -T gateway node --input-type=module - fixture < routing/valhalla/gateway-probe.mjs
+      - name: Fail closed for a modified graph and isolate upstream loss
+        run: |
+          scratch="$RUNNER_TEMP/changed-graph"
+          cp -r "$VALHALLA_GRAPH_DIR" "$scratch"
+          tile="$(find "$scratch/tiles" -name '*.gph' -print -quit)"
+          chmod u+w "$tile"
+          printf x >> "$tile"
+          if VALHALLA_GRAPH_DIR="$scratch" docker compose run --rm --no-deps valhalla > "$RUNNER_TEMP/attestation.log" 2>&1; then
+            exit 1
+          fi
+          grep -q 'Unexpected mounted graph tiles' "$RUNNER_TEMP/attestation.log"
+          docker compose stop valhalla
+          sleep 6
+          curl -fsS http://127.0.0.1:55471/readyz
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:55471/readyz/routing)" = 503
+      - name: Shut down disposable containers
+        if: always()
+        run: |
+          if test -n "${VALHALLA_GRAPH_DIR:-}"; then
+            docker compose logs
+            docker compose down -v
+          fi

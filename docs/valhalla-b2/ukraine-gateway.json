@@ -1,0 +1,70 @@
+{
+  "profile": "ukraine",
+  "routes": [
+    {
+      "name": "Kyiv–Lviv",
+      "profile": "auto",
+      "graph": {
+        "id": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+        "engine_version": "3.6.3",
+        "osm_snapshot": "2026-11-24"
+      },
+      "distance_m": 544243,
+      "estimated_duration_s": 22486,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE"
+      ]
+    },
+    {
+      "name": "Lviv–Kyiv",
+      "profile": "auto",
+      "graph": {
+        "id": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+        "engine_version": "3.6.3",
+        "osm_snapshot": "2026-11-24"
+      },
+      "distance_m": 540904,
+      "estimated_duration_s": 22305,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE"
+      ]
+    },
+    {
+      "name": "Lviv–Holohory",
+      "profile": "auto",
+      "graph": {
+        "id": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+        "engine_version": "3.6.3",
+        "osm_snapshot": "2026-11-24"
+      },
+      "distance_m": 173387,
+      "estimated_duration_s": 10137,
+      "legs": 2,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE"
+      ]
+    },
+    {
+      "name": "Truck",
+      "profile": "truck",
+      "graph": {
+        "id": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+        "engine_version": "3.6.3",
+        "osm_snapshot": "2026-11-24"
+      },
+      "distance_m": 548869,
+      "estimated_duration_s": 22854,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE",
+        "HGV_RESTRICTIONS_MAY_BE_INCOMPLETE"
+      ]
+    }
+  ]
+}

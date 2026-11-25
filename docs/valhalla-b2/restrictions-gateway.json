@@ -1,0 +1,38 @@
+{
+  "profile": "fixture",
+  "routes": [
+    {
+      "name": "synthetic car",
+      "profile": "auto",
+      "graph": {
+        "id": "3e8ec6ea127bfb15ec9a4cc3ac8914573ec9ed0aad48e244fccdc2d6182d941c",
+        "engine_version": "3.6.3",
+        "osm_snapshot": null
+      },
+      "distance_m": 2830,
+      "estimated_duration_s": 136,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE"
+      ]
+    },
+    {
+      "name": "synthetic truck detour",
+      "profile": "truck",
+      "graph": {
+        "id": "3e8ec6ea127bfb15ec9a4cc3ac8914573ec9ed0aad48e244fccdc2d6182d941c",
+        "engine_version": "3.6.3",
+        "osm_snapshot": null
+      },
+      "distance_m": 5946,
+      "estimated_duration_s": 290,
+      "legs": 1,
+      "warnings": [
+        "STATIC_OSM_SNAPSHOT",
+        "COVERAGE_MAY_BE_INCOMPLETE",
+        "HGV_RESTRICTIONS_MAY_BE_INCOMPLETE"
+      ]
+    }
+  ]
+}
