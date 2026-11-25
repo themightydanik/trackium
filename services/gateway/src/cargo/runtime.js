@@ -14,6 +14,7 @@ import { createNotifications, startNotificationWorker } from './notifications.js
 import { createShipmentService } from './shipments.js';
 import { createSimulator, startWorker } from './simulator.js';
 import { createPairing, publicOrigin } from './pairing.js';
+import { createRouteRevisions } from '../routing/revisions.js';
 import { createRouting } from '../routing/service.js';
 import { createCargoApi } from './api.js';
 import { createWebHandler } from './web.js';
@@ -126,6 +127,7 @@ export function createRuntime(
       config,
       telemetryApi,
       routing,
+      roadRoutes: createRouteRevisions(pool, routing),
       logger
     }),
     assetHandler: createWebHandler(config)
