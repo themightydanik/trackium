@@ -25,6 +25,13 @@
       data: null,
       updated: null
     };
+    let roadRequest, roadCheckedAt = 0;
+    function clearRoadRoute() {
+      roadRequest?.abort();
+      roadRequest = null;
+      roadCheckedAt = 0;
+      state.roadRoute = null;
+    }
     let specialized = false;
     let csrf = '',
       generation = 0,
@@ -36,6 +43,7 @@
       onChange(state, reason);
     }
     function clear(message = '', phase = 'unpaired') {
+      clearRoadRoute();
       state.phase = phase;
       state.pages = {
         shipments: { cursor: null, previous: [], next: null },
@@ -202,6 +210,47 @@
     return {
       state,
       request,
+      watchRoadRoute(id, retry = false) {
+        if (!id || !state.connected || !state.session?.customer || nativeWorkspace) {
+          clearRoadRoute();
+          return;
+        }
+        if (state.roadRoute?.id !== id) {
+          clearRoadRoute();
+          state.roadRoute = {id, status:'loading'};
+        }
+        if (roadRequest || document.hidden || (!retry && Date.now() - roadCheckedAt < 15000)) return;
+        const controller = new AbortController();
+        roadRequest = controller;
+        const path = '/v1/shipments/' + encodeURIComponent(id) + '/road-routes';
+        const previous = state.roadRoute;
+        void (async () => {
+          let result;
+          try {
+            const active = await request(path + '/active', 'GET', undefined, controller.signal);
+            if (active.revision) {
+              const revision = active.revision.id && active.revision.id === previous.revision?.id
+                ? previous.revision : active.revision;
+              result = {id, status:'active', revision};
+            } else {
+              const history = await request(path, 'GET', undefined, controller.signal);
+              if (history.generation !== active.generation || history.active_revision_id)
+                result = {id, status:'changed'};
+              else result = {id,status:history.revisions.some(r => r.state === 'proposed' || r.state === 'approved')
+                ? 'pending' : 'none'};
+            }
+          } catch (_) {
+            result = {id, status:'unavailable'};
+          } finally {
+            if (roadRequest === controller && !controller.signal.aborted) {
+              roadRequest = null;
+              roadCheckedAt = Date.now();
+              state.roadRoute = result;
+              change('snapshot');
+            }
+          }
+        })();
+      },
       async restore() {
         if (!enabled) return;
         if (navigator.onLine === false) return this.offline();

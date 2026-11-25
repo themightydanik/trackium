@@ -76,6 +76,7 @@ test('same map moves through Kyiv, the Ukrainian–Polish border, and Warsaw, wi
       await map.evaluate(el => { window.coverageMap = el; });
       await page.emulateMedia({ colorScheme: 'dark' });
       await page.locator('img[src$="road-tiles/dark/' + samples.kyiv['17'] + '"].leaflet-tile-loaded').waitFor();
+      await page.locator('.fleet-directory summary').click();
       for (const site of [samples['shehyni-medyka'], samples.warsaw]) {
         source.location = site;
         await page.getByText(String(site.longitude), { exact: true }).waitFor();
