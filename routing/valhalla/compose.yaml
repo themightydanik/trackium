@@ -1,0 +1,28 @@
+services:
+  valhalla:
+    image: ghcr.io/valhalla/valhalla:3.6.3@sha256:2b19ea46551a9687b245022551183829d817fdee9b58c5e7b2adb6e422749c43
+    entrypoint: ["valhalla_service", "/graph/config.json", "2"]
+    user: "${VALHALLA_RUN_AS:-1000:1000}"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 2
+    mem_limit: 4g
+    pids_limit: 96
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    volumes:
+      - type: bind
+        source: ${VALHALLA_GRAPH_DIR:?select a built graph directory}
+        target: /graph
+        read_only: true
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import json, urllib.request; r = urllib.request.urlopen('http://127.0.0.1:8002/status?json=%7B%22verbose%22%3Atrue%7D', timeout=2); s = json.load(r); assert s['version'] == '3.6.3' and s['has_tiles'] is True"]
+      interval: 20s
+      timeout: 4s
+      retries: 3
+      start_period: 25s
+    networks: [routing]
+networks:
+  routing:
+    internal: true

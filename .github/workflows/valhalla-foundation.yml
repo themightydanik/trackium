@@ -1,0 +1,39 @@
+name: Valhalla foundation
+
+on:
+  pull_request:
+    paths:
+      - 'routing/valhalla/**'
+      - '.github/workflows/valhalla-foundation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  routing-fixture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      VALHALLA_GRAPH_DIR: ${{ runner.temp }}/trackium-valhalla
+      COMPOSE_PROJECT_NAME: trackium-routing-fixture
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile a deterministic synthetic restriction graph
+        run: |
+          python3 routing/valhalla/build-graph.py routing/valhalla/fixtures/restrictions.json "$VALHALLA_GRAPH_DIR"
+      - name: Exercise the private service
+        run: |
+          test "$(docker compose -f routing/valhalla/compose.yaml config --images)" = "$(cut -d= -f2 routing/valhalla/image.env)"
+          docker compose -f routing/valhalla/compose.yaml config --format json |
+            jq -e '.networks.routing.internal and (.services.valhalla.ports // [] | length == 0)'
+          export VALHALLA_RUN_AS="$(id -u):$(id -g)"
+          docker compose -f routing/valhalla/compose.yaml up -d --wait --wait-timeout 120
+          docker compose -f routing/valhalla/compose.yaml exec -T valhalla python3 - fixture < routing/valhalla/probe.py
+      - name: Collect failure logs and shut down
+        if: always()
+        run: |
+          docker compose -f routing/valhalla/compose.yaml logs
+          docker compose -f routing/valhalla/compose.yaml down
