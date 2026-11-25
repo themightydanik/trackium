@@ -173,6 +173,12 @@ test('Fleet Map renders a bounded manifest, B3 legs, independent layers and stab
         assert.equal(await map.locator('.ux-device-position').count(),0);
         await page.getByRole('checkbox',{name:'Planned',exact:true}).uncheck();
         assert.equal(await map.locator('.ux-route-stop').count(),0);
+        if (width === 390) {
+          await page.setViewportSize({width: 320, height: 900});
+          await page.evaluate(() => { location.hash = 'shipments'; });
+          await page.getByRole('heading',{name:'Shipments',exact:true}).waitFor();
+          await page.waitForTimeout(250); // Leaflet's resize moveend is debounced by 200 ms.
+        }
         assert.ok(source.requests.every(path => !path.includes('/routes/calculate')));
         assert.deepEqual(source.errors || [],[]);
       } finally { await context.close(); }

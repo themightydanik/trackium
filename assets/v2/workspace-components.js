@@ -281,6 +281,8 @@
       }
     }
     map.on('moveend resize', layout);
+    // Leaflet may deliver a debounced moveend after removing the map panes.
+    map.once('unload', () => map.off('moveend resize', layout));
     return layout;
   }
 
