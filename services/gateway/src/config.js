@@ -1,4 +1,5 @@
 import { customerMailConfig } from './cargo/customer-mail.js';
+import { roadTilesConfig } from './cargo/road-tiles.js';
 import { proofConfig } from './proofs/config.js';
 function integer(env, name, fallback, max = 2147483647) {
   const value = env[name] ?? String(fallback);
@@ -93,6 +94,7 @@ export function readConfig(env = process.env) {
     simulatorEnabled: env.ENABLE_SERVER_SIMULATOR === 'true',
     publicOrigin: env.PUBLIC_ORIGIN || 'http://127.0.0.1:8080',
     webRoot: env.WEB_ROOT,
+    roadTiles: roadTilesConfig(env),
     fixturesEnabled: env.ENABLE_FIXTURE_ADAPTER === 'true',
     tcpPort,
     tcpEnabled,

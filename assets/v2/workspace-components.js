@@ -188,7 +188,7 @@
       '</svg><small>Positions are shown as individual samples. Lines between observations are omitted.</small></figure>';
   }
   let mapInstance = null, mapContainer = null, countries = null, mapStyle = '',
-    lastView = null, currentPage = null;
+    lastView = null, currentPage = null, syncRoadStyle = null;
   const mapLayers = new Map();
   function beforeRender(reset) {
     if (mapInstance) {
@@ -198,6 +198,7 @@
         page: currentPage
       };
       mapInstance.remove();
+      syncRoadStyle = null;
       mapInstance = null;
       mapContainer = null;
       mapLayers.clear();
@@ -223,17 +224,50 @@
     if (fresh) {
       beforeRender(false);
       currentPage = page;
+      const maxNativeZoom = Number(document.documentElement.dataset.roadTileMaxZoom);
+      const roadEnabled = document.documentElement.classList.contains('lite-workspace') &&
+        Number.isInteger(maxNativeZoom) && maxNativeZoom >= 1 && maxNativeZoom <= 19;
       mapInstance = L.map(el, {
         scrollWheelZoom: false, zoomAnimation: false, fadeAnimation: false,
-        markerZoomAnimation: false, minZoom: 1, maxZoom: 12, attributionControl: true
+        markerZoomAnimation: false, minZoom: 1, maxZoom: roadEnabled ? 19 : 12, attributionControl: true
       }).setView([25, 10], 2);
       mapContainer = el;
-      countries = L.geoJSON(root.TrackiumWorldMap, { interactive: false }).addTo(mapInstance);
+      if (roadEnabled) mapInstance.createPane('trackiumGeography').style.zIndex = '190';
+      countries = L.geoJSON(root.TrackiumWorldMap, {
+        interactive: false, pane: roadEnabled ? 'trackiumGeography' : 'overlayPane'
+      }).addTo(mapInstance);
+      if (roadEnabled) {
+        const media = matchMedia('(prefers-color-scheme: dark)');
+        const tilesUrl = () => {
+          const theme = document.documentElement.dataset.tcTheme;
+          const dark = theme === 'dark' || (!theme && media.matches);
+          const variant = dark && document.documentElement.dataset.roadTileDark === 'true' ? 'dark/' : '';
+          return '/app/assets/road-tiles/' + variant + '{z}/{x}/{y}.png';
+        };
+        let currentRoadUrl = tilesUrl();
+        const roads = L.tileLayer(currentRoadUrl, {
+          maxNativeZoom, maxZoom: 19, noWrap: true, updateWhenIdle: true,
+          className: 'trackium-road-tiles',
+          attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+        }).addTo(mapInstance);
+        syncRoadStyle = () => {
+          const url = tilesUrl();
+          if (url !== currentRoadUrl) roads.setUrl(currentRoadUrl = url);
+        };
+        const updateStyle = syncRoadStyle;
+        media.addEventListener('change', updateStyle);
+        mapInstance.on('unload', () => media.removeEventListener('change', updateStyle));
+        const chooser = L.control.layers({ 'Roads': roads, 'Geographic overview': L.layerGroup() }, {}, {
+          collapsed: false, position: 'bottomleft'
+        }).addTo(mapInstance);
+        chooser.getContainer().setAttribute('aria-label', 'Basemap layer');
+      }
       mapInstance.attributionControl.setPrefix('');
       mapInstance.attributionControl.addAttribution('Leaflet (BSD-2-Clause) · Natural Earth (public domain)');
       mapInstance.on('zoomend', countryLabels);
     }
     const map = mapInstance;
+    syncRoadStyle?.();
     const planColor = document.documentElement.classList.contains('lite-workspace')
       ? style.getPropertyValue('--tc-gold').trim() : accent;
     const theme = [outline, land].join('/');
@@ -334,7 +368,9 @@
     if (!layers.length) return;
     const bounds = L.latLngBounds([]);
     for (const layer of layers) bounds.extend(layer.getBounds ? layer.getBounds() : layer.getLatLng());
-    mapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 });
+    mapInstance.fitBounds(bounds, {
+      padding: [30, 30], maxZoom: document.documentElement.dataset.roadTileMaxZoom ? 16 : 8
+    });
     target?.openPopup();
   }
   root.TrackiumComponents = {

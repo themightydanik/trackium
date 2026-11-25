@@ -4106,3 +4106,11 @@ h1,h2,h3 {overflow-wrap:anywhere;}
 }
 .lite-workspace .geo-directory .evidence-grid { grid-template-columns:minmax(0,1fr); margin-block:8px; }
 .lite-workspace .geo-directory .evidence-grid div { padding:4px 0; background:transparent; border:0; }
+
+.lite-workspace .leaflet-control-layers-expanded {
+  color: var(--tc-text);
+  background: var(--tc-surface);
+  padding: 8px 10px;
+}
+.lite-workspace .leaflet-control-layers-expanded label { padding-block: 5px; }
+.lite-workspace .leaflet-control-attribution a { color: var(--tc-accent); }

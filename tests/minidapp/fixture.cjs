@@ -135,7 +135,7 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
     else if (p.endsWith('/location'))
       data = {
         location: {
-          gps: { latitude: 51, longitude: 17 },
+          gps: source.location || { latitude: 51, longitude: 17 },
           occurred_at: '2026-01-01T00:00:00Z',
           trust: 'synthetic'
         }
@@ -187,8 +187,12 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
   return { context, page };
 }
 
-async function start(rootDir = ROOT) {
+async function start(rootDir = ROOT, roadTiles) {
+  const web = roadTiles ? (await import('../../services/gateway/src/cargo/web.js')).createWebHandler({
+    webEnabled: true, webRoot: rootDir, roadTiles
+  }) : null;
   server = http.createServer(async (req, res) => {
+    if (web && req.url.startsWith('/app/')) return web(req, res);
     let name = new URL(req.url, 'http://local').pathname.replace(/^\/app\//, '/');
     if (name === '/' || name === '/core') name = '/index.html';
     const file = path.resolve(rootDir, '.' + name);
