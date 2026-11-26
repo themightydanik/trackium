@@ -13,6 +13,7 @@ function requireEmptyRequestBody(req) {
 export function createCargoApi({
   pool,
   accounts,
+  coreDevices,
   aovxConfigQuery,
   aovxGnssEnable,
   telemetry,
@@ -164,6 +165,10 @@ export function createCargoApi({
         if (req.headers.origin || req.headers.cookie)
           throw new ApiError(403, 'native client required');
         return reply(res, 201, await native.claim((await body(req)).input));
+      }
+      if (path.startsWith('/v1/core-devices/')) {
+        if (!coreDevices) throw new ApiError(404,'not found');
+        return await coreDevices(req,res,path.slice('/v1/core-devices/'.length));
       }
       if (accounts && path.startsWith('/v1/account/')) return await accounts.route(req, res, url);
       const identity = await authenticate(req),

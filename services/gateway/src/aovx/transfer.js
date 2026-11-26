@@ -133,6 +133,15 @@ export async function administerAovxTransfer(pool, command, input) {
       "SELECT date_trunc('milliseconds',clock_timestamp()) + interval '1 millisecond' AS cutoff");
     await client.query(
       "UPDATE telemetry_aovx_device_bindings SET state='revoked',revoked_at=$2 WHERE id=$1", [plan.source_binding,cutoff]);
+    // Carry the single inventory owner forward with the audited binding transfer.
+    await client.query(`UPDATE device_activation_inventory SET tenant_id=$1,device_id=$2
+      WHERE device_id_bcd=$3 AND tenant_id=$4 AND device_id=$5`,
+    [plan.destination_tenant,device,identifier,plan.source_tenant,plan.source_device]);
+    await client.query('DELETE FROM core_device_connection_codes WHERE tenant_id=$1 AND device_id=$2',
+      [plan.source_tenant,plan.source_device]);
+    await client.query(`UPDATE core_device_installations SET revoked_at=$3
+      WHERE tenant_id=$1 AND device_id=$2 AND revoked_at IS NULL`,
+    [plan.source_tenant,plan.source_device,cutoff]);
     await client.query(`INSERT INTO telemetry_aovx_device_bindings
       (id,tenant_id,device_id,device_id_bcd,created_at) VALUES($1,$2,$3,$4,$5)`,
     [binding,plan.destination_tenant,device,identifier,cutoff]);

@@ -15,6 +15,15 @@ function integer(env, name, fallback, max = 2147483647) {
   return Number(value);
 }
 
+function androidDownload(value, repository, app) {
+  if (!value) return null;
+  const expected = new RegExp('^https://github\\.com/themightydanik/' + repository +
+    '/releases/download/(v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?)/trackium-' + app + '-\\1\\.apk$');
+  const match = expected.exec(value);
+  if (!match) throw new Error('Invalid versioned Android release URL for ' + app);
+  return {url:value,version:match[1]};
+}
+
 export function readConfig(env = process.env) {
   if (!env.DATABASE_URL) throw new Error('DATABASE_URL is required');
   if (
@@ -23,9 +32,12 @@ export function readConfig(env = process.env) {
   ) {
     throw new Error('ENABLE_FIXTURE_ADAPTER must be true or false');
   }
-  for (const name of ['ENABLE_WEB_WORKSPACE', 'ENABLE_SERVER_SIMULATOR', 'ENABLE_NATIVE_CLIENTS', 'ENABLE_TCP_RECEIVER', 'ENABLE_LOCAL_NOTIFICATIONS'])
+  for (const name of ['ENABLE_WEB_WORKSPACE', 'ENABLE_SERVER_SIMULATOR', 'ENABLE_NATIVE_CLIENTS', 'ENABLE_TCP_RECEIVER', 'ENABLE_LOCAL_NOTIFICATIONS', 'DEVICE_ACTIVATION_ENABLED', 'CORE_DEVICE_ACCESS_ENABLED'])
     if (env[name] !== undefined && !['true', 'false'].includes(env[name]))
       throw new Error(name + ' must be true or false');
+  const coreAndroidFingerprint = env.CORE_ANDROID_CERT_SHA256?.toUpperCase();
+  if (coreAndroidFingerprint && !/^(?:[A-F0-9]{2}:){31}[A-F0-9]{2}$/.test(coreAndroidFingerprint))
+    throw new Error('CORE_ANDROID_CERT_SHA256 must be a colon-separated SHA-256 certificate fingerprint');
   const integritasMode = env.INTEGRITAS_MODE ?? 'disabled';
   if (!['disabled', 'test'].includes(integritasMode))
     throw new Error('INTEGRITAS_MODE must be disabled or test');
@@ -100,6 +112,13 @@ export function readConfig(env = process.env) {
   if (tcpEnabled && tcpPort === httpPort)
     throw new Error('TCP_PORT and HTTP_PORT must be different when TCP receiver is enabled');
   return {
+    coreAndroidFingerprint,
+    androidDownloads:{
+      lite:androidDownload(env.LITE_ANDROID_APK_URL,'trackium','lite'),
+      core:androidDownload(env.CORE_ANDROID_APK_URL,'trackium-core-android','core')
+    },
+    coreDeviceAccessEnabled:env.CORE_DEVICE_ACCESS_ENABLED === 'true',
+    deviceActivationEnabled:env.DEVICE_ACTIVATION_ENABLED === 'true',
     integritasMode,
     demoEnabled,
     pilotEnabled,

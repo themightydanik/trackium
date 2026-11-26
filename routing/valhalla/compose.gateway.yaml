@@ -20,6 +20,7 @@ services:
       ENABLE_TCP_RECEIVER: "false"
       ENABLE_WEB_WORKSPACE: "true"
       CUSTOMER_ACCOUNTS_ENABLED: "true"
+      CORE_DEVICE_ACCESS_ENABLED: "true"
       CUSTOMER_MAIL_PROVIDER: local
       ACCOUNT_MAIL_DIRECTORY: /tmp/trackium-routing-mail
       PUBLIC_ORIGIN: http://127.0.0.1:${B2_GATEWAY_PORT:-55471}

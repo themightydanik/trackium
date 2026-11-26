@@ -82,6 +82,8 @@ export async function administerPilot(pool, command, { name, identifiers, passwo
     } else {
       await client.query('DELETE FROM customer_members WHERE account_id=$1 AND tenant_id=$2', [demo.account_id,tenant]);
       await client.query('DELETE FROM customer_aovx_approvals WHERE tenant_id=$1', [tenant]);
+      await client.query('DELETE FROM core_device_connection_codes WHERE tenant_id=$1',[tenant]);
+      await client.query('UPDATE core_device_installations SET revoked_at=now() WHERE tenant_id=$1 AND revoked_at IS NULL',[tenant]);
       await client.query('UPDATE customer_demo_pilot SET active=false,changed_at=now() WHERE account_id=$1', [demo.account_id]);
     }
     await client.query('UPDATE customer_accounts SET password_digest=$2 WHERE id=$1', [demo.account_id,encoded]);

@@ -1015,7 +1015,7 @@
         candidate.nodeValue = next.nodeValue;
         continue;
       }
-      if (candidate.matches('#workspace-map, #customer-status')) continue;
+      if (candidate.matches('#workspace-map, #customer-status, #activation-status')) continue;
       const preserve = name => name === 'open' && candidate.tagName === 'DETAILS' ||
         candidate.hasAttribute('data-ui-busy') && ['disabled','data-ui-busy'].includes(name) ||
         ['value','checked','selected'].includes(name) && candidate.matches('input, textarea, option');
@@ -1043,10 +1043,10 @@
     const heading = template.content.querySelector('.page-heading');
     const extra = document.createElement('template');
     if (account && current === 'devices' && customerScreen !== 'pairing')
-      extra.innerHTML = TrackiumCustomer.aovxEnrollment(account);
+      extra.innerHTML = TrackiumCustomer.deviceActivation(account) + TrackiumCustomer.aovxEnrollment(account);
     if (account && current === 'settings')
       extra.innerHTML = TrackiumCustomer.company(account,
-        companyMembersTenant === account.tenant_id ? companyMembers : null);
+        companyMembersTenant === account.tenant_id ? companyMembers : null) + TrackiumCustomer.applications(account);
     heading.after(extra.content);
     return template;
   }
@@ -1091,7 +1091,7 @@
     lifecycle.sync(routeScope, selected, session, server.state.roadRoute);
     if (fleet) fleet.lifecycle = lifecycle.view;
     const mapFleet = fleet ? {selected:fleet.shipment,layers:fleet.layers || {},road:server.state.roadRoute,
-      comparison:fleet.lifecycle?.comparison?.routes,draft:planner.draft,pick:planner.draft?.pick == null ? null : (coords,keyboard) => {
+      comparison:fleet.lifecycle?.comparison?.routes, revisionDetail:fleet.lifecycle?.detail,draft:planner.draft,pick:planner.draft?.pick == null ? null : (coords,keyboard) => {
         const index = planner.draft.pick;
         planner.pick(coords);
         if (keyboard) $('[data-planner-coordinate="latitude"][data-index="' + index + '"]')?.focus();
@@ -1559,7 +1559,12 @@
             server.state.updated,
             device ? server.openHistory(device) : null
           );
-          if (html) openDialog(html);
+          if (html) {
+            const owner = server.state.account?.role === 'owner' && !server.state.account.demo;
+            openDialog(html + (device && owner ? TrackiumCustomer.renameDevice(device.registry) : '') +
+              (device?.registry.serial && server.state.account?.core_device_access
+                ? TrackiumCustomer.coreConnections(device.registry) : ''));
+          }
         } else if (serverAction === 'reconnect') await server.restore();
         else if (serverAction.startsWith('page-')) {
           const [, kind, direction] = serverAction.split('-');
@@ -1752,14 +1757,55 @@
     const submit = event.target.querySelector('[type=submit]');
     const input = Object.fromEntries(new FormData(event.target));
     const entryRoute = location.hash;
-    const enrollmentTenant = action === 'aovx-enroll' ? server.state.account?.tenant_id : null;
+    const enrollment = ['aovx-enroll','activate-device'].includes(action);
+    const enrollmentTenant = enrollment ? server.state.account?.tenant_id : null;
+    const rename = action === 'rename-device';
+    const coreConnection = /^core-device-(issue|list|approve|revoke)$/.test(action);
+    const entrySession = server.state.session?.id;
+    const statusId = action === 'activate-device' ? '#activation-status' :
+      rename ? '#device-rename-status' : coreConnection ? '#core-connection-status' : '#customer-status';
     if (action === 'member' && !input.role) input.role = null;
+    if (action === 'core-device-approve' && !window.confirm('Confirm the fingerprint matches the requesting Core installation.')) return;
+    if (action === 'core-device-revoke' && !window.confirm('Revoke this Core installation’s access?')) return;
     customerBusy = true;
     submit.setAttribute('data-ui-busy', '');
     submit.disabled = true;
     try {
       const result = await server.customerAction(action, input);
-      if (result.signed_in) {
+      if (coreConnection) {
+        if (entrySession !== server.state.session?.id || !event.target.isConnected || !$('#detail-dialog').open) return;
+        if (action === 'core-device-issue') {
+          const link = new URL(result.connection_link);
+          if (link.origin !== location.origin || link.pathname !== '/app/connect-core' ||
+              !/^#[A-Za-z0-9_-]{43}$/.test(link.hash) || !/^data:image\/gif;base64,[A-Za-z0-9+/=]+$/.test(result.qr_image))
+            throw new Error('Received an invalid connection code.');
+          const img = new Image();
+          img.src = result.qr_image;
+          img.alt = 'Scan this one-time QR in Trackium Core';
+          const anchor = document.createElement('a');
+          anchor.href = link.href;
+          anchor.textContent = 'Open or copy the one-time Core link';
+          const message = document.createElement('p');
+          message.textContent = 'Expires at ' + new Date(result.expires_at).toLocaleTimeString() +
+            '. Scan it in Core, then compare the installation fingerprint before approving.';
+          $('#core-connection-code').replaceChildren(img, message, anchor);
+        } else {
+          const listing = action === 'core-device-list' ? result :
+            await server.customerAction('core-device-list',{device_id:input.device_id});
+          if (entrySession === server.state.session?.id && event.target.isConnected && $('#detail-dialog').open) {
+            $('#core-installations').innerHTML = TrackiumCustomer.coreInstallationRows(input.device_id,listing.installations);
+            $(statusId).textContent = action === 'core-device-list' ? 'Installations refreshed.' : 'Installation access updated.';
+          }
+        }
+      } else if (rename) {
+        if (entrySession !== server.state.session?.id) return;
+        const title = event.target.closest('dialog')?.querySelector('#dialog-title');
+        if (title && event.target.isConnected) {
+          title.textContent = result.label;
+          $(statusId).textContent = 'Device name saved.';
+        }
+        await server.refresh();
+      } else if (result.signed_in) {
         companyMembers = null;
         companyMembersTenant = null;
         if (location.hash === entryRoute && page() !== 'map') location.hash = 'map';
@@ -1773,10 +1819,10 @@
         $('#customer-status').textContent = 'You can now sign in.';
       } else {
         if (action === 'member') companyMembers = null;
-        if (action === 'device' || action === 'aovx-enroll') {
-          if (action === 'aovx-enroll') {
+        if (action === 'device' || enrollment) {
+          if (enrollment) {
             if (enrollmentTenant !== server.state.account?.tenant_id) return;
-            $('[data-customer-form="aovx-enroll"]')?.reset();
+            event.target.reset();
             server.state.pages.devices.cursor = null;
             server.state.pages.devices.previous = [];
           }
@@ -1785,13 +1831,14 @@
         render();
         const details = $('#company-members');
         if (details) details.open = true;
-        const status = $('#customer-status');
+        const status = $(statusId);
         if (status) status.textContent = action === 'invite' ? 'Invitation queued.' :
+          action === 'activate-device' ? 'Tracker activated. Waiting for GPS.' :
           action === 'aovx-enroll' ? 'Physical tracker registered and bound.' : 'Saved.';
       }
     } catch (error) {
-      if (enrollmentTenant && enrollmentTenant !== server.state.account?.tenant_id) return;
-      const output = $('#customer-status');
+      if (((rename || coreConnection) && !event.target.isConnected) || (enrollmentTenant && enrollmentTenant !== server.state.account?.tenant_id)) return;
+      const output = $(statusId);
       if (output) output.textContent = error.message;
     } finally {
       customerBusy = false;
@@ -1871,9 +1918,11 @@
     const action = target.dataset.planner;
     const shipment = server.state.data?.shipments.find(entry => entry.id === serverViews.map?.shipment);
     if (!shipment) return;
-    if (['import','blank','reset'].includes(action)) {
-      if (!planner.close()) return;
-      planner.start(shipment,action === 'import');
+    if (['import','active','blank','reset'].includes(action)) {
+      const road = server.state.roadRoute;
+      const active = action === 'active' && road?.id === shipment.id && road.revision?.state === 'active' ? road.revision : null;
+      if ((action === 'active' && !active) || !planner.close()) return;
+      planner.start(shipment,action === 'import',active);
       render(true);
       $('#planner-title').setAttribute('tabindex','-1');
       $('#planner-title').focus();
@@ -2078,7 +2127,7 @@
     }
   });
   $('#detail-dialog').addEventListener('close', () => {
-    if (!$('#detail-dialog').open) { stopDeviceLab(); server.closeHistory(); }
+    if (!$('#detail-dialog').open) { stopDeviceLab(); server.closeHistory(); $('#core-connection-code')?.replaceChildren(); }
     const anchor = dialogAnchor;
     dialogAnchor = null;
     const target = anchor?.id

@@ -249,7 +249,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
       res.end();
       return;
     }
-    if (assetHandler && (req.url === '/app' || req.url.startsWith('/app/'))) { await assetHandler(req,res);return; }
+    if (assetHandler && (req.url === '/app' || req.url.startsWith('/app/') || req.url === '/.well-known/assetlinks.json')) { await assetHandler(req,res);return; }
     if (requestHandler && (req.url.startsWith('/v1/') || req.url.startsWith('/internal/'))) {
       if (stopping) { res.writeHead(503); res.end(); return; }
       await requestHandler(req, res);

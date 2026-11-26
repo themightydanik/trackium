@@ -824,7 +824,7 @@ test('New customer registers, adds a company and creates a shipment visible on t
   const { createRuntime } = await import('../../services/gateway/src/cargo/runtime.js');
   const { readConfig } = await import('../../services/gateway/src/config.js');
   const { gateway } = createRuntime(db, {
-    ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, CUSTOMER_ACCOUNTS_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'local', ACCOUNT_MAIL_DIRECTORY: directory,
+    ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, CUSTOMER_ACCOUNTS_ENABLED: 'true', DEVICE_ACTIVATION_ENABLED: 'true', CORE_DEVICE_ACCESS_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'local', ACCOUNT_MAIL_DIRECTORY: directory,
       ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', INTEGRITAS_MODE: 'test', WEB_ROOT: ROOT }),
     host: '127.0.0.1', httpPort
   }, { worker: false, logger: { info(){}, error(){} } });
@@ -867,9 +867,51 @@ test('New customer registers, adds a company and creates a shipment visible on t
   await page.getByRole('heading', {name:'Fleet Map',exact:true}).waitFor();
   await page.locator('#navigation a[href="#dashboard"]').click();
   await capture('02-dashboard');
+  const { provisionDevices } = await import('../../services/gateway/src/cargo/device-activation.js');
+  let card;
+  await provisionDevices(db, [{serial:'BROWSER-GL110',device_id_bcd:'199999999998'}], async cards => { [card] = cards; });
+  await page.locator('#navigation a[href="#devices"]').click();
+  const activation = page.locator('[data-customer-form="activate-device"]');
+  await activation.getByLabel('Tracker name').fill('GL110 awaiting first observation');
+  await activation.getByLabel('Tracker serial number').fill(card.serial);
+  await activation.getByLabel('Activation code').fill(card.code);
+  await activation.getByRole('button',{name:'Activate tracker'}).click();
+  await page.getByRole('status').filter({hasText:'Tracker activated. Waiting for GPS.'}).waitFor();
+  await page.getByText('GL110 awaiting first observation',{exact:true}).first().waitFor();
+  assert.equal(await activation.getByLabel('Activation code').inputValue(),'');
+  const trackerRow = page.getByRole('row').filter({hasText:'BROWSER-GL110'});
+  await trackerRow.getByText(/Waiting for GPS/).waitFor();
+  await trackerRow.getByRole('button',{name:'Device details'}).click();
+  const rename = page.locator('[data-customer-form="rename-device"]');
+  await rename.getByLabel('New device name').fill('Renamed GL110');
+  await rename.getByRole('button',{name:'Save device name'}).click();
+  await page.getByRole('heading',{name:'Renamed GL110', exact:true}).waitFor();
+  await page.locator('[data-customer-form="core-device-issue"] select[name=permission]').selectOption('view');
+  await page.getByRole('button',{name:'Generate connection QR'}).click();
+  await page.getByRole('img',{name:'Scan this one-time QR in Trackium Core'}).waitFor();
+  const link = await page.getByRole('link',{name:'Open or copy the one-time Core link'}).getAttribute('href');
+  assert.match(link,new RegExp('^' + origin + '/app/connect-core#[A-Za-z0-9_-]{43}$'));
+  for (const width of [320,390]) {
+    await page.setViewportSize({width,height:840});
+    assert.ok(await page.locator('#core-connection-code img').evaluate(image => {
+      const bounds = image.getBoundingClientRect();
+      return bounds.left >= 0 && bounds.right <= innerWidth && bounds.width > 0;
+    }));
+  }
+  await page.setViewportSize({width:1280,height:1000});
+  await page.getByRole('button',{name:'Close details'}).click();
+  await trackerRow.getByText('Renamed GL110',{exact:true}).waitFor();
+
+
   await page.locator('#navigation a[href="#settings"]').click();
-  await page.getByLabel('Device label').fill('Unbound pilot device');
-  await page.getByRole('button', {name:'Add device record'}).click();
+  await page.getByRole('heading',{name:'My Applications'}).waitFor();
+  assert.equal(await page.getByRole('link',{name:/Download Trackium.*APK/}).count(),0);
+  const deviceRecord = page.locator('[data-customer-form="device"]');
+  await deviceRecord.getByLabel('Device label').fill('Unbound pilot device');
+  const createDevice = page.waitForResponse(response => response.url() === origin + '/v1/account/device'
+    && response.request().method() === 'POST');
+  await deviceRecord.getByRole('button', {name:'Add device record'}).click();
+  assert.equal((await createDevice).status(),201);
   await page.getByText('Saved.',{exact:true}).waitFor();
   await page.locator('#navigation a[href="#shipments"]').click();
   await page.getByRole('button', {name:'Create shipment',exact:true}).click();

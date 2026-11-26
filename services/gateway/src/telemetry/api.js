@@ -93,7 +93,7 @@ export function createTelemetryApi(
         if (req.method === 'GET') {
           requireScope('read');
           const q = query(url, ['limit', 'cursor']);
-          reply(res, 200, await service.list(tenant, q.limit, q.cursor));
+          reply(res, 200, await service.list(tenant, q.limit, q.cursor, Boolean(identity.account_id && identity.role === 'owner' && (!identity.demo || identity.pilot))));
           return;
         }
         if (req.method === 'POST') {

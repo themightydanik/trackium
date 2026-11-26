@@ -219,3 +219,46 @@ test('Fleet Map distinguishes missing, pending, unavailable and malformed geomet
     finally { await context.close(); }
   } finally { await stop(); }
 });
+
+test('selected physical history stays distinct from the latest fix and the active road', async () => {
+  await start();
+  try {
+    const registry = {...fixture.registry,identity_kind:'physical',mode:'real'};
+    const measured = new Date(Date.now()-2000).toISOString();
+    const received = new Date().toISOString();
+    const gps = {latitude:51.2,longitude:17};
+    const sample = (extra, overrides = {}) => ({received_at:received,payload:{
+      trust:'unverified',source:'aovx-gal-v1',device_id:registry.id,
+      gps,device_measured_at:measured,extra,...overrides
+    }});
+    const source = {customer:true,registry,road:revision,
+      physicalLocation:{trust:'unverified',gps,occurred_at:measured,received_at:received},
+      physicalHistory:[sample({gnss_fix:true,buffered:true}),sample({gnss_fix:false}),
+        sample({gnss_fix:true},{device_id:'foreign'}),sample({gnss_fix:true},{trust:'synthetic'})]};
+    const {page,context} = await fixturePage(390,'dark',source);
+    try {
+      await page.evaluate(() => { location.hash = '#map'; });
+      await page.locator('.fleet-manifest-list button').first().click();
+      await page.locator('.fleet-road-line').waitFor();
+      await page.locator('.fleet-gps-breadcrumb').waitFor();
+      await page.getByRole('button',{name:'Edit active road as draft'}).click();
+      assert.equal(await page.getByRole('textbox',{name:'Origin latitude'}).inputValue(),String(revision.stops[0].latitude));
+      assert.equal(await page.locator('.fleet-road-line').count(),1);
+      assert.equal(await page.locator('.fleet-gps-breadcrumb').count(),1);
+      assert.equal(await page.locator('.ux-device-position').count(),1);
+      await page.getByText(/Approximate distance from active road/).waitFor();
+      await page.locator('[data-fleet-layer="observed"]').uncheck();
+      assert.equal(await page.locator('.fleet-gps-breadcrumb, .ux-device-position').count(),0);
+      assert.equal(await page.locator('.fleet-road-line').count(),1);
+      source.physicalLocation = null;
+      const refreshed = page.waitForResponse(response => new URL(response.url()).pathname === '/v1/devices/' + registry.id + '/location');
+      await page.getByRole('button',{name:'Refresh',exact:true}).click();
+      await refreshed;
+      await page.locator('[data-fleet-layer="observed"]').check();
+      await page.locator('.fleet-gps-breadcrumb').waitFor();
+      await page.locator('.ux-device-position').waitFor({state:'detached'});
+      await page.getByText(/Approximate distance from active road/).waitFor({state:'detached'});
+      assert.equal(await page.locator('.fleet-road-line').count(),1);
+    } finally { await context.close(); }
+  } finally { await stop(); }
+});

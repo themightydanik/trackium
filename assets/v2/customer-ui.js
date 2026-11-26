@@ -79,5 +79,62 @@
         ).join('') + '</details>' : '') +
       '<button class="button secondary" data-customer-view="logout">Sign out</button><p id="customer-status" role="status"></p></section>';
   }
-  root.TrackiumCustomer = { auth, company, aovxEnrollment };
+  function deviceActivation(account) {
+    if (!account.device_activation || account.role !== 'owner') return '';
+    return '<section class="panel customer-access"><h2>Activate a purchased tracker</h2>' +
+      '<p>Use the serial number and one-time code from your activation card.</p>' +
+      form('activate-device',field('Tracker name','label') +
+        '<label class="field-label">Tracker serial number<input class="text-input" name="serial" maxlength="64" autocomplete="off" required></label>' +
+        '<label class="field-label">Activation code<input type="password" class="text-input" name="code" maxlength="43" autocomplete="off" required></label>',
+        'Activate tracker') + '<p id="activation-status" role="status"></p></section>';
+  }
+  function renameDevice(device) {
+    return '<section class="panel customer-access"><h3>Rename device</h3>' +
+      form('rename-device','<input type="hidden" name="device_id" value="' + esc(device.id) + '">' +
+        '<label class="field-label">New device name<input class="text-input" name="label" maxlength="120" required value="' +
+        esc(device.label) + '"></label>', 'Save device name') + '<p id="device-rename-status" role="status"></p></section>';
+  }
+  function applications(account) {
+    const section = (type, label, help) => {
+      const release = account.android_downloads?.[type];
+      let link = '';
+      if (release?.url && release.version) {
+        const url = new URL(release.url);
+        if (url.protocol === 'https:' && url.hostname === 'github.com')
+          link = '<p><a class="button secondary" href="' + esc(url.href) + '" target="_blank" rel="noopener noreferrer">' +
+            'Download ' + label + ' APK · ' + esc(release.version) + '</a></p>';
+      }
+      return '<section><h3>' + label + '</h3>' + (link || '<p>No signed download published yet.</p>') +
+        '<p>' + help + '</p></section>';
+    };
+    return '<section class="panel customer-access"><h2>My Applications</h2><div class="ops-company-actions">' +
+      '<section><h3>Trackium Lite Web</h3><p><a class="button secondary" href="#map">Open Fleet Map</a></p></section>' +
+      section('lite','Trackium Lite Android','Install the signed APK and sign in with your existing Trackium account.') +
+      section('core','Trackium Core Android','Install Core, unlock it locally, then open Devices to scan a connection QR or activation card.') +
+      '</div></section>';
+  }
+
+  function coreConnections(device) {
+    const id = '<input type="hidden" name="device_id" value="' + esc(device.id) + '">';
+    return '<section class="panel customer-access" id="core-connections"><h3>Connect to Trackium Core</h3>' +
+      '<p>Choose access for this installation. View Only allows reading this tracker’s observations.</p>' +
+      form('core-device-issue',id + '<label class="field-label">Permission<select name="permission">' +
+        '<option value="view">View Only</option><option value="full">Full Access</option></select></label>', 'Generate connection QR') +
+      '<div id="core-connection-code"></div>' +
+      form('core-device-list',id,'Refresh connected installations') +
+      '<div id="core-installations"></div><p id="core-connection-status" role="status"></p></section>';
+  }
+
+  function coreInstallationRows(deviceId, installations) {
+    return installations.map(item => {
+      const pending = !item.approved_at;
+      const hidden = '<input type="hidden" name="device_id" value="' + esc(deviceId) +
+        '"><input type="hidden" name="installation_id" value="' + esc(item.id) + '">';
+      return '<div><p>' + (item.permission === 'full' ? 'Full Access' : 'View Only') +
+        ' · ' + (pending ? 'Awaiting confirmation' : 'Connected') + '</p><code style="overflow-wrap:anywhere">' +
+        esc(item.fingerprint) + '</code>' + (pending ? form('core-device-approve',hidden,'Approve matched fingerprint') : '') +
+        form('core-device-revoke',hidden,'Revoke installation') + '</div>';
+    }).join('') || '<p>No installations connected.</p>';
+  }
+  root.TrackiumCustomer = { auth, company, aovxEnrollment, deviceActivation, renameDevice, coreConnections, coreInstallationRows, applications };
 })(window);

@@ -173,10 +173,12 @@ export function createTelemetryService(pool, { onEvent } = {}) {
       if (!result.rowCount) throw new ApiError(404, 'device not found');
       return result.rows[0];
     },
-    async list(tenantId, limit, cursor) {
+    async list(tenantId, limit, cursor, ownerInventory = false) {
       const result = await pool.query(
-        `SELECT id,tenant_id,label,mode,enabled,created_at,identity_kind FROM telemetry_devices
-        WHERE tenant_id=$1 AND ($2::uuid IS NULL OR id>$2) ORDER BY id LIMIT $3`,
+        `SELECT d.id,d.tenant_id,d.label,d.mode,d.enabled,d.created_at,d.identity_kind
+          ${ownerInventory ? ',i.serial' : ''} FROM telemetry_devices d
+          ${ownerInventory ? 'LEFT JOIN device_activation_inventory i ON i.tenant_id=d.tenant_id AND i.device_id=d.id' : ''}
+        WHERE d.tenant_id=$1 AND ($2::uuid IS NULL OR d.id>$2) ORDER BY d.id LIMIT $3`,
         [tenantId, cursor ? uuid(cursor) : null, limit + 1]
       );
       const more = result.rows.length > limit,

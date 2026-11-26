@@ -1,3 +1,4 @@
+import { adoptBoundDevice } from '../src/cargo/device-activation.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { connect } from 'node:net';
@@ -48,6 +49,10 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
   const identifier = '555444333221';
   const binding = await runtime.telemetry.bindAovxDevice(internal.tenant_id, internal.id,
     { device_id: tracker.id, device_id_bcd: identifier });
+  const adoption = {serial:'TRANSFER-TEST',device_id_bcd:identifier,tenant_id:internal.tenant_id,device_id:tracker.id};
+  await assert.rejects(adoptBoundDevice(db,{...adoption,tenant_id:third.tenant_id}),{status:409});
+  assert.deepEqual(await adoptBoundDevice(db,adoption),{serial:adoption.serial,adopted:true});
+  const inventory = async () => (await db.query("SELECT tenant_id,device_id FROM device_activation_inventory WHERE serial='TRANSFER-TEST'")).rows[0];
   await administerDemo(db, 'bootstrap', { password: 'local transfer viewer fixture' });
   await assert.rejects(administerPilot(db, 'plan', { name: 'Trackium Physical Pilot', identifiers: [identifier] }),
     { status: 409 });
@@ -163,6 +168,7 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
   }
   const state = await operate('inspect-transfer', { identifier });
   const dest = state.active.device_id;
+  assert.deepEqual(await inventory(),{tenant_id:pilot,device_id:dest});
   assert.equal(state.active.id, result.destination_binding_id);
   assert.equal(state.active.tenant_id, pilot);
   await assert.rejects(runtime.telemetry.bindAovxDevice(internal.tenant_id, internal.id, {
@@ -189,6 +195,7 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
     source_binding: result.destination_binding_id, destination_tenant: internal.tenant_id, reverse_of: plan.id };
   const reversed = await operate('apply-transfer', reversal);
   assert.equal(reversed.reverse_of, result.id);
+  assert.deepEqual(await inventory(),{tenant_id:internal.tenant_id,device_id:tracker.id});
   assert.equal((await operate('inspect-transfer', { identifier })).active.device_id, tracker.id);
   assert.equal((await operate('apply-transfer', reversal)).status, 'already-applied');
   assert.equal((await processStored(await replay())).reason, 'outside-custody-window');

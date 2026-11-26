@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { request } from 'node:http';
 import pg from 'pg';
 import { provisionTenant } from './src/telemetry/service.js';
-import { randomUUID, createHash } from 'node:crypto';
+import { provisionDevices } from './src/cargo/device-activation.js';
+import { randomUUID, createHash, generateKeyPairSync, sign } from 'node:crypto';
 
 const origin = process.env.PUBLIC_ORIGIN;
 const endpoint = 'http://127.0.0.1:' + process.env.HTTP_PORT;
@@ -201,6 +202,33 @@ if (profile === 'revisions') {
     assert.equal(tenantBlocked.status,429);
     assert.equal(tenantBlocked.payload.code,'ROUTING_RATE_LIMITED');
     assert.equal((await call(other,routePath,fixture)).status,200);
+    if (process.env.CORE_DEVICE_ACCESS_ENABLED === 'true') {
+      const credentials = generateKeyPairSync('ec',{namedCurve:'prime256v1'});
+      async function core(operation,value) {
+        const payload = JSON.stringify(value), nonce = randomUUID(), timestamp = Date.now();
+        const data = ['trackium-core-device-v1',origin,operation,nonce,timestamp,
+          createHash('sha256').update(payload).digest('hex')].join('\n');
+        const response = await fetch(endpoint + '/v1/core-devices/' + operation,{
+          method:'POST',headers:{'content-type':'application/json'},
+          body:JSON.stringify({payload,nonce,timestamp,
+            public_key:credentials.publicKey.export({type:'spki',format:'der'}).toString('base64url'),
+            signature:sign('sha256',Buffer.from(data),credentials.privateKey).toString('base64url')})
+        });
+        return {status:response.status,payload:await response.json()};
+      }
+      const serial = 'ROUTING-FIXTURE-' + randomUUID().toUpperCase();
+      const bcd = ('000000000000' + BigInt('0x' + randomUUID().replaceAll('-','')).toString()).slice(-12);
+      let card;
+      await provisionDevices(db,[{serial,device_id_bcd:bcd}],async cards => { [card] = cards; });
+      const claim = await core('claim',{serial,code:card.code,label:'Disposable Core fixture'});
+      assert.equal(claim.status,201);
+      const result = await core('calculate',{installation_id:claim.payload.id,calculation:fixture});
+      assert.equal(result.status,200,JSON.stringify({status:result.status,code:result.payload.code}));
+      assert.deepEqual(result.payload.graph,car.graph);
+      assert.equal(result.payload.route.distance_m,car.route.distance_m);
+      assert.deepEqual(result.payload.route.legs,car.route.legs);
+    }
+
   } finally { await db.end(); }
 } else {
   const cases = profile === 'ukraine' ? [

@@ -3588,6 +3588,7 @@ h1,h2,h3 {overflow-wrap:anywhere;}
 .customer-access form { display: grid; gap: .75rem; margin-block: 1rem; }
 .customer-access form button { justify-self: start; }
 .customer-access select { max-width: 100%; }
+#core-connection-code img { max-width: 100%; height: auto; display: block; }
 .customer-access .form-actions { flex-wrap: wrap; }
 .customer-mode .foundation-card,
 .customer-mode .sidebar-bottom .runtime,

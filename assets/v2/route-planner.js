@@ -67,12 +67,14 @@
         draft = null;
         return true;
       },
-      start(shipment, fromPlan) {
+      start(shipment, fromPlan, active) {
         const checkpoints = shipment.checkpoints?.length >= 2 ? shipment.checkpoints : shipment.route;
-        const rows = fromPlan ? (checkpoints || []).map(point).filter(Boolean) : [];
+        const stops = active?.stops || (fromPlan ? checkpoints : []);
+        const rows = (stops || []).map(point).filter(Boolean);
+        const vehicle = active?.calculation;
         draft = { shipment:shipment.id, rows:rows.length >= 2 && rows.length <= 10 ? rows : [blank(),blank()],
-          profile:'auto', truck:{}, pick:null, dirty:false, preview:null, error:'', token:++serial };
-        if (fromPlan && (rows.length < 2 || rows.length > 10 || rows.length !== checkpoints?.length)) {
+          profile:vehicle?.profile === 'truck' ? 'truck' : 'auto', truck:{...vehicle?.truck}, pick:null, dirty:false, preview:null, error:'', token:++serial };
+        if ((fromPlan || active) && (rows.length < 2 || rows.length > 10 || rows.length !== stops?.length)) {
           draft.rows = [blank(),blank()];
           draft.error = 'The existing plan needs 2–10 valid stops to import. Start with the blank draft.';
         }
