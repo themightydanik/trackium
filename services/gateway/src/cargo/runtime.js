@@ -1,3 +1,4 @@
+import { createCoreDeviceAccess } from './core-device-access.js';
 import { createCustomerMail, startCustomerMail } from './customer-mail.js';
 import { createAccounts } from './accounts.js';
 import { createNativeSessions } from './native-session.js';
@@ -112,6 +113,7 @@ export function createRuntime(
     requestHandler: createCargoApi({
       pool,
       accounts,
+      coreDevices: config.coreDeviceAccessEnabled ? createCoreDeviceAccess(pool,config,telemetry,routing) : null,
       aovxConfigQuery,
       aovxGnssEnable,
       telemetry,

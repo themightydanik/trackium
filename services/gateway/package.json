@@ -18,7 +18,8 @@
     "aovx:transfer": "node src/aovx/transfer-cli.js"
   },
   "dependencies": {
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "qrcode-generator": "1.4.4"
   },
   "engines": {
     "node": ">=22"

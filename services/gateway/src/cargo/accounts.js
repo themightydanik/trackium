@@ -1,3 +1,5 @@
+import qrcode from 'qrcode-generator';
+import { manageCoreDeviceAccess } from './core-device-access.js';
 import { randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -81,6 +83,7 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
     if (result.demo) delete result.email;
     return { ...result, csrf: csrf(raw), kind: 'session', customer: true,
       scopes: !result.role ? [] : result.role === 'viewer' ? ['read'] : ['read', 'shipments'],
+      core_device_access: config.coreDeviceAccessEnabled === true && !demoMode && result.role === 'owner',
       device_activation: config.deviceActivationEnabled === true && !demoMode && result.role === 'owner',
       simulation_enabled: false };
   }
@@ -288,6 +291,19 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
         await start(client, identity.account_id, nextCompany, res);
       });
       return reply(res, 200, { signed_in: true });
+    }
+    const coreOperation = /^core-device-(issue|list|approve|revoke)$/.exec(action);
+    if (coreOperation) {
+      if (!config.coreDeviceAccessEnabled) throw new ApiError(404,'Account operation not found');
+      if (identity.role !== 'owner' || !identity.tenant_id) throw new ApiError(403,'Company owner required');
+      const result = await manageCoreDeviceAccess(pool,identity,coreOperation[1],input);
+      if (coreOperation[1] !== 'issue') return reply(res,200,result);
+      const connection_link = new URL('/app/connect-core',config.publicOrigin);
+      connection_link.hash = result.code;
+      const qr = qrcode(0,'M');
+      qr.addData(connection_link.href);
+      qr.make();
+      return reply(res,200,{...result,connection_link:connection_link.href,qr_image:qr.createDataURL(4,16)});
     }
     if (action === 'rename-device') {
       if (identity.role !== 'owner' || !identity.tenant_id) throw new ApiError(403, 'Company owner required');

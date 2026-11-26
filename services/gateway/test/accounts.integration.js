@@ -1,6 +1,7 @@
+import { hash } from '../src/cargo/shared.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { generateKeyPairSync, randomUUID, sign } from 'node:crypto';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { createCustomerMail } from '../src/cargo/customer-mail.js';
@@ -25,7 +26,7 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   await new Promise(resolve => listener.close(resolve));
   const origin = 'http://127.0.0.1:' + httpPort;
   const config = readConfig({ DATABASE_URL: url, ENABLE_WEB_WORKSPACE:'true', ENABLE_TCP_RECEIVER:'false',
-    DEVICE_ACTIVATION_ENABLED:'true', DEPLOYMENT_PROFILE:'railway-public', NODE_ENV:'production', ENABLE_NATIVE_CLIENTS:'true',
+    DEVICE_ACTIVATION_ENABLED:'true', CORE_DEVICE_ACCESS_ENABLED:'true', DEPLOYMENT_PROFILE:'railway-public', NODE_ENV:'production', ENABLE_NATIVE_CLIENTS:'true',
     PUBLIC_ORIGIN: origin.replace('http:', 'https:'), HTTP_PORT: String(httpPort), CUSTOMER_ACCOUNTS_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'resend', RESEND_API_KEY: 're_test_only',
     CUSTOMER_MAIL_FROM: 'accounts@example.test', CUSTOMER_MAIL_TOKEN_KEY: 'ab'.repeat(32) });
   const { gateway } = createRuntime(db, { ...config, host:'127.0.0.1' }, { worker:false, logger:{ info(){}, error(){} } });
@@ -145,6 +146,37 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
     {headers:{'x-csrf-token':''}})).status,403);
   assert.equal((await account(winner,'rename-device',{device_id:claim.device_id,label:'Renamed tracker'})).status,200);
   assert.equal((await call(winner,'/v1/devices/'+claim.device_id)).label,'Renamed tracker');
+  await db.query('DELETE FROM customer_rate_buckets');
+  const controlled = {device_id:claim.device_id};
+  assert.equal((await account(loser,'core-device-issue',{...controlled,permission:'view'})).status,404);
+  const issued = await account(winner,'core-device-issue',{...controlled,permission:'view'});
+  assert.equal(issued.status,200);
+  const reviewer = generateKeyPairSync('ec',{namedCurve:'prime256v1'});
+  const coreCall = async (operation,input) => {
+    const payload = JSON.stringify(input);
+    const timestamp = Date.now(), nonce = randomUUID();
+    const envelope = {public_key:reviewer.publicKey.export({type:'spki',format:'der'}).toString('base64url'),
+      timestamp,nonce,payload,signature:sign('sha256',Buffer.from(
+        ['trackium-core-device-v1',config.publicOrigin,operation,nonce,timestamp,hash(payload)].join('\n')),reviewer.privateKey).toString('base64url')};
+    const response = await fetch(origin+'/v1/core-devices/'+operation,{method:'POST',body:JSON.stringify(envelope),
+      headers:{'content-type':'application/json'}});
+    return {status:response.status,...await response.json()};
+  };
+  const connected = await coreCall('connect',{code:issued.code});
+  assert.equal(connected.status,201);
+  assert.equal((await coreCall('connect',{code:issued.code})).status,401);
+  const access = {installation_id:connected.id};
+  assert.equal((await coreCall('observations',access)).status,404);
+  const [pending] = (await account(winner,'core-device-list',controlled)).installations;
+  assert.equal(pending.fingerprint,connected.fingerprint);
+  assert.equal(pending.approved_at,null);
+  assert.equal((await account(loser,'core-device-approve',{...controlled,...access})).status,404);
+  assert.equal((await account(winner,'core-device-approve',{...controlled,...access})).status,200);
+  assert.deepEqual(await coreCall('observations',access),{status:200,location:null,history:[]});
+  assert.equal((await coreCall('calculate',{...access,calculation:{}})).status,403);
+  assert.equal((await account(winner,'core-device-revoke',{...controlled,...access})).status,200);
+  assert.equal((await coreCall('observations',access)).status,404);
+
 
   assert.equal(claim.activation_sha256,null);
   assert.deepEqual(await account(winner,'activate-device',activation),expired);

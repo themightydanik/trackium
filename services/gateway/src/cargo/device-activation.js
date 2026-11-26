@@ -10,7 +10,7 @@ const lock = (client, bcd) =>
   client.query("SELECT pg_advisory_xact_lock(hashtextextended('aovx-enroll:'||$1,0))", [bcd]);
 const secret = () => randomBytes(32).toString('base64url');
 
-async function requireCurrentOwner(client, identity) {
+export async function requireCurrentOwner(client, identity) {
   // Match the existing tenant → account → BCD lock order.
   await client.query('SELECT id FROM customer_accounts WHERE id=$1 FOR NO KEY UPDATE', [identity.account_id]);
   const session = await client.query(
@@ -37,30 +37,35 @@ export async function renameOwnedDevice(pool, identity, input) {
   });
 }
 
-export async function claimDevice(pool, telemetry, identity, input) {
+export function claimDevice(pool, telemetry, identity, input) {
+  return transaction(pool,identity.tenant_id,async client => {
+    await requireCurrentOwner(client,identity);
+    return claimInventory(client,telemetry,input,() => identity.tenant_id);
+  });
+}
+
+export async function claimInventory(client, telemetry, input, allocateTenant) {
   object(input, ['serial', 'code', 'label']);
   const serial = typeof input.serial === 'string' ? input.serial.trim().toUpperCase() : '';
   if (!serialPattern.test(serial) || typeof input.code !== 'string' || !codePattern.test(input.code)) throw denied();
   text(input.label, 120);
-  return transaction(pool, identity.tenant_id, async client => {
-    await requireCurrentOwner(client, identity);
-    const {rows:[candidate]} = await client.query(
-      'SELECT device_id_bcd FROM device_activation_inventory WHERE serial=$1', [serial]);
-    if (candidate) await lock(client,candidate.device_id_bcd);
-    const {rows:[current]} = await client.query(
-      'SELECT * FROM device_activation_inventory WHERE serial=$1 FOR UPDATE', [serial]);
-    const valid = timingSafeEqual(Buffer.from(hash(input.code),'hex'),
-      Buffer.from(current?.activation_sha256 ?? '0'.repeat(64),'hex'));
-    if (!candidate || !current?.activation_sha256 || current.claimed_at || !valid) throw denied();
+  const {rows:[candidate]} = await client.query(
+    'SELECT device_id_bcd FROM device_activation_inventory WHERE serial=$1', [serial]);
+  if (candidate) await lock(client,candidate.device_id_bcd);
+  const {rows:[current]} = await client.query(
+    'SELECT * FROM device_activation_inventory WHERE serial=$1 FOR UPDATE', [serial]);
+  const valid = timingSafeEqual(Buffer.from(hash(input.code),'hex'),
+    Buffer.from(current?.activation_sha256 ?? '0'.repeat(64),'hex'));
+  if (!candidate || !current?.activation_sha256 || current.claimed_at || !valid) throw denied();
 
-    const device = await telemetry.register(identity.tenant_id,{label:input.label,mode:'real'},'physical',client);
-    await client.query(`UPDATE device_activation_inventory
-      SET tenant_id=$2,device_id=$3,claimed_at=now(),activation_sha256=NULL WHERE serial=$1`,
-    [serial,identity.tenant_id,device.id]);
-    await client.query(`INSERT INTO telemetry_aovx_device_bindings (id,tenant_id,device_id,device_id_bcd)
-      VALUES ($1,$2,$3,$4)`,[randomUUID(),identity.tenant_id,device.id,current.device_id_bcd]);
-    return device;
-  });
+  const tenant = await allocateTenant();
+  const device = await telemetry.register(tenant,{label:input.label,mode:'real'},'physical',client);
+  await client.query(`UPDATE device_activation_inventory
+    SET tenant_id=$2,device_id=$3,claimed_at=now(),activation_sha256=NULL WHERE serial=$1`,
+  [serial,tenant,device.id]);
+  await client.query(`INSERT INTO telemetry_aovx_device_bindings (id,tenant_id,device_id,device_id_bcd)
+    VALUES ($1,$2,$3,$4)`,[randomUUID(),tenant,device.id,current.device_id_bcd]);
+  return { ...device, serial };
 }
 
 export async function provisionDevices(pool, rows, exportCards) {
@@ -87,6 +92,26 @@ export async function provisionDevices(pool, rows, exportCards) {
     }
     await exportCards(cards);
     return cards.length;
+  });
+}
+
+export async function adoptBoundDevice(pool, input) {
+  object(input,['serial','device_id_bcd','tenant_id','device_id']);
+  const {serial,device_id_bcd:bcd,tenant_id:tenant,device_id:device} = input;
+  if (typeof serial !== 'string' || !serialPattern.test(serial) ||
+      typeof bcd !== 'string' || !bcdPattern.test(bcd)) throw denied();
+  uuid(tenant);
+  uuid(device);
+  return transaction(pool,tenant,async client => {
+    await lock(client,bcd);
+    const active = await client.query(`SELECT b.id FROM telemetry_aovx_device_bindings b
+      JOIN telemetry_devices d ON d.tenant_id=b.tenant_id AND d.id=b.device_id
+      WHERE b.device_id_bcd=$1 AND b.tenant_id=$2 AND b.device_id=$3 AND b.state='active'
+        AND d.enabled AND d.identity_kind='physical' FOR SHARE OF b,d`,[bcd,tenant,device]);
+    if (!active.rowCount) throw new ApiError(409,'Expected physical binding is not active');
+    await client.query(`INSERT INTO device_activation_inventory(serial,device_id_bcd,tenant_id,device_id,claimed_at)
+      VALUES($1,$2,$3,$4,now())`,[serial,bcd,tenant,device]);
+    return {serial,adopted:true};
   });
 }
 

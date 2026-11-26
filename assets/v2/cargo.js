@@ -1561,7 +1561,9 @@
           );
           if (html) {
             const owner = server.state.account?.role === 'owner' && !server.state.account.demo;
-            openDialog(html + (device && owner ? TrackiumCustomer.renameDevice(device.registry) : ''));
+            openDialog(html + (device && owner ? TrackiumCustomer.renameDevice(device.registry) : '') +
+              (device?.registry.serial && owner && server.state.account.core_device_access
+                ? TrackiumCustomer.coreConnections(device.registry) : ''));
           }
         } else if (serverAction === 'reconnect') await server.restore();
         else if (serverAction.startsWith('page-')) {
@@ -1758,16 +1760,44 @@
     const enrollment = ['aovx-enroll','activate-device'].includes(action);
     const enrollmentTenant = enrollment ? server.state.account?.tenant_id : null;
     const rename = action === 'rename-device';
+    const coreConnection = /^core-device-(issue|list|approve|revoke)$/.test(action);
     const entrySession = server.state.session?.id;
     const statusId = action === 'activate-device' ? '#activation-status' :
-      rename ? '#device-rename-status' : '#customer-status';
+      rename ? '#device-rename-status' : coreConnection ? '#core-connection-status' : '#customer-status';
     if (action === 'member' && !input.role) input.role = null;
+    if (action === 'core-device-approve' && !window.confirm('Confirm the fingerprint matches the requesting Core installation.')) return;
+    if (action === 'core-device-revoke' && !window.confirm('Revoke this Core installation’s access?')) return;
     customerBusy = true;
     submit.setAttribute('data-ui-busy', '');
     submit.disabled = true;
     try {
       const result = await server.customerAction(action, input);
-      if (rename) {
+      if (coreConnection) {
+        if (entrySession !== server.state.session?.id || !event.target.isConnected || !$('#detail-dialog').open) return;
+        if (action === 'core-device-issue') {
+          const link = new URL(result.connection_link);
+          if (link.origin !== location.origin || link.pathname !== '/app/connect-core' ||
+              !/^#[A-Za-z0-9_-]{43}$/.test(link.hash) || !/^data:image\/gif;base64,[A-Za-z0-9+/=]+$/.test(result.qr_image))
+            throw new Error('Received an invalid connection code.');
+          const img = new Image();
+          img.src = result.qr_image;
+          img.alt = 'Scan this one-time QR in Trackium Core';
+          const anchor = document.createElement('a');
+          anchor.href = link.href;
+          anchor.textContent = 'Open or copy the one-time Core link';
+          const message = document.createElement('p');
+          message.textContent = 'Expires at ' + new Date(result.expires_at).toLocaleTimeString() +
+            '. Scan it in Core, then compare the installation fingerprint before approving.';
+          $('#core-connection-code').replaceChildren(img, message, anchor);
+        } else {
+          const listing = action === 'core-device-list' ? result :
+            await server.customerAction('core-device-list',{device_id:input.device_id});
+          if (entrySession === server.state.session?.id && event.target.isConnected && $('#detail-dialog').open) {
+            $('#core-installations').innerHTML = TrackiumCustomer.coreInstallationRows(input.device_id,listing.installations);
+            $(statusId).textContent = action === 'core-device-list' ? 'Installations refreshed.' : 'Installation access updated.';
+          }
+        }
+      } else if (rename) {
         if (entrySession !== server.state.session?.id) return;
         const title = event.target.closest('dialog')?.querySelector('#dialog-title');
         if (title && event.target.isConnected) {
@@ -1807,7 +1837,7 @@
           action === 'aovx-enroll' ? 'Physical tracker registered and bound.' : 'Saved.';
       }
     } catch (error) {
-      if ((rename && !event.target.isConnected) || (enrollmentTenant && enrollmentTenant !== server.state.account?.tenant_id)) return;
+      if (((rename || coreConnection) && !event.target.isConnected) || (enrollmentTenant && enrollmentTenant !== server.state.account?.tenant_id)) return;
       const output = $(statusId);
       if (output) output.textContent = error.message;
     } finally {
@@ -2097,7 +2127,7 @@
     }
   });
   $('#detail-dialog').addEventListener('close', () => {
-    if (!$('#detail-dialog').open) { stopDeviceLab(); server.closeHistory(); }
+    if (!$('#detail-dialog').open) { stopDeviceLab(); server.closeHistory(); $('#core-connection-code')?.replaceChildren(); }
     const anchor = dialogAnchor;
     dialogAnchor = null;
     const target = anchor?.id

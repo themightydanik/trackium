@@ -1,3 +1,4 @@
+import { adoptBoundDevice } from '../src/cargo/device-activation.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { connect } from 'node:net';
@@ -48,8 +49,9 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
   const identifier = '555444333221';
   const binding = await runtime.telemetry.bindAovxDevice(internal.tenant_id, internal.id,
     { device_id: tracker.id, device_id_bcd: identifier });
-  await db.query(`INSERT INTO device_activation_inventory(serial,device_id_bcd,tenant_id,device_id,claimed_at)
-    VALUES ('TRANSFER-TEST',$1,$2,$3,now())`,[identifier,internal.tenant_id,tracker.id]);
+  const adoption = {serial:'TRANSFER-TEST',device_id_bcd:identifier,tenant_id:internal.tenant_id,device_id:tracker.id};
+  await assert.rejects(adoptBoundDevice(db,{...adoption,tenant_id:third.tenant_id}),{status:409});
+  assert.deepEqual(await adoptBoundDevice(db,adoption),{serial:adoption.serial,adopted:true});
   const inventory = async () => (await db.query("SELECT tenant_id,device_id FROM device_activation_inventory WHERE serial='TRANSFER-TEST'")).rows[0];
   await administerDemo(db, 'bootstrap', { password: 'local transfer viewer fixture' });
   await assert.rejects(administerPilot(db, 'plan', { name: 'Trackium Physical Pilot', identifiers: [identifier] }),

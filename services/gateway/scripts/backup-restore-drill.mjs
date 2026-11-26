@@ -161,7 +161,10 @@ async function snapshot(db, includeRoutes = true) {
     ['cargo_road_route_revisions', 'tenant_id, shipment_id, version'],
     ['cargo_road_route_heads', 'tenant_id, shipment_id'],
     ['cargo_road_route_audit', 'tenant_id, shipment_id, generation, state'],
-    ['device_activation_inventory', 'serial']
+    ['device_activation_inventory', 'serial'],
+    ['core_device_installations', 'id'],
+    ['core_device_connection_codes', 'code_sha256'],
+    ['core_device_request_nonces', 'key_sha256, nonce']
   );
   const result = {};
   for (const [table, order] of tables)
@@ -170,7 +173,7 @@ async function snapshot(db, includeRoutes = true) {
 }
 
 async function verifyMigrations(rows) {
-  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
+  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
   const directory = new URL('../migrations/', import.meta.url);
   const files = (await readdir(directory)).filter(file => /^\d{3}_.*\.sql$/.test(file)).sort();
   assert.equal(files.length, rows.length);
@@ -268,8 +271,10 @@ async function loadB2() {
   });
   execFileSync('tar', ['-xf', '-', '-C', b2Directory], {input:archive});
   const oldGateway = join(b2Directory,'services/gateway');
-  assert.deepEqual(await readFile(join(oldGateway,'package-lock.json')),
-    await readFile(new URL('package-lock.json',gatewayDirectory)), 'B2 dependencies must match the pinned lockfile');
+  const oldLock = JSON.parse(await readFile(join(oldGateway,'package-lock.json')));
+  const currentLock = JSON.parse(await readFile(new URL('package-lock.json',gatewayDirectory)));
+  for (const [path, entry] of Object.entries(oldLock.packages))
+    if (path) assert.deepEqual(currentLock.packages[path],entry,'B2 dependency must match the pinned lockfile: ' + path);
   await symlink(fileURLToPath(new URL('node_modules',gatewayDirectory)), join(oldGateway,'node_modules'), 'dir');
   return (await import(pathToFileURL(join(oldGateway,'src/cargo/runtime.js')).href)).createRuntime;
 }
@@ -416,6 +421,7 @@ try {
   await gateway.runtime.gateway.start();
   const { db, runtime } = gateway;
   const after = await snapshot(db,false);
+  assert.equal(after.gateway_schema_migrations.pop().version,19);
   assert.equal(after.gateway_schema_migrations.pop().version,18);
   assert.equal(after.gateway_schema_migrations.pop().version,17);
   assert.deepEqual(after,before);
@@ -550,7 +556,7 @@ try {
   console.log('PASS: restored managed registration, current owner access and previous key revocation');
   console.log('Local dump and verified recovery (ms):', backupMs, Math.round(performance.now() - recoveryStart),
     '· fixture writes lost at quiescent cut: 0');
-  console.log('PASS: 001–018 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
+  console.log('PASS: 001–019 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
 
   await gateway.db.query(`
     CREATE FUNCTION drill_reject_outbox() RETURNS trigger LANGUAGE plpgsql AS $$

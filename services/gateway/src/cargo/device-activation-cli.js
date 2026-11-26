@@ -1,7 +1,7 @@
 import { open } from 'node:fs/promises';
 import pg from 'pg';
 import { readOwnerSecret } from './demo-admin.js';
-import { administerActivation, provisionDevices } from './device-activation.js';
+import { adoptBoundDevice, administerActivation, provisionDevices } from './device-activation.js';
 
 const [action,input,output,...extra] = process.argv.slice(2);
 let pool;
@@ -10,7 +10,7 @@ let wroteCards = false;
 try {
   const exportsCards = ['provision','rotate'].includes(action);
   if (!process.env.DATABASE_URL || !input || extra.length ||
-      (exportsCards ? !output : !!output) || !['provision','inspect','rotate','invalidate'].includes(action))
+      (exportsCards ? !output : !!output) || !['provision','inspect','rotate','invalidate','adopt'].includes(action))
     throw new Error('Invalid activation CLI arguments');
   pool = new pg.Pool({connectionString:process.env.DATABASE_URL,max:1,connectionTimeoutMillis:5000});
   async function exportCards(cards) {
@@ -21,7 +21,9 @@ try {
       await file.sync();
     } finally { await file.close(); }
   }
-  const result = action === 'provision'
+  const result = action === 'adopt'
+    ? await adoptBoundDevice(pool,JSON.parse(await readOwnerSecret(input,2048)))
+    : action === 'provision'
     ? {provisioned:await provisionDevices(pool,JSON.parse(await readOwnerSecret(input,24000)),exportCards)}
     : await administerActivation(pool,action,input,exportCards);
   console.log(JSON.stringify(result));

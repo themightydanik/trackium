@@ -824,7 +824,7 @@ test('New customer registers, adds a company and creates a shipment visible on t
   const { createRuntime } = await import('../../services/gateway/src/cargo/runtime.js');
   const { readConfig } = await import('../../services/gateway/src/config.js');
   const { gateway } = createRuntime(db, {
-    ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, CUSTOMER_ACCOUNTS_ENABLED: 'true', DEVICE_ACTIVATION_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'local', ACCOUNT_MAIL_DIRECTORY: directory,
+    ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, CUSTOMER_ACCOUNTS_ENABLED: 'true', DEVICE_ACTIVATION_ENABLED: 'true', CORE_DEVICE_ACCESS_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'local', ACCOUNT_MAIL_DIRECTORY: directory,
       ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', INTEGRITAS_MODE: 'test', WEB_ROOT: ROOT }),
     host: '127.0.0.1', httpPort
   }, { worker: false, logger: { info(){}, error(){} } });
@@ -886,6 +886,11 @@ test('New customer registers, adds a company and creates a shipment visible on t
   await rename.getByLabel('New device name').fill('Renamed GL110');
   await rename.getByRole('button',{name:'Save device name'}).click();
   await page.getByRole('heading',{name:'Renamed GL110', exact:true}).waitFor();
+  await page.locator('[data-customer-form="core-device-issue"] select[name=permission]').selectOption('view');
+  await page.getByRole('button',{name:'Generate connection QR'}).click();
+  await page.getByRole('img',{name:'Scan this one-time QR in Trackium Core'}).waitFor();
+  const link = await page.getByRole('link',{name:'Open or copy the one-time Core link'}).getAttribute('href');
+  assert.match(link,new RegExp('^' + origin + '/app/connect-core#[A-Za-z0-9_-]{43}$'));
   await page.getByRole('button',{name:'Close details'}).click();
   await trackerRow.getByText('Renamed GL110',{exact:true}).waitFor();
 

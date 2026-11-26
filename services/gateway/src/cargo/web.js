@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRoadTileHandler } from './road-tiles.js';
-export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnabled, roadTiles }) {
+export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnabled, roadTiles, coreDeviceAccessEnabled, coreAndroidFingerprint }) {
   const serveTile = createRoadTileHandler(roadTiles);
   const root = resolve(webRoot || fileURLToPath(new URL('../../../../', import.meta.url)));
   return async (req, res) => {
@@ -15,6 +15,26 @@ export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnable
     if (url.pathname === '/app') {
       res.writeHead(302, { location: '/app/' });
       res.end();
+      return;
+    }
+    if (url.pathname === '/.well-known/assetlinks.json' && coreDeviceAccessEnabled && coreAndroidFingerprint) {
+      res.writeHead(200, {'content-type':'application/json', 'cache-control':'no-store'});
+      res.end(JSON.stringify([{
+        relation:['delegate_permission/common.handle_all_urls'],
+        target:{namespace:'android_app',package_name:'tech.trackium.core.prototype',
+          sha256_cert_fingerprints:[coreAndroidFingerprint]}
+      }]));
+      return;
+    }
+    if (url.pathname === '/app/connect-core') {
+      res.writeHead(200, {
+        'content-type':'text/html; charset=utf-8', 'cache-control':'no-store',
+        'referrer-policy':'no-referrer', 'content-security-policy':"default-src 'none'; frame-ancestors 'none'"
+      });
+      res.end('<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<title>Connect Trackium Core</title><main><h1>Connect Trackium Core</h1>' +
+        '<p>Copy this address. In Trackium Core choose Devices, then Enter activation card or connection link.</p>' +
+        '<p>Return to My Devices on the website to confirm the installation fingerprint.</p></main></html>');
       return;
     }
     if (await serveTile(url.pathname, res)) return;

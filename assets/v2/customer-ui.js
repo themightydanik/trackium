@@ -94,5 +94,27 @@
         '<label class="field-label">New device name<input class="text-input" name="label" maxlength="120" required value="' +
         esc(device.label) + '"></label>', 'Save device name') + '<p id="device-rename-status" role="status"></p></section>';
   }
-  root.TrackiumCustomer = { auth, company, aovxEnrollment, deviceActivation, renameDevice };
+  function coreConnections(device) {
+    const id = '<input type="hidden" name="device_id" value="' + esc(device.id) + '">';
+    return '<section class="panel customer-access" id="core-connections"><h3>Connect to Trackium Core</h3>' +
+      '<p>Choose access for this installation. View Only allows reading this tracker’s observations.</p>' +
+      form('core-device-issue',id + '<label class="field-label">Permission<select name="permission">' +
+        '<option value="view">View Only</option><option value="full">Full Access</option></select></label>', 'Generate connection QR') +
+      '<div id="core-connection-code"></div>' +
+      form('core-device-list',id,'Refresh connected installations') +
+      '<div id="core-installations"></div><p id="core-connection-status" role="status"></p></section>';
+  }
+
+  function coreInstallationRows(deviceId, installations) {
+    return installations.map(item => {
+      const pending = !item.approved_at;
+      const hidden = '<input type="hidden" name="device_id" value="' + esc(deviceId) +
+        '"><input type="hidden" name="installation_id" value="' + esc(item.id) + '">';
+      return '<div><p>' + (item.permission === 'full' ? 'Full Access' : 'View Only') +
+        ' · ' + (pending ? 'Awaiting confirmation' : 'Connected') + '</p><code style="overflow-wrap:anywhere">' +
+        esc(item.fingerprint) + '</code>' + (pending ? form('core-device-approve',hidden,'Approve matched fingerprint') : '') +
+        form('core-device-revoke',hidden,'Revoke installation') + '</div>';
+    }).join('') || '<p>No installations connected.</p>';
+  }
+  root.TrackiumCustomer = { auth, company, aovxEnrollment, deviceActivation, renameDevice, coreConnections, coreInstallationRows };
 })(window);
