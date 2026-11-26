@@ -45,12 +45,18 @@ export async function readAovxDiagnostics(pool, device) {
   const { rows: [row] } = await pool.query(`
     WITH ${physicalPositionCtes},
     last_packet AS (
-      SELECT o.last_seen_at AS received_at, p.aovx_processing_state AS ingestion,
+      SELECT o.last_seen_at AS received_at, p.id::text AS packet_ref,
+             o.last_message_id AS message_id, p.aovx_processing_state AS ingestion,
              CASE WHEN o.last_parse_status='error' OR o.last_checksum_status='xor-mismatch'
-                  THEN 'failed' ELSE o.last_parse_status END AS decoding
+                  THEN 'failed' ELSE o.last_parse_status END AS decoding,
+             CASE
+               WHEN o.last_checksum_status='xor-mismatch' THEN 'checksum'
+               WHEN o.last_parse_status='error' THEN 'message_decode'
+               WHEN p.aovx_processing_state='rejected' THEN 'ingestion'
+             END AS failure_stage
       FROM active_binding b JOIN gateway_aovx_device_observations o USING (device_id_bcd)
       LEFT JOIN LATERAL (
-        SELECT aovx_processing_state FROM gateway_packets p
+        SELECT id, aovx_processing_state FROM gateway_packets p
         WHERE p.received_at=o.last_seen_at AND p.aovx_device_id_bcd=b.device_id_bcd
           AND p.aovx_message_id IS NOT DISTINCT FROM o.last_message_id
         ORDER BY p.id DESC LIMIT 1

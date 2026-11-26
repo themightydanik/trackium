@@ -1170,6 +1170,19 @@ test('AOVX TCP and replay share the existing shipment transaction', { timeout: 3
     const failure = await diagnostics();
     assert.equal(failure.packet.ingestion, 'rejected');
     assert.equal(failure.packet.decoding, 'failed');
+    assert.equal(failure.packet.failure_stage, 'checksum');
+    assert.equal(failure.packet.packet_ref, String(rejected.id));
+    assert.equal(failure.packet.message_id, 0x0200);
+    const opaque = await persistPacket({
+      payload: encodeAovxFrame({messageId:0x7777,deviceIdBcd:Buffer.from(bcd,'hex'),sequenceNumber:201,body:Buffer.alloc(0)}),
+      aovx: {messageId:0x7777,deviceIdBcd:bcd,parseStatus:'opaque'}
+    },db);
+    const unsupported = await diagnostics();
+    assert.equal(unsupported.packet.packet_ref,String(opaque.id));
+    assert.equal(unsupported.packet.ingestion,'not_applicable');
+    assert.equal(unsupported.packet.decoding,'opaque');
+    assert.equal(unsupported.packet.failure_stage,null);
+    assert.equal(unsupported.observation.event_id,future.observation.event_id);
     assert.equal(failure.observation.event_id, future.observation.event_id);
 
     await observe(109, 6, time(-20));
