@@ -26,7 +26,7 @@ Claiming reserves the serial and BCD mapping, creates the real device record and
 
 Review and deploy migration 018 with the flag off. Confirm existing enrollments and transfers before provisioning the pilot inventory. Keep the feature flag off until operator review and a disposable-database rehearsal pass. Roll back by disabling the flag and retaining the schema and inventory. If rolling back to an older Gateway binary, pause custody transfers until the inventory-aware version is restored. An older binary cannot update the inventory during transfer.
 
-The versioned card payload can be printed as a QR code. Core app scanning and linking Core ownership to a website account remain pending. The website flow currently uses the printed serial and code. Activation and a healthy HTTPS Gateway do not confirm the external tracker TCP hostname or port. Obtain those values from the Railway TCP Proxy settings before configuring the device.
+The versioned card payload can be printed as a QR code. Core scans that payload from the printed card. Linking a Core-first ownership record to a website account remains pending. The website flow currently uses the printed serial and code. Activation and a healthy HTTPS Gateway do not confirm the external tracker TCP hostname or port. Obtain those values from the Railway TCP Proxy settings before configuring the device.
 
 ## Core gateway contract
 
@@ -38,7 +38,7 @@ Migration 019 adds device-scoped installation grants. The Core endpoints are dis
 - `POST /v1/core-devices/observations` returns an eligible position, if available, and up to 50 recorded observations for the signed `installation_id`.
 - `POST /v1/core-devices/calculate` accepts an `installation_id` and a B2 `calculation`. Full Access and Core owners can use the configured, attested B2 service. View Only grants can read telemetry. Core grants confer no access to customer sessions, Cargo writes or Minima signing.
 
-Company Owners can call the existing account route with the `core-device-issue`, `core-device-list`, `core-device-approve` and `core-device-revoke` actions. All accept `device_id`. Issue additionally accepts permission `full` or `view`; approve and revoke take an `installation_id`. Codes expire after five minutes. Custody transfer invalidates old codes and installations, including if custody is later reversed. Keep the flag disabled after restoration until post-snapshot revocations have been reconciled. App QR/App Link handling, Core-first website linking and the production release remain separate acceptance requirements.
+Company Owners can call the existing account route with the `core-device-issue`, `core-device-list`, `core-device-approve` and `core-device-revoke` actions. All accept `device_id`. Issue additionally accepts permission `full` or `view`; approve and revoke take an `installation_id`. Codes expire after five minutes. Custody transfer invalidates old codes and installations, including if custody is later reversed. Keep the flag disabled after restoration until post-snapshot revocations have been reconciled. Physical Android QR/App Link acceptance, Core-first website linking and the production release remain outstanding.
 
 ### Connect an existing physical tracker
 
