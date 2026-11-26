@@ -25,8 +25,8 @@ The proxy restricts request body size to 8 KiB, has fixed upstream plus bounded 
 
 ## Before any live change
 
-- Confirm the approved release and cutover window, including whether merging into main triggers automatic deploy. D3 observed Railway production deploy records from merges. Keep routing disabled in Railway until the channel gates close.
-- Confirm Oracle's current container, graph and mounts, existing routing and host firewall, disk headroom for a second graph copy and available RAM. Only one 4 GiB Valhalla container runs on the 6 GB VM during cutover. Bridge budget is 0.25 CPU, 64 MiB, 32 PIDs; Valhalla is capped at 1 CPU, 4 GiB, 96 PIDs. They share the physical 1 OCPU. These budgets are limits; measure sustained pressure and route times.
+- Confirm the approved release and cutover window, including whether merging into main triggers automatic deploy. D3 observed Railway production deploy records from merges. Keep routing disabled in Railway until the channel gates close. **Do not merge merely to run the Oracle rehearsal**: the existing Oracle container is serving the validated graph independently and must remain untouched until the operator approves a cutover.
+- Confirm Oracle's current container, graph and mounts, existing routing and host firewall, disk headroom for a second graph copy and available RAM. **Observed deployment (2026-11-26):** `trackium-valhalla` uses `/home/opc/trackium-routing/graph` (not `/srv/trackium-valhalla/6a707e47`); the pinned archive and 3,835 tiles have passed SHA-256 verification and `/graph/ops/probe.py` returned 169.710 km / 7,916.166 s / 18 maneuvers. Reconfirm paths and state with `docker inspect` before a change, rather than assuming these observations remain true. Only one 4 GiB Valhalla container runs on the 6 GB VM during cutover. Bridge budget is 0.25 CPU, 64 MiB, 32 PIDs; Valhalla is capped at 1 CPU, 4 GiB, 96 PIDs. They share the physical 1 OCPU. These budgets are limits; measure sustained pressure and route times.
 - Verify the original graph checksum, preserve the current container and its original mount, and have the operator verify Oracle's SSH host-key fingerprint through their trusted console. All following operations are manual and require the operator's authorization.
 
 ## 1. Generate credentials on a trusted machine
@@ -51,16 +51,23 @@ scp -o StrictHostKeyChecking=yes "$pki/server.crt" "$pki/server.key" "$pki/gatew
 
 ## 2. Oracle cutover
 
-Verify the host and mount paths before running the following. The existing verified archive included `graph/ops/attested-service.py`, `image.env` and `verify-graph.py`. If your installed directory differs, set `source_graph` to its actual verified location. Use a separate copy so Docker's SELinux `:Z` cannot relabel the old container's graph. Preserve the stopped container and its mounts. Compose defaults to loopback bind.
+**Read-only preflight first; no interruption until approval.** The observed Oracle source graph is `/home/opc/trackium-routing/graph`. Use a separate copy so Docker's SELinux `:Z` cannot relabel the original container's graph. Preserve the stopped container and original mounts for rollback. The original container uses `--network none`; the bridge Compose introduces a separate internal Docker routing network. Compose defaults to a loopback-only proxy bind. If the original inspection differs from this observed layout, stop and reconcile it before proceeding.
 
 ```sh
-docker inspect trackium-valhalla --format '{{range .Mounts}}{{println .Source .Destination}}{{end}}'
-df -h /srv
-source_graph=/srv/trackium-valhalla/6a707e47
+sudo docker inspect trackium-valhalla --format '{{.State.Status}} {{.HostConfig.NetworkMode}} {{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}'
+sudo docker ps --filter name=trackium-valhalla
+df -h / /srv
+free -h
+ip -4 -br addr
+source_graph=/home/opc/trackium-routing/graph
 base=/srv/trackium-oracle-bridge
 incoming="$HOME/trackium-bridge-incoming"
-sudo python3 "$source_graph/ops/verify-graph.py" "$source_graph"
-sudo test ! -e "$base"
+sudo test -f "$source_graph/ops/verify-graph.py" || { echo 'Unexpected graph path: abort' >&2; exit 1; }
+python3 "$source_graph/ops/verify-graph.py" "$source_graph"
+sudo test ! -e "$base" || { echo 'Bridge target already exists: abort and inspect' >&2; exit 1; }
+# Require enough space for a second ~563 MB graph plus operational headroom.
+df -h "$(dirname "$base")"
+# Continue only after operator validates free space, verified SSH host identity and PKI inputs.
 sudo install -d -m 0755 "$base"
 sudo cp -a -- "$source_graph" "$base/graph"
 sudo install -d -o 101 -g 101 -m 0700 "$base/pki"
@@ -74,6 +81,9 @@ compose() {
 }
 compose config --quiet
 compose pull
+# Confirm the bridge image is linux/arm64 before touching the working service.
+sudo docker image inspect nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236 --format '{{.Os}}/{{.Architecture}}'
+# STOP HERE for an explicit cutover approval. Do not run the following stop command during preflight.
 # After obtaining approval for the interruption:
 sudo docker stop trackium-valhalla
 compose up -d
@@ -85,7 +95,7 @@ for service in valhalla bridge; do
 done
 ```
 
-Expect CPU quota/period 1.0 and 0.25, memory 4294967296 and 67108864, and PIDs 96 and 32 respectively on cgroup v2. If limits are ineffective, stop and roll back. For the loopback smoke, the operator can forward the already-authorized SSH connection to 8443, keeping the client private key on the trusted workstation. Run in two terminals. Keep the original destination in the HTTPS URL so certificate validation still checks its IP SAN.
+Expect cgroup v2 CPU quota/period ratios 1.0 and 0.25, memory 4294967296 and 67108864 bytes, and PIDs 96 and 32 respectively. If any effective limit is missing, bridge fails to start, or Valhalla does not pass `/status` and `/route`, **roll back immediately** with `compose down` and `sudo docker start trackium-valhalla` before proceeding. Preserve both graph copies. Check `sudo docker stats --no-stream` and `free -h`; on 1 OCPU, measure sequential request latency and memory pressure instead of assuming that locally successful limits imply enough throughput. For the loopback smoke, the operator can forward the already-authorized SSH connection to 8443, keeping the client private key on the trusted workstation. Run in two terminals. Keep the original destination in the HTTPS URL so certificate validation still checks its IP SAN.
 
 ```sh
 ssh -o StrictHostKeyChecking=yes -N -L 127.0.0.1:18443:127.0.0.1:8443 oracle-valhalla
@@ -106,7 +116,7 @@ curl -sS --noproxy '*' --connect-to 130.61.180.101:8443:127.0.0.1:18443 \
 
 Expect `has_tiles: true`, version 3.6.3, graph `6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29`, snapshot `2026-11-24T21:21:23Z`, and a non-2xx response without the client certificate.
 
-After approving OCI network and host-firewall changes, configure **TCP 8443 only** in the existing NSG/security list. Restrict to already available stable Railway source CIDRs if any. If sources are dynamic, obtain explicit operator approval for a public mTLS listener and residual handshake-flood risk. Do not add a rule for 8002/8003. Audit effective OCI and Docker rules together; host firewalld alone may not cover Docker-published ports. Bind the proxy to an approved OCI VM IPv4 interface (the instance's private interface for OCI NAT), then recreate only the proxy with the shell function defined above:
+After approving OCI network and host-firewall changes, configure **TCP 8443 only** in the existing NSG/security list. Restrict to already available stable Railway source CIDRs if any. If sources are dynamic, obtain explicit operator approval for a public mTLS listener and residual handshake-flood risk. Do not add a rule for 8002/8003. Audit effective OCI and Docker rules together; host firewalld alone may not cover Docker-published ports. Use `ip -4 -br addr` and OCI VNIC metadata to identify and independently verify the VM's **private** interface IPv4 address (do not assume the public IP is present on an interface). Bind the proxy to that approved private IPv4 interface, then recreate only the proxy with the shell function defined above:
 
 ```sh
 ORACLE_BRIDGE_BIND_IP=REPLACE_WITH_APPROVED_VM_INTERFACE_IPV4 compose up -d --no-deps bridge
@@ -140,7 +150,7 @@ try {
 JS
 ```
 
-This preflight makes one attested status call and does not use PostgreSQL. Check the wrong/no-client rejection from the operator workstation as well. When all live gates pass, set all five Oracle variables together in an approved deployment using Railway's secret manager. Remove any conflicting old provider origin during the same revision. Do not change unrelated variables, profiles, credentials, PostgreSQL, or AOVX ingress.
+This preflight makes one attested status call and does not use PostgreSQL. It must execute inside the **actual running Railway Gateway** with the PR revision available, not in an unrelated temporary environment. From the same shell, record a bounded TCP/TLS connect measurement and a few sequential `/status` checks; verify that the TLS handshake finishes within 1.5 s and readiness within 2.5 s on typical and cold attempts. Do not print private key material. Check the wrong/no-client rejection from the operator workstation as well. When all live gates pass, set all five Oracle variables together in an approved deployment using Railway's secret manager. Remove any conflicting old provider origin during the same revision. Do not change unrelated variables, profiles, credentials, PostgreSQL, or AOVX ingress.
 
 ```sh
 origin=https://trackium-gateway-production.up.railway.app
@@ -150,7 +160,13 @@ curl -fsS --max-time 10 "$origin/readyz/routing"
 
 In Fleet Map, use the existing authorized demo/pilot company, select the approved shipment, enter Lviv `49.84112,24.02999` and Rzeszów `50.03741,22.00709`, then **Calculate route** with auto. Compare with the observed ~169.71 km, 7,916 s and 18 maneuvers on the pinned release. C3 follows the established explicit proposal, approval and activation. Test writes need separate authorization and an appropriate test shipment. Keep calculated planning geometry separate from GPS, and avoid logging route request/response bodies. On the current single OCPU, test a small sequential set first; check response timings and memory before increasing load.
 
-## 4. Rollback
+## 4. Certificate rotation and monitoring
+
+Both leaf certificates expire 90 days after issuance and both dedicated CAs expire after 365 days. Assign an owner and calendar an inspection well before the leaf expiration (for example 30 days in advance). Inventory certificate validity with `openssl x509 -in FILE -noout -dates -fingerprint -sha256` on the trusted workstation, never copying the Gateway private key to Oracle. Rehearse rotation with a fresh isolated PKI, verify the new IP SAN and EKUs, and coordinate the new Gateway credentials/CA trust and Oracle Nginx certificate/CA trust during an approved change window. Because the generated trust stores contain only one CA each, **rotation is not seamless by default**; document and approve the short cutover/redeploy or implement an independently reviewed overlap mechanism before promising zero downtime. On suspected key compromise, disable the routing transport, replace the affected CA and leaf and remove old trust rather than relying on certificate expiry. Do not log private keys or route bodies.
+
+Monitor expiry, bounded aggregate `ROUTING_*` outcomes, and the 1-OCPU service latency and memory pressure. A mTLS handshake may still consume resources from anonymous internet clients; maintain the OCI exposure decision and firewall audit record.
+
+## 5. Rollback
 
 - On Railway, revert to the previous routing config or unset Oracle's four dedicated variables **and** the graph ID together if routing was previously disabled. Schedule any Railway redeploy with the operator. Verify `/readyz` and B3 read-only history. A disabled optional readiness endpoint returns 404.
 - On Oracle, `compose down` from the cutover shell affects only the new project. Run `sudo docker start trackium-valhalla` to restore the original container. Remove the newly approved TCP 8443 rule if it was created. Preserve both graph directories. Withdraw the bridge credentials from Railway and securely remove temporary copies in the approved operator workflow. Keep database migrations and historical revisions.
