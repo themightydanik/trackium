@@ -155,9 +155,13 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
     }] : [] };
     else if (p === '/v1/proofs/' + proofId + '/local-job') data = { proof_id: proofId };
     else if (p === '/v1/devices')
-      data = { devices: source.empty ? [] : [fixture.registry], next_cursor: null };
+      data = { devices: source.empty ? [] : [source.registry || fixture.registry], next_cursor: null };
     else if (p.endsWith('/status'))
       data = { status: 'unknown', last_event_at: '2026-01-01T00:00:00Z', mode: 'synthetic' };
+    else if (p.endsWith('/location') && Object.hasOwn(source,'physicalLocation'))
+      data = {location:source.physicalLocation};
+    else if (p === `/v1/devices/${deviceId}/events` && source.physicalHistory)
+      data = {events:source.physicalHistory};
     else if (p.endsWith('/location'))
       data = {
         location: {

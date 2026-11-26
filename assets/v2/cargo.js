@@ -1871,9 +1871,11 @@
     const action = target.dataset.planner;
     const shipment = server.state.data?.shipments.find(entry => entry.id === serverViews.map?.shipment);
     if (!shipment) return;
-    if (['import','blank','reset'].includes(action)) {
-      if (!planner.close()) return;
-      planner.start(shipment,action === 'import');
+    if (['import','active','blank','reset'].includes(action)) {
+      const road = server.state.roadRoute;
+      const active = action === 'active' && road?.id === shipment.id && road.revision?.state === 'active' ? road.revision : null;
+      if ((action === 'active' && !active) || !planner.close()) return;
+      planner.start(shipment,action === 'import',active);
       render(true);
       $('#planner-title').setAttribute('tabindex','-1');
       $('#planner-title').focus();

@@ -573,11 +573,19 @@
       return fields([
         ['Device state',d.status?.enabled === false ? 'Disabled' : d.status?.last_event_at ? 'Observation received' : 'No observations'],
         ...positionFields(d),
-        ...(Number.isFinite(stamp) ? [['Observation age', elapsed + (age > 15 ? ' · stale' : '')]] : [])
+        ...(Number.isFinite(stamp) ? [['Observation age', elapsed + (Date.now() - stamp > 15 * 60000 ? ' · stale' : '')]] : [])
       ]) + (observation ? provenanceBadge(observation.payload?.trust) :
         position ? provenanceBadge(position.trust) : '');
     };
     const linked = selected && devices.get(selected.device_id);
+    const historyCount = C.physicalBreadcrumbs(linked).length;
+    const offset = linked && C.distanceFromRoad(C.reportedPosition(linked),road?.revision);
+    const threshold = selected?.conditions?.max_deviation_m;
+    const movement = linked?.registry.identity_kind === 'physical' ?
+      '<p>' + (historyCount ? historyCount + ' recent physical breadcrumbs · unverified' : 'Waiting for physical GPS history') + '</p>' +
+      (Number.isFinite(offset) ? '<p>Approximate distance from active road: ' + offset + ' m' +
+        (Number.isFinite(threshold) && offset > threshold ? ' · outside shipment tolerance' : '') +
+        ' · advisory only</p>' : '') : '';
     const layers = view.layers || {};
     const planner = root.TrackiumRoutePlanner;
     return '<div class="fleet-map-workspace"><section class="fleet-map-canvas" aria-label="Fleet map canvas">' +
@@ -606,13 +614,14 @@
       (selected ? esc(selected.name) : 'Shipment context') + '</h2></div>' +
       (selected ? '<div class="fleet-context-actions">' +
         (planner.allowed(state.session) && !view.planner ? '<button type="button" class="button secondary" data-planner="import">Plan from checkpoints</button>' +
-          '<button type="button" class="button secondary" data-planner="blank">Start blank route</button>' : '') +
+          '<button type="button" class="button secondary" data-planner="blank">Start blank route</button>' +
+          (C.roadGeometry(road?.revision) ? '<button type="button" class="button secondary" data-planner="active">Edit active road as draft</button>' : '') : '') +
         '<button class="button secondary" type="button" data-fleet-fit>Fit shipment</button>' +
         action('Shipment details','view-shipment',selected.id) + '</div>' : '') + '</header>' +
       '<div class="fleet-context-grid"><div><h3>Calculated road route</h3>' + fleetRoute(road,selected,state.session.customer) +
       '</div><div><h3>Planned checkpoints</h3>' + (selected ? routeStrip(arr(selected.checkpoints?.length ? selected.checkpoints : selected.route)) :
         '<p>Select a shipment to see its planned stops.</p>') +
-      (linked ? '<h3>' + esc(linked.registry.label) + '</h3>' + deviceFacts(linked) : '') + '</div></div></section>' +
+      (linked ? '<h3>' + esc(linked.registry.label) + '</h3>' + deviceFacts(linked) + movement : '') + '</div></div></section>' +
       (view.planner ? planner.render(view.planner,root.TrackiumRouteLifecycle.proposal(view.lifecycle,view.planner)) : '') +
       root.TrackiumRouteLifecycle.render(view.lifecycle) +
       '<details class="fleet-directory"><summary>Device observations · ' + data.devices.length + '</summary>' +

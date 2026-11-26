@@ -309,11 +309,45 @@
     if (reset) lastView = null;
   }
   function reportedPosition(device) {
+    if (device.registry.enabled === false || device.status?.enabled === false) return null;
     const position = device.location?.location;
     const eligible = device.registry.identity_kind === 'physical'
-      ? position?.trust === 'unverified' && position.received_at
+      ? position?.trust === 'unverified' && Number.isFinite(Date.parse(position.received_at)) &&
+        Number.isFinite(Date.parse(position.occurred_at))
       : position?.trust === 'synthetic';
     return eligible && valid(position.gps) ? position : null;
+  }
+  function physicalBreadcrumbs(device) {
+    if (device?.registry.identity_kind !== 'physical' || device.registry.enabled === false ||
+        device.status?.enabled === false) return [];
+    return (device.history?.events || []).slice(0,20).flatMap(event => {
+      const sample = event.payload;
+      return sample?.device_id === device.registry.id && historyPosition(device.registry,event) &&
+        Number.isFinite(Date.parse(sample.device_measured_at)) && Number.isFinite(Date.parse(event.received_at))
+        ? [{gps:sample.gps, measured:sample.device_measured_at, received:event.received_at,
+          buffered:sample.extra.buffered === true}] : [];
+    });
+  }
+  function distanceFromRoad(position, revision) {
+    const geometry = roadGeometry(revision);
+    if (position?.trust !== 'unverified' || !geometry || !valid(position.gps) ||
+        Date.now() - Date.parse(position.occurred_at) > 15 * 60 * 1000 ||
+        !Number.isFinite(Date.parse(position.occurred_at))) return null;
+    const point = L.latLng(position.gps.latitude,position.gps.longitude);
+    // Evaluate the closest point on each short road segment, including across ±180°.
+    const scale = Math.cos(point.lat * Math.PI / 180);
+    if (scale < .05) return null;
+    const nearestLongitude = delta => ((delta + 540) % 360) - 180;
+    let distance = Infinity;
+    for (const leg of geometry) for (let i = 1; i < leg.length; i++) {
+      const [lat, lon] = leg[i-1], [nextLat, nextLon] = leg[i];
+      const ax = nearestLongitude(lon - point.lng) * scale, ay = lat - point.lat;
+      const dx = nearestLongitude(nextLon - lon) * scale, dy = nextLat - lat;
+      const length = dx*dx + dy*dy;
+      const fraction = length ? Math.max(0,Math.min(1,-(ax*dx + ay*dy)/length)) : 0;
+      distance = Math.min(distance,point.distanceTo([lat + fraction*(nextLat-lat),lon + fraction*dx/scale]));
+    }
+    return Number.isFinite(distance) ? Math.round(distance) : null;
   }
   function mountMap(data, page, fleet) {
     const el = document.getElementById('workspace-map');
@@ -493,6 +527,18 @@
             .bindPopup(root.TrackiumRoutePlanner.stopName(index,preview.stops.length))));
       }
     }
+    if (fleet && fleet.layers.observed !== false) {
+      const deviceId = data.shipments.find(s => s.id === fleet.selected)?.device_id;
+      const device = data.devices.find(d => d.registry.id === deviceId);
+      for (const [i, fix] of physicalBreadcrumbs(device).entries()) {
+        place('physical-history:' + i, JSON.stringify([fix,signalColor]), () =>
+          L.circleMarker([fix.gps.latitude,fix.gps.longitude],{pane:'fleetPositions',
+            className:'fleet-gps-breadcrumb',radius:4,weight:2,color:signalColor,
+            fillOpacity:fix.buffered ? 0 : .4})
+            .bindPopup('<p>Physical history · unverified' + (fix.buffered ? ' · buffered' : '') +
+              '</p><p>Measured: ' + esc(date(fix.measured)) + '</p><p>Received: ' + esc(date(fix.received)) + '</p>'));
+      }
+    }
     if (fleet?.layers.observed !== false) for (const d of data.devices) {
       const obs = reportedPosition(d);
       if (!obs) continue;
@@ -577,6 +623,8 @@
     },
     focusMap,
     reportedPosition,
+    physicalBreadcrumbs,
+    distanceFromRoad,
     roadGeometry,
     routeGeometry,
     historyPosition,
