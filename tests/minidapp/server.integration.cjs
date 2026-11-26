@@ -891,6 +891,14 @@ test('New customer registers, adds a company and creates a shipment visible on t
   await page.getByRole('img',{name:'Scan this one-time QR in Trackium Core'}).waitFor();
   const link = await page.getByRole('link',{name:'Open or copy the one-time Core link'}).getAttribute('href');
   assert.match(link,new RegExp('^' + origin + '/app/connect-core#[A-Za-z0-9_-]{43}$'));
+  for (const width of [320,390]) {
+    await page.setViewportSize({width,height:840});
+    assert.ok(await page.locator('#core-connection-code img').evaluate(image => {
+      const bounds = image.getBoundingClientRect();
+      return bounds.left >= 0 && bounds.right <= innerWidth && bounds.width > 0;
+    }));
+  }
+  await page.setViewportSize({width:1280,height:1000});
   await page.getByRole('button',{name:'Close details'}).click();
   await trackerRow.getByText('Renamed GL110',{exact:true}).waitFor();
 
