@@ -251,11 +251,14 @@ test('selected physical history stays distinct from the latest fix and the activ
       assert.equal(await page.locator('.fleet-gps-breadcrumb, .ux-device-position').count(),0);
       assert.equal(await page.locator('.fleet-road-line').count(),1);
       source.physicalLocation = null;
+      const refreshed = page.waitForResponse(response => new URL(response.url()).pathname === '/v1/devices/' + registry.id + '/location');
       await page.getByRole('button',{name:'Refresh',exact:true}).click();
+      await refreshed;
       await page.locator('[data-fleet-layer="observed"]').check();
       await page.locator('.fleet-gps-breadcrumb').waitFor();
-      assert.equal(await page.locator('.ux-device-position').count(),0);
-      assert.equal(await page.getByText(/Approximate distance from active road/).count(),0);
+      await page.locator('.ux-device-position').waitFor({state:'detached'});
+      await page.getByText(/Approximate distance from active road/).waitFor({state:'detached'});
+      assert.equal(await page.locator('.fleet-road-line').count(),1);
     } finally { await context.close(); }
   } finally { await stop(); }
 });

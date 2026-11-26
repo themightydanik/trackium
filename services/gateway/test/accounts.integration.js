@@ -152,12 +152,12 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   const issued = await account(winner,'core-device-issue',{...controlled,permission:'view'});
   assert.equal(issued.status,200);
   const reviewer = generateKeyPairSync('ec',{namedCurve:'prime256v1'});
-  const coreCall = async (operation,input) => {
+  const coreCall = async (operation,input,keys = reviewer) => {
     const payload = JSON.stringify(input);
     const timestamp = Date.now(), nonce = randomUUID();
-    const envelope = {public_key:reviewer.publicKey.export({type:'spki',format:'der'}).toString('base64url'),
+    const envelope = {public_key:keys.publicKey.export({type:'spki',format:'der'}).toString('base64url'),
       timestamp,nonce,payload,signature:sign('sha256',Buffer.from(
-        ['trackium-core-device-v1',config.publicOrigin,operation,nonce,timestamp,hash(payload)].join('\n')),reviewer.privateKey).toString('base64url')};
+        ['trackium-core-device-v1',config.publicOrigin,operation,nonce,timestamp,hash(payload)].join('\n')),keys.privateKey).toString('base64url')};
     const response = await fetch(origin+'/v1/core-devices/'+operation,{method:'POST',body:JSON.stringify(envelope),
       headers:{'content-type':'application/json'}});
     return {status:response.status,...await response.json()};
@@ -174,9 +174,19 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   assert.equal((await account(winner,'core-device-approve',{...controlled,...access})).status,200);
   assert.deepEqual(await coreCall('observations',access),{status:200,location:null,history:[]});
   assert.equal((await coreCall('calculate',{...access,calculation:{}})).status,403);
+  const full = generateKeyPairSync('ec',{namedCurve:'prime256v1'});
+  const fullCode = await account(winner,'core-device-issue',{...controlled,permission:'full'});
+  assert.equal(fullCode.status,200);
+  const fullConnection = await coreCall('connect',{code:fullCode.code},full);
+  assert.equal(fullConnection.status,201);
+  const fullAccess = {installation_id:fullConnection.id};
+  assert.equal((await account(winner,'core-device-approve',{...controlled,...fullAccess})).status,200);
+  assert.equal((await coreCall('devices',{},full)).devices[0].device_id,claim.device_id);
+  assert.equal((await coreCall('devices',{})).devices[0].device_id,claim.device_id);
+  assert.equal((await coreCall('observations',fullAccess)).status,404);
   assert.equal((await account(winner,'core-device-revoke',{...controlled,...access})).status,200);
   assert.equal((await coreCall('observations',access)).status,404);
-
+  assert.equal((await coreCall('observations',fullAccess,full)).status,200);
 
   assert.equal(claim.activation_sha256,null);
   assert.deepEqual(await account(winner,'activate-device',activation),expired);
