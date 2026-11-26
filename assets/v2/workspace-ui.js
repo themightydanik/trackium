@@ -738,7 +738,7 @@
       body =
         search(page, view, d) +
         panel(
-          state.session?.customer && !state.session.demo ? 'My Devices' : 'Device inventory',
+          state.session?.customer && (!state.session.demo || state.session.pilot) ? 'My Devices' : 'Device inventory',
           '<div class="toolbar"><p>Latest reported samples with measurement time and provenance.</p>' +
             action(
               'Create simulator identity',

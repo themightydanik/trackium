@@ -15,6 +15,15 @@ function integer(env, name, fallback, max = 2147483647) {
   return Number(value);
 }
 
+function androidDownload(value, repository, app) {
+  if (!value) return null;
+  const expected = new RegExp('^https://github\\.com/themightydanik/' + repository +
+    '/releases/download/(v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?)/trackium-' + app + '-\\1\\.apk$');
+  const match = expected.exec(value);
+  if (!match) throw new Error('Invalid versioned Android release URL for ' + app);
+  return {url:value,version:match[1]};
+}
+
 export function readConfig(env = process.env) {
   if (!env.DATABASE_URL) throw new Error('DATABASE_URL is required');
   if (
@@ -104,6 +113,10 @@ export function readConfig(env = process.env) {
     throw new Error('TCP_PORT and HTTP_PORT must be different when TCP receiver is enabled');
   return {
     coreAndroidFingerprint,
+    androidDownloads:{
+      lite:androidDownload(env.LITE_ANDROID_APK_URL,'trackium','lite'),
+      core:androidDownload(env.CORE_ANDROID_APK_URL,'trackium-core-android','core')
+    },
     coreDeviceAccessEnabled:env.CORE_DEVICE_ACCESS_ENABLED === 'true',
     deviceActivationEnabled:env.DEVICE_ACTIVATION_ENABLED === 'true',
     integritasMode,

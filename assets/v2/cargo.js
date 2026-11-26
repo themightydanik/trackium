@@ -1046,7 +1046,7 @@
       extra.innerHTML = TrackiumCustomer.deviceActivation(account) + TrackiumCustomer.aovxEnrollment(account);
     if (account && current === 'settings')
       extra.innerHTML = TrackiumCustomer.company(account,
-        companyMembersTenant === account.tenant_id ? companyMembers : null);
+        companyMembersTenant === account.tenant_id ? companyMembers : null) + TrackiumCustomer.applications(account);
     heading.after(extra.content);
     return template;
   }
@@ -1562,7 +1562,7 @@
           if (html) {
             const owner = server.state.account?.role === 'owner' && !server.state.account.demo;
             openDialog(html + (device && owner ? TrackiumCustomer.renameDevice(device.registry) : '') +
-              (device?.registry.serial && owner && server.state.account.core_device_access
+              (device?.registry.serial && server.state.account?.core_device_access
                 ? TrackiumCustomer.coreConnections(device.registry) : ''));
           }
         } else if (serverAction === 'reconnect') await server.restore();

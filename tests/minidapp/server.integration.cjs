@@ -896,6 +896,8 @@ test('New customer registers, adds a company and creates a shipment visible on t
 
 
   await page.locator('#navigation a[href="#settings"]').click();
+  await page.getByRole('heading',{name:'My Applications'}).waitFor();
+  assert.equal(await page.getByRole('link',{name:/Download Trackium.*APK/}).count(),0);
   const deviceRecord = page.locator('[data-customer-form="device"]');
   await deviceRecord.getByLabel('Device label').fill('Unbound pilot device');
   const createDevice = page.waitForResponse(response => response.url() === origin + '/v1/account/device'

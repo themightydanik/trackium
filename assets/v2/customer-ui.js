@@ -94,6 +94,26 @@
         '<label class="field-label">New device name<input class="text-input" name="label" maxlength="120" required value="' +
         esc(device.label) + '"></label>', 'Save device name') + '<p id="device-rename-status" role="status"></p></section>';
   }
+  function applications(account) {
+    const section = (type, label, help) => {
+      const release = account.android_downloads?.[type];
+      let link = '';
+      if (release?.url && release.version) {
+        const url = new URL(release.url);
+        if (url.protocol === 'https:' && url.hostname === 'github.com')
+          link = '<p><a class="button secondary" href="' + esc(url.href) + '" target="_blank" rel="noopener noreferrer">' +
+            'Download ' + label + ' APK · ' + esc(release.version) + '</a></p>';
+      }
+      return '<section><h3>' + label + '</h3>' + (link || '<p>No signed download published yet.</p>') +
+        '<p>' + help + '</p></section>';
+    };
+    return '<section class="panel customer-access"><h2>My Applications</h2><div class="ops-company-actions">' +
+      '<section><h3>Trackium Lite Web</h3><p><a class="button secondary" href="#map">Open Fleet Map</a></p></section>' +
+      section('lite','Trackium Lite Android','Install the signed APK and sign in with your existing Trackium account.') +
+      section('core','Trackium Core Android','Install Core, unlock it locally, then open Devices to scan a connection QR or activation card.') +
+      '</div></section>';
+  }
+
   function coreConnections(device) {
     const id = '<input type="hidden" name="device_id" value="' + esc(device.id) + '">';
     return '<section class="panel customer-access" id="core-connections"><h3>Connect to Trackium Core</h3>' +
@@ -116,5 +136,5 @@
         form('core-device-revoke',hidden,'Revoke installation') + '</div>';
     }).join('') || '<p>No installations connected.</p>';
   }
-  root.TrackiumCustomer = { auth, company, aovxEnrollment, deviceActivation, renameDevice, coreConnections, coreInstallationRows };
+  root.TrackiumCustomer = { auth, company, aovxEnrollment, deviceActivation, renameDevice, coreConnections, coreInstallationRows, applications };
 })(window);

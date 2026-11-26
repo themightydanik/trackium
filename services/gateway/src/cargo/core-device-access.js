@@ -69,7 +69,7 @@ export function manageCoreDeviceAccess(pool, identity, operation, input) {
   });
 }
 
-async function connectInstallation(pool,keyHash,input) {
+async function connectInstallation(pool,keyHash,input,pilotEnabled) {
   object(input,['code']);
   if (typeof input.code !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(input.code)) throw denied();
   return transaction(pool,null,async client => {
@@ -79,7 +79,10 @@ async function connectInstallation(pool,keyHash,input) {
     if (!target) throw denied();
     const args = [target.tenant_id,target.device_id];
     const {rows:[device]} = await client.query(`SELECT serial FROM device_activation_inventory
-      WHERE tenant_id=$1 AND device_id=$2 FOR UPDATE`,args);
+      WHERE tenant_id=$1 AND device_id=$2 AND NOT EXISTS (
+        SELECT 1 FROM customer_demo_pilot p JOIN customer_demo d USING(account_id)
+        WHERE p.tenant_id=$1 AND (NOT p.active OR NOT d.enabled OR NOT $3)
+      ) FOR UPDATE`,[...args,pilotEnabled]);
     if (!device) throw denied();
     const {rows:[code]} = await client.query(`DELETE FROM core_device_connection_codes
       WHERE code_sha256=$1 AND expires_at>now() RETURNING permission`,[key]);
@@ -109,7 +112,7 @@ export function createCoreDeviceAccess(pool, config, telemetry, routing) {
     const used = await pool.query(`INSERT INTO core_device_request_nonces(key_sha256,nonce,expires_at)
       VALUES ($1,$2,now()+interval '4 minutes') ON CONFLICT DO NOTHING`,[keyHash,nonce]);
     if (!used.rowCount) throw denied();
-    if (operation === 'connect') return reply(res,201,await connectInstallation(pool,keyHash,input));
+    if (operation === 'connect') return reply(res,201,await connectInstallation(pool,keyHash,input,Boolean(config.pilotEnabled)));
     if (operation === 'claim') {
       await takeCustomerRate(pool,'core-device-claim:' + keyHash,5);
       const claimed = await transaction(pool,null,async client => {
@@ -134,7 +137,11 @@ export function createCoreDeviceAccess(pool, config, telemetry, routing) {
       JOIN telemetry_devices d ON d.tenant_id=c.tenant_id AND d.id=c.device_id
       WHERE c.key_sha256=$1 AND c.revoked_at IS NULL AND c.approved_at IS NOT NULL AND c.tenant_id=i.tenant_id AND c.device_id=i.device_id
         AND ($2::uuid IS NULL OR c.id=$2)
-      ORDER BY c.created_at DESC,c.id LIMIT 50`,[keyHash,installation]);
+        AND NOT EXISTS (
+          SELECT 1 FROM customer_demo_pilot p JOIN customer_demo d USING(account_id)
+          WHERE p.tenant_id=c.tenant_id AND (NOT p.active OR NOT d.enabled OR NOT $3)
+        )
+      ORDER BY c.created_at DESC,c.id LIMIT 50`,[keyHash,installation,Boolean(config.pilotEnabled)]);
     if (operation === 'devices')
       return reply(res,200,{devices:rows.map(({tenant_id,...device}) => device)});
     const device = rows[0];

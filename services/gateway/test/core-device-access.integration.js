@@ -14,7 +14,9 @@ test('Core-only card claim and device reads require the private installation key
   const admin = new pg.Pool({connectionString:url});
   await admin.query('CREATE SCHEMA ' + schema);
   const pool = new pg.Pool({connectionString:url,options:'-c search_path=' + schema});
-  const config = readConfig({DATABASE_URL:url,ENABLE_TCP_RECEIVER:'false',CORE_DEVICE_ACCESS_ENABLED:'true'});
+  const fingerprint = Array(32).fill('AA').join(':');
+  const config = readConfig({DATABASE_URL:url,ENABLE_TCP_RECEIVER:'false',ENABLE_WEB_WORKSPACE:'true',
+    CORE_DEVICE_ACCESS_ENABLED:'true',CORE_ANDROID_CERT_SHA256:fingerprint});
   const {gateway} = createRuntime(pool,{...config,host:'127.0.0.1',httpPort:0},
     {worker:false,logger:{info(){},error(){}}});
   t.after(async () => {
@@ -24,6 +26,11 @@ test('Core-only card claim and device reads require the private installation key
   });
   await gateway.start();
   const origin = 'http://127.0.0.1:' + gateway.api.address().port;
+  const statement = await fetch(origin+'/.well-known/assetlinks.json');
+  assert.equal(statement.status,200);
+  assert.deepEqual((await statement.json())[0].target,{
+    namespace:'android_app',package_name:'tech.trackium.core.prototype',sha256_cert_fingerprints:[fingerprint]
+  });
   const owner = generateKeyPairSync('ec',{namedCurve:'prime256v1'});
   const other = generateKeyPairSync('ec',{namedCurve:'prime256v1'});
   function signed(operation,input,keys = owner) {

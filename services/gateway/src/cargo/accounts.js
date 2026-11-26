@@ -83,7 +83,7 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
     if (result.demo) delete result.email;
     return { ...result, csrf: csrf(raw), kind: 'session', customer: true,
       scopes: !result.role ? [] : result.role === 'viewer' ? ['read'] : ['read', 'shipments'],
-      core_device_access: config.coreDeviceAccessEnabled === true && !demoMode && result.role === 'owner',
+      core_device_access: config.coreDeviceAccessEnabled === true && (!demoMode || result.pilot) && result.role === 'owner',
       device_activation: config.deviceActivationEnabled === true && !demoMode && result.role === 'owner',
       simulation_enabled: false };
   }
@@ -142,7 +142,8 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
         });
         return reply(res, 201, device);
       }
-      if (demoMode && !((write && action === 'login') || (req.method === 'GET' && action === 'session')))
+      if (demoMode && !((write && (action === 'login' || /^core-device-(issue|list|approve|revoke)$/.test(action))) ||
+          (req.method === 'GET' && action === 'session')))
         throw new ApiError(404, 'Account operation not found');
       if (req.method === 'GET' && action === 'session') {
         const identity = await authenticated(req, false);
@@ -150,7 +151,7 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
           `SELECT tenant_id AS id,t.name,m.role FROM customer_members m JOIN telemetry_tenants t ON t.id=m.tenant_id
            WHERE account_id=$1 AND ($2::uuid IS NULL OR m.tenant_id=$2) ORDER BY name,t.id`,
           [identity.account_id, identity.demo ? identity.tenant_id : null]);
-        return reply(res, 200, { ...identity, companies: companies.rows });
+        return reply(res, 200, { ...identity, companies: companies.rows, android_downloads:config.androidDownloads });
       }
       if (req.method === 'GET' && action === 'members') {
         const identity = await authenticated(req, false);
@@ -295,7 +296,8 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
     const coreOperation = /^core-device-(issue|list|approve|revoke)$/.exec(action);
     if (coreOperation) {
       if (!config.coreDeviceAccessEnabled) throw new ApiError(404,'Account operation not found');
-      if (identity.role !== 'owner' || !identity.tenant_id) throw new ApiError(403,'Company owner required');
+      if (identity.role !== 'owner' || !identity.tenant_id || (demoMode && !identity.pilot))
+        throw new ApiError(403,'Company owner required');
       const result = await manageCoreDeviceAccess(pool,identity,coreOperation[1],input);
       if (coreOperation[1] !== 'issue') return reply(res,200,result);
       const connection_link = new URL('/app/connect-core',config.publicOrigin);

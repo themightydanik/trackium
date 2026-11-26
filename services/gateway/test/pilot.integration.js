@@ -1,3 +1,4 @@
+import { adoptBoundDevice } from '../src/cargo/device-activation.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -35,7 +36,7 @@ test('closed demo promotion, authorized AOVX onboarding and evidence-preserving 
   const origin = 'http://127.0.0.1:' + port;
   const config = readConfig({ DATABASE_URL: scoped.href, PUBLIC_ORIGIN: origin, HTTP_PORT: String(port),
     ENABLE_TCP_RECEIVER: 'false', ENABLE_WEB_WORKSPACE: 'true', INTEGRITAS_MODE: 'test',
-    CUSTOMER_DEMO_ENABLED: 'true', CUSTOMER_DEMO_PILOT_ENABLED: 'true' });
+    CORE_DEVICE_ACCESS_ENABLED: 'true', CUSTOMER_DEMO_ENABLED: 'true', CUSTOMER_DEMO_PILOT_ENABLED: 'true' });
   const runtime = createRuntime(db, { ...config, host: '127.0.0.1' }, { worker: false, logger: { info(){}, error(){} } });
   const dir = await mkdtemp(join(tmpdir(), 'trackium-pilot-'));
   t.after(async () => {
@@ -77,6 +78,8 @@ test('closed demo promotion, authorized AOVX onboarding and evidence-preserving 
   };
   const viewer = await session((await login(original)).cookie);
   assert.equal(viewer.identity.role, 'viewer');
+  assert.equal(viewer.identity.core_device_access,false);
+  assert.equal((await call('/v1/account/core-device-issue',{...viewer,data:{}})).status,403);
   const enrollment = data => ({ label: 'Physical pilot tracker', device_id_bcd: bcd, ownership: 'confirmed', ...data });
   assert.equal((await call('/v1/account/aovx-enroll', { ...viewer, data: enrollment() })).status, 403);
 
@@ -125,6 +128,10 @@ test('closed demo promotion, authorized AOVX onboarding and evidence-preserving 
   assert.deepEqual(attempts.map(response => response.status).sort(), [201,409]);
   const device = attempts.find(response => response.status === 201).value;
   assert.equal(device.identity_kind, 'physical');
+  await adoptBoundDevice(db,{serial:'PILOT-TRACKER',device_id_bcd:bcd,tenant_id:promotion.pilot_tenant_id,device_id:device.id});
+  assert.equal(owner.identity.core_device_access,true);
+  assert.equal((await call('/v1/devices',owner)).value.devices[0].serial,'PILOT-TRACKER');
+  assert.equal((await call('/v1/account/core-device-issue',{...owner,data:{device_id:device.id,permission:'view'}})).status,200);
   assert.equal((await call('/v1/devices', owner)).value.devices.length, 1);
 
   const body = Buffer.alloc(40);
