@@ -98,3 +98,5 @@ docker compose down -v
 ```
 
 For real roads, build the two B1 releases documented below and set the graph directory and matching ID before starting a fresh disposable stack. Replace `fixture` with `corridors` for the six required routes, or `ukraine` for the reverse direction, a small town via an intermediate stop, HGV and a destination outside that graph. The international graph samples selected arterial corridors only. The synthetic fixture checks actual engine behavior for disconnection and a dimension-constrained truck detour, plus authentication, request limits and quota isolation. Keep these three evidence categories distinct. [B1 release and measurement procedure](valhalla-b1/README.md) · [Routing foundation ADR](ADR_VALHALLA_FOUNDATION.md)
+
+For the explicitly pinned Oracle HTTPS deployment, see [Oracle ↔ Railway mTLS](ORACLE_RAILWAY_ROUTING_BRIDGE.md). The separate Oracle variables leave the existing private-only HTTP origin policy intact.

@@ -1,0 +1,44 @@
+services:
+  valhalla:
+    image: ghcr.io/valhalla/valhalla:3.6.3@sha256:2b19ea46551a9687b245022551183829d817fdee9b58c5e7b2adb6e422749c43
+    entrypoint: ["python3", "/graph/ops/attested-service.py"]
+    environment:
+      TRACKIUM_ROUTING_PRIVATE_LOGS: "true"
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 1
+    mem_limit: 4g
+    memswap_limit: 4g
+    pids_limit: 96
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    volumes:
+      - "${ORACLE_GRAPH_DIR:?set the verified graph directory}:/graph:ro,Z"
+    networks: [routing]
+  bridge:
+    image: nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
+    entrypoint: ["nginx", "-c", "/etc/nginx/trackium.conf", "-g", "daemon off;"]
+    restart: unless-stopped
+    user: "101:101"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 0.25
+    mem_limit: 64m
+    memswap_limit: 64m
+    pids_limit: 32
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    volumes:
+      - ./nginx.conf:/etc/nginx/trackium.conf:ro,Z
+      - "${ORACLE_BRIDGE_PKI_DIR:?set the dedicated TLS directory}:/pki:ro,Z"
+    ports:
+      - "${ORACLE_BRIDGE_BIND_IP:-127.0.0.1}:8443:8443"
+    networks: [edge, routing]
+networks:
+  edge: {}
+  routing:
+    internal: true

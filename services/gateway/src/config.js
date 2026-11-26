@@ -59,8 +59,8 @@ export function readConfig(env = process.env) {
     try { origin = new URL(env.PUBLIC_ORIGIN); }
     catch { throw new Error('Railway HTTPS profiles require an explicit HTTPS PUBLIC_ORIGIN'); }
     if (env.NODE_ENV !== 'production' || origin.protocol !== 'https:' || origin.origin !== env.PUBLIC_ORIGIN ||
-        env.ENABLE_WEB_WORKSPACE !== 'true' || (routing && !routing.railway))
-      throw new Error('Railway HTTPS profiles require an HTTPS workspace and private Railway routing if configured');
+        env.ENABLE_WEB_WORKSPACE !== 'true' || (routing && !routing.railway && !routing.oracleTls))
+      throw new Error('Railway HTTPS profiles require an HTTPS workspace and an approved routing transport if configured');
     if (railwayPublic && (demoEnabled || pilotEnabled || integritasMode !== 'disabled'))
       throw new Error('Railway public requires disabled demo and Integritas modes');
     if (railwayDemo && ((env.CUSTOMER_ACCOUNTS_ENABLED ?? 'false') !== 'false' ||
