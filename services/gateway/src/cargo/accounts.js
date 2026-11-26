@@ -4,7 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { limitCustomerRequest, takeCustomerRate } from './customer-rate.js';
 import { ApiError, invalid, object, text, uuid } from '../telemetry/schema.js';
 import { body, reply, query } from '../telemetry/api.js';
-import { claimDevice } from './device-activation.js';
+import { claimDevice, renameOwnedDevice } from './device-activation.js';
 import { csrf } from './pairing.js';
 import { hash, tenantLock, transaction } from './shared.js';
 
@@ -288,6 +288,10 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
         await start(client, identity.account_id, nextCompany, res);
       });
       return reply(res, 200, { signed_in: true });
+    }
+    if (action === 'rename-device') {
+      if (identity.role !== 'owner' || !identity.tenant_id) throw new ApiError(403, 'Company owner required');
+      return reply(res,200,await renameOwnedDevice(pool,identity,input));
     }
     if (action === 'activate-device') {
       if (!config.deviceActivationEnabled) throw new ApiError(404, 'Account operation not found');

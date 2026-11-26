@@ -1015,7 +1015,7 @@
         candidate.nodeValue = next.nodeValue;
         continue;
       }
-      if (candidate.matches('#workspace-map, #customer-status')) continue;
+      if (candidate.matches('#workspace-map, #customer-status, #activation-status')) continue;
       const preserve = name => name === 'open' && candidate.tagName === 'DETAILS' ||
         candidate.hasAttribute('data-ui-busy') && ['disabled','data-ui-busy'].includes(name) ||
         ['value','checked','selected'].includes(name) && candidate.matches('input, textarea, option');
@@ -1559,7 +1559,10 @@
             server.state.updated,
             device ? server.openHistory(device) : null
           );
-          if (html) openDialog(html);
+          if (html) {
+            const owner = server.state.account?.role === 'owner' && !server.state.account.demo;
+            openDialog(html + (device && owner ? TrackiumCustomer.renameDevice(device.registry) : ''));
+          }
         } else if (serverAction === 'reconnect') await server.restore();
         else if (serverAction.startsWith('page-')) {
           const [, kind, direction] = serverAction.split('-');
@@ -1754,14 +1757,25 @@
     const entryRoute = location.hash;
     const enrollment = ['aovx-enroll','activate-device'].includes(action);
     const enrollmentTenant = enrollment ? server.state.account?.tenant_id : null;
-    const statusId = action === 'activate-device' ? '#activation-status' : '#customer-status';
+    const rename = action === 'rename-device';
+    const entrySession = server.state.session?.id;
+    const statusId = action === 'activate-device' ? '#activation-status' :
+      rename ? '#device-rename-status' : '#customer-status';
     if (action === 'member' && !input.role) input.role = null;
     customerBusy = true;
     submit.setAttribute('data-ui-busy', '');
     submit.disabled = true;
     try {
       const result = await server.customerAction(action, input);
-      if (result.signed_in) {
+      if (rename) {
+        if (entrySession !== server.state.session?.id) return;
+        const title = event.target.closest('dialog')?.querySelector('#dialog-title');
+        if (title && event.target.isConnected) {
+          title.textContent = result.label;
+          $(statusId).textContent = 'Device name saved.';
+        }
+        await server.refresh();
+      } else if (result.signed_in) {
         companyMembers = null;
         companyMembersTenant = null;
         if (location.hash === entryRoute && page() !== 'map') location.hash = 'map';
@@ -1793,7 +1807,7 @@
           action === 'aovx-enroll' ? 'Physical tracker registered and bound.' : 'Saved.';
       }
     } catch (error) {
-      if (enrollmentTenant && enrollmentTenant !== server.state.account?.tenant_id) return;
+      if ((rename && !event.target.isConnected) || (enrollmentTenant && enrollmentTenant !== server.state.account?.tenant_id)) return;
       const output = $(statusId);
       if (output) output.textContent = error.message;
     } finally {

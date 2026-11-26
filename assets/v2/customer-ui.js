@@ -83,10 +83,16 @@
     if (!account.device_activation || account.role !== 'owner') return '';
     return '<section class="panel customer-access"><h2>Activate a purchased tracker</h2>' +
       '<p>Use the serial number and one-time code from your activation card.</p>' +
-      form('activate-device',field('Device label','label') +
+      form('activate-device',field('Tracker name','label') +
         '<label class="field-label">Tracker serial number<input class="text-input" name="serial" maxlength="64" autocomplete="off" required></label>' +
         '<label class="field-label">Activation code<input type="password" class="text-input" name="code" maxlength="43" autocomplete="off" required></label>',
         'Activate tracker') + '<p id="activation-status" role="status"></p></section>';
   }
-  root.TrackiumCustomer = { auth, company, aovxEnrollment, deviceActivation };
+  function renameDevice(device) {
+    return '<section class="panel customer-access"><h3>Rename device</h3>' +
+      form('rename-device','<input type="hidden" name="device_id" value="' + esc(device.id) + '">' +
+        '<label class="field-label">New device name<input class="text-input" name="label" maxlength="120" required value="' +
+        esc(device.label) + '"></label>', 'Save device name') + '<p id="device-rename-status" role="status"></p></section>';
+  }
+  root.TrackiumCustomer = { auth, company, aovxEnrollment, deviceActivation, renameDevice };
 })(window);

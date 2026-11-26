@@ -872,17 +872,31 @@ test('New customer registers, adds a company and creates a shipment visible on t
   await provisionDevices(db, [{serial:'BROWSER-GL110',device_id_bcd:'199999999998'}], async cards => { [card] = cards; });
   await page.locator('#navigation a[href="#devices"]').click();
   const activation = page.locator('[data-customer-form="activate-device"]');
-  await activation.getByLabel('Device label').fill('GL110 awaiting first observation');
+  await activation.getByLabel('Tracker name').fill('GL110 awaiting first observation');
   await activation.getByLabel('Tracker serial number').fill(card.serial);
   await activation.getByLabel('Activation code').fill(card.code);
   await activation.getByRole('button',{name:'Activate tracker'}).click();
   await page.getByRole('status').filter({hasText:'Tracker activated. Waiting for GPS.'}).waitFor();
   await page.getByText('GL110 awaiting first observation',{exact:true}).first().waitFor();
   assert.equal(await activation.getByLabel('Activation code').inputValue(),'');
+  const trackerRow = page.getByRole('row').filter({hasText:'BROWSER-GL110'});
+  await trackerRow.getByText(/Waiting for GPS/).waitFor();
+  await trackerRow.getByRole('button',{name:'Device details'}).click();
+  const rename = page.locator('[data-customer-form="rename-device"]');
+  await rename.getByLabel('New device name').fill('Renamed GL110');
+  await rename.getByRole('button',{name:'Save device name'}).click();
+  await page.getByRole('heading',{name:'Renamed GL110', exact:true}).waitFor();
+  await page.getByRole('button',{name:'Close details'}).click();
+  await trackerRow.getByText('Renamed GL110',{exact:true}).waitFor();
+
 
   await page.locator('#navigation a[href="#settings"]').click();
-  await page.getByLabel('Device label').fill('Unbound pilot device');
-  await page.getByRole('button', {name:'Add device record'}).click();
+  const deviceRecord = page.locator('[data-customer-form="device"]');
+  await deviceRecord.getByLabel('Device label').fill('Unbound pilot device');
+  const createDevice = page.waitForResponse(response => response.url() === origin + '/v1/account/device'
+    && response.request().method() === 'POST');
+  await deviceRecord.getByRole('button', {name:'Add device record'}).click();
+  assert.equal((await createDevice).status(),201);
   await page.getByText('Saved.',{exact:true}).waitFor();
   await page.locator('#navigation a[href="#shipments"]').click();
   await page.getByRole('button', {name:'Create shipment',exact:true}).click();

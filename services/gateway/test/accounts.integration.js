@@ -139,6 +139,13 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   const [winner,loser] = claims[0].status===201 ? [owner,viewer] : [viewer,owner];
   assert.equal((await call(winner,'/v1/devices/'+claim.device_id)).status,200);
   assert.equal((await call(loser,'/v1/devices/'+claim.device_id)).status,404);
+  assert.equal((await call(winner,'/v1/devices')).devices.find(row=>row.id===claim.device_id).serial,activation.serial);
+  assert.equal((await account(loser,'rename-device',{device_id:claim.device_id,label:'Cross-company edit'})).status,404);
+  assert.equal((await account(winner,'rename-device',{device_id:claim.device_id,label:'Unauthorized edit'},
+    {headers:{'x-csrf-token':''}})).status,403);
+  assert.equal((await account(winner,'rename-device',{device_id:claim.device_id,label:'Renamed tracker'})).status,200);
+  assert.equal((await call(winner,'/v1/devices/'+claim.device_id)).label,'Renamed tracker');
+
   assert.equal(claim.activation_sha256,null);
   assert.deepEqual(await account(winner,'activate-device',activation),expired);
   assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM telemetry_aovx_device_bindings WHERE device_id=$1',
@@ -152,6 +159,7 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   const invited = await account(viewer,'session');
   assert.equal(invited.role,'viewer');
   assert.equal(invited.device_activation,false);
+  assert.equal((await account(viewer,'rename-device',{device_id:device.id,label:'Viewer edit'})).status,403);
   assert.equal((await account(viewer,'activate-device',activation)).status,403);
   assert.equal((await call(viewer,'/v1/devices/'+device.id)).status,200);
   assert.equal((await call(viewer,'/v1/shipments',{})).status,403);

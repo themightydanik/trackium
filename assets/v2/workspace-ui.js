@@ -348,11 +348,12 @@
         .map((d) => {
           const e = d.history?.events?.[0],
             p = e?.payload || {};
+          const position = C.reportedPosition(d);
           return (
             '<tr data-view-key="device:' + esc(d.registry.id) + '"><td data-label="Device"><span class="ops-glyph">' + glyph('devices') + '</span><strong>' +
             esc(d.registry.label) +
             '</strong><small class="cell-note">' +
-            esc(d.registry.id) +
+            esc(d.registry.serial || d.registry.id) +
             '</small></td><td data-label="Reported state">' +
             (d.registry.enabled === false ? badge('Disabled', 'neutral') : d.registry.identity_kind === 'physical' && !e
               ? badge('No decoded telemetry', 'neutral') : badge(d.status?.status || 'unknown')) +
@@ -366,8 +367,9 @@
             provenanceBadge(p.trust) +
             '<small class="cell-note">' +
             (d.registry.identity_kind === 'physical' && !e ? 'Awaiting a decoded observation' : observationTime(e)) +
-            (d.registry.identity_kind === 'physical' ? (C.reportedPosition(d)
-              ? '<br>Last known fix · unverified' : '<br>Current position unavailable') : '') +
+            (d.registry.identity_kind === 'physical' ? (position
+              ? '<br>Last known fix · unverified · ' + esc(position.occurred_at)
+              : d.registry.serial && d.registry.enabled !== false ? '<br>Waiting for GPS' : '<br>Current position unavailable') : '') +
             '</small></td><td data-label="Details">' +
             action('Device details', 'view-device', d.registry.id) +
             '</td></tr>'
@@ -736,7 +738,7 @@
       body =
         search(page, view, d) +
         panel(
-          'Device inventory',
+          state.session?.customer && !state.session.demo ? 'My Devices' : 'Device inventory',
           '<div class="toolbar"><p>Latest reported samples with measurement time and provenance.</p>' +
             action(
               'Create simulator identity',
@@ -1093,6 +1095,7 @@
       body =
         fields([
           ['Identifier', d.registry.id],
+          ...(d.registry.serial ? [['Serial number', d.registry.serial]] : []),
           ['Identity', d.registry.identity_kind],
           ['Status', d.status?.status],
           ...positionFields(d),

@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { ApiError, object, text } from '../telemetry/schema.js';
+import { ApiError, object, text, uuid } from '../telemetry/schema.js';
 import { hash, transaction } from './shared.js';
 
 const serialPattern = /^[A-Z0-9][A-Z0-9._-]{3,63}$/;
@@ -10,21 +10,40 @@ const lock = (client, bcd) =>
   client.query("SELECT pg_advisory_xact_lock(hashtextextended('aovx-enroll:'||$1,0))", [bcd]);
 const secret = () => randomBytes(32).toString('base64url');
 
+async function requireCurrentOwner(client, identity) {
+  // Match the existing tenant → account → BCD lock order.
+  await client.query('SELECT id FROM customer_accounts WHERE id=$1 FOR NO KEY UPDATE', [identity.account_id]);
+  const session = await client.query(
+    `SELECT 1 FROM customer_sessions s JOIN customer_members m
+         ON m.tenant_id=s.tenant_id AND m.account_id=s.account_id
+      WHERE s.id=$1 AND s.tenant_id=$2 AND s.account_id=$3
+        AND s.expires_at>now() AND m.role='owner' FOR SHARE OF s,m`,
+    [identity.id,identity.tenant_id,identity.account_id]);
+  if (!session.rowCount) throw new ApiError(403, 'Company owner required');
+}
+
+export async function renameOwnedDevice(pool, identity, input) {
+  object(input,['device_id','label']);
+  const id = uuid(input.device_id);
+  const label = typeof input.label === 'string' ? input.label.trim() : input.label;
+  text(label,120);
+  return transaction(pool,identity.tenant_id,async client => {
+    await requireCurrentOwner(client,identity);
+    const {rows:[device]} = await client.query(
+      'UPDATE telemetry_devices SET label=$3 WHERE tenant_id=$1 AND id=$2 RETURNING id,label',
+      [identity.tenant_id,id,label]);
+    if (!device) throw new ApiError(404,'Device not found');
+    return device;
+  });
+}
+
 export async function claimDevice(pool, telemetry, identity, input) {
   object(input, ['serial', 'code', 'label']);
   const serial = typeof input.serial === 'string' ? input.serial.trim().toUpperCase() : '';
   if (!serialPattern.test(serial) || typeof input.code !== 'string' || !codePattern.test(input.code)) throw denied();
   text(input.label, 120);
   return transaction(pool, identity.tenant_id, async client => {
-    // Match the existing tenant → account → BCD lock order.
-    await client.query('SELECT id FROM customer_accounts WHERE id=$1 FOR NO KEY UPDATE', [identity.account_id]);
-    const session = await client.query(
-      `SELECT 1 FROM customer_sessions s JOIN customer_members m
-           ON m.tenant_id=s.tenant_id AND m.account_id=s.account_id
-        WHERE s.id=$1 AND s.tenant_id=$2 AND s.account_id=$3
-          AND s.expires_at>now() AND m.role='owner' FOR SHARE OF s,m`,
-      [identity.id,identity.tenant_id,identity.account_id]);
-    if (!session.rowCount) throw new ApiError(403, 'Company owner required');
+    await requireCurrentOwner(client, identity);
     const {rows:[candidate]} = await client.query(
       'SELECT device_id_bcd FROM device_activation_inventory WHERE serial=$1', [serial]);
     if (candidate) await lock(client,candidate.device_id_bcd);

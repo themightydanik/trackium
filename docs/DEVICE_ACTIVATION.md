@@ -1,6 +1,6 @@
 # Purchased tracker activation
 
-Device activation is opt-in with `DEVICE_ACTIVATION_ENABLED=true` on a Gateway using PostgreSQL migration 018. The Gateway uses its existing customer account configuration. Activation requires a signed-in company Owner. In **Devices → Activate a purchased tracker**, enter the serial and one-time code from the card, add a label and select **Activate tracker**. The device appears even if it has sent no packets. The existing Device Lab determines whether a packet contains an eligible GNSS position.
+Device activation is opt-in with `DEVICE_ACTIVATION_ENABLED=true` on a Gateway using PostgreSQL migration 018. The Gateway uses its existing customer account configuration. Activation requires a signed-in company Owner. In **Devices → Activate a purchased tracker**, enter the serial and one-time code from the card, add a label and select **Activate tracker**. The device appears even if it has sent no packets. **My Devices** shows the serial for purchased trackers to company Owners. Open **Device details** to rename a device or inspect its tracking data. The existing Device Lab determines whether a packet contains an eligible GNSS position.
 
 `POST /v1/account/activate-device` accepts `serial`, `code` and `label` as JSON and uses the existing customer session, same-origin and CSRF controls. It returns the created device with HTTP 201. Bad codes, missing stock and already-used codes get the same rejection. The account rate bucket is in PostgreSQL and works across replicas. The posted body should never be logged.
 
