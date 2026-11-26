@@ -1,3 +1,5 @@
+import { encodeAovxFrame } from '../src/aovx/frame.js';
+import { persistPacket } from '../src/journal.js';
 import { hash } from '../src/cargo/shared.js';
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, randomUUID, sign } from 'node:crypto';
@@ -17,7 +19,7 @@ test('Core-only card claim and device reads require the private installation key
   const fingerprint = Array(32).fill('AA').join(':');
   const config = readConfig({DATABASE_URL:url,ENABLE_TCP_RECEIVER:'false',ENABLE_WEB_WORKSPACE:'true',
     CORE_DEVICE_ACCESS_ENABLED:'true',CORE_ANDROID_CERT_SHA256:fingerprint});
-  const {gateway} = createRuntime(pool,{...config,host:'127.0.0.1',httpPort:0},
+  const {gateway,aovxIngestion} = createRuntime(pool,{...config,host:'127.0.0.1',httpPort:0},
     {worker:false,logger:{info(){},error(){}}});
   t.after(async () => {
     await gateway.shutdown();
@@ -65,6 +67,22 @@ test('Core-only card claim and device reads require the private installation key
   const target = {installation_id:claimed.id};
   assert.equal((await post('observations',signed('observations',target,notOwner))).status,404);
   assert.deepEqual(await post('observations',signed('observations',target,keys)),{status:200,location:null,history:[]});
+  // A protocol fixture enters through the same raw-journal decoder as hardware.
+  const body = Buffer.alloc(40);
+  body.writeUInt32BE(2,4);
+  body.writeUInt32BE(49840000,8);
+  body.writeUInt32BE(24030000,12);
+  Buffer.from(new Date(Date.now()-2000).toISOString().slice(2,19).replace(/\D/g,''),'hex').copy(body,22);
+  const idBcd = '199999999996';
+  const payload = encodeAovxFrame({messageId:0x0200,deviceIdBcd:Buffer.from(idBcd,'hex'),sequenceNumber:1,body});
+  const packet = await persistPacket({payload,aovx:{messageId:0x0200,deviceIdBcd:idBcd}},pool);
+  assert.equal((await aovxIngestion.processPacket(packet.id)).processed,true);
+  const observation = await post('observations',signed('observations',target,keys));
+  assert.equal(observation.location.gps.latitude,49.84);
+  assert.equal(observation.location.trust,'unverified');
+  assert.equal(observation.history.length,1);
+  assert.equal((await post('observations',signed('observations',target,notOwner))).status,404);
+
   assert.equal((await post('calculate',signed('calculate',{...target,calculation:{}},keys))).code,'ROUTING_UNAVAILABLE');
   await pool.query('UPDATE core_device_installations SET revoked_at=now() WHERE id=$1',[claimed.id]);
   assert.equal((await post('observations',signed('observations',target,keys))).status,404);

@@ -104,11 +104,13 @@ export function createCoreDeviceAccess(pool, config, telemetry, routing) {
     if (req.method !== 'POST' || !operations.has(operation)) throw new ApiError(404, 'not found');
     if (req.headers.cookie || req.headers.authorization || req.headers.origin)
       throw denied();
-    await takeCustomerRate(pool,'core-device:global',240);
     await takeCustomerRate(pool,'core-device:peer:' + hash(req.socket.remoteAddress || 'unknown'),120);
+    if (await takeCustomerRate(pool,'core-device:global',240) === 1) {
+      await pool.query("DELETE FROM customer_rate_buckets WHERE window_at<now()-interval '5 minutes'");
+      await pool.query('DELETE FROM core_device_request_nonces WHERE expires_at<=now()');
+    }
     const { keyHash, nonce, input } = readEnvelope((await body(req,8192)).input,operation,audience);
-    const attempts = await takeCustomerRate(pool,'core-device:' + keyHash,20);
-    if (attempts === 1) await pool.query('DELETE FROM core_device_request_nonces WHERE expires_at<=now()');
+    await takeCustomerRate(pool,'core-device:' + keyHash,20);
     const used = await pool.query(`INSERT INTO core_device_request_nonces(key_sha256,nonce,expires_at)
       VALUES ($1,$2,now()+interval '4 minutes') ON CONFLICT DO NOTHING`,[keyHash,nonce]);
     if (!used.rowCount) throw denied();
