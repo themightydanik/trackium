@@ -50,6 +50,7 @@ export function createAovxObservations(pool) {
         `SELECT id::text AS id, received_at, remote_address,
           aovx_message_id, aovx_device_id_bcd, aovx_sequence_number,
           aovx_checksum_status, aovx_parse_status, aovx_parse_error,
+          aovx_processing_state, aovx_processing_error,
           aovx_parsed_payload, octet_length(raw_payload) AS payload_bytes,
           encode(substring(raw_payload FROM 1 FOR 65536), 'hex') AS raw_payload_hex,
           octet_length(raw_payload) > 65536 AS payload_truncated, sha256

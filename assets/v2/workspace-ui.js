@@ -919,6 +919,8 @@
       unbound: 'No eligible binding at ingestion', processed: 'Processed',
       not_applicable: 'Packet is outside telemetry ingestion'
     };
+    const packetResult = { checksum: 'Checksum mismatch', message_decode: 'Message decode failed',
+      ingestion: 'Telemetry ingestion rejected the packet' };
     const reasons = {
       device_disabled: 'Device disabled', unbound_device: 'Unbound device',
       no_decoded_observation: 'No decoded observation', legacy_parser: 'Earlier parser version',
@@ -933,8 +935,9 @@
       ' · ' + esc(d.packet_recency === 'recent' ? 'Recent packet' : 'No recent data') +
       ' · ' + provenanceBadge(d.trust) + '</p>' + fields([
         ['Last packet received (UTC)', packet?.received_at],
-        ['Packet processing', packet?.decoding === 'failed' ? 'Processing failure'
-          : ingestion[packet?.ingestion]],
+        ['Packet processing', packetResult[packet?.failure_stage] ??
+          (packet?.decoding === 'opaque' ? 'Unsupported message retained in journal' :
+            packet?.decoding === 'failed' ? 'Processing failure' : ingestion[packet?.ingestion])],
         ['Last decoded observation received (UTC)', observation?.received_at],
         ['Device measurement time (UTC)', observation?.measured_at],
         ['Latest valid GNSS measurement (UTC)', d.last_valid_gnss_at],
@@ -945,7 +948,10 @@
         ['Last-known position age', position.last_known ? (position.last_known.stale ? 'Older than 15 minutes' : 'Within 15 minutes') : null],
         ['Last known fix (UTC)', position.conflict ? 'Unavailable: conflicting fixes' : position.last_known_at]
       ]) + '<details class="ops-disclosure"><summary>Packet & parser details</summary>' + fields([
-        ['Parser version', observation?.parser_version], ['Linked packet reference', observation?.packet_ref]
+        ['Last received packet reference', packet?.packet_ref],
+        ['Last received message type', Number.isInteger(packet?.message_id)
+          ? '0x' + packet.message_id.toString(16).padStart(4,'0') : null],
+        ['Parser version', observation?.parser_version], ['Linked observation packet reference', observation?.packet_ref]
       ]) + '</details>';
   }
   function physicalDeviceLab(id) {
