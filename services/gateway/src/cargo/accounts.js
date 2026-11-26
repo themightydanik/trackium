@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { limitCustomerRequest, takeCustomerRate } from './customer-rate.js';
 import { ApiError, invalid, object, text, uuid } from '../telemetry/schema.js';
 import { body, reply, query } from '../telemetry/api.js';
+import { claimDevice } from './device-activation.js';
 import { csrf } from './pairing.js';
 import { hash, tenantLock, transaction } from './shared.js';
 
@@ -80,6 +81,7 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
     if (result.demo) delete result.email;
     return { ...result, csrf: csrf(raw), kind: 'session', customer: true,
       scopes: !result.role ? [] : result.role === 'viewer' ? ['read'] : ['read', 'shipments'],
+      device_activation: config.deviceActivationEnabled === true && !demoMode && result.role === 'owner',
       simulation_enabled: false };
   }
   async function start(client, account, company, res) {
@@ -286,6 +288,12 @@ export function createAccounts(pool, config, pairing, telemetry, mail) {
         await start(client, identity.account_id, nextCompany, res);
       });
       return reply(res, 200, { signed_in: true });
+    }
+    if (action === 'activate-device') {
+      if (!config.deviceActivationEnabled) throw new ApiError(404, 'Account operation not found');
+      if (identity.role !== 'owner' || !identity.tenant_id) throw new ApiError(403, 'Company owner required');
+      await takeCustomerRate(pool,'device-claim:' + hash(identity.account_id),6);
+      return reply(res,201,await claimDevice(pool,telemetry,identity,input));
     }
     if (action === 'device') {
       manager(identity);

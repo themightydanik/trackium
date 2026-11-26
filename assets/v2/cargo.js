@@ -1043,7 +1043,7 @@
     const heading = template.content.querySelector('.page-heading');
     const extra = document.createElement('template');
     if (account && current === 'devices' && customerScreen !== 'pairing')
-      extra.innerHTML = TrackiumCustomer.aovxEnrollment(account);
+      extra.innerHTML = TrackiumCustomer.deviceActivation(account) + TrackiumCustomer.aovxEnrollment(account);
     if (account && current === 'settings')
       extra.innerHTML = TrackiumCustomer.company(account,
         companyMembersTenant === account.tenant_id ? companyMembers : null);
@@ -1752,7 +1752,9 @@
     const submit = event.target.querySelector('[type=submit]');
     const input = Object.fromEntries(new FormData(event.target));
     const entryRoute = location.hash;
-    const enrollmentTenant = action === 'aovx-enroll' ? server.state.account?.tenant_id : null;
+    const enrollment = ['aovx-enroll','activate-device'].includes(action);
+    const enrollmentTenant = enrollment ? server.state.account?.tenant_id : null;
+    const statusId = action === 'activate-device' ? '#activation-status' : '#customer-status';
     if (action === 'member' && !input.role) input.role = null;
     customerBusy = true;
     submit.setAttribute('data-ui-busy', '');
@@ -1773,10 +1775,10 @@
         $('#customer-status').textContent = 'You can now sign in.';
       } else {
         if (action === 'member') companyMembers = null;
-        if (action === 'device' || action === 'aovx-enroll') {
-          if (action === 'aovx-enroll') {
+        if (action === 'device' || enrollment) {
+          if (enrollment) {
             if (enrollmentTenant !== server.state.account?.tenant_id) return;
-            $('[data-customer-form="aovx-enroll"]')?.reset();
+            event.target.reset();
             server.state.pages.devices.cursor = null;
             server.state.pages.devices.previous = [];
           }
@@ -1785,13 +1787,14 @@
         render();
         const details = $('#company-members');
         if (details) details.open = true;
-        const status = $('#customer-status');
+        const status = $(statusId);
         if (status) status.textContent = action === 'invite' ? 'Invitation queued.' :
+          action === 'activate-device' ? 'Tracker activated. Waiting for GPS.' :
           action === 'aovx-enroll' ? 'Physical tracker registered and bound.' : 'Saved.';
       }
     } catch (error) {
       if (enrollmentTenant && enrollmentTenant !== server.state.account?.tenant_id) return;
-      const output = $('#customer-status');
+      const output = $(statusId);
       if (output) output.textContent = error.message;
     } finally {
       customerBusy = false;

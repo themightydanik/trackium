@@ -824,7 +824,7 @@ test('New customer registers, adds a company and creates a shipment visible on t
   const { createRuntime } = await import('../../services/gateway/src/cargo/runtime.js');
   const { readConfig } = await import('../../services/gateway/src/config.js');
   const { gateway } = createRuntime(db, {
-    ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, CUSTOMER_ACCOUNTS_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'local', ACCOUNT_MAIL_DIRECTORY: directory,
+    ...readConfig({ DATABASE_URL: DB, PUBLIC_ORIGIN: origin, CUSTOMER_ACCOUNTS_ENABLED: 'true', DEVICE_ACTIVATION_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'local', ACCOUNT_MAIL_DIRECTORY: directory,
       ENABLE_WEB_WORKSPACE: 'true', ENABLE_TCP_RECEIVER: 'false', INTEGRITAS_MODE: 'test', WEB_ROOT: ROOT }),
     host: '127.0.0.1', httpPort
   }, { worker: false, logger: { info(){}, error(){} } });
@@ -867,6 +867,19 @@ test('New customer registers, adds a company and creates a shipment visible on t
   await page.getByRole('heading', {name:'Fleet Map',exact:true}).waitFor();
   await page.locator('#navigation a[href="#dashboard"]').click();
   await capture('02-dashboard');
+  const { provisionDevices } = await import('../../services/gateway/src/cargo/device-activation.js');
+  let card;
+  await provisionDevices(db, [{serial:'BROWSER-GL110',device_id_bcd:'199999999998'}], async cards => { [card] = cards; });
+  await page.locator('#navigation a[href="#devices"]').click();
+  const activation = page.locator('[data-customer-form="activate-device"]');
+  await activation.getByLabel('Device label').fill('GL110 awaiting first observation');
+  await activation.getByLabel('Tracker serial number').fill(card.serial);
+  await activation.getByLabel('Activation code').fill(card.code);
+  await activation.getByRole('button',{name:'Activate tracker'}).click();
+  await page.getByRole('status').filter({hasText:'Tracker activated. Waiting for GPS.'}).waitFor();
+  await page.getByText('GL110 awaiting first observation',{exact:true}).first().waitFor();
+  assert.equal(await activation.getByLabel('Activation code').inputValue(),'');
+
   await page.locator('#navigation a[href="#settings"]').click();
   await page.getByLabel('Device label').fill('Unbound pilot device');
   await page.getByRole('button', {name:'Add device record'}).click();

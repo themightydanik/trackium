@@ -16,7 +16,8 @@ export async function migrate(pool) {
     '014_customer_demo_username.sql',
     '015_customer_physical_pilot.sql',
     '016_aovx_custody_transfer.sql',
-    '017_shipment_road_routes.sql'
+    '017_shipment_road_routes.sql',
+    '018_device_activation.sql'
   ];
   const client = await pool.connect();
   try {

@@ -6,6 +6,7 @@ import { once } from 'node:events';
 import { createCustomerMail } from '../src/cargo/customer-mail.js';
 import { takeCustomerRate, limitCustomerRequest } from '../src/cargo/customer-rate.js';
 import pg from 'pg';
+import { provisionDevices, administerActivation } from '../src/cargo/device-activation.js';
 import { createRuntime } from '../src/cargo/runtime.js';
 import { readConfig } from '../src/config.js';
 
@@ -24,7 +25,7 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   await new Promise(resolve => listener.close(resolve));
   const origin = 'http://127.0.0.1:' + httpPort;
   const config = readConfig({ DATABASE_URL: url, ENABLE_WEB_WORKSPACE:'true', ENABLE_TCP_RECEIVER:'false',
-    DEPLOYMENT_PROFILE:'railway-public', NODE_ENV:'production', ENABLE_NATIVE_CLIENTS:'true',
+    DEVICE_ACTIVATION_ENABLED:'true', DEPLOYMENT_PROFILE:'railway-public', NODE_ENV:'production', ENABLE_NATIVE_CLIENTS:'true',
     PUBLIC_ORIGIN: origin.replace('http:', 'https:'), HTTP_PORT: String(httpPort), CUSTOMER_ACCOUNTS_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'resend', RESEND_API_KEY: 're_test_only',
     CUSTOMER_MAIL_FROM: 'accounts@example.test', CUSTOMER_MAIL_TOKEN_KEY: 'ab'.repeat(32) });
   const { gateway } = createRuntime(db, { ...config, host:'127.0.0.1' }, { worker:false, logger:{ info(){}, error(){} } });
@@ -118,12 +119,40 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   const b = await account(viewer,'session');
   assert.equal((await call(viewer,'/v1/devices/'+device.id)).status,404);
   assert.equal((await account(viewer,'switch',{company:a.tenant_id})).status,404);
+  let cards;
+  const captureCards = async value => { cards = value; };
+  const inventory = [{ serial:'TEST-GL110', device_id_bcd:'199999999999' }];
+  await assert.rejects(provisionDevices(db, inventory, async () => { throw new Error('export failed'); }), /export failed/);
+  assert.equal((await db.query('SELECT * FROM device_activation_inventory')).rowCount,0);
+  assert.equal(await provisionDevices(db, inventory, captureCards),1);
+  const original = cards[0].code;
+  await administerActivation(db,'rotate',inventory[0].serial,captureCards);
+  const activation = { serial:cards[0].serial,code:cards[0].code,label:'Unreported GL110' };
+  assert.equal(a.device_activation,true);
+  assert.equal((await account(owner,'activate-device',activation,{headers:{'x-csrf-token':''}})).status,403);
+  const expired = await account(owner,'activate-device',{...activation,code:original});
+  assert.equal(expired.status,400);
+  const claims = await Promise.all([account(owner,'activate-device',activation),account(viewer,'activate-device',activation)]);
+  assert.deepEqual(claims.map(result => result.status).sort(),[201,400]);
+  assert.deepEqual(claims.find(result => result.status===400),expired);
+  const {rows:[claim]} = await db.query('SELECT * FROM device_activation_inventory');
+  const [winner,loser] = claims[0].status===201 ? [owner,viewer] : [viewer,owner];
+  assert.equal((await call(winner,'/v1/devices/'+claim.device_id)).status,200);
+  assert.equal((await call(loser,'/v1/devices/'+claim.device_id)).status,404);
+  assert.equal(claim.activation_sha256,null);
+  assert.deepEqual(await account(winner,'activate-device',activation),expired);
+  assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM telemetry_aovx_device_bindings WHERE device_id=$1',
+    [claim.device_id])).rows[0].n,1);
+
+  await db.query('DELETE FROM customer_rate_buckets');
   assert.equal((await account(owner,'invite',{email:viewerEmail,role:'viewer'})).status,200);
   const earlier = {...viewer};
   assert.equal((await account(viewer,'accept',{code:await mail(viewerEmail,'invite')})).status,200);
   assert.equal((await call(earlier,'/v1/session')).status,401);
   const invited = await account(viewer,'session');
   assert.equal(invited.role,'viewer');
+  assert.equal(invited.device_activation,false);
+  assert.equal((await account(viewer,'activate-device',activation)).status,403);
   assert.equal((await call(viewer,'/v1/devices/'+device.id)).status,200);
   assert.equal((await call(viewer,'/v1/shipments',{})).status,403);
   assert.equal((await account(viewer,'members')).status,403);

@@ -11,6 +11,7 @@ import { encodeAovxFrame, decodeAovxFrame } from '../src/aovx/frame.js';
 import { administerPilot } from '../src/cargo/pilot-admin.js';
 import { createPasswordDigest } from '../src/cargo/accounts.js';
 import { createCustomerMail } from '../src/cargo/customer-mail.js';
+import { provisionDevices, administerActivation } from '../src/cargo/device-activation.js';
 import { createNotifications } from '../src/cargo/notifications.js';
 import { acknowledge, claimOutbox } from '../src/cargo/outbox.js';
 import { createRuntime } from '../src/cargo/runtime.js';
@@ -159,7 +160,8 @@ async function snapshot(db, includeRoutes = true) {
   if (includeRoutes) tables.push(
     ['cargo_road_route_revisions', 'tenant_id, shipment_id, version'],
     ['cargo_road_route_heads', 'tenant_id, shipment_id'],
-    ['cargo_road_route_audit', 'tenant_id, shipment_id, generation, state']
+    ['cargo_road_route_audit', 'tenant_id, shipment_id, generation, state'],
+    ['device_activation_inventory', 'serial']
   );
   const result = {};
   for (const [table, order] of tables)
@@ -168,7 +170,7 @@ async function snapshot(db, includeRoutes = true) {
 }
 
 async function verifyMigrations(rows) {
-  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+  assert.deepEqual(rows.map(row => row.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
   const directory = new URL('../migrations/', import.meta.url);
   const files = (await readdir(directory)).filter(file => /^\d{3}_.*\.sql$/.test(file)).sort();
   assert.equal(files.length, rows.length);
@@ -414,6 +416,7 @@ try {
   await gateway.runtime.gateway.start();
   const { db, runtime } = gateway;
   const after = await snapshot(db,false);
+  assert.equal(after.gateway_schema_migrations.pop().version,18);
   assert.equal(after.gateway_schema_migrations.pop().version,17);
   assert.deepEqual(after,before);
   const catalog = await db.query(`SELECT
@@ -431,7 +434,7 @@ try {
   assert.deepEqual(await snapshot(db),upgraded);
   await db.query("UPDATE gateway_schema_migrations SET checksum='bad' WHERE version=17");
   await assert.rejects(migrate(db),/checksum mismatch/);
-  await db.query("UPDATE gateway_schema_migrations SET checksum=$1 WHERE version=17",[upgraded.gateway_schema_migrations.at(-1).checksum]);
+  await db.query("UPDATE gateway_schema_migrations SET checksum=$1 WHERE version=17",[upgraded.gateway_schema_migrations.find(row => row.version === 17).checksum]);
   assert.deepEqual(await snapshot(db),upgraded);
   console.log('PASS: populated v016 upgrade, DDL lock timeout rollback, idempotency and rejected v017 checksum mismatch');
   // Back up one acknowledged job, one expired lease and one pending job.
@@ -459,6 +462,7 @@ try {
   const pilot = await administerPilot(db, 'promote', {
     name: 'Backup physical pilot', identifiers: ['555222333444'], password: randomBytes(24).toString('hex')
   });
+  await provisionDevices(db,[{serial:'DRILL-INVENTORY',device_id_bcd:'199999999997'}],async () => {});
   const baseline = await snapshot(db);
   await verifyMigrations(baseline.gateway_schema_migrations);
   verifyHistory(baseline, seeded, { linkCount: 2, sampleCount: 1 });
@@ -513,6 +517,9 @@ try {
   gateway = gatewayFor(port, recovered);
   await gateway.runtime.gateway.start();
   const restored = await snapshot(gateway.db);
+  assert.deepEqual(await administerActivation(gateway.db,'inspect','DRILL-INVENTORY'),{
+    serial:'DRILL-INVENTORY',device_id_bcd:'199999999997',claimable:true,claimed:false,tenant_id:null,device_id:null
+  });
   await verifyMigrations(restored.gateway_schema_migrations);
   assert.deepEqual(restored, baseline, 'restore and startup changed the backup evidence');
   await verifyRoadRoutes(gateway.db,restored,routes);
@@ -543,7 +550,7 @@ try {
   console.log('PASS: restored managed registration, current owner access and previous key revocation');
   console.log('Local dump and verified recovery (ms):', backupMs, Math.round(performance.now() - recoveryStart),
     '· fixture writes lost at quiescent cut: 0');
-  console.log('PASS: 001–017 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
+  console.log('PASS: 001–018 checksums, packet lineage, immutable ledger, outbox, local inbox and test proof export');
 
   await gateway.db.query(`
     CREATE FUNCTION drill_reject_outbox() RETURNS trigger LANGUAGE plpgsql AS $$

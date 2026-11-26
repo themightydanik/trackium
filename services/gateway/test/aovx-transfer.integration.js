@@ -48,6 +48,9 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
   const identifier = '555444333221';
   const binding = await runtime.telemetry.bindAovxDevice(internal.tenant_id, internal.id,
     { device_id: tracker.id, device_id_bcd: identifier });
+  await db.query(`INSERT INTO device_activation_inventory(serial,device_id_bcd,tenant_id,device_id,claimed_at)
+    VALUES ('TRANSFER-TEST',$1,$2,$3,now())`,[identifier,internal.tenant_id,tracker.id]);
+  const inventory = async () => (await db.query("SELECT tenant_id,device_id FROM device_activation_inventory WHERE serial='TRANSFER-TEST'")).rows[0];
   await administerDemo(db, 'bootstrap', { password: 'local transfer viewer fixture' });
   await assert.rejects(administerPilot(db, 'plan', { name: 'Trackium Physical Pilot', identifiers: [identifier] }),
     { status: 409 });
@@ -163,6 +166,7 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
   }
   const state = await operate('inspect-transfer', { identifier });
   const dest = state.active.device_id;
+  assert.deepEqual(await inventory(),{tenant_id:pilot,device_id:dest});
   assert.equal(state.active.id, result.destination_binding_id);
   assert.equal(state.active.tenant_id, pilot);
   await assert.rejects(runtime.telemetry.bindAovxDevice(internal.tenant_id, internal.id, {
@@ -189,6 +193,7 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
     source_binding: result.destination_binding_id, destination_tenant: internal.tenant_id, reverse_of: plan.id };
   const reversed = await operate('apply-transfer', reversal);
   assert.equal(reversed.reverse_of, result.id);
+  assert.deepEqual(await inventory(),{tenant_id:internal.tenant_id,device_id:tracker.id});
   assert.equal((await operate('inspect-transfer', { identifier })).active.device_id, tracker.id);
   assert.equal((await operate('apply-transfer', reversal)).status, 'already-applied');
   assert.equal((await processStored(await replay())).reason, 'outside-custody-window');

@@ -79,5 +79,14 @@
         ).join('') + '</details>' : '') +
       '<button class="button secondary" data-customer-view="logout">Sign out</button><p id="customer-status" role="status"></p></section>';
   }
-  root.TrackiumCustomer = { auth, company, aovxEnrollment };
+  function deviceActivation(account) {
+    if (!account.device_activation || account.role !== 'owner') return '';
+    return '<section class="panel customer-access"><h2>Activate a purchased tracker</h2>' +
+      '<p>Use the serial number and one-time code from your activation card.</p>' +
+      form('activate-device',field('Device label','label') +
+        '<label class="field-label">Tracker serial number<input class="text-input" name="serial" maxlength="64" autocomplete="off" required></label>' +
+        '<label class="field-label">Activation code<input type="password" class="text-input" name="code" maxlength="43" autocomplete="off" required></label>',
+        'Activate tracker') + '<p id="activation-status" role="status"></p></section>';
+  }
+  root.TrackiumCustomer = { auth, company, aovxEnrollment, deviceActivation };
 })(window);
