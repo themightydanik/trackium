@@ -1091,7 +1091,7 @@
     lifecycle.sync(routeScope, selected, session, server.state.roadRoute);
     if (fleet) fleet.lifecycle = lifecycle.view;
     const mapFleet = fleet ? {selected:fleet.shipment,layers:fleet.layers || {},road:server.state.roadRoute,
-      comparison:fleet.lifecycle?.comparison?.routes,draft:planner.draft,pick:planner.draft?.pick == null ? null : (coords,keyboard) => {
+      comparison:fleet.lifecycle?.comparison?.routes, revisionDetail:fleet.lifecycle?.detail,draft:planner.draft,pick:planner.draft?.pick == null ? null : (coords,keyboard) => {
         const index = planner.draft.pick;
         planner.pick(coords);
         if (keyboard) $('[data-planner-coordinate="latitude"][data-index="' + index + '"]')?.focus();

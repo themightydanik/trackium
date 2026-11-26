@@ -114,6 +114,7 @@ test('proposal confirmation, retry and repeated clicks use one logical operation
       await page.getByRole('button',{name:'Retry exact proposal'}).click();
       await dialog.getByRole('button',{name:'Retry proposal',exact:true}).click();
       await page.getByText('Existing proposal recovered.',{exact:true}).waitFor();
+      await page.locator('.fleet-inspected-road').waitFor();
       assert.equal(posts.length,2);
       assert.deepEqual(posts[1],posts[0]);
       assert.equal(posts[1].calculation.origin.latitude,51);

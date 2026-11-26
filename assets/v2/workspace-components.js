@@ -499,6 +499,14 @@
           {pane:'fleetRoad',className:'fleet-road-stop',radius:6,color:accent,fillColor:land,fillOpacity:1}).bindPopup(title));
       }
     }
+    const inspected = fleet?.revisionDetail;
+    if (fleet?.layers.calculated !== false && ['proposed','approved'].includes(inspected?.state)) {
+      const preview = routeGeometry(inspected);
+      if (preview) place('inspected-revision', inspected.id + '/' + inspected.state, () =>
+        L.polyline(preview, {pane:'fleetComparison', className:'fleet-inspected-road',
+          color:'#ae83ff', weight:5, dashArray:'4 8'}).bindPopup(
+            esc(inspected.state === 'approved' ? 'Approved revision' : 'Proposed revision') + ' · v' + esc(inspected.version)));
+    }
     if (fleet?.comparison) {
       fleet.comparison.forEach((revision,index) => {
         const shapes = routeGeometry(revision);
