@@ -1,5 +1,7 @@
 import { lookup } from 'node:dns';
 import { request } from 'node:http';
+import { request as requestHttps } from 'node:https';
+import { createSecureContext } from 'node:tls';
 import { isIPv4, isIPv6 } from 'node:net';
 import { performance } from 'node:perf_hooks';
 import { takeCustomerRate } from '../cargo/customer-rate.js';
@@ -18,9 +20,31 @@ function privateV4(address) {
   return a === 10 || a === 127 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
 }
 
+// The Oracle transport is a separate operator opt-in. Changing its destination
+// requires review rather than allowing arbitrary public origins or DNS names.
+const oracleAddress = '130.61.180.101';
+const oraclePort = 8443;
+const oracleOrigin = 'https://' + oracleAddress + ':' + oraclePort;
+
 export function readRoutingConfig(env) {
   const origin = env.ROUTING_VALHALLA_ORIGIN;
   const graphId = env.ROUTING_GRAPH_RELEASE_ID;
+  const oracle = env.ROUTING_ORACLE_ORIGIN;
+  const ca = env.ROUTING_ORACLE_SERVER_CA_PEM;
+  const cert = env.ROUTING_ORACLE_CLIENT_CERT_PEM;
+  const key = env.ROUTING_ORACLE_CLIENT_KEY_PEM;
+  if ([oracle, ca, cert, key].some(value => value !== undefined)) {
+    if (origin !== undefined || oracle !== oracleOrigin || !ca || !cert || !key ||
+        !/^[a-f0-9]{64}$/.test(graphId ?? ''))
+      throw new Error('Oracle routing requires the approved HTTPS origin, dedicated mTLS credentials and a graph release ID');
+    let oracleTls;
+    try {
+      oracleTls = createSecureContext({ca, cert, key, minVersion:'TLSv1.2'});
+    } catch {
+      throw new Error('Invalid Oracle routing mTLS credentials');
+    }
+    return {host:oracleAddress, port:oraclePort, graphId, oracleTls};
+  }
   if (origin === undefined && graphId === undefined) return null;
   const match = /^http:\/\/([a-z0-9][a-z0-9.-]*):([1-9][0-9]{0,4})$/.exec(origin ?? '');
   if (!match || Number(match[2]) > 65535 || !/^[a-f0-9]{64}$/.test(graphId ?? ''))
@@ -77,9 +101,13 @@ function exchange(config, path, data, {connectMs, totalMs, signal}) {
       req.destroy();
     }
     const body = data === undefined ? undefined : JSON.stringify(data);
-    const req = request({
+    const send = config.oracleTls ? requestHttps : request;
+    const transport = config.oracleTls
+      ? {secureContext:config.oracleTls, rejectUnauthorized:true}
+      : {lookup:privateRoutingLookup(config.railway)};
+    const req = send({
       hostname: config.host, port: config.port, path, autoSelectFamily: false,
-      method: body ? 'POST' : 'GET', agent: false, lookup: privateRoutingLookup(config.railway), signal,
+      method: body ? 'POST' : 'GET', agent: false, ...transport, signal,
       headers: {accept: 'application/json', ...(body && {
         'content-type': 'application/json', 'content-length': Buffer.byteLength(body)
       })}
@@ -110,13 +138,14 @@ function exchange(config, path, data, {connectMs, totalMs, signal}) {
     });
     connectTimer = setTimeout(() => fail(timeout()), connectMs);
     overallTimer = setTimeout(() => fail(timeout()), totalMs);
-    req.on('socket', socket => socket.once('connect', () => clearTimeout(connectTimer)));
+    req.on('socket', socket => socket.once(config.oracleTls ? 'secureConnect' : 'connect',
+      () => clearTimeout(connectTimer)));
     req.on('error', error => finish(error.routingCode ? error : unavailable()));
     req.end(body);
   });
 }
 
-export function createRouting(config, pool, logger = console, {connectMs = 1500, totalMs = 8000, concurrency = 4} = {}) {
+export function createRouting(config, pool, logger = console, {connectMs = 1500, totalMs = 8000, concurrency = config?.oracleTls ? 1 : 4} = {}) {
   if (!config) return null;
   let active = 0, checkedAt = -Infinity, check;
   const metrics = {succeeded: 0, rejected: 0, failed: 0};
