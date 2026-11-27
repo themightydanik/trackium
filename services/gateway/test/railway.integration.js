@@ -8,8 +8,9 @@ import net from 'node:net';
 import http from 'node:http';
 import pg from 'pg';
 import { migrate } from '../src/telemetry/migrate.js';
-import { initialize } from '../src/journal.js';
+import { initialize, persistPacket } from '../src/journal.js';
 import { provisionTenant, issueKey, createTelemetryService } from '../src/telemetry/service.js';
+import { provisionDevices } from '../src/cargo/device-activation.js';
 import { nativePopKey, nativeMac } from '../src/cargo/native-session.js';
 
 const database = process.env.TEST_DATABASE_URL;
@@ -67,6 +68,22 @@ test('Railway process: upgrade 001–019, owner pairing, PostgreSQL persistence 
     const telemetry = createTelemetryService(db);
     const deviceA = await telemetry.register(a.tenant_id, { label: 'A synthetic', mode: 'synthetic' });
     const deviceB = await telemetry.register(b.tenant_id, { label: 'B synthetic', mode: 'synthetic' });
+    const tracker = await telemetry.register(b.tenant_id, {label:'Existing tracker', mode:'real'});
+    const identifier = '199999999989';
+    await telemetry.bindAovxDevice(b.tenant_id, null, {device_id:tracker.id,device_id_bcd:identifier});
+    const packet = await persistPacket({payload:Buffer.from('disposable journal fixture'),
+      aovx:{messageId:0x7777,deviceIdBcd:identifier}},db);
+    const inventory = [{serial:'RAILWAY-UNUSED-FIXTURE',device_id_bcd:'199999999988'}];
+    await provisionDevices(db,inventory,async () => {});
+    const evidence = async () => ({
+      binding:(await db.query('SELECT * FROM telemetry_aovx_device_bindings WHERE device_id=$1',[tracker.id])).rows,
+      journal:(await db.query('SELECT * FROM gateway_packets WHERE id=$1',[packet.id])).rows,
+      inventory:(await db.query('SELECT * FROM device_activation_inventory WHERE serial=$1',[inventory[0].serial])).rows
+    });
+    const beforeFlagsOff = await evidence();
+    assert.equal(beforeFlagsOff.binding.length,1);
+    assert.equal(beforeFlagsOff.journal.length,1);
+    assert.ok(beforeFlagsOff.inventory[0].activation_sha256);
     const httpPort = await port();
     const origin = 'http://127.0.0.1:' + httpPort;
     async function request(path, { method = 'GET', body, token, headers = {} } = {}) {
@@ -101,6 +118,7 @@ test('Railway process: upgrade 001–019, owner pairing, PostgreSQL persistence 
           HTTP_PORT: String(httpPort), DEPLOYMENT_PROFILE: profile, NODE_ENV: 'production',
           ENABLE_TCP_RECEIVER: 'false', ENABLE_NATIVE_CLIENTS: 'true',
           ENABLE_WEB_WORKSPACE: String(webEnabled), PUBLIC_ORIGIN: 'https://gateway.test',
+          DEVICE_ACTIVATION_ENABLED:'false', CORE_DEVICE_ACCESS_ENABLED:'false',
           ENABLE_SERVER_SIMULATOR: 'false', ENABLE_FIXTURE_ADAPTER: 'false',
           PROOF_MODE: 'disabled', PROOF_ALLOW_LIVE: 'false', PROOF_ALLOW_MAINNET: 'false',
           PROOF_MAX_PUBLICATIONS: '1' }, stdio: ['ignore', 'pipe', 'pipe']
@@ -218,6 +236,12 @@ test('Railway process: upgrade 001–019, owner pairing, PostgreSQL persistence 
     assert.equal(landing.headers.get('strict-transport-security'), 'max-age=31536000');
     assert.equal((await request('/', {headers:{host:'untrusted.test'}})).status, 403);
     assert.equal((await request('/app/')).status, 200);
+    assert.equal((await request('/app/connect-core')).status,200);
+    assert.equal((await request('/.well-known/assetlinks.json')).status,404);
+    assert.equal((await request('/v1/account/activate-device',{method:'POST',headers:browserHeaders,body:{}})).status,401);
+    assert.equal((await request('/v1/core-devices/claim',{method:'POST',body:{}})).status,404);
+    assert.equal((await request('/v1/devices/'+tracker.id,{token:b.token})).status,200);
+    assert.deepEqual(await evidence(),beforeFlagsOff);
     for (const path of ['/v1/shipments','/v1/devices'])
       assert.equal((await request(path, {headers:browserHeaders})).status, 401);
 
