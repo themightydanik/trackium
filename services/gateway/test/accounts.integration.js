@@ -29,7 +29,8 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
     DEVICE_ACTIVATION_ENABLED:'true', CORE_DEVICE_ACCESS_ENABLED:'true', DEPLOYMENT_PROFILE:'railway-public', NODE_ENV:'production', ENABLE_NATIVE_CLIENTS:'true',
     PUBLIC_ORIGIN: origin.replace('http:', 'https:'), HTTP_PORT: String(httpPort), CUSTOMER_ACCOUNTS_ENABLED: 'true', CUSTOMER_MAIL_PROVIDER: 'resend', RESEND_API_KEY: 're_test_only',
     CUSTOMER_MAIL_FROM: 'accounts@example.test', CUSTOMER_MAIL_TOKEN_KEY: 'ab'.repeat(32) });
-  const { gateway } = createRuntime(db, { ...config, host:'127.0.0.1' }, { worker:false, logger:{ info(){}, error(){} } });
+  const runtimeConfig = { ...config, host:'127.0.0.1' };
+  const { gateway } = createRuntime(db, runtimeConfig, { worker:false, logger:{ info(){}, error(){} } });
   t.after(async () => {
     await gateway.shutdown();
     await replica.end();
@@ -130,6 +131,15 @@ test('Customer accounts verify, recover, revoke, manage company roles and rotate
   await administerActivation(db,'rotate',inventory[0].serial,captureCards);
   const activation = { serial:cards[0].serial,code:cards[0].code,label:'Unreported GL110' };
   assert.equal(a.device_activation,true);
+  runtimeConfig.deviceActivationEnabled = false;
+  try {
+    assert.equal((await account(owner,'session')).device_activation,false);
+    assert.equal((await account(owner,'activate-device',activation)).status,404);
+    assert.equal((await db.query('SELECT claimed_at FROM device_activation_inventory WHERE serial=$1',
+      [activation.serial])).rows[0].claimed_at,null);
+  } finally {
+    runtimeConfig.deviceActivationEnabled = true;
+  }
   assert.equal((await account(owner,'activate-device',activation,{headers:{'x-csrf-token':''}})).status,403);
   const expired = await account(owner,'activate-device',{...activation,code:original});
   assert.equal(expired.status,400);

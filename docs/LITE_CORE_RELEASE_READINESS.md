@@ -24,7 +24,43 @@ Gateway and Lite baseline is `c57a5e4ee94a153b05ba953c824858ee76b3c1f8` after PR
 
 ## Rollback
 
-Turn the affected flags off before changing the running image. This closes the corresponding access surface while keeping QR, installation and ownership records. Pending links can expire naturally. Reconcile outstanding grants and revocations before re-enabling because old authorizations are retained. If reverting to a binary predating inventory-aware custody, suspend custody changes while it is running. Keep migrations 018 and 019, packet journal, prior packet links, grants and audit history. Do not drop tables or restore an old snapshot as a routine binary rollback. A database restore can lose subsequent operations or resurrect an earlier access state. Verify recovery privately and reconcile claims, custody and revocations before reopening access.
+Turn the affected flags off before changing the running image. This closes the corresponding access surface while keeping QR, installation and ownership records. Unused QR codes expire after five minutes. A code that has already been redeemed becomes a pending installation, which has no automatic expiry. Approved grants also persist. Before reopening, have the verified company owner reconcile pending and approved installations, revoke unexpected requests and never approve an old request without rechecking its fingerprint. If there are unverified approved grants and reconciliation requires the owner API, stop. The Core flag is global and can reactivate those grants before reconciliation. Obtain an approved restricted recovery procedure before reopening. If reverting to a binary predating inventory-aware custody, suspend custody changes while it is running. Keep migrations 018 and 019, packet journal, prior packet links, grants and audit history. Do not drop tables or restore an old snapshot as a routine binary rollback. A database restore can lose subsequent operations or resurrect an earlier access state. Verify recovery privately and reconcile claims, custody and revocations before reopening access.
+
+## Operator preflight and stop conditions
+
+Do these read-only checks from an authorized infrastructure session before changing anything:
+
+1. In Railway, select **Production → Gateway**. Record the running deployment ID, source commit, health check, current image and prior rollback candidate. Confirm whether GitHub merges and applying staged variable changes trigger deployments. Check the existing TCP Proxy target without changing it.
+2. In **Variables**, privately confirm `ENABLE_WEB_WORKSPACE=true`, record the booleans for `CORE_DEVICE_ACCESS_ENABLED` and `DEVICE_ACTIVATION_ENABLED`, and compare `CORE_ANDROID_CERT_SHA256` to the value printed by the APK check. Record only booleans, presence and match results. Check that `PUBLIC_ORIGIN` matches the APK manifest's HTTPS origin. A live connection page with HTTP 200 and a statement with HTTP 404 is compatible with either an off Core flag or a missing/empty fingerprint on this Gateway. If all three prerequisites match, inspect the live revision and routing before enabling anything.
+3. On the approved read-only PostgreSQL connection, record the migration checksums and restricted inventory counters. Compare each checksum to the exact reviewed Gateway image. Keep binding and journal evidence private.
+
+   ```sql
+   BEGIN READ ONLY;
+   SELECT version, checksum FROM gateway_schema_migrations ORDER BY version;
+   SELECT count(*) AS immediately_claimable_cards
+     FROM device_activation_inventory
+    WHERE claimed_at IS NULL AND activation_sha256 IS NOT NULL;
+   SELECT count(*) FILTER (WHERE approved_at IS NULL) AS pending_installations,
+          count(*) FILTER (WHERE approved_at IS NOT NULL) AS approved_installations
+     FROM core_device_installations
+    WHERE revoked_at IS NULL;
+   ROLLBACK;
+   ```
+
+4. **Stop before enabling either claim surface** if any currently valid unused card is outside the approved pilot. The flags are deployment-wide, and Core-first claim requires no Lite account. Test on previously approved inventory or obtain explicit approval for every usable card. Zero claimable cards is the gate for an existing-ownership-only pilot. Check pilot ownership and the exact active physical binding in the protected operator inventory.
+5. Run the public probes and keep their status codes as evidence. The preflight is read-only and intentionally fails while the statement is unavailable.
+
+   ```sh
+   origin=https://trackium-gateway-production.up.railway.app
+   for path in /readyz /readyz/routing /app/connect-core; do
+     curl --fail --silent --show-error --max-time 12 --output /dev/null \
+       --write-out "$path %{http_code}\n" "$origin$path" || exit 1
+   done
+   bash services/gateway/scripts/check-core-app-links.sh CORE.apk
+   bash services/gateway/scripts/check-core-app-links.sh CORE.apk --check-live
+   ```
+
+After separate authorization, apply the staged reviewed variables in **Production → Gateway → Variables**, starting with both flags false. Deploy the already reviewed commit through the existing service and verify the gates above. Enable only the approved flag at each step. For rollback, stage and apply both flags false first. Verify the deployment is healthy and the Core claim route and App Links statement return 404. If a binary rollback is required, select the reviewed prior deployment in Railway and verify the flag values again after rollback. If the previous deployment is restored with earlier variable values, explicitly verify the requested off settings before reopening traffic. Use an inventory-aware rollback image that understands migrations 018–019 whenever possible. Keep custody operations paused if using an older image. Production variable changes, deployment, inventory changes and rollback each require operator authorization.
 
 ## Phone acceptance with the SIM still removed
 
