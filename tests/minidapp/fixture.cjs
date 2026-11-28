@@ -259,4 +259,9 @@ async function stop() {
   await browser?.close();
   await new Promise((r) => server.close(r));
 }
-module.exports = { start, stop, fixturePage, fixture };
+async function openFleetExplorer(page) {
+  const toggle = page.locator('#fleet-toggle-explorer');
+  if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+}
+
+module.exports = { start, stop, fixturePage, fixture, openFleetExplorer };

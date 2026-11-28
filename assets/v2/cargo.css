@@ -4278,13 +4278,6 @@ html[data-tc-theme=dark] .fleet-map-workspace { --planner-route: #d2a9ff; }
 .planner-profile { max-width: 23rem; margin-block: 12px; }
 .fleet-planner summary { cursor: pointer; min-height: 44px; align-content: center; }
 .planner-map-note { margin: 4px 14px; color: var(--tc-text-secondary); }
-@media (min-width: 981px) {
-  .fleet-map-workspace:has(.fleet-planner) { grid-template-columns: minmax(0,1fr) minmax(19rem,23rem); }
-  .fleet-map-workspace:has(.fleet-planner) .fleet-planner { grid-column: 2; grid-row: 1 / span 3; }
-  .fleet-map-workspace:has(.fleet-planner) .fleet-directory { grid-column: 1; }
-  .fleet-map-workspace:has(.fleet-planner) .fleet-manifest { grid-column: 1; }
-  .fleet-map-workspace:has(.fleet-planner) .fleet-context { grid-column: 1; }
-}
 
 .fleet-planner section[aria-label='Calculated preview'] { border-block-start: 1px solid var(--tc-outline-subtle); padding-block-start: 12px; }
 

@@ -376,6 +376,12 @@
         for (const [name, z] of Object.entries({fleetCountryLabels:390,fleetOverview:400,
           fleetPlan:410,fleetComparison:415,fleetRoad:420,fleetDraft:425,fleetPreview:426,fleetPositions:430}))
           mapInstance.createPane(name).style.zIndex = String(z);
+        if (typeof ResizeObserver === 'function') {
+          const instance = mapInstance;
+          const resize = new ResizeObserver(() => instance.invalidateSize({animate:false,debounceMoveend:true}));
+          resize.observe(el);
+          instance.once('unload', () => resize.disconnect());
+        }
         const updateDensity = () => el.classList.toggle('fleet-wide-view',mapInstance.getZoom() <= 7);
         mapInstance.on('zoomend',updateDensity);
         updateDensity();
@@ -443,6 +449,9 @@
       previous?.layer.remove();
       const layer = create().addTo(map);
       mapLayers.set(key, { signature, layer });
+      if (fleet && key.startsWith('device:')) {
+        layer.getElement()?.setAttribute('aria-label',layer.options.title);
+      }
       const marker = key.startsWith('stop:') && fleet ? layer.getElement() : null;
       if (marker) {
         marker.setAttribute('tabindex','0');
@@ -485,6 +494,10 @@
               color:!fleet || muted ? outline : planColor, weight:fleet ? 2 : 3,
               fillColor:!fleet ? planColor : muted ? outline : land,fillOpacity:fleet ? 1 : .85 })
             .bindPopup('<p>' + kind + ' · ' + esc(stop.name) + '</p>' + select + details, { minWidth: 170 }));
+        if (selected) place('stop-icon:' + s.id + ':' + index, JSON.stringify([stop,kind]), () =>
+          L.marker([stop.latitude,stop.longitude], {pane,interactive:false,keyboard:false,
+            icon:L.divIcon({className:'fleet-checkpoint-icon',iconSize:[14,14],
+              html:root.TrackiumMapIcons(kind === 'Destination' ? 'flag' : 'map-pin')})}));
       }
     }
     const revision = fleet?.road?.revision;
@@ -535,9 +548,9 @@
             .bindPopup(root.TrackiumRoutePlanner.stopName(index,preview.stops.length))));
       }
     }
+    const linkedDeviceId = fleet && data.shipments.find(s => s.id === fleet.selected)?.device_id;
     if (fleet && fleet.layers.observed !== false) {
-      const deviceId = data.shipments.find(s => s.id === fleet.selected)?.device_id;
-      const device = data.devices.find(d => d.registry.id === deviceId);
+      const device = data.devices.find(d => d.registry.id === linkedDeviceId);
       for (const [i, fix] of physicalBreadcrumbs(device).entries()) {
         place('physical-history:' + i, JSON.stringify([fix,signalColor]), () =>
           L.circleMarker([fix.gps.latitude,fix.gps.longitude],{pane:'fleetPositions',
@@ -553,14 +566,17 @@
       const p = [obs.gps.latitude, obs.gps.longitude];
       bounds.push(p);
       const stale = Date.now() - Date.parse(obs.occurred_at) > 15 * 60 * 1000;
-      place('device:' + d.registry.id, JSON.stringify([obs,d.registry.label,stale,signalColor]), () => L.circleMarker(p, {
-        pane: fleet ? 'fleetPositions' : 'overlayPane',
-        className: 'ux-device-position' + (stale ? ' fleet-stale-fix' : ''),
-        radius: 7,
-        color: signalColor,
-        fillColor: signalColor,
-        fillOpacity: 0.9
-      })
+      const linked = linkedDeviceId === d.registry.id;
+      const markerClass = 'ux-device-position' + (stale ? ' fleet-stale-fix' : '');
+      place('device:' + d.registry.id, JSON.stringify([obs,d.registry.label,stale,signalColor,linked]), () =>
+        (fleet ? L.marker(p, {
+          pane:'fleetPositions', title:d.registry.label, alt:d.registry.label,
+          icon:L.divIcon({className:'fleet-pin ' + markerClass,iconSize:[26,26],
+            html:root.TrackiumMapIcons(linked ? 'truck' : 'radio')})
+        }) : L.circleMarker(p, {
+          pane:'overlayPane',className:markerClass,radius:7,color:signalColor,
+          fillColor:signalColor,fillOpacity:.9
+        }))
         .bindPopup(
           '<strong>' +
             esc(d.registry.label) +

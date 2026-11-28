@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {join} = require('node:path');
-const {fixturePage,fixture,start,stop} = require('./fixture.cjs');
+const {fixturePage,fixture,start,stop,openFleetExplorer} = require('./fixture.cjs');
 
 function encode(points) {
   const previous = [0,0];
@@ -33,7 +33,10 @@ const activeRoad = {id:'stored-fixture-route',state:'active',version:4,stops:che
   calculation:calculate({origin:checkpoints[0],waypoints:[checkpoints[1]],destination:checkpoints[2],profile:'auto'}).body};
 const fleet = [{...fixture.shipment,route:checkpoints,checkpoints},
   {...fixture.shipment,id:'66666666-6666-4666-8666-666666666666',name:'Other fixture cargo'}];
-const select = (page,index=0) => page.locator('.fleet-manifest-list button').nth(index).click();
+const select = async (page,index=0) => {
+  await openFleetExplorer(page);
+  await page.locator('.fleet-manifest-list button').nth(index).click();
+};
 const open = async page => {
   await select(page);
   await page.getByRole('button',{name:'Plan from checkpoints'}).click();

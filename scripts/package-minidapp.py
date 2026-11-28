@@ -25,6 +25,8 @@ FILES = (
     'assets/v2/demo-data.js',
     'assets/v2/design-tokens.css',
     'assets/v2/lite-design-system.css',
+    'assets/v2/fleet-map.css',
+    'assets/v2/map-icons.js',
     'assets/v2/gateway-client.js',
     'assets/v2/gateway-model.js',
     'assets/v2/leaflet.css',

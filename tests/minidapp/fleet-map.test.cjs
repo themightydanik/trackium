@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { join } = require('node:path');
-const { fixturePage, fixture, start, stop } = require('./fixture.cjs');
+const { fixturePage, fixture, start, stop, openFleetExplorer } = require('./fixture.cjs');
 
 const stops = [{latitude:51,longitude:17},{latitude:50.6,longitude:24},{latitude:50,longitude:30}];
 function shape(points) {
@@ -105,6 +105,7 @@ test('Fleet Map renders a bounded manifest, B3 legs, independent layers and stab
         assert.equal(source.requests.filter(path => path.includes('/road-routes')).length,0);
         const fleetMap = page.locator('#workspace-map');
         assert.equal(await fleetMap.locator('.leaflet-fleetOverview-pane .ux-route-stop').count(),75);
+        await openFleetExplorer(page);
         const filter = page.getByRole('combobox',{name:'Shipment status'});
         await filter.selectOption('draft');
         assert.equal(await page.locator('.fleet-manifest-list button').count(),12);
@@ -215,7 +216,7 @@ test('Fleet Map distinguishes missing, pending, unavailable and malformed geomet
       } finally { await context.close(); }
     }
     const {page,context} = await fixturePage(320,'light',{customer:true,empty:true});
-    try { await page.getByText('No shipments on this page.',{exact:true}).waitFor(); }
+    try { await openFleetExplorer(page); await page.getByText('No shipments on this page.',{exact:true}).waitFor(); }
     finally { await context.close(); }
   } finally { await stop(); }
 });
@@ -238,6 +239,7 @@ test('selected physical history stays distinct from the latest fix and the activ
     const {page,context} = await fixturePage(390,'dark',source);
     try {
       await page.evaluate(() => { location.hash = '#map'; });
+      await openFleetExplorer(page);
       await page.locator('.fleet-manifest-list button').first().click();
       await page.locator('.fleet-road-line').waitFor();
       await page.locator('.fleet-gps-breadcrumb').waitFor();
@@ -260,5 +262,78 @@ test('selected physical history stays distinct from the latest fix and the activ
       await page.getByText(/Approximate distance from active road/).waitFor({state:'detached'});
       assert.equal(await page.locator('.fleet-road-line').count(),1);
     } finally { await context.close(); }
+  } finally { await stop(); }
+});
+
+test('Fleet Map V3 panels and full screen keep one canvas and preserve selection', async () => {
+  await start();
+  try {
+    for (const [width, theme] of [[1440,'light'],[1440,'dark'],[1024,'light'],[390,'light'],[390,'dark'],[320,'dark']]) {
+      const source = {customer:true,road:revision,fleet,touch:width <= 390};
+      const {page,context} = await fixturePage(width,theme,source);
+      try {
+        const mobile = width <= 390;
+        if (width === 1024) await page.locator('html').evaluate(el => { el.style.fontSize = '200%'; });
+        const map = page.locator('#workspace-map');
+        const explorer = page.locator('#fleet-toggle-explorer');
+        const inspector = page.locator('#fleet-toggle-inspector');
+        const fullscreen = page.locator('#fleet-toggle-map-canvas');
+        const inspectorBody = page.locator('#fleet-inspector-body');
+        const row = page.locator('.fleet-manifest-list button').first();
+        const mapSize = () => map.evaluate(el => [el.offsetWidth,el.offsetHeight]);
+        const capture = async state => {
+          if (!process.env.TRACKIUM_FLEET_V3_SCREENSHOTS || width === 320 || width === 1024) return;
+          await page.screenshot({path:join(process.env.TRACKIUM_FLEET_V3_SCREENSHOTS,
+            state + '-' + theme + '.png')});
+        };
+        await map.evaluate(el => { window.v3Map = el; });
+        assert.equal(await explorer.getAttribute('aria-expanded'),String(!mobile));
+        await openFleetExplorer(page);
+        await row.press('Enter');
+        await page.locator('.fleet-road-line').waitFor();
+        await page.getByRole('heading',{name:'Recent shipment events'}).waitFor();
+        assert.ok(await map.locator('.fleet-pin svg').count());
+        assert.ok(await map.locator('.fleet-checkpoint-icon svg').count());
+        const initialSize = await mapSize();
+        assert.ok(initialSize[0] >= 240, 'the map retains usable width with both panels open');
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+        await explorer.click();
+        assert.equal(await row.isVisible(),false);
+        if (!mobile) {
+          assert.ok((await mapSize())[0] > initialSize[0]);
+          await explorer.click();
+          await page.getByRole('button',{name:'Fit shipment'}).click();
+          await page.evaluate(() => window.scrollTo(0,0));
+          await capture('desktop');
+        }
+        await inspector.click();
+        assert.equal(await inspectorBody.isVisible(),false);
+        assert.equal(await row.getAttribute('aria-pressed'),'true');
+        if (mobile) {
+          await page.evaluate(() => window.scrollTo(0,0));
+          await capture('mobile-collapsed');
+          await page.locator('.fleet-sheet-toggle').tap();
+          assert.equal(await inspectorBody.isVisible(),true);
+          await page.locator('.fleet-context').evaluate(el => el.scrollIntoView({block:'end'}));
+          await capture('mobile-inspector');
+        }
+        await fullscreen.focus();
+        await fullscreen.press('Enter');
+        await page.getByRole('dialog',{name:'Fleet map canvas'}).waitFor();
+        assert.equal(await fullscreen.getAttribute('aria-expanded'),'true');
+        assert.ok((await mapSize())[0] >= initialSize[0]);
+        await fullscreen.press('Shift+Tab');
+        assert.ok(await map.evaluate(el => el.parentElement.contains(document.activeElement)));
+        if (!mobile) await capture('desktop-full-screen');
+        await page.keyboard.press('Escape');
+        assert.equal(await fullscreen.getAttribute('aria-expanded'),'false');
+        assert.ok(await map.evaluate(el => el === window.v3Map));
+        assert.equal(await map.locator('.fleet-road-line').count(),1);
+        assert.equal(await row.getAttribute('aria-pressed'),'true');
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+        assert.equal(source.requests.some(path => path.includes('/routes/calculate')),false);
+        assert.deepEqual(source.errors || [],[]);
+      } finally { await context.close(); }
+    }
   } finally { await stop(); }
 });
