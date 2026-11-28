@@ -74,7 +74,7 @@
   }[kind] || '<path d="M5 26l7-8 6 3 8-13"/><circle cx="26" cy="8" r="3"/><circle cx="5" cy="26" r="2"/>') + '</svg>';
   const empty = (title, text, kind = 'map') =>
     '<div class="ux-empty"><span class="empty-glyph" aria-hidden="true">' +
-    (isLite() ? '<svg class="empty-orbit" viewBox="0 0 112 80" fill="none"><path d="M3 60 39 40l36 20-36 20zM39 40l35-20 36 20-35 20zM3 40l36-20 35 20-35 20z" stroke="currentColor" opacity=".35"/><path d="M17 54 44 39m24 8 26-15" stroke="currentColor" stroke-dasharray="3 4"/><circle cx="16" cy="55" r="3" fill="currentColor"/><circle cx="96" cy="30" r="3" fill="currentColor"/></svg>' : '') + glyph(kind) + '</span><div><h3>' +
+    glyph(kind) + '</span><div><h3>' +
     esc(title) +
     '</h3><p>' +
     esc(text) +
@@ -496,27 +496,29 @@
         return '<li><span>' + label + '</span><meter aria-label="' + label + '" min="0" max="' +
           Math.max(d.shipments.length, 1) + '" value="' + count + '"></meter><strong>' + count + '</strong></li>';
       }).join('') + '</ul>';
-    return '<div class="dispatch-stage"><section class="dispatch-map" aria-labelledby="dispatch-map-title">' +
+    const metrics = '<ul class="dispatch-stats" aria-label="Fleet at a glance">' +
+      stats.map(([label,n,icon,path]) =>
+        '<li><a class="ops-stat" href="#' + path + '"><span class="ops-glyph">' + glyph(icon) +
+        '</span><strong>' + n + '</strong><span>' + label + '</span></a></li>').join('') + '</ul>';
+    const activity = panel('Recent activity', recent.length ? '<ol class="dispatch-feed">' + recent.map(e =>
+      '<li data-view-key="activity:' + esc(e.id) + '"><span class="ops-glyph">' + glyph('events') +
+      '</span><div><strong>' + esc(eventName(e)) + '</strong><time>' + cargoEventTime(e) + '</time>' +
+      provenanceBadge(e.source_trust) + '</div>' + action('Event details', 'view-event', e.id) + '</li>'
+    ).join('') + '</ol><a class="text-link" href="#events">Open event history</a>' :
+      empty('No recorded activity', 'Shipment events appear here after the Gateway records them.', 'events'), 'dispatch-activity');
+    const board = panel('Dispatch board',
+      (active.length ? active.slice(0, 4).map(s => '<article class="dispatch-record" data-view-key="dispatch:' +
+        esc(s.id) + '"><header><h3>' + esc(s.name) + '</h3>' + provenanceBadge(s.source_trust) + '</header>' +
+        routeStrip(arr(s.checkpoints)) + action('Open shipment', 'view-shipment', s.id) + '</article>').join('')
+        : empty('No active departures', 'Active shipments appear here with their planned checkpoints.', 'shipments')) +
+      '<a class="text-link" href="#shipments">Browse all shipments</a>', 'dispatch-board');
+
+    return metrics + '<div class="dispatch-stage"><section class="dispatch-map" aria-labelledby="dispatch-map-title">' +
       '<header><div><h2 id="dispatch-map-title">Operations map</h2><p>Planned routes and eligible reported fixes</p></div>' +
       '<a class="button secondary" href="#map">Explore map</a></header>' + map(d) + '</section>' +
-      '<aside class="dispatch-brief" aria-label="Dispatch summary"><h2>Fleet at a glance</h2><p>Loaded Gateway snapshot</p>' +
-      '<div class="dispatch-stats">' + stats.map(([label,n,icon,path]) =>
-        '<a class="ops-stat" href="#' + path + '"><span class="ops-glyph">' + glyph(icon) +
-        '</span><strong>' + n + '</strong><span>' + label + '</span></a>').join('') + '</div>' +
-      '<h3>Shipment lifecycle</h3>' + portfolio + '</aside></div>' +
-      '<div class="dispatch-lower">' + panel('Dispatch board',
-        (active.length ? active.slice(0, 4).map(s => '<article class="dispatch-record" data-view-key="dispatch:' +
-          esc(s.id) + '"><header><h3>' + esc(s.name) + '</h3>' + provenanceBadge(s.source_trust) + '</header>' +
-          routeStrip(arr(s.checkpoints)) + action('Open shipment', 'view-shipment', s.id) + '</article>').join('')
-          : empty('No active departures', 'Active shipments appear here with their planned checkpoints.', 'shipments')) +
-        '<a class="text-link" href="#shipments">Browse all shipments</a>', 'dispatch-board') +
-      panel('Recent activity', recent.length ? '<ol class="dispatch-feed">' + recent.map(e =>
-        '<li data-view-key="activity:' + esc(e.id) + '"><span class="ops-glyph">' + glyph('events') +
-        '</span><div><strong>' + esc(eventName(e)) + '</strong><time>' + cargoEventTime(e) + '</time>' +
-        provenanceBadge(e.source_trust) + '</div>' + action('Event details', 'view-event', e.id) + '</li>'
-      ).join('') + '</ol><a class="text-link" href="#events">Open event history</a>' :
-        empty('No recorded activity', 'Shipment events appear here after the Gateway records them.', 'events'), 'dispatch-activity') +
-      '</div>';
+      '<div class="dispatch-sidebar"><section class="dispatch-brief" aria-labelledby="dispatch-lifecycle-title">' +
+      '<h2 id="dispatch-lifecycle-title">Shipment lifecycle</h2>' + portfolio + '</section>' +
+      activity + '</div></div>' + board;
   }
 
   function fleetRoute(road, selected, customer) {
