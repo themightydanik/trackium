@@ -1,0 +1,177 @@
+/* Lite components consume the shared DS1 roles. Native Core maps the same roles
+   to resources. Keep layout and product-specific map styles in cargo.css. */
+.lite-workspace {
+  --lite-density: clamp(var(--tc-space-16), 2vw, var(--tc-space-24));
+  --lite-shadow-card: 0 2px 4px color-mix(in srgb, var(--tc-text) 5%, transparent);
+  --lite-shadow-overlay: 0 16px 48px #0004;
+  --lite-accent-wash: color-mix(in srgb, var(--tc-accent) 9%, var(--tc-surface));
+  --lite-gold-wash: color-mix(in srgb, var(--tc-gold) 9%, var(--tc-surface));
+  --lite-section-title: clamp(var(--tc-type-title), 1.6vw, var(--tc-type-headline));
+  --lite-page-title: clamp(var(--tc-type-headline), 3.2vw, var(--tc-type-display));
+}
+
+.lite-workspace :is(.page-heading h1, .lite-auth-screen h1) {
+  font-size: var(--lite-page-title);
+  line-height: var(--tc-leading-display);
+  font-weight: var(--tc-weight-display);
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+.lite-workspace .page-heading p {
+  color: var(--tc-text-secondary);
+  font-size: var(--tc-type-label);
+  font-weight: var(--tc-weight-body);
+}
+.lite-workspace :is(.section-title h2, .dispatch-brief h2, .dispatch-map header h2) {
+  font-size: var(--lite-section-title);
+  line-height: var(--tc-leading-title);
+  letter-spacing: -.025em;
+}
+
+.lite-workspace :is(.panel, .dispatch-map) {
+  border-radius: var(--tc-radius-card);
+  border-color: var(--tc-outline-subtle);
+  box-shadow: var(--lite-shadow-card);
+}
+.lite-workspace .topbar { background: var(--tc-surface); }
+.lite-workspace .workspace-card { border-inline-start: 2px solid var(--tc-gold); }
+.lite-workspace .nav-item { min-block-size: var(--tc-touch-target); }
+.lite-workspace .nav-item.active {
+  background: var(--lite-accent-wash);
+  border-color: transparent;
+  color: var(--tc-accent);
+}
+.lite-workspace :is(.nav-item, .lite-bottom-nav a) { border-radius: var(--tc-radius-control); }
+
+.lite-workspace :is(.button, .icon-button, .text-input, select, textarea) {
+  min-block-size: var(--tc-touch-target);
+  border-radius: var(--tc-radius-control);
+}
+.lite-workspace :is(.button, .icon-button) {
+  transition: background-color var(--tc-motion-feedback), border-color var(--tc-motion-feedback);
+}
+.lite-workspace .button.secondary:hover:not(:disabled) {
+  background: var(--lite-accent-wash);
+  border-color: var(--tc-accent);
+}
+.lite-workspace :is(.text-input, select, textarea) {
+  background-color: var(--tc-surface);
+}
+.lite-workspace :is(.text-input, select, textarea)[aria-invalid="true"] {
+  border-color: var(--tc-control-error);
+}
+.lite-workspace .button:disabled {
+  background: var(--tc-control-disabled-bg);
+  color: var(--tc-control-disabled-text);
+  border-color: var(--tc-outline-subtle);
+  filter: none;
+}
+.lite-workspace :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--tc-control-focus);
+  outline-offset: 2px;
+}
+
+.lite-workspace .table-wrap { border-radius: var(--tc-radius-control); }
+.lite-workspace thead th { background: var(--tc-surface-raised); color: var(--tc-text); }
+.lite-workspace tbody tr:focus-within { background: var(--lite-accent-wash); }
+.lite-workspace .badge {
+  border-radius: 999px;
+  font-weight: var(--tc-weight-label);
+}
+.lite-workspace .badge.teal { background: var(--lite-accent-wash); }
+.lite-workspace .badge.warning { background: var(--lite-gold-wash); }
+
+.lite-workspace :is(.detail-dialog, .toast) {
+  border-radius: var(--tc-radius-card);
+  box-shadow: var(--lite-shadow-overlay);
+}
+.lite-workspace .detail-dialog { border-radius: var(--tc-radius-sheet); }
+.lite-workspace .detail-dialog::backdrop { background: #071221b3; }
+.lite-workspace :is(.notice, .loading-state, #customer-status:not(:empty)) {
+  padding: var(--tc-space-12) var(--tc-space-16);
+  border-radius: var(--tc-radius-control);
+  background: var(--tc-surface-raised);
+  color: var(--tc-text);
+}
+.lite-workspace :is(.loading-state, #customer-status:not(:empty)) {
+  border-inline-start: 2px solid var(--tc-info);
+}
+.lite-workspace .ux-empty {
+  min-block-size: 96px;
+  padding: var(--lite-density);
+  border: 1px dashed var(--tc-outline-subtle);
+}
+.lite-workspace .ux-empty .empty-glyph {
+  display: grid;
+  position: static;
+  inline-size: var(--tc-touch-target);
+  block-size: var(--tc-touch-target);
+  place-items: center;
+  background: var(--lite-gold-wash);
+  color: var(--tc-gold);
+}
+.lite-workspace .ux-empty .empty-glyph svg { inline-size: var(--tc-icon-standard); }
+
+.lite-workspace .dispatch-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0 0 var(--tc-space-24);
+  padding: 0;
+  list-style: none;
+  background: var(--tc-surface);
+  border: 1px solid var(--tc-outline-subtle);
+  border-radius: var(--tc-radius-card);
+  box-shadow: var(--lite-shadow-card);
+}
+.lite-workspace .dispatch-stats li + li { border-inline-start: 1px solid var(--tc-outline-subtle); }
+.lite-workspace .dispatch-stats .ops-stat {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--tc-space-4) var(--tc-space-12);
+  padding: var(--lite-density);
+  block-size: 100%;
+  border: 0;
+  border-radius: var(--tc-radius-control);
+  overflow-wrap: anywhere;
+}
+.lite-workspace .dispatch-stats .ops-stat:hover { background: var(--lite-accent-wash); }
+.lite-workspace .dispatch-stats .ops-glyph { grid-row: 1 / span 2; }
+.lite-workspace .dispatch-stats strong {
+  font-size: var(--tc-type-headline);
+  line-height: var(--tc-leading-headline);
+  font-variant-numeric: tabular-nums;
+  justify-self: start;
+}
+.lite-workspace .dispatch-stats .ops-stat > span:last-child { grid-column: 2; }
+.lite-workspace .dispatch-brief {
+  background: var(--tc-surface);
+  padding: var(--lite-density);
+  border-radius: var(--tc-radius-card);
+}
+.lite-workspace .dispatch-portfolio { margin-block-start: var(--tc-space-16); }
+
+@media (max-width: 980px) {
+  .lite-workspace .dispatch-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lite-workspace .dispatch-stats li:nth-child(odd) { border-inline-start: 0; }
+  .lite-workspace .dispatch-stats li:nth-child(n+3) { border-block-start: 1px solid var(--tc-outline-subtle); }
+}
+@media (max-width: 520px) {
+  .lite-workspace .dispatch-stats { margin-block-end: var(--tc-space-16); }
+  .lite-workspace .dispatch-stats .ops-stat { grid-template-columns: minmax(0, 1fr); }
+  .lite-workspace .dispatch-stats .ops-glyph { grid-row: auto; }
+  .lite-workspace .dispatch-stats .ops-stat > span:last-child { grid-column: 1; }
+  .lite-workspace .detail-dialog { border-radius: var(--tc-radius-card); }
+}
+
+.lite-workspace .dispatch-sidebar {
+  display: grid;
+  min-inline-size: 0;
+  gap: var(--tc-space-16);
+}
+.lite-workspace .dispatch-sidebar > .panel { margin: 0; }
+.lite-workspace .dispatch-stats li:nth-child(3) .ops-glyph { color: var(--tc-warning); }
+.lite-workspace .dispatch-stats li:nth-child(4) .ops-glyph { color: var(--tc-gold); }
+
+.lite-workspace[data-tc-theme="light"] { color-scheme: light; }
+.lite-workspace[data-tc-theme="dark"] { color-scheme: dark; }

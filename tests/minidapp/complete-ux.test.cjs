@@ -178,3 +178,26 @@ test('late history response cannot reopen a dialog or survive a changed browser 
     await context.close();
   }
 });
+
+test('Lite D1 snapshot metrics lead to existing workspaces and respect the explicit theme', async () => {
+  const { context, page } = await fixturePage(390, 'dark', { customer: true });
+  try {
+    await navigate(page, 'dashboard');
+    const metrics = page.getByRole('list', { name: 'Fleet at a glance' });
+    assert.equal(await metrics.getByRole('link').count(), 4);
+    assert.deepEqual(await metrics.locator('strong').allTextContents(), ['1', '0', '0', '0']);
+    await metrics.getByRole('link', { name: /Physical devices/ }).focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.title.startsWith('Devices'));
+    await navigate(page, 'settings');
+    await page.selectOption('#appearance-theme', 'light');
+    assert.equal(
+      await page.locator('html').evaluate(element => getComputedStyle(element).colorScheme),
+      'light'
+    );
+    await navigate(page, 'dashboard');
+    assert.equal(await metrics.getByRole('link').count(), 4);
+  } finally {
+    await context.close();
+  }
+});
