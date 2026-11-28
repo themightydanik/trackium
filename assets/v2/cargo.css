@@ -4059,16 +4059,11 @@ h1,h2,h3 {overflow-wrap:anywhere;}
   max-width:1120px; margin:clamp(10px,4vw,54px) auto; border:1px solid var(--tc-outline-subtle);
   background:var(--tc-surface); border-radius:24px; overflow:hidden;
 }
-.lite-auth-art { min-width:0; padding:18px; background:#14243b; color:#e7bf76; align-self:stretch; display:grid; place-items:center; }
-.lite-auth-art svg { display:block; width:100%; max-width:540px; }
-.lite-auth-art .auth-art-route { stroke:#88dac7; }
 .lite-workspace .lite-auth-layout .lite-auth-screen {
   border:0; box-shadow:none; max-width:none; width:100%; margin:0; padding:clamp(16px,4vw,42px); box-sizing:border-box;
 }
 @media (max-width:700px) {
   .lite-auth-layout { grid-template-columns:minmax(0,1fr); }
-  .lite-auth-art { block-size:120px; padding:0; overflow:hidden; }
-  .lite-auth-art svg { width:min(75%,245px); max-height:116px; }
 }
 .event-brief {
   display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px; margin-block:12px;

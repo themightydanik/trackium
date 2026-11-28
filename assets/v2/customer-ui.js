@@ -19,14 +19,12 @@
       recover: form('recover', email, 'Send recovery code'),
       reset: form('reset', code + newPassword, 'Reset password')
     };
-    const artwork = '<div class="lite-auth-art" aria-hidden="true"><svg viewBox="0 0 560 360" fill="none">' +
-      '<path d="m28 247 245-142 259 145-245 84zM28 247v20l259 83 245-84v-16M287 334v16" stroke="currentColor" opacity=".4"/>' +
-      '<path d="m110 219 177 66 164-55-173-90zM197 174l172 84m-81-104-176 75m258-44-171 68" stroke="currentColor" opacity=".25"/>' +
-      '<path class="auth-art-route" d="m109 222 93 32 145-63 74 27" stroke-dasharray="7 5" stroke-width="3"/>' +
-      '<circle cx="109" cy="222" r="7" fill="currentColor"/><circle cx="421" cy="218" r="7" fill="currentColor"/>' +
-      '<path d="m217 115 65-38 80 46v58l-65 39-80-46zM217 115l80 47 65-39M297 162v58m-39-128 79 46" stroke="currentColor" stroke-width="2.5"/>' +
-      '<path d="M422 208v-72m-18 8a23 23 0 0 1 36 0m-47-11a38 38 0 0 1 58 0" stroke="currentColor" opacity=".7"/>' +
-      '</svg></div>';
+    const onboarding = screen === 'register' || screen === 'verify';
+    const photo = 'assets/v2/visual/' + (onboarding ? 'warehouse' : 'terminal');
+    const artwork = '<div class="lite-auth-art" aria-hidden="true"><img alt="" width="960" height="720" ' +
+      'fetchpriority="high" decoding="async" src="' + photo + '-480.webp" srcset="' +
+      photo + '-480.webp 480w, ' + photo + '-960.webp 960w" ' +
+      'sizes="(max-width: 700px) 92vw, (max-width: 1200px) 52vw, 622px"></div>';
     return '<div class="lite-auth-layout">' + artwork + '<section class="panel customer-access lite-auth-screen"><div class="ops-auth-mark"><img src="assets/v2/brand/mark.png" width="52" height="44" alt=""></div><h1>' + ({
       login: 'Sign in to Trackium', register: 'Create your account', verify: 'Confirm your email',
       recover: 'Recover access', reset: 'Set a new password'
@@ -81,8 +79,9 @@
   }
   function deviceActivation(account) {
     if (!account.device_activation || account.role !== 'owner') return '';
-    return '<section class="panel customer-access"><h2>Activate a purchased tracker</h2>' +
-      '<p>Use the serial number and one-time code from your activation card.</p>' +
+    return '<section class="panel customer-access tracker-activation"><header class="visual-setup-heading">' +
+      '<span class="visual-setup-icon">' + root.TrackiumMapIcons('scan-line') + '</span><div>' +
+      '<h2>Activate a purchased tracker</h2><p>Use the serial number and one-time code from your activation card.</p></div></header>' +
       form('activate-device',field('Tracker name','label') +
         '<label class="field-label">Tracker serial number<input class="text-input" name="serial" maxlength="64" autocomplete="off" required></label>' +
         '<label class="field-label">Activation code<input type="password" class="text-input" name="code" maxlength="43" autocomplete="off" required></label>',

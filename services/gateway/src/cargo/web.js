@@ -44,6 +44,7 @@ export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnable
       !['index.html', 'mds.js', 'icon.png'].includes(relative) &&
       !/^assets\/v2\/[a-z0-9-]+\.(js|css)$/.test(relative) &&
       !/^assets\/v2\/brand\/(mark|app-(32|48|180|192|512))\.png$/.test(relative) &&
+      !/^assets\/v2\/visual\/(terminal-(480|960)|warehouse-(480|960)|matte-grain)\.webp$/.test(relative) &&
       !['assets/v2/brand/site.webmanifest', 'assets/v2/brand/lite.webmanifest'].includes(relative)
     ) {
       res.writeHead(404);
@@ -61,7 +62,7 @@ export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnable
               ? 'text/css; charset=utf-8'
               : relative.endsWith('.webmanifest')
                 ? 'application/manifest+json'
-                : 'image/png',
+                : relative.endsWith('.webp') ? 'image/webp' : 'image/png',
         'cache-control': 'no-store',
         'x-content-type-options': 'nosniff',
         'referrer-policy': 'no-referrer',

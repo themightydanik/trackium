@@ -72,9 +72,10 @@
     proofs: '<path d="M16 3l11 5v8c0 6-5 11-11 14-6-3-11-8-11-14V8zM11 16l3 3 7-7"/>',
     map: '<path d="M5 8l8 4 7-4 7 4v16l-7-4-7 4-8-4zM13 12v16m7-20v16"/>'
   }[kind] || '<path d="M5 26l7-8 6 3 8-13"/><circle cx="26" cy="8" r="3"/><circle cx="5" cy="26" r="2"/>') + '</svg>';
+  const emptyIcons = { shipments: 'package-open', devices: 'scan-line', events: 'list-checks' };
   const empty = (title, text, kind = 'map') =>
     '<div class="ux-empty"><span class="empty-glyph" aria-hidden="true">' +
-    glyph(kind) + '</span><div><h3>' +
+    (isLite() && Object.hasOwn(emptyIcons,kind) ? root.TrackiumMapIcons(emptyIcons[kind]) : glyph(kind)) + '</span><div><h3>' +
     esc(title) +
     '</h3><p>' +
     esc(text) +
@@ -153,7 +154,8 @@
 
   const isLite = () => document.documentElement.classList.contains('lite-workspace');
   const heading = (page, state) =>
-    '<div class="page-heading"><div><div class="eyebrow">' +
+    '<div class="page-heading' + (isLite() && page === 'dashboard' ? ' visual-overview-heading' : '') +
+    '"><div><div class="eyebrow">' +
     (state.session.customer ? esc(state.session.company_name) : 'TRACKIUM LITE · TENANT WORKSPACE') + '</div><h1>' +
     {
       dashboard: 'Overview',
