@@ -268,11 +268,12 @@ test('selected physical history stays distinct from the latest fix and the activ
 test('Fleet Map V3 panels and full screen keep one canvas and preserve selection', async () => {
   await start();
   try {
-    for (const [width, theme] of [[1440,'light'],[1440,'dark'],[390,'light'],[390,'dark'],[320,'dark']]) {
+    for (const [width, theme] of [[1440,'light'],[1440,'dark'],[1024,'light'],[390,'light'],[390,'dark'],[320,'dark']]) {
       const source = {customer:true,road:revision,fleet,touch:width <= 390};
       const {page,context} = await fixturePage(width,theme,source);
       try {
         const mobile = width <= 390;
+        if (width === 1024) await page.locator('html').evaluate(el => { el.style.fontSize = '200%'; });
         const map = page.locator('#workspace-map');
         const explorer = page.locator('#fleet-toggle-explorer');
         const inspector = page.locator('#fleet-toggle-inspector');
@@ -281,7 +282,7 @@ test('Fleet Map V3 panels and full screen keep one canvas and preserve selection
         const row = page.locator('.fleet-manifest-list button').first();
         const mapSize = () => map.evaluate(el => [el.offsetWidth,el.offsetHeight]);
         const capture = async state => {
-          if (!process.env.TRACKIUM_FLEET_V3_SCREENSHOTS || width === 320) return;
+          if (!process.env.TRACKIUM_FLEET_V3_SCREENSHOTS || width === 320 || width === 1024) return;
           await page.screenshot({path:join(process.env.TRACKIUM_FLEET_V3_SCREENSHOTS,
             state + '-' + theme + '.png')});
         };
@@ -294,6 +295,8 @@ test('Fleet Map V3 panels and full screen keep one canvas and preserve selection
         assert.ok(await map.locator('.fleet-pin svg').count());
         assert.ok(await map.locator('.fleet-checkpoint-icon svg').count());
         const initialSize = await mapSize();
+        assert.ok(initialSize[0] >= 240, 'the map retains usable width with both panels open');
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         await explorer.click();
         assert.equal(await row.isVisible(),false);
         if (!mobile) {

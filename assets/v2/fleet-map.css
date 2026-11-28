@@ -1,7 +1,8 @@
 /* Fleet Map V3 component layout. Keep the Leaflet host in the same DOM position. */
 .lite-workspace .fleet-v3 {
-  --fleet-explorer-width: minmax(12rem, .72fr);
-  --fleet-inspector-width: minmax(14rem, .84fr);
+  /* Bound the panel minimums by workspace width when root text size grows. */
+  --fleet-explorer-width: minmax(min(12rem, 26%), .72fr);
+  --fleet-inspector-width: minmax(min(14rem, 30%), .84fr);
   grid-template-columns: var(--fleet-explorer-width) minmax(0, 2fr) var(--fleet-inspector-width);
   gap: var(--tc-space-12);
 }
