@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import { gunzipSync } from 'node:zlib';
+import { xyz, nearestRoad } from './vector-release.mjs';
 import { decodeShape } from '../services/gateway/src/routing/contract.js';
 
 const require = createRequire(import.meta.url);
@@ -10,13 +11,13 @@ const dep = name => import(pathToFileURL(require.resolve(name)));
 const [{VectorTile},{default:Pbf}] = await Promise.all([dep('@mapbox/vector-tile'),dep('pbf')]);
 const [directory,...routes] = process.argv.slice(2);
 if (!directory || !routes.length) throw Error('Usage: check-vector-alignment.mjs TILE_DIR RAW_ROUTE_JSON...');
-const zoom=15, scale=2**zoom;
+const zoom=Number(process.env.TRACKIUM_ALIGNMENT_ZOOM ?? 15);
+if (!Number.isInteger(zoom) || zoom<8 || zoom>15) throw Error('Invalid alignment zoom');
+const includePaths=process.env.TRACKIUM_ALIGNMENT_INCLUDE_PATHS==='1';
 const cache=new Map();
-const maximumCacheEntries=48;
-const toTile = (lat,lon) => [
-  Math.floor((lon+180)/360*scale),
-  Math.floor((1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)*scale/2)
-];
+const maximumCacheEntries=128;
+const neighbors=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+const tileOf = point => xyz(point.latitude,point.longitude,zoom);
 async function tileRoads(x,y) {
   const key=x+'/'+y;
   if (cache.has(key)) return cache.get(key);
@@ -25,6 +26,8 @@ async function tileRoads(x,y) {
     data=await readFile(directory+'/'+zoom+'/'+key+'.pbf');
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
+    cache.set(key,null);
+    if (cache.size > maximumCacheEntries) cache.delete(cache.keys().next().value);
     return null;
   }
   if (data[0]===31 && data[1]===139) data=gunzipSync(data,{maxOutputLength:16*1024*1024});
@@ -32,47 +35,57 @@ async function tileRoads(x,y) {
   const lines=[];
   for (let i=0; layer && i<layer.length; i++) {
     const feature=layer.feature(i);
-    if (feature.properties.kind==='path' || feature.type!==2) continue;
+    if ((!includePaths && feature.properties.kind==='path') || feature.type!==2) continue;
     const geometry=feature.toGeoJSON(x,y,zoom).geometry;
-    lines.push(...(geometry.type==='LineString' ? [geometry.coordinates] : geometry.coordinates));
+    for (const coordinates of (geometry.type==='LineString' ? [geometry.coordinates] : geometry.coordinates))
+      lines.push({coordinates,id:feature.id ?? null,kind:feature.properties.kind ?? null,name:feature.properties.name ?? null});
   }
   cache.set(key,lines);
   if (cache.size > maximumCacheEntries) cache.delete(cache.keys().next().value);
   return lines;
 }
-function distance(point, lines) {
-  let best=Infinity;
-  // Local tangent-plane approximation for short point-to-segment distances.
-  const latScale=111194.93, lonScale=latScale*Math.cos(point.latitude*Math.PI/180);
-  const xy=([lon,lat])=>[(lon-point.longitude)*lonScale,(lat-point.latitude)*latScale];
-  for (const line of lines) {
-    let [ax,ay]=xy(line[0]);
-    for (let i=1; i<line.length; i++) {
-      const [bx,by]=xy(line[i]);
-      const dx=bx-ax, dy=by-ay;
-      const n=dx*dx+dy*dy;
-      const t=n ? Math.max(0,Math.min(1,-(ax*dx+ay*dy)/n)) : 0;
-      best=Math.min(best,Math.hypot(ax+t*dx,ay+t*dy));
-      ax=bx;
-      ay=by;
-    }
-  }
-  return best;
-}
+const rounded = number => Number(number.toFixed(2));
 for (const file of routes) {
   const {trip}=JSON.parse(await readFile(file));
-  const points=trip.legs.flatMap(leg=>decodeShape(leg.shape));
+  const legs=trip.legs.map(leg=>decodeShape(leg.shape));
+  const points=legs.flat();
   const distances=[];
-  for (const point of points) {
-    const [x,y]=toTile(point.latitude,point.longitude);
+  let fileVertices=0, maximum=null, segments=0, roadSegments=0, crossings=0;
+  let sampledMeters=0, fileMeters=0, roadMeters=0;
+  for (const [index,point] of points.entries()) {
+    const [x,y]=tileOf(point);
     const center=await tileRoads(x,y);
+    if (center) fileVertices++;
     if (!center?.length) continue;
-    const neighbors=await Promise.all([[-1,0],[1,0],[0,-1],[0,1]].map(([dx,dy])=>tileRoads(x+dx,y+dy)));
-    distances.push(distance(point,center.concat(...neighbors.filter(Boolean))));
+    const adjacent=await Promise.all(neighbors.map(([dx,dy])=>tileRoads(x+dx,y+dy)));
+    const match=nearestRoad(point,center.concat(...adjacent.filter(Boolean)));
+    distances.push(match.meters);
+    if (!maximum || match.meters>maximum.meters) maximum={index,point,tile:[zoom,x,y],...match};
+  }
+  for(const leg of legs) for(let i=1;i<leg.length;i++) {
+    const a=leg[i-1],b=leg[i];
+    const meters=111194.93*Math.hypot(b.latitude-a.latitude,
+      (b.longitude-a.longitude)*Math.cos((a.latitude+b.latitude)*Math.PI/360));
+    if (!meters) continue;
+    segments++;
+    if (String(tileOf(a))!==String(tileOf(b))) crossings++;
+    const steps=Math.ceil(meters/25), weight=meters/steps;
+    let covered=true;
+    for(let j=0;j<steps;j++) {
+      const t=(j+.5)/steps;
+      const tile=await tileRoads(...tileOf({latitude:a.latitude+t*(b.latitude-a.latitude),
+        longitude:a.longitude+t*(b.longitude-a.longitude)}));
+      sampledMeters+=weight;
+      if(tile) fileMeters+=weight;
+      if(tile?.length) roadMeters+=weight;
+      else covered=false;
+    }
+    if(covered) roadSegments++;
   }
   distances.sort((a,b)=>a-b);
-  const percentile=p=>Number(distances[Math.ceil(distances.length*p)-1]?.toFixed(2) ?? NaN);
-  console.log(JSON.stringify({file,zoom,vertices:points.length,compared:distances.length,
-    distanceKm:trip.summary.length,estimatedSeconds:trip.summary.time,medianMeters:percentile(.5),
-    p95Meters:percentile(.95),maximumMeters:percentile(1)}));
+  const percentile=p=>distances.length ? rounded(distances[Math.ceil(distances.length*p)-1]) : null;
+  console.log(JSON.stringify({file,zoom,includePaths,vertices:points.length,fileVertices,roadVertices:distances.length,
+    segments,roadSegments,crossings,sampledMeters:rounded(sampledMeters),fileMeters:rounded(fileMeters),
+    roadMeters:rounded(roadMeters),distanceKm:trip.summary.length,estimatedSeconds:trip.summary.time,
+    medianMeters:percentile(.5),p95Meters:percentile(.95),maximum}));
 }

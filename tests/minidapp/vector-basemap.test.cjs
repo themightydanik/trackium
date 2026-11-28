@@ -18,6 +18,10 @@ test('vector XYZ basemap renders locally, retains Leaflet state and falls back o
       assert.equal(response.headers()['content-encoding'],'gzip');
       assert.equal((await page.request.get(tile.replace('synthetic-m1','wrong-release'))).status(),404);
       assert.equal((await page.request.get(tile.replace('19162','32768'))).status(),404);
+      const coverage = await page.request.get(new URL('/app/assets/vector-tiles/synthetic-m1/coverage.json',page.url()).href);
+      assert.equal(coverage.status(),200);
+      assert.equal((await coverage.json()).maxZoom,15);
+      assert.equal((await page.request.get(coverage.url().replace('coverage.json','manifest.json'))).status(),404);
       const focus = async () => {
         await page.locator('#map-selection').selectOption('device:'+fixture.registry.id);
         await page.getByRole('button',{name:'Show on map'}).click();
@@ -25,18 +29,30 @@ test('vector XYZ basemap renders locally, retains Leaflet state and falls back o
       };
       const state = value => page.locator('#workspace-map[data-vector-state="'+value+'"]').waitFor();
       await focus();
-      await state('ready');
+      await state('partial');
       await map.evaluate(el => {window.m1State=[el,el.querySelector('.maplibregl-canvas'),
         el.querySelector('.leaflet-map-pane').style.transform];});
       await page.emulateMedia({colorScheme:'dark'});
-      await state('ready');
+      await state('partial');
       await page.locator('html').evaluate(el => { el.dataset.tcTheme = 'light'; });
-      await state('ready');
+      await state('partial');
       assert.ok(await map.evaluate(el => el === window.m1State[0] &&
         el.querySelector('.maplibregl-canvas') === window.m1State[1] &&
         el.querySelector('.leaflet-map-pane').style.transform === window.m1State[2]));
       assert.ok(await map.locator('.ux-device-position').count());
       assert.ok(await map.getByRole('link',{name:'OpenStreetMap contributors'}).count());
+
+      const canvasesFit = () => page.waitForFunction(() => {
+        const map = document.querySelector('#workspace-map');
+        const canvas = map?.querySelector('.maplibregl-canvas');
+        return canvas && Math.abs(canvas.clientWidth-map.clientWidth)<=1 &&
+          Math.abs(canvas.clientHeight-map.clientHeight)<=1;
+      });
+      await page.getByRole('button',{name:'Full screen',exact:true}).click();
+      await canvasesFit();
+      await page.keyboard.press('Escape');
+      await canvasesFit();
+      assert.ok(await map.evaluate(el => el.querySelector('.maplibregl-canvas')===window.m1State[1]));
 
       await page.getByText('Geographic overview',{exact:true}).click();
       assert.equal(await map.locator('.maplibregl-canvas').count(),0);
@@ -54,7 +70,7 @@ test('vector XYZ basemap renders locally, retains Leaflet state and falls back o
         };
       });
       await page.reload();
-      await state('fallback');
+      await state('renderer-failure');
       assert.equal(await map.locator('.maplibregl-canvas').count(),0);
       assert.ok(await map.locator('.workspace-map-land').count());
     } finally { await context.close(); }

@@ -30,9 +30,10 @@ export function createVectorTileHandler(config) {
     const rootPath = config && prefix + config.release + '/';
     if (!rootPath || !path.startsWith(rootPath)) return reply(404);
     const resource = path.slice(rootPath.length);
+    const coverage = resource === 'coverage.json';
     const tile = /^(8|9|1[0-5])\/(0|[1-9]\d{0,4})\/(0|[1-9]\d{0,4})\.pbf$/.exec(resource);
     const glyph = /^glyphs\/NotoSansRegular\/(0|[1-9]\d{0,4})-([1-9]\d{0,4})\.pbf$/.exec(resource);
-    if ((!tile && !glyph) ||
+    if ((!coverage && !tile && !glyph) ||
         (tile && (+tile[2] >= 2**(+tile[1]) || +tile[3] >= 2**(+tile[1]))) ||
         (glyph && (+glyph[1] % 256 || +glyph[2] !== +glyph[1]+255 || +glyph[2] > 65535))) return reply(404);
     if (reading >= maximumReads) return reply(503,{'retry-after':'2'});
@@ -40,7 +41,7 @@ export function createVectorTileHandler(config) {
     let file;
     try {
       const root = await realpath(config.directory);
-      const target = await realpath(resolve(root,tile ? resource : 'glyphs/' + glyph[1] + '-' + glyph[2] + '.pbf'));
+      const target = await realpath(resolve(root,tile || coverage ? resource : 'glyphs/' + glyph[1] + '-' + glyph[2] + '.pbf'));
       const within = relative(root,target);
       if (!within || within === '..' || within.startsWith('..'+sep) || isAbsolute(within)) return reply(404);
       file = await open(target,constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW);
@@ -50,7 +51,7 @@ export function createVectorTileHandler(config) {
       const {bytesRead} = await file.read(contents);
       if (bytesRead !== contents.length) return reply(404);
       return reply(200,{
-        'content-type':tile ? 'application/vnd.mapbox-vector-tile' : 'application/x-protobuf',
+        'content-type':coverage ? 'application/json' : tile ? 'application/vnd.mapbox-vector-tile' : 'application/x-protobuf',
         'cache-control':'public, max-age=86400, immutable',
         'cross-origin-resource-policy':'same-origin',
         ...(contents[0] === 0x1f && contents[1] === 0x8b ? {'content-encoding':'gzip'} : {})
