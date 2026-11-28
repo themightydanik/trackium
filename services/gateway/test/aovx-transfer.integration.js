@@ -33,7 +33,7 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
   const cli = (command, file, ...args) => promisify(execFile)(process.execPath,
     ['src/aovx/transfer-cli.js', command, '--file=' + file, ...args],
     { env: { ...process.env, DATABASE_URL: scoped.href } });
-  const db = new pg.Pool({ connectionString: url, application_name: schema, options: '-c search_path=' + schema });
+  const db = new pg.Pool({ connectionString: url, application_name: schema, options: '-c search_path=' + schema + ' -c synchronous_commit=off' });
   const runtime = createRuntime(db, { ...readConfig({ DATABASE_URL: url, TCP_PROTOCOL: 'aovx', AOVX_SERVER_ACK_ENABLED:'true' }),
     host: '127.0.0.1', httpPort: 0, tcpPort: 0 }, { worker: false, logger: { info(){}, error(){} } });
   t.after(async () => {
@@ -207,6 +207,65 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
   assert.equal((await db.query('SELECT 1 FROM telemetry_aovx_packet_events WHERE packet_id=$1',[bufferedRow.id])).rowCount,0);
   assert.deepEqual(await snapshot(pilot,dest),pilotHistory);
 
+
+  // Deferred trigger executes at COMMIT, after the raw INSERT has returned.
+  assert.equal((await db.query('SHOW synchronous_commit')).rows[0].synchronous_commit,'off');
+  await db.query(`CREATE FUNCTION check_ack_commit_fixture() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      IF current_setting('synchronous_commit') <> 'on' THEN RAISE EXCEPTION 'expected durable commit'; END IF;
+      IF NEW.aovx_sequence_number=9 THEN RAISE EXCEPTION 'disposable commit failure'; END IF;
+      PERFORM pg_advisory_xact_lock(31415927);
+      RETURN NEW;
+    END; $$;
+    CREATE CONSTRAINT TRIGGER check_ack_commit_fixture AFTER INSERT ON gateway_packets
+    DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (NEW.aovx_sequence_number IN (8,9))
+    EXECUTE FUNCTION check_ack_commit_fixture();`);
+  const journalRows = sequence => db.query('SELECT id FROM gateway_packets WHERE aovx_sequence_number=$1',[sequence]);
+  function exchange(payload) {
+    const socket = connect(runtime.gateway.tcp.address().port,'127.0.0.1');
+    const chunks = [];
+    socket.on('data',chunk=>chunks.push(chunk));
+    const closed = once(socket,'close');
+    socket.end(payload);
+    return {chunks, closed};
+  }
+  const commitGate = await db.connect();
+  let committed;
+  try {
+    await commitGate.query('BEGIN');
+    await commitGate.query('SELECT pg_advisory_xact_lock(31415927)');
+    committed = exchange(frame(8,0,0x80000002));
+    const commitDeadline = Date.now()+5000;
+    for (;;) {
+      const {rows:[waiting]} = await db.query(`SELECT count(*)::int AS n FROM pg_stat_activity
+        WHERE application_name=$1 AND query='COMMIT' AND wait_event_type='Lock'`,[schema]);
+      if (waiting.n) break;
+      assert.ok(Date.now()<commitDeadline,'journal did not reach deferred commit');
+      await delay(10);
+    }
+    assert.equal(committed.chunks.length,0);
+    assert.equal((await journalRows(8)).rowCount,0);
+  } finally {
+    await commitGate.query('ROLLBACK');
+    commitGate.release();
+  }
+  await committed.closed;
+  assert.equal(decodeAovxFrame(Buffer.concat(committed.chunks),{checksumPolicy:'require-xor-match'}).body.toString('hex'),'0008020000');
+  assert.equal((await journalRows(8)).rowCount,1);
+  const retryFrame = frame(9,0,0x80000002);
+  const failed = exchange(retryFrame);
+  await failed.closed;
+  assert.equal(failed.chunks.length,0);
+  assert.equal((await journalRows(9)).rowCount,0);
+  await db.query('DROP TRIGGER check_ack_commit_fixture ON gateway_packets');
+  for (let i=0;i<2;i++) {
+    const retry = exchange(retryFrame);
+    await retry.closed;
+    assert.equal(decodeAovxFrame(Buffer.concat(retry.chunks),{checksumPolicy:'require-xor-match'}).body.toString('hex'),'0009020000');
+  }
+  assert.equal((await journalRows(9)).rowCount,2);
+  assert.equal(runtime.gateway.aovxReceiverMetrics().recentDuplicateFrames,1);
+  assert.deepEqual(await snapshot(pilot,dest),pilotHistory);
 
   const reversal = { ...approvals(), identifier, source_tenant: pilot, source_device: dest,
     source_binding: result.destination_binding_id, destination_tenant: internal.tenant_id, reverse_of: plan.id };

@@ -1,3 +1,4 @@
+import { transaction } from './shared.js';
 import { createCoreDeviceAccess } from './core-device-access.js';
 import { createCustomerMail, startCustomerMail } from './customer-mail.js';
 import { createAccounts } from './accounts.js';
@@ -95,7 +96,13 @@ export function createRuntime(
         if (worker && config.simulatorEnabled) stopWorker = startWorker(simulator, logger);
         await checkpoint('background_workers_started');
       },
-      persistPacket: (packet) => persistPacket(packet, pool),
+      persistPacket: (packet, { durable } = {}) => {
+        if (!durable) return persistPacket(packet, pool);
+        return transaction(pool, null, async client => {
+          await client.query("SET LOCAL synchronous_commit = 'on'");
+          return persistPacket(packet, client);
+        });
+      },
       async afterPersist(packet, stored) {
         if (packet.aovx?.messageId === 0x0200) {
           try { return await aovxIngestion.processPacket(stored.id); }

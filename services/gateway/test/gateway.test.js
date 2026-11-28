@@ -716,3 +716,21 @@ test('AOVX ACK is explicitly enabled only on the AOVX TCP receiver', async t => 
   assert.equal(f.records.length,1);
   assert.equal(wire().length,0);
 });
+
+test('AOVX accepts unmodified Protocol PDF vectors independently of extension parsing', {timeout:5000}, async t => {
+  // Protocol V3.0 §2.3.1, §3.4, and the §3.7 sensor-log example on page 22.
+  const basic = Buffer.from('7e0200001c8050650805440004000000008400002301e5bb4506fabb57003f00000036230731084856417e','hex');
+  const sampleAck = Buffer.from('7e8001000559305449181500010001020000ff7e','hex');
+  const parsedAck = decodeAovxFrame(sampleAck,{checksumPolicy:'require-xor-match'});
+  assert.deepEqual(encodeAovxServerAck({...parsedAck,messageId:0x0200,sequenceNumber:1},1),sampleAck);
+  const sensor = Buffer.from('7e09000049487060054219000e54100000000000000000000000000000000000240112034640001f2401120345210c4100f4011c00f3ffe80008004003fe001f2401120345510c4100f4011c00f3fff0000800a003feb67e','hex');
+  const f = await fixture(t,ackConfig,async ({payload})=>digest(payload));
+  const {socket,ended} = await f.connect();
+  const wire = collected(socket);
+  socket.end(Buffer.concat([basic,sensor,ackFixtureFrame(0x0200,20,{body:Buffer.alloc(27)})]));
+  await ended;
+  assert.deepEqual(f.packets,[basic,sensor,ackFixtureFrame(0x0200,20,{body:Buffer.alloc(27)})]);
+  assert.equal(f.records[0].aovx.parseStatus,'error');
+  assert.equal(f.records[1].aovx.parseStatus,'opaque');
+  assert.deepEqual(decodeWorkbookAcks(wire()).map(frame=>frame.body.toString('hex')),['0004020000','000e090000']);
+});

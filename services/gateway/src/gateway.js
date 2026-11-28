@@ -202,7 +202,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
         socket.destroy();
         return false;
       }
-      const shouldAck = ackEnabled && decodedAovx && canAcknowledgeAovxFrame(decodedAovx, aovx.parseStatus);
+      const shouldAck = ackEnabled && decodedAovx && canAcknowledgeAovxFrame(decodedAovx);
       pendingFrames++;
       pendingBytes += payload.length;
       session.pending++;
@@ -212,7 +212,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
         if (session.failed) return;
         const packet = { payload, remoteAddress: peer.remoteAddress, aovx };
         let stored;
-        try { stored = await journal.persistPacket(packet); }
+        try { stored = await journal.persistPacket(packet, { durable: !!shouldAck }); }
         catch (error) {
           if (shouldAck) counters.ackFailures++;
           throw error;

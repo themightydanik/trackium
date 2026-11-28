@@ -2,7 +2,7 @@
 
 ## Evidence and conformance
 
-The repository contains an exact textual extraction of the Platform Protocol V3.0 workbook. The sheet and cell references below refer to that extraction. The original PDF, XLSX, AT Commands V3.1, v11 release notes and engineering email were not available as files in this workspace. PDF page verification and direct source-file comparison remain open. The manufacturer statements in this note come from the supplied incident update.
+The review checked the original AOVX Protocol V3.0 PDF, Platform Protocol V3.0 workbook, AT Commands V3.1 PDF and V2.0.9 v11 release notes. Protocol PDF §2.3 defines framing and the plain header. Section 3.4 Table 29 defines the five-byte reply body. Section 3.7 defines transparent sensor reports. The workbook references below refer to the original sheets.
 
 | Source | Requirement | Gateway status |
 |---|---|---|
@@ -15,19 +15,21 @@ The repository contains an exact textual extraction of the Platform Protocol V3.
 | Introduction A6:D16 and individual message sheets | Configuration and registration-related messages. | Existing inbound parsing and explicit operator configuration paths remain separate. This change adds no automatic registration reply, configuration command or ACK for another message ID. |
 | 0x8001 S12:W17 | Result 0 Success, 1 Fail, 2 Wrong message, 3 Not support, 4 Alarm confirmed. | Result 0 implemented for durable delivery. Vendor confirmation required for device retry or flash behavior with the other results. No automatic negative ACK or alarm confirmation. |
 
-### Workbook sample discrepancies
+### Wire examples and discrepancies
 
-- The captured 0x0200 row declares 76 body bytes. The extraction stops inside its first extension before the trailing checksum and delimiter. The regression uses the existing complete manufacturer wire fixture, and also the workbook's fixed prefix with a regenerated envelope.
-- The 0x0900 row declares 15 body bytes and displays a longer body. The workbook wire sample fails strict frame validation. The regression uses the displayed body with regenerated length and XOR.
-- In the 0x8001 row, XOR over the displayed header and body is `BC`, while the checksum cell contains `B9`. The outgoing vector preserves the illustrated fields and computes checksum from those bytes.
+| Source sample | Length (declared / displayed) | XOR (printed / calculated) | Regression policy |
+|---|---:|---|---|
+| Workbook 0x0200 row 8 | 76 / 225 | 29 / 46 | Use only the fixed prefix with regenerated length and XOR. Test the unmodified 28-byte PDF §2.3.1 frame separately. |
+| Workbook 0x0900 row 8 | 15 / 32 | 3F / 25 | Use the displayed body with regenerated length and XOR. Its subtype 41 is outside the PDF's described 53/54 family. The unmodified PDF §3.7 sensor frame is a separate test. |
+| Workbook 0x8001 row 8 | 5 / 5 | B9 / BC | Preserve the illustrated fields and compute XOR. The unmodified PDF §3.4 Table 29 ACK is also checked byte-for-byte. |
 
-These are documented test adaptations. The original incident frames are kept outside the repository and CI fixtures.
+Two Bluetooth examples in PDF §3.7 declare 122 and 81 body bytes while displaying 107 and 66. Strict framing rejects both. The same section contains a length- and XOR-valid sensor example. AT Commands V3.1 §5.5 describes sensor reporting. The v11 release notes mention sleep behavior around server responses and blind-spot reporting. Neither document specifies ACK retry timing or the effect of each negative result on flash retention. Private incident frames stay outside this repository and CI.
 
 ## ACK and storage semantics
 
 | Input | Journal and response |
 |---|---|
-| Valid plain 0x0200 with a decodable body, or valid plain 0x0900 with its base prefix | Wait for PostgreSQL to complete the raw journal insert. Send one success ACK on the same socket. The 0x0900 sensor body stays raw. |
+| Valid plain 0x0200 with at least its 28-byte basic report, or valid plain 0x0900 with at least its 25-byte base prefix | Wait for PostgreSQL to return success from COMMIT on the raw journal transaction. An extension normalization error does not suppress transport ACK. Send one success ACK on the same socket. The 0x0900 sensor body stays raw. |
 | Repeated eligible frame, including on reconnect | Persist the arrival and ACK it again. Existing 0x0200 event deduplication still determines logical telemetry and packet links. No catch-up ACK is sent for historical journal entries. |
 | GNSS Unfix, delayed or buffered packet, or rejected tenant/custody decision | ACK the eligible persisted report. Independently apply the existing ingestion, quarantine and replay rules. The transport ACK does not create or validate a position, shipment event, proof, or tenant permission. |
 | Invalid XOR, identity, reserved flags or supported body structure, or checksum-valid unsupported message | No automatic response. Preserve the raw frame if the existing framing path can journal it. Avoid a negative result whose retry behavior is unknown. |
@@ -35,11 +37,11 @@ These are documented test adaptations. The original incident frames are kept out
 | PostgreSQL write rejected | No ACK. Close that connection, preserve already committed rows and allow device retry. No subsequent queued write on the failed connection. |
 | Socket closes during persistence | The raw write may finish. The ACK is not routed to a new connection. A later eligible retry is journaled and acknowledged on its own session. A clean TCP half-close allows queued ACKs to drain. |
 
-The journal commit remains the delivery boundary. Normalization can still reject a report or defer processing. Verify the journal connection uses synchronous local PostgreSQL commits before enabling ACKs. Per-process counters count complete frame candidates, successful ACK socket writes and failures, recent duplicate raw digests, opaque unsupported message types, ingestion rejections in the immediate path, and socket disconnects. The duplicate window covers the latest 4,096 distinct persisted digests in this process. A socket write callback measures local handoff and does not establish receipt or flash removal on the device. Logs emit aggregate counts once a minute and at shutdown without device, coordinate, or payload dimensions.
+The journal commit remains the delivery boundary. Normalization can still reject a report or defer processing. The ACK path uses an explicit transaction with `SET LOCAL synchronous_commit = 'on'` before the insert and waits for `COMMIT` to return. This overrides an asynchronous session default for that transaction. Confirm `SHOW fsync` returns `on`, ensure storage honors flushes, and account for configured synchronous replicas in the latency budget. Per-process counters count complete frame candidates, successful ACK socket writes and failures, recent duplicate raw digests, opaque unsupported message types, ingestion rejections in the immediate path, and socket disconnects. The duplicate window covers the latest 4,096 distinct persisted digests in this process. A socket write callback measures local handoff and does not establish receipt or flash removal on the device. Logs emit aggregate counts once a minute and at shutdown without device, coordinate, or payload dimensions.
 
 ## Controlled rollout and rollback
 
-1. Review the PR, confirm exact firmware and wire behavior, and obtain explicit deployment authorization. Rehearse against disposable PostgreSQL and an approved field unit or vendor test bench. Verify the existing TCP proxy, ingress, journal commit settings, and rollback image. Keep activation and configuration policies as currently approved.
+1. Review the PR, confirm exact firmware and wire behavior, and obtain explicit deployment authorization. Rehearse against disposable PostgreSQL and an approved field unit or vendor test bench. Verify the existing TCP proxy, ingress, journal commit settings, and rollback image. Measure the time from complete frame receipt through durable commit and ACK under representative bursts, against the timeout confirmed by AOVX or measured on the approved firmware. Keep activation and configuration policies as currently approved.
 2. Use the reviewed image with `AOVX_SERVER_ACK_ENABLED=false` first. Verify API readiness, unchanged TCP framing and raw retention. Enabling ACK changes the whole AOVX listener. Confirm the connected population is approved for the pilot.
 3. After operator authorization, set `AOVX_SERVER_ACK_ENABLED=true` with `TCP_PROTOCOL=aovx` and TCP enabled. Verify readiness mode `aovx-frame-ack`. Compare journal commits and ACK frames on the same connection, then measure retries, reconnects, and corpus size. Inspect custody rejections independently. No tracker configuration commands are needed.
 4. Stop or revert if successful writes and ACKs diverge, the report queue grows, or ACKed frames disappear from the journal. Roll back by setting the flag false first, then confirm `aovx-frame-capture-only`. Revert the image if necessary. Keep journal rows, event links, binding and custody history. ACKs already accepted by devices cannot be undone. A flag-off rollback may restore the previous flash retry behavior.

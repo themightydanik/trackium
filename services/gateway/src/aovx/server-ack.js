@@ -2,18 +2,20 @@ import { encodeAovxFrame } from './frame.js';
 
 // 0x0900's type, status, coordinates, motion fields and BCD time occupy 25 bytes.
 const ADDITIONAL_REPORT_MIN_BYTES = 25;
+// Protocol V3.0 §2.3.1 allows a basic report without extensions.
+const BASIC_REPORT_MIN_BYTES = 28;
 const ACKNOWLEDGED_TYPES = new Set([0x0200, 0x0900]);
 
 export function supportsAovxServerAck(frame) {
   return ACKNOWLEDGED_TYPES.has(frame.messageId);
 }
 
-export function canAcknowledgeAovxFrame(frame, parsedStatus) {
+export function canAcknowledgeAovxFrame(frame) {
   return supportsAovxServerAck(frame) &&
     frame.checksumMatchesXor &&
     (frame.properties & 0xfc00) === 0 &&
     /^[0-9]{12}$/.test(frame.deviceIdBcd.toString('hex')) &&
-    (frame.messageId === 0x0200 ? parsedStatus === 'parsed' : frame.body.length >= ADDITIONAL_REPORT_MIN_BYTES);
+    (frame.body.length >= (frame.messageId === 0x0200 ? BASIC_REPORT_MIN_BYTES : ADDITIONAL_REPORT_MIN_BYTES));
 }
 
 export function encodeAovxServerAck(frame, sequenceNumber) {
