@@ -33,6 +33,7 @@ FILES = (
     'assets/v2/visual/warehouse-960.webp',
     'assets/v2/visual/matte-grain.webp',
     'assets/v2/map-icons.js',
+    'assets/v2/vector-basemap.js',
     'assets/v2/gateway-client.js',
     'assets/v2/gateway-model.js',
     'assets/v2/leaflet.css',

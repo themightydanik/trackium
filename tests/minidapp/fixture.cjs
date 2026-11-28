@@ -217,9 +217,9 @@ async function fixturePage(width = 1440, scheme = 'light', source = {}) {
   return { context, page };
 }
 
-async function start(rootDir = ROOT, roadTiles) {
-  const web = roadTiles ? (await import('../../services/gateway/src/cargo/web.js')).createWebHandler({
-    webEnabled: true, webRoot: rootDir, roadTiles
+async function start(rootDir = ROOT, roadTiles, vectorTiles) {
+  const web = roadTiles || vectorTiles ? (await import('../../services/gateway/src/cargo/web.js')).createWebHandler({
+    webEnabled: true, webRoot: rootDir, roadTiles, vectorTiles
   }) : null;
   server = http.createServer(async (req, res) => {
     if (web && req.url.startsWith('/app/')) return web(req, res);

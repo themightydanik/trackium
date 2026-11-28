@@ -2,8 +2,10 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRoadTileHandler } from './road-tiles.js';
-export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnabled, roadTiles, coreDeviceAccessEnabled, coreAndroidFingerprint }) {
+import { createVectorTileHandler } from './vector-tiles.js';
+export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnabled, roadTiles, vectorTiles, coreDeviceAccessEnabled, coreAndroidFingerprint }) {
   const serveTile = createRoadTileHandler(roadTiles);
+  const serveVectorTile = createVectorTileHandler(vectorTiles);
   const root = resolve(webRoot || fileURLToPath(new URL('../../../../', import.meta.url)));
   return async (req, res) => {
     const url = new URL(req.url, 'http://gateway.invalid');
@@ -37,7 +39,7 @@ export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnable
         '<p>Return to My Devices on the website to confirm the installation fingerprint.</p></main></html>');
       return;
     }
-    if (await serveTile(url.pathname, res)) return;
+    if (await serveTile(url.pathname, res) || await serveVectorTile(url.pathname, res)) return;
     const relative = url.pathname === '/app/core' ? 'index.html'
       : url.pathname.slice('/app/'.length) || 'index.html';
     if (
@@ -79,6 +81,8 @@ export function createWebHandler({ webEnabled, webRoot, customerMail, demoEnable
             ? tag + ' data-road-tile-max-zoom="' + roadTiles.maxZoom + '"' +
               (roadTiles.darkDirectory ? ' data-road-tile-dark="true"' : '') +
               (roadTiles.date ? ' data-road-tile-date="' + roadTiles.date + '"' : '') : tag)
+          .replace(/<html lang="en"/, (tag) => vectorTiles && url.pathname === '/app/'
+            ? tag + ' data-vector-tile-release="' + vectorTiles.release + '"' : tag)
           .replace('assets/v2/brand/site.webmanifest', 'assets/v2/brand/lite.webmanifest')
           .replace('<script defer src="mds.js"></script>', '')
           .replace('<script defer src="assets/v2/mds-bridge.js"></script>', '')

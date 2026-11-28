@@ -391,6 +391,9 @@
         options('device', data.devices.filter(C.reportedPosition).map(item => item.registry), item => item.label) +
         '</select><button class="button secondary" type="button" data-fit-report-map>Show on map</button></div>' : '') +
       '<div id="workspace-map" class="ux-geo" role="region" aria-label="Geographic routes and last reported positions"></div>' +
+      (isLite() && document.documentElement.dataset.vectorTileRelease ?
+        '<div class="vector-map-status" role="status"><span class="vector-map-loading">Loading vector roads…</span>' +
+        '<span class="vector-map-fallback">Vector roads unavailable at this view. Showing the available basemap.</span></div>' : '') +
       '<div class="lite-map-key" aria-label="Map legend"><span class="planned">Planned checkpoints</span>' +
       (fleet ? '<span class="calculated">Calculated road route</span>' : '') +
       '<span class="reported">Last reported positions</span></div>' +
@@ -399,7 +402,9 @@
           (document.documentElement.dataset.roadTileDate
             ? 'Dataset date: ' + esc(document.documentElement.dataset.roadTileDate) + '. '
             : 'Dataset date unavailable. ') + 'Drag or use keyboard arrows, +/− to zoom.'
-        : 'Coarse geographic basemap · drag or use keyboard arrows, +/− to zoom.') + '</p>' +
+        : isLite() && document.documentElement.dataset.vectorTileRelease
+          ? 'Vector release ' + esc(document.documentElement.dataset.vectorTileRelease) + ' · drag or use keyboard arrows, +/− to zoom.'
+          : 'Coarse geographic basemap · drag or use keyboard arrows, +/− to zoom.') + '</p>' +
       (data.devices.some(C.reportedPosition)
         ? ''
         : '<p class="lite-position-state">No reported device positions in this page. Only eligible positions appear on the map.</p>')
