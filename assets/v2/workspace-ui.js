@@ -592,7 +592,23 @@
         ' · advisory only</p>' : '') : '';
     const layers = view.layers || {};
     const planner = root.TrackiumRoutePlanner;
-    return '<div class="fleet-map-workspace"><section class="fleet-map-canvas" aria-label="Fleet map canvas">' +
+    const events = selected ? '<section class="fleet-events"><h3>Recent shipment events</h3>' +
+      (data.events.some(e => e.shipment_id === selected.id) ?
+        '<ol>' + sorted(data.events.filter(e => e.shipment_id === selected.id),
+          {sort:'event_time',order:'desc'}).slice(0,4).map(e =>
+          '<li><strong>' + esc(eventName(e)) + '</strong><time>' + cargoEventTime(e) +
+          '</time>' + provenanceBadge(e.source_trust) + '</li>').join('') + '</ol>' :
+        '<p>No events for this shipment in the loaded snapshot.</p>') + '</section>' : '';
+    const icon = root.TrackiumMapIcons;
+    const panelToggle = (key,label,iconName,expanded) =>
+      '<button type="button" id="fleet-toggle-' + key + '" class="button secondary fleet-toggle" ' +
+      'data-fleet-panel="' + key + '" aria-controls="fleet-' + key + '" aria-expanded="' + expanded + '">' +
+      icon(iconName) + '<span>' + label + '</span></button>';
+    const fullscreen = view.fleetFullscreen === true;
+    const canvas = '<section class="fleet-map-canvas" id="fleet-map-canvas" aria-label="Fleet map canvas"' +
+      (fullscreen ? ' role="dialog" aria-modal="true"' : '') + '>' +
+      '<div class="fleet-map-heading"><h2>Fleet operations</h2>' +
+      panelToggle('map-canvas',fullscreen ? 'Exit full screen' : 'Full screen',fullscreen ? 'minimize' : 'maximize',fullscreen) + '</div>' +
       '<div class="fleet-map-toolbar"><fieldset><legend class="sr-only">Map layers</legend>' +
       [['planned','Planned'],['calculated','Road route'],['observed','Reported GPS']].map(([key,label]) =>
         '<label><input type="checkbox" data-fleet-layer="' + key + '" ' + (layers[key] !== false ? 'checked' : '') + '>' +
@@ -601,8 +617,9 @@
       (view.planner ? '<p class="planner-map-note">' + (view.planner.pick == null
         ? 'Dotted circles show draft stops. Dashed violet lines show the calculated preview.'
         : 'Choose a point on the map or press Enter to use the map center.') + '</p>' : '') +
-      map(data,true,true) + '</section><aside class="fleet-manifest" aria-labelledby="fleet-manifest-heading">' +
-      '<h2 id="fleet-manifest-heading">Shipments <span>' + data.shipments.length + '</span></h2>' +
+      map(data,true,true) + '</section>';
+    const explorer = '<aside class="fleet-manifest" id="fleet-explorer" aria-labelledby="fleet-manifest-heading">' +
+      '<h2 id="fleet-manifest-heading">Fleet Explorer <span>' + data.shipments.length + '</span></h2>' +
       '<label class="sr-only" for="fleet-query">Search shipments or devices</label><input id="fleet-query" class="text-input" type="search" placeholder="Search shipments or devices" value="' +
       esc(view.fleetQuery || '') + '"><label class="sr-only" for="fleet-filter">Shipment status</label>' +
       '<select class="text-input" id="fleet-filter">' + statuses.map(key => '<option value="' + key + '"' +
@@ -613,19 +630,29 @@
         esc(devices.get(s.device_id)?.registry.label || 'Device not on this page') + '</small></span><span class="badge">' +
         esc(C.label(s.status)) + '</span></button>').join('') : '<p>' +
         (data.shipments.length ? 'No shipments match these filters.' : 'No shipments on this page.') + '</p>') + '</div>' +
-      C.pagination('shipments',state) + '</aside>' +
-      '<section class="fleet-context" aria-label="Shipment context"><header><div><h2>' +
-      (selected ? esc(selected.name) : 'Shipment context') + '</h2></div>' +
+      C.pagination('shipments',state) + '</aside>';
+    return '<div class="fleet-map-workspace fleet-v3" id="fleet-v3"' +
+      ' data-explorer="' + (view.fleetExplorer ?? 'auto') + '" data-inspector="' + (view.fleetInspector ?? 'auto') +
+      '" data-fullscreen="' + fullscreen + '"><div class="fleet-command">' +
+      panelToggle('explorer','Fleet Explorer','panel-left',view.fleetExplorer ?? !matchMedia('(max-width: 1000px)').matches) +
+      panelToggle('inspector','Shipment Inspector','panel-right',view.fleetInspector ?? !matchMedia('(max-width: 1000px)').matches) + '</div>' +
+      explorer + canvas +
+      '<section class="fleet-context" id="fleet-inspector" aria-label="Shipment context">' +
+      '<header><div><h2>' + (selected ? esc(selected.name) : 'Shipment Inspector') + '</h2>' +
+      (selected ? '<span class="badge">' + esc(C.label(selected.status)) + '</span> <small>' + esc(selected.id) + '</small>' : '') +
+      '</div><button type="button" class="button secondary fleet-sheet-toggle" data-fleet-panel="inspector" ' +
+      'aria-controls="fleet-inspector-body" aria-expanded="' + (view.fleetInspector ?? !matchMedia('(max-width: 1000px)').matches) +
+      '">Details</button></header><div id="fleet-inspector-body">' +
       (selected ? '<div class="fleet-context-actions">' +
         (planner.allowed(state.session) && !view.planner ? '<button type="button" class="button secondary" data-planner="import">Plan from checkpoints</button>' +
           '<button type="button" class="button secondary" data-planner="blank">Start blank route</button>' +
           (C.roadGeometry(road?.revision) ? '<button type="button" class="button secondary" data-planner="active">Edit active road as draft</button>' : '') : '') +
         '<button class="button secondary" type="button" data-fleet-fit>Fit shipment</button>' +
-        action('Shipment details','view-shipment',selected.id) + '</div>' : '') + '</header>' +
+        action('Shipment details','view-shipment',selected.id) + '</div>' : '') +
       '<div class="fleet-context-grid"><div><h3>Calculated road route</h3>' + fleetRoute(road,selected,state.session.customer) +
       '</div><div><h3>Planned checkpoints</h3>' + (selected ? routeStrip(arr(selected.checkpoints?.length ? selected.checkpoints : selected.route)) :
         '<p>Select a shipment to see its planned stops.</p>') +
-      (linked ? '<h3>' + esc(linked.registry.label) + '</h3>' + deviceFacts(linked) + movement : '') + '</div></div></section>' +
+      (linked ? '<h3>' + esc(linked.registry.label) + '</h3>' + deviceFacts(linked) + movement : '') + '</div></div>' + events + '</div></section>' +
       (view.planner ? planner.render(view.planner,root.TrackiumRouteLifecycle.proposal(view.lifecycle,view.planner)) : '') +
       root.TrackiumRouteLifecycle.render(view.lifecycle) +
       '<details class="fleet-directory"><summary>Device observations · ' + data.devices.length + '</summary>' +

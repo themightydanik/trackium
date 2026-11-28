@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {join} = require('node:path');
-const {fixturePage,fixture,start,stop} = require('./fixture.cjs');
+const {fixturePage,fixture,start,stop,openFleetExplorer} = require('./fixture.cjs');
 
 const stops = [{latitude:51,longitude:17},{latitude:50,longitude:30}];
 const roads = [
@@ -22,7 +22,10 @@ for (const [i,row] of roads.entries()) {
   row.calculated_at = '2026-01-01T00:00:00Z';
 }
 roads[1].truck = {height_m:3.9,width_m:2.5,length_m:16,weight_t:35,axle_load_t:10};
-const select = page => page.locator('.fleet-manifest-list button').first().click();
+const select = async page => {
+  await openFleetExplorer(page);
+  await page.locator('.fleet-manifest-list button').first().click();
+};
 
 test('read-only history and bounded comparison keep the mint route and telemetry visible at four viewports', async () => {
   await start();

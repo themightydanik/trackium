@@ -1445,6 +1445,9 @@
     syncMenu();
     $('#nav-close').focus();
   }
+  matchMedia('(max-width: 1000px)').addEventListener('change', () => {
+    if ($('#fleet-v3')) render(true);
+  });
   mobileNavigation.addEventListener('change', closeMenu);
   syncMenu();
   document.addEventListener('click', async function (event) {
@@ -1461,6 +1464,19 @@
     }
     if (target?.dataset.planner && page() === 'map' && TrackiumRoutePlanner.allowed(server.state.session)) {
       handlePlanner(target);
+      return;
+    }
+    if (target?.dataset.fleetPanel && page() === 'map' && $('#fleet-v3')) {
+      const key = target.dataset.fleetPanel;
+      const view = serverViews.map;
+      const expanded = target.getAttribute('aria-expanded') === 'true';
+      if (key === 'explorer') view.fleetExplorer = !expanded;
+      else if (key === 'inspector') view.fleetInspector = !expanded;
+      else if (key === 'map-canvas') view.fleetFullscreen = !expanded;
+      render(true);
+      if (key === 'map-canvas') $('#fleet-toggle-map-canvas').focus({preventScroll:true});
+      if (key === 'inspector' && !expanded)
+        $('#fleet-inspector').scrollIntoView({block:'nearest'});
       return;
     }
     if (target?.hasAttribute('data-fleet-fit')) {
@@ -1962,6 +1978,7 @@
   function selectFleetShipment(id) {
     const view = (serverViews.map ||= {});
     if (view.shipment !== id && !planner.close()) return false;
+    if (id && view.shipment !== id) view.fleetInspector = true;
     view.shipment = id;
     render(true);
     return true;
@@ -2103,6 +2120,24 @@
     $('#main').focus({ preventScroll: true });
   });
   document.addEventListener('keydown', (event) => {
+    const fullscreen = $('#fleet-v3[data-fullscreen="true"] #fleet-map-canvas');
+    if (fullscreen && !document.querySelector('dialog[open]')) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        $('#fleet-toggle-map-canvas').click();
+        return;
+      }
+      if (event.key === 'Tab') {
+        const items = [...fullscreen.querySelectorAll('button, select, input, a[href], [tabindex]')]
+          .filter(el => el.tabIndex >= 0 && !el.disabled && el.getClientRects().length);
+        const first = items[0], last = items.at(-1);
+        if (first && (!fullscreen.contains(document.activeElement) ||
+            event.shiftKey && document.activeElement === first || !event.shiftKey && document.activeElement === last)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        }
+      }
+    }
     if (event.key === 'Escape' && $('#sidebar').classList.contains('open')) {
       closeMenu();
       $('#menu-toggle').focus();

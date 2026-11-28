@@ -1,0 +1,150 @@
+/* Fleet Map V3 component layout. Keep the Leaflet host in the same DOM position. */
+.lite-workspace .fleet-v3 {
+  --fleet-explorer-width: minmax(12rem, .72fr);
+  --fleet-inspector-width: minmax(14rem, .84fr);
+  grid-template-columns: var(--fleet-explorer-width) minmax(0, 2fr) var(--fleet-inspector-width);
+  gap: var(--tc-space-12);
+}
+.lite-workspace .fleet-v3[data-explorer="false"] { grid-template-columns: minmax(0, 2fr) var(--fleet-inspector-width); }
+.lite-workspace .fleet-v3[data-inspector="false"] { grid-template-columns: var(--fleet-explorer-width) minmax(0, 2fr); }
+.lite-workspace .fleet-v3[data-explorer="false"][data-inspector="false"] { grid-template-columns: minmax(0, 1fr); }
+.lite-workspace .fleet-v3 > :is(.fleet-command, .fleet-planner, .fleet-lifecycle, .fleet-directory) {
+  grid-column: 1 / -1;
+  grid-row: auto;
+}
+.lite-workspace .fleet-v3 > .fleet-command {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tc-space-8);
+  border: 0;
+  background: transparent;
+}
+.fleet-v3 .fleet-map-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tc-space-8);
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--tc-space-12);
+}
+.fleet-v3 .fleet-map-heading h2 { font-size: var(--tc-type-title); }
+.fleet-v3 .fleet-toggle { gap: var(--tc-space-8); }
+.fleet-v3 .fleet-toggle svg { inline-size: var(--tc-icon-small); flex: none; }
+.fleet-v3 .fleet-command button[aria-expanded="true"] {
+  background: var(--lite-accent-wash);
+  color: var(--tc-accent);
+}
+.fleet-v3 .fleet-manifest h2 { font-size: var(--tc-type-title); }
+.fleet-v3 .fleet-context > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-block-end: var(--tc-space-12);
+}
+.fleet-v3 .fleet-context header small {
+  display: block;
+  color: var(--tc-text-secondary);
+}
+.fleet-v3 .fleet-context-grid { grid-template-columns: minmax(0, 1fr); gap: var(--tc-space-8); }
+.fleet-v3 .fleet-context-actions { margin-block: var(--tc-space-8); }
+.fleet-v3 .fleet-context-grid > div + div,
+.fleet-v3 .fleet-events {
+  border-block-start: 1px solid var(--tc-outline-subtle);
+  margin-block-start: var(--tc-space-12);
+  padding-block-start: var(--tc-space-8);
+}
+.fleet-v3 .fleet-events ol { list-style: none; padding: 0; }
+.fleet-v3 .fleet-events li { border-block-start: 1px solid var(--tc-outline-subtle); padding-block: 8px; }
+.fleet-v3 .fleet-events time { display: block; color: var(--tc-text-secondary); }
+.fleet-v3 .fleet-sheet-toggle { display: none; }
+.fleet-v3[data-explorer="false"] > .fleet-manifest,
+.fleet-v3[data-inspector="false"] #fleet-inspector-body { display: none; }
+@media (min-width: 1001px) {
+  .fleet-v3[data-inspector="false"] > .fleet-context { display: none; }
+}
+.lite-workspace .fleet-v3 .ops-map-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.fleet-v3 .ops-map-tools label { flex-basis: 100%; }
+.lite-workspace .fleet-v3 .ux-geo { height: clamp(340px, 58dvh, 720px); }
+.fleet-v3 .fleet-road-line {
+  filter: drop-shadow(0 1px 1px var(--tc-canvas));
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.fleet-v3 .fleet-pin {
+  display: grid;
+  place-items: center;
+  color: var(--tc-info);
+  background: var(--tc-surface);
+  border: 2px solid currentColor;
+  border-radius: 9px;
+  box-shadow: 0 1px 4px #0005;
+}
+.fleet-v3 .fleet-pin svg { width: 16px; height: 16px; }
+.fleet-v3 .fleet-pin.fleet-stale-fix { border-style: dashed; }
+.fleet-v3 .fleet-checkpoint-icon { color: var(--tc-gold); background: transparent; pointer-events: none; }
+.fleet-v3 .fleet-checkpoint-icon svg { width: 14px; height: 14px; }
+.fleet-v3[data-fullscreen="true"] > .fleet-map-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  border: 0;
+  border-radius: 0;
+  overflow: auto;
+}
+.lite-workspace .fleet-v3[data-fullscreen="true"] .ux-geo {
+  flex: 1 0 220px;
+  height: auto;
+}
+html:has(.fleet-v3[data-fullscreen="true"]) { overflow: hidden; }
+
+@media (max-width: 1000px) {
+  .lite-workspace .fleet-v3[data-explorer][data-inspector] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fleet-v3[data-explorer="auto"] > .fleet-manifest,
+  .fleet-v3[data-inspector="auto"] #fleet-inspector-body { display: none; }
+  .fleet-v3 .fleet-context {
+    border-radius: var(--tc-radius-sheet) var(--tc-radius-sheet) var(--tc-radius-card) var(--tc-radius-card);
+    margin-block-start: calc(-1 * var(--tc-space-12));
+    position: relative;
+    z-index: 2;
+  }
+  .fleet-v3 .fleet-context > header { margin-block-end: 0; gap: var(--tc-space-8); }
+  .fleet-v3 .fleet-sheet-toggle { display: inline-flex; flex: none; }
+  .fleet-v3 #fleet-inspector-body {
+    border-block-start: 1px solid var(--tc-outline-subtle);
+    margin-block-start: var(--tc-space-12);
+    padding: var(--tc-space-8) 2px;
+    max-block-size: 50dvh;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .fleet-v3 .fleet-manifest-list { max-block-size: 28dvh; }
+}
+@media (max-width: 560px) {
+  .lite-workspace .fleet-v3 .ux-geo { height: clamp(280px, 46dvh, 440px); }
+  .fleet-v3 .fleet-command .button { padding-inline: var(--tc-space-8); }
+}
+@media (max-width: 560px) {
+  .lite-workspace #main:has(.fleet-v3) { padding-block-start: var(--tc-space-12); }
+  .lite-workspace #main:has(.fleet-v3) .page-heading {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+    justify-content: space-between;
+    margin-block-end: var(--tc-space-8);
+  }
+  .fleet-v3 .fleet-map-heading { padding-block: 4px; }
+  .fleet-v3 .fleet-map-toolbar label { padding-inline: 3px; }
+  .fleet-v3 .ops-map-tools > label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    clip-path: inset(50%);
+    overflow: hidden;
+  }
+  .fleet-v3 #fleet-inspector-body { max-block-size: 42dvh; }
+}
