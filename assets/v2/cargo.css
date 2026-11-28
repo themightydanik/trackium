@@ -4296,3 +4296,10 @@ html[data-tc-theme=dark] .fleet-map-workspace { --planner-route: #d2a9ff; }
 @media (max-width: 560px) {
   .lifecycle-comparison { grid-template-columns:minmax(0,1fr); }
 }
+
+/* MapLibre contributes a transparent, non-interactive basemap behind Leaflet. */
+.vector-map-status { padding-inline: 14px; color: var(--tc-text-secondary); }
+.vector-map-status span { display: none; }
+[data-vector-state="loading"] + .vector-map-status .vector-map-loading,
+[data-vector-state="fallback"] + .vector-map-status .vector-map-fallback { display: inline; }
+[data-vector-state="ready"] :is(.leaflet-fleetCountryLabels-pane, .country-label) { visibility: hidden; }

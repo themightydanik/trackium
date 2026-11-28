@@ -16,6 +16,30 @@
     "assets/v2/leaflet.js": "db49d009c841f5ca34a888c96511ae936fd9f5533e90d8b2c4d57596f4e5641a",
     "assets/v2/leaflet.css": "a7837102824184820dfa198d1ebcd109ff6d0ff9a2672a074b9a1b4d147d04c6",
     "tools/LEAFLET-LICENSE.txt": "53e8dc25862014e4324741ca18fbe3611e11d42ef69f59f86ea8c5389647d4cb",
-    "assets/v2/world-map.js": "d8ac0a574c3b82abdaffef49461b372a0d184caad4300fc6bcd0d34dae3bc11d"
+    "assets/v2/world-map.js": "d8ac0a574c3b82abdaffef49461b372a0d184caad4300fc6bcd0d34dae3bc11d",
+    "assets/v2/leaflet-maplibre-gl.js": "441bccf2ac7217460dc6cb632f104d585da75e3b941f20085f5dc09c537374bc",
+    "assets/v2/maplibre-gl-csp.js": "55557346a86db282433469a8ca1ff0b4889bfc2809547c809c780171bd4553cf",
+    "assets/v2/maplibre-gl-csp-worker.js": "86f6a52cae3b4dfb7141480ec8ed66a8cd6b763cd16d48a2dd7342d245094f98",
+    "assets/v2/maplibre-gl.css": "576b085fdd9487a65a19215328c1e086c07ce5bf6da09b666b3806d3d008dae9",
+    "tools/MAPLIBRE-GL-LICENSE.txt": "ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2",
+    "tools/MAPLIBRE-LEAFLET-LICENSE.txt": "eaa721ba158cbeff47ad53b1035dfc26ff744df66662c93ff715c9885197ebf3",
+    "tools/NOTO-SANS-OFL.txt": "dc851f3a4e1477be3c40eee41d2cbb2f948b5fa917bee9e453947a32d8c83381"
+  },
+  "maplibre_gl": {
+    "version": "4.7.1",
+    "license": "BSD-3-Clause",
+    "url": "https://registry.npmjs.org/maplibre-gl/-/maplibre-gl-4.7.1.tgz",
+    "integrity": "sha512-lgL7XpIwsgICiL82ITplfS7IGwrB1OJIw/pCvprDp2dhmSSEBgmPzYRvwYYYvJGJD7fxUv1Tvpih4nZ6VrLuaA=="
+  },
+  "maplibre_leaflet": {
+    "version": "0.1.0",
+    "license": "ISC",
+    "url": "https://registry.npmjs.org/@maplibre/maplibre-gl-leaflet/-/maplibre-gl-leaflet-0.1.0.tgz",
+    "integrity": "sha512-QY2y7oRt/1qE8Mo3+hoWJeZ9xR9AGNzGdNPkwrBaOVBmO+dk6btWQ/W7C6ByRbKezcc5I5R/zSXUV2O6z459+A=="
+  },
+  "noto_sans": {
+    "commit": "028c18f713baecad011301ff7a69acc39bcc2ae7",
+    "license": "OFL-1.1",
+    "url": "https://github.com/protomaps/basemaps-assets/tree/028c18f713baecad011301ff7a69acc39bcc2ae7/fonts/Noto%20Sans%20Regular"
   }
 }

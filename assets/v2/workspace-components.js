@@ -364,14 +364,16 @@
       beforeRender(false);
       currentPage = page;
       const maxNativeZoom = Number(document.documentElement.dataset.roadTileMaxZoom);
-      const roadEnabled = document.documentElement.classList.contains('lite-workspace') &&
+      const lite = document.documentElement.classList.contains('lite-workspace');
+      const vectorRelease = lite ? document.documentElement.dataset.vectorTileRelease : null;
+      const roadEnabled = lite &&
         Number.isInteger(maxNativeZoom) && maxNativeZoom >= 1 && maxNativeZoom <= 19;
       mapInstance = L.map(el, {
         scrollWheelZoom: false, zoomAnimation: false, fadeAnimation: false,
-        markerZoomAnimation: false, minZoom: 1, maxZoom: roadEnabled ? 19 : 12, attributionControl: true
+        markerZoomAnimation: false, minZoom: 1, maxZoom: roadEnabled || vectorRelease ? 19 : 12, attributionControl: true
       }).setView([25, 10], 2);
       mapContainer = el;
-      if (roadEnabled || fleet) mapInstance.createPane('trackiumGeography').style.zIndex = '190';
+      if (roadEnabled || vectorRelease || fleet) mapInstance.createPane('trackiumGeography').style.zIndex = '190';
       if (fleet) {
         for (const [name, z] of Object.entries({fleetCountryLabels:390,fleetOverview:400,
           fleetPlan:410,fleetComparison:415,fleetRoad:420,fleetDraft:425,fleetPreview:426,fleetPositions:430}))
@@ -396,30 +398,57 @@
         mapInstance.on('click', event => pickDraftStop?.(event.latlng));
       }
       countries = L.geoJSON(root.TrackiumWorldMap, {
-        interactive: false, className: 'workspace-map-land', pane: roadEnabled || fleet ? 'trackiumGeography' : 'overlayPane'
+        interactive: false, className: 'workspace-map-land', pane: roadEnabled || vectorRelease || fleet ? 'trackiumGeography' : 'overlayPane'
       }).addTo(mapInstance);
-      if (roadEnabled) {
+      if (roadEnabled || vectorRelease) {
         const media = matchMedia('(prefers-color-scheme: dark)');
+        const theme = () => {
+          const explicit = document.documentElement.dataset.tcTheme;
+          return explicit || (media.matches ? 'dark' : 'light');
+        };
         const tilesUrl = () => {
-          const theme = document.documentElement.dataset.tcTheme;
-          const dark = theme === 'dark' || (!theme && media.matches);
-          const variant = dark && document.documentElement.dataset.roadTileDark === 'true' ? 'dark/' : '';
+          const variant = theme() === 'dark' && document.documentElement.dataset.roadTileDark === 'true' ? 'dark/' : '';
           return '/app/assets/road-tiles/' + variant + '{z}/{x}/{y}.png';
         };
         let currentRoadUrl = tilesUrl();
-        const roads = L.tileLayer(currentRoadUrl, {
+        const raster = () => L.tileLayer(currentRoadUrl, {
           maxNativeZoom, maxZoom: 19, noWrap: true, updateWhenIdle: true,
           className: 'trackium-road-tiles',
           attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
-        }).addTo(mapInstance);
+        });
+        const roads = roadEnabled ? raster() : null;
+        let vector, vectorBacking;
+        if (vectorRelease) {
+          const pane = mapInstance.createPane('trackiumVectorRoads');
+          pane.style.zIndex = '250';
+          pane.style.pointerEvents = 'none';
+          pane.setAttribute('aria-hidden','true');
+          vector = root.TrackiumVectorBasemap.create(vectorRelease,el,theme);
+          if (roads) vectorBacking = raster();
+        }
         syncRoadStyle = () => {
           const url = tilesUrl();
-          if (url !== currentRoadUrl) roads.setUrl(currentRoadUrl = url);
+          if (roads && url !== currentRoadUrl) {
+            roads.setUrl(currentRoadUrl = url);
+            vectorBacking?.setUrl(url);
+          }
+          vector?.updateTheme();
         };
         const updateStyle = syncRoadStyle;
         media.addEventListener('change', updateStyle);
-        mapInstance.on('unload', () => media.removeEventListener('change', updateStyle));
-        const chooser = L.control.layers({ 'Roads': roads, 'Geographic overview': L.layerGroup() }, {}, {
+        const appearance = new MutationObserver(updateStyle);
+        appearance.observe(document.documentElement,{attributes:true,attributeFilter:['data-tc-theme']});
+        mapInstance.on('unload', () => {
+          media.removeEventListener('change', updateStyle);
+          appearance.disconnect();
+          vector?.dispose();
+        });
+        const basemaps = {};
+        if (vector) basemaps['Vector roads'] = L.layerGroup([...(vectorBacking ? [vectorBacking] : []), vector.layer]);
+        if (roads) basemaps.Roads = roads;
+        basemaps['Geographic overview'] = L.layerGroup();
+        Object.values(basemaps)[0].addTo(mapInstance);
+        const chooser = L.control.layers(basemaps, {}, {
           collapsed: false, position: 'bottomleft'
         }).addTo(mapInstance);
         chooser.getContainer().setAttribute('aria-label', 'Basemap layer');
@@ -629,7 +658,7 @@
     for (const layer of layers) bounds.extend(layer.getBounds ? layer.getBounds() : layer.getLatLng());
     mapInstance.fitBounds(bounds, {
       padding: [30, 30], animate: false,
-      maxZoom: document.documentElement.dataset.roadTileMaxZoom ? 16 : key === 'planner-preview' ? 12 : 8
+      maxZoom: document.documentElement.dataset.roadTileMaxZoom || document.documentElement.dataset.vectorTileRelease ? 16 : key === 'planner-preview' ? 12 : 8
     });
     target?.openPopup();
   }
