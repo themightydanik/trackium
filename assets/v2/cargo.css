@@ -4303,3 +4303,5 @@ html[data-tc-theme=dark] .fleet-map-workspace { --planner-route: #d2a9ff; }
 [data-vector-state="loading"] + .vector-map-status .vector-map-loading,
 [data-vector-state="fallback"] + .vector-map-status .vector-map-fallback { display: inline; }
 [data-vector-state="ready"] :is(.leaflet-fleetCountryLabels-pane, .country-label) { visibility: hidden; }
+[data-vector-state="partial"] + .vector-map-status .vector-map-partial,
+[data-vector-state="renderer-failure"] + .vector-map-status .vector-map-renderer { display: inline; }

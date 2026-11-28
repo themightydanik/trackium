@@ -1,0 +1,487 @@
+{
+  "engineVersion": "3.6.3",
+  "routes": {
+    "kyiv-zhytomyr": {
+      "graph": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+      "origin": [
+        50.4504,
+        30.5236
+      ],
+      "destination": [
+        50.2547,
+        28.6587
+      ]
+    },
+    "kyivWest": {
+      "graph": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+      "origin": [
+        50.448,
+        30.315
+      ],
+      "destination": [
+        50.444,
+        30.276
+      ]
+    },
+    "corridor": {
+      "graph": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+      "origin": [
+        49.8378,
+        24.0298
+      ],
+      "destination": [
+        50.038,
+        22.014
+      ]
+    }
+  },
+  "datasets": {
+    "domestic": {
+      "release": "20261124-kyiv-zhytomyr-z13",
+      "reused": 0,
+      "requests": 975,
+      "bytes": 14163671,
+      "requested": 968,
+      "tiles": 968,
+      "roadTiles": 946,
+      "peakRssKiB": 147204,
+      "tileBytes": 13375212,
+      "manifestSha256": "77ae077d2bcaf65644a5688c69b18c8122ae8d50443d874e4c6dba7d2ab56da7",
+      "coverageSha256": "adebf86b6737e3161a2f331ca7dd1c6657ac46228db496bac49e4a204964cbe0",
+      "archiveSha256": "b9a1ad9299f49fcfc771f290eac1eccd25cdc296a894b9e00803a2fd9d5c5dc8"
+    },
+    "international": {
+      "release": "20261124-lviv-rzeszow-z13",
+      "reused": 0,
+      "requests": 982,
+      "bytes": 21304215,
+      "requested": 973,
+      "tiles": 973,
+      "roadTiles": 961,
+      "peakRssKiB": 223688,
+      "tileBytes": 20158992,
+      "manifestSha256": "f1152dc675cf9fd9c1dc5e8c278a70595772c6b61af46ca335dfa3e307ec4200",
+      "coverageSha256": "77092f83428a385b2d034fd8ccecc092af639d623a88edb6a7a335882b691bf7",
+      "archiveSha256": "4fe13fe6cedb20e6d896160049789c17b687b65d341be5b5b41a78aeb78b034c"
+    }
+  },
+  "outlier": {
+    "point": [
+      50.444113,
+      30.278475
+    ],
+    "vertexIndex": 168,
+    "osmWay": 1233301080,
+    "osmHighway": "track",
+    "vectorKind": "path",
+    "vectorId": 35184524898180,
+    "distanceBeforeMeters": 26.736317990496243,
+    "distanceAfterMeters": 0.049000635019686566
+  },
+  "alignment": [
+    {
+      "zoom": 10,
+      "includePaths": false,
+      "vertices": 1278,
+      "fileVertices": 1278,
+      "roadVertices": 1278,
+      "segments": 1277,
+      "roadSegments": 1277,
+      "crossings": 6,
+      "sampledMeters": 140180.89,
+      "fileMeters": 140180.89,
+      "roadMeters": 140180.89,
+      "distanceKm": 140.329,
+      "estimatedSeconds": 5567.591,
+      "medianMeters": 1.82,
+      "p95Meters": 5.43,
+      "maximum": {
+        "index": 1033,
+        "point": {
+          "latitude": 50.286326,
+          "longitude": 28.803054
+        },
+        "tile": [
+          10,
+          593,
+          346
+        ],
+        "meters": 43.23048699185905,
+        "road": {
+          "id": 35184423874850,
+          "kind": "major_road",
+          "name": null
+        }
+      },
+      "route": "kyiv-zhytomyr",
+      "graph": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+      "release": "20261124-kyiv-zhytomyr-z13"
+    },
+    {
+      "zoom": 10,
+      "includePaths": false,
+      "vertices": 173,
+      "fileVertices": 173,
+      "roadVertices": 173,
+      "segments": 172,
+      "roadSegments": 172,
+      "crossings": 0,
+      "sampledMeters": 11659.99,
+      "fileMeters": 11659.99,
+      "roadMeters": 11659.99,
+      "distanceKm": 11.673,
+      "estimatedSeconds": 3167.968,
+      "medianMeters": 2.4,
+      "p95Meters": 348.67,
+      "maximum": {
+        "index": 6,
+        "point": {
+          "latitude": 50.447826,
+          "longitude": 30.326659
+        },
+        "tile": [
+          10,
+          598,
+          345
+        ],
+        "meters": 615.1448982467081,
+        "road": {
+          "id": 35184395580080,
+          "kind": "major_road",
+          "name": null
+        }
+      },
+      "route": "kyivWest",
+      "graph": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+      "release": "20261124-kyiv-zhytomyr-z13"
+    },
+    {
+      "zoom": 12,
+      "includePaths": false,
+      "vertices": 1278,
+      "fileVertices": 1278,
+      "roadVertices": 1278,
+      "segments": 1277,
+      "roadSegments": 1277,
+      "crossings": 28,
+      "sampledMeters": 140180.89,
+      "fileMeters": 140180.89,
+      "roadMeters": 140180.89,
+      "distanceKm": 140.329,
+      "estimatedSeconds": 5567.591,
+      "medianMeters": 0.45,
+      "p95Meters": 1.54,
+      "maximum": {
+        "index": 748,
+        "point": {
+          "latitude": 50.347286,
+          "longitude": 29.253862
+        },
+        "tile": [
+          12,
+          2380,
+          1382
+        ],
+        "meters": 2.956653026816099,
+        "road": {
+          "id": 35185226559000,
+          "kind": "major_road",
+          "name": null
+        }
+      },
+      "route": "kyiv-zhytomyr",
+      "graph": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+      "release": "20261124-kyiv-zhytomyr-z13"
+    },
+    {
+      "zoom": 12,
+      "includePaths": false,
+      "vertices": 173,
+      "fileVertices": 173,
+      "roadVertices": 173,
+      "segments": 172,
+      "roadSegments": 172,
+      "crossings": 2,
+      "sampledMeters": 11659.99,
+      "fileMeters": 11659.99,
+      "roadMeters": 11659.99,
+      "distanceKm": 11.673,
+      "estimatedSeconds": 3167.968,
+      "medianMeters": 0.6,
+      "p95Meters": 267.51,
+      "maximum": {
+        "index": 2,
+        "point": {
+          "latitude": 50.447338,
+          "longitude": 30.318622
+        },
+        "tile": [
+          12,
+          2392,
+          1381
+        ],
+        "meters": 391.21318446408736,
+        "road": {
+          "id": 35184377301450,
+          "kind": "minor_road",
+          "name": null
+        }
+      },
+      "route": "kyivWest",
+      "graph": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+      "release": "20261124-kyiv-zhytomyr-z13"
+    },
+    {
+      "zoom": 13,
+      "includePaths": false,
+      "vertices": 1278,
+      "fileVertices": 1278,
+      "roadVertices": 1278,
+      "segments": 1277,
+      "roadSegments": 1277,
+      "crossings": 53,
+      "sampledMeters": 140180.89,
+      "fileMeters": 140180.89,
+      "roadMeters": 140180.89,
+      "distanceKm": 140.329,
+      "estimatedSeconds": 5567.591,
+      "medianMeters": 0.2,
+      "p95Meters": 0.8,
+      "maximum": {
+        "index": 894,
+        "point": {
+          "latitude": 50.339061,
+          "longitude": 29.014222
+        },
+        "tile": [
+          13,
+          4756,
+          2766
+        ],
+        "meters": 1.6127800698046977,
+        "road": {
+          "id": 35184405279480,
+          "kind": "major_road",
+          "name": null
+        }
+      },
+      "route": "kyiv-zhytomyr",
+      "graph": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+      "release": "20261124-kyiv-zhytomyr-z13"
+    },
+    {
+      "zoom": 13,
+      "includePaths": false,
+      "vertices": 173,
+      "fileVertices": 173,
+      "roadVertices": 173,
+      "segments": 172,
+      "roadSegments": 172,
+      "crossings": 5,
+      "sampledMeters": 11659.99,
+      "fileMeters": 11659.99,
+      "roadMeters": 11659.99,
+      "distanceKm": 11.673,
+      "estimatedSeconds": 3167.968,
+      "medianMeters": 0.24,
+      "p95Meters": 90.59,
+      "maximum": {
+        "index": 2,
+        "point": {
+          "latitude": 50.447338,
+          "longitude": 30.318622
+        },
+        "tile": [
+          13,
+          4785,
+          2762
+        ],
+        "meters": 392.16312324493504,
+        "road": {
+          "id": 35184453214090,
+          "kind": "minor_road",
+          "name": null
+        }
+      },
+      "route": "kyivWest",
+      "graph": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+      "release": "20261124-kyiv-zhytomyr-z13"
+    },
+    {
+      "zoom": 15,
+      "includePaths": true,
+      "vertices": 173,
+      "fileVertices": 43,
+      "roadVertices": 43,
+      "segments": 172,
+      "roadSegments": 42,
+      "crossings": 16,
+      "sampledMeters": 11659.99,
+      "fileMeters": 3406.08,
+      "roadMeters": 3406.08,
+      "distanceKm": 11.673,
+      "estimatedSeconds": 3167.968,
+      "medianMeters": 0.04,
+      "p95Meters": 0.16,
+      "maximum": {
+        "index": 151,
+        "point": {
+          "latitude": 50.448714,
+          "longitude": 30.281058
+        },
+        "tile": [
+          15,
+          19140,
+          11049
+        ],
+        "meters": 0.3374636282500185,
+        "road": {
+          "id": 35184616710010,
+          "kind": "major_road",
+          "name": "вулиця Українського Відродження"
+        }
+      },
+      "route": "kyivWest",
+      "graph": "44850cd34dc802e77101349be1d44df3f0641c7f5856aed3eeb188d2aedc40f6",
+      "release": "20261124"
+    },
+    {
+      "zoom": 10,
+      "includePaths": false,
+      "vertices": 2239,
+      "fileVertices": 2239,
+      "roadVertices": 2239,
+      "segments": 2238,
+      "roadSegments": 2238,
+      "crossings": 8,
+      "sampledMeters": 170102.18,
+      "fileMeters": 170102.18,
+      "roadMeters": 170102.18,
+      "distanceKm": 170.284,
+      "estimatedSeconds": 7949.937,
+      "medianMeters": 1.8,
+      "p95Meters": 6.79,
+      "maximum": {
+        "index": 2035,
+        "point": {
+          "latitude": 50.089226,
+          "longitude": 22.060627
+        },
+        "tile": [
+          10,
+          574,
+          346
+        ],
+        "meters": 37.68494756139023,
+        "road": {
+          "id": 35184467747830,
+          "kind": "highway",
+          "name": null
+        }
+      },
+      "route": "corridor",
+      "graph": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+      "release": "20261124-lviv-rzeszow-z13"
+    },
+    {
+      "zoom": 12,
+      "includePaths": false,
+      "vertices": 2239,
+      "fileVertices": 2239,
+      "roadVertices": 2239,
+      "segments": 2238,
+      "roadSegments": 2238,
+      "crossings": 34,
+      "sampledMeters": 170102.18,
+      "fileMeters": 170102.18,
+      "roadMeters": 170102.18,
+      "distanceKm": 170.284,
+      "estimatedSeconds": 7949.937,
+      "medianMeters": 0.48,
+      "p95Meters": 1.8,
+      "maximum": {
+        "index": 1603,
+        "point": {
+          "latitude": 50.066251,
+          "longitude": 22.561613
+        },
+        "tile": [
+          12,
+          2304,
+          1387
+        ],
+        "meters": 2.798874936955536,
+        "road": {
+          "id": 35184468026760,
+          "kind": "highway",
+          "name": null
+        }
+      },
+      "route": "corridor",
+      "graph": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+      "release": "20261124-lviv-rzeszow-z13"
+    },
+    {
+      "zoom": 13,
+      "includePaths": false,
+      "vertices": 2239,
+      "fileVertices": 2239,
+      "roadVertices": 2239,
+      "segments": 2238,
+      "roadSegments": 2238,
+      "crossings": 67,
+      "sampledMeters": 170102.18,
+      "fileMeters": 170102.18,
+      "roadMeters": 170102.18,
+      "distanceKm": 170.284,
+      "estimatedSeconds": 7949.937,
+      "medianMeters": 0.24,
+      "p95Meters": 0.94,
+      "maximum": {
+        "index": 907,
+        "point": {
+          "latitude": 49.954275,
+          "longitude": 23.229794
+        },
+        "tile": [
+          13,
+          4624,
+          2779
+        ],
+        "meters": 1.559296444079742,
+        "road": {
+          "id": 35184395349000,
+          "kind": "major_road",
+          "name": null
+        }
+      },
+      "route": "corridor",
+      "graph": "6a707e47f877bd471dce66baa5fb0e1e54d4a1bfe6a0f2c49156eb1f9d992f29",
+      "release": "20261124-lviv-rzeszow-z13"
+    }
+  ],
+  "localBenchmark": {
+    "baselineRouting": {
+      "p50": 47.86,
+      "p95": 57.59,
+      "p99": 58.47
+    },
+    "mixedRouting": {
+      "p50": 77.7,
+      "p95": 119.67,
+      "p99": 126.63
+    },
+    "mixedTiles": {
+      "concurrency": 16,
+      "requests": 1600,
+      "errors": 0,
+      "compressedBodyBytes": 13709718,
+      "elapsedMs": 1201,
+      "processCpuMs": 1983,
+      "processRssMiB": 167,
+      "p50": 11.15,
+      "p95": 21.71,
+      "p99": 27.31
+    }
+  }
+}

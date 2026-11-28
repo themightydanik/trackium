@@ -393,6 +393,8 @@
       '<div id="workspace-map" class="ux-geo" role="region" aria-label="Geographic routes and last reported positions"></div>' +
       (isLite() && document.documentElement.dataset.vectorTileRelease ?
         '<div class="vector-map-status" role="status"><span class="vector-map-loading">Loading vector roads…</span>' +
+        '<span class="vector-map-partial">Vector road coverage is partial at this view.</span>' +
+        '<span class="vector-map-renderer">Vector renderer unavailable. Showing the available basemap.</span>' +
         '<span class="vector-map-fallback">Vector roads unavailable at this view. Showing the available basemap.</span></div>' : '') +
       '<div class="lite-map-key" aria-label="Map legend"><span class="planned">Planned checkpoints</span>' +
       (fleet ? '<span class="calculated">Calculated road route</span>' : '') +
