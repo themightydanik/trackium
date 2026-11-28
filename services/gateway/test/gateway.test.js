@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createAovxStreamFramer } from '../src/aovx/stream-framer.js';
+import { encodeAovxServerAck } from '../src/aovx/server-ack.js';
 import http from 'node:http';
 import { once } from 'node:events';
 import { createGateway } from '../src/gateway.js';
@@ -24,7 +28,7 @@ async function fixture(t, overrides = {}, persist = async () => {}, logger = qui
   let closed = false;
   const journal = {
     async initialize() {},
-    async persistPacket(packet) { writes.push(packet.payload.toString()); packets.push(Buffer.from(packet.payload)); records.push(packet); await persist(packet); },
+    async persistPacket(packet) { writes.push(packet.payload.toString()); packets.push(Buffer.from(packet.payload)); records.push(packet); return persist(packet); },
     async checkReady() {},
     async close() { closed = true; }
   };
@@ -554,4 +558,179 @@ test('GNSS enable rejects when the device disconnects before acknowledging 0x810
   await receivedCommand.promise;
   socket.destroy();
   await assert.rejects(operation, /disconnected during configuration command/);
+});
+
+// Workbook 0x0200 row 8 fixed prefix and 0x0900 row 8 body. The former
+// stops inside an extension; the latter has inconsistent wire metadata.
+const workbookBcd = Buffer.from('221042214328','hex');
+const workbook0200Body = Buffer.from('000000000000000301e611be06fc5dc0004100000000210928172305010400000000300116310107','hex');
+const workbook0900Body = Buffer.from('410000000301e611be06fc5dc000410000000021092817230501040000000000','hex');
+function ackFixtureFrame(messageId, sequenceNumber, overrides = {}) {
+  return encodeAovxFrame({ messageId, sequenceNumber, deviceIdBcd:workbookBcd,
+    body:messageId === 0x0200 ? workbook0200Body : workbook0900Body, ...overrides });
+}
+const ackConfig = {tcpProtocol:'aovx',aovxServerAckEnabled:true};
+const digest = payload => ({sha256:createHash('sha256').update(payload).digest('hex')});
+function collected(socket) {
+  const chunks = [];
+  socket.on('data',chunk => chunks.push(chunk));
+  return () => Buffer.concat(chunks);
+}
+function decodeWorkbookAcks(wire) {
+  const frames = [];
+  createAovxStreamFramer({onFrame(frame) {
+    frames.push(decodeAovxFrame(frame,{checksumPolicy:'require-xor-match'}));
+    return true;
+  }}).push(wire);
+  return frames;
+}
+
+test('AOVX server ACK follows workbook fields using computed XOR and escapes response sequence', () => {
+  const incoming = decodeAovxFrame(ackFixtureFrame(0x0200,1));
+  // Workbook 0x8001 row 8 has B9 in the checksum cell. XOR of the displayed
+  // 17 header/body bytes is BC. Keep the protocol checksum over the actual bytes.
+  assert.equal(encodeAovxServerAck(incoming,1).toString('hex'),'7e8001000522104221432800010001020000bc7e');
+  const another = decodeAovxFrame(ackFixtureFrame(0x0900,0x7d7e));
+  const reply = encodeAovxServerAck(another,0x7e7d);
+  assert.match(reply.toString('hex'),/7d027d017d017d02/);
+  const parsed = decodeAovxFrame(reply,{checksumPolicy:'require-xor-match'});
+  assert.equal(parsed.messageId,0x8001);
+  assert.equal(parsed.sequenceNumber,0x7e7d);
+  assert.equal(parsed.properties,5);
+  assert.deepEqual(parsed.deviceIdBcd,workbookBcd);
+  assert.equal(parsed.body.toString('hex'),'7d7e090000');
+  const manufacturer = Buffer.from(readFileSync(new URL('./fixtures/aovx-manufacturer-0200.hex',import.meta.url),'utf8')
+    .replace(/\s/g,''),'hex');
+  const actual = decodeAovxFrame(manufacturer,{checksumPolicy:'require-xor-match'});
+  const framedAck = decodeAovxFrame(encodeAovxServerAck(actual,3),{checksumPolicy:'require-xor-match'});
+  assert.ok(framedAck.deviceIdBcd.equals(actual.deviceIdBcd));
+  assert.equal(framedAck.body.readUInt16BE(0),actual.sequenceNumber);
+  assert.equal(framedAck.body.readUInt16BE(2),0x0200);
+  assert.equal(framedAck.body[4],0);
+});
+
+test('AOVX routes fragmented and coalesced ACKs after durable receipt, before the custody decision', {timeout:5000}, async t => {
+  const commit = deferred(), custody = deferred();
+  t.after(() => { commit.resolve(); custody.resolve(); });
+  const f = await fixture(t,ackConfig,async ({payload}) => { await commit.promise; return digest(payload); });
+  f.journal.afterPersist = async packet => packet.aovx.messageId === 0x0200
+    ? (await custody.promise, {reason:'outside-custody-window'}) : undefined;
+  const {socket,ended} = await f.connect();
+  const wire = collected(socket);
+  const buffered = Buffer.from(workbook0200Body);
+  buffered[4] |= 0x80;
+  const report = ackFixtureFrame(0x0200,0x7d7e,{body:buffered});
+  socket.write(report.subarray(0,8));
+  await tick();
+  assert.equal(f.records.length,0);
+  socket.end(Buffer.concat([report.subarray(8),ackFixtureFrame(0x0900,2)]));
+  await until(() => f.records.length === 1);
+  assert.equal(wire().length,0);
+  commit.resolve();
+  await until(() => decodeWorkbookAcks(wire()).length === 1);
+  assert.equal(f.gateway.aovxReceiverMetrics().processingRejections,0);
+  custody.resolve();
+  await ended;
+  const replies = decodeWorkbookAcks(wire());
+  assert.deepEqual(replies.map(frame => frame.body.toString('hex')),['7d7e020000','0002090000']);
+  assert.ok(replies.every(frame=>frame.messageId===0x8001 && frame.deviceIdBcd.equals(workbookBcd)));
+  assert.notEqual(replies[0].sequenceNumber,replies[1].sequenceNumber);
+  await until(() => f.gateway.aovxReceiverMetrics().disconnects===1);
+  assert.equal(f.gateway.aovxReceiverMetrics().processingRejections,1);
+  assert.equal(f.gateway.aovxReceiverMetrics().acknowledgedFrames,2);
+});
+
+test('AOVX database failure leaves delivery unacknowledged, reconnect and replay are acknowledged', {timeout:5000}, async t => {
+  let fail = true;
+  const f = await fixture(t,ackConfig,async ({payload}) => {
+    if (fail) throw new Error('disposable journal failure');
+    return digest(payload);
+  });
+  const report = ackFixtureFrame(0x0200,9);
+  const first = await f.connect();
+  const firstWire = collected(first.socket);
+  first.socket.end(Buffer.concat([report,report]));
+  await first.ended;
+  assert.equal(firstWire().length,0);
+  assert.equal(f.gateway.aovxReceiverMetrics().ackFailures,1);
+  assert.equal(f.records.length,1);
+  fail = false;
+  for (let i=0;i<2;i++) {
+    const client = await f.connect();
+    const wire = collected(client.socket);
+    client.socket.end(report);
+    await client.ended;
+    assert.deepEqual(decodeWorkbookAcks(wire()).map(frame=>frame.body.toString('hex')),['0009020000']);
+  }
+  assert.equal(f.gateway.aovxReceiverMetrics().recentDuplicateFrames,1);
+});
+
+test('AOVX keeps unsupported and corrupt frames in the journal without ACK and discards a partial frame', {timeout:5000}, async t => {
+  const f = await fixture(t,ackConfig,async ({payload}) => digest(payload));
+  const {socket,ended} = await f.connect();
+  const wire = collected(socket);
+  const wrongXor = Buffer.from(ackFixtureFrame(0x0200,3));
+  wrongXor[wrongXor.length-2] ^= 1;
+  socket.end(Buffer.concat([ackFixtureFrame(0x7777,1),wrongXor,ackFixtureFrame(0x0200,4,{properties:0x2000}),
+    ackFixtureFrame(0x0900,5,{body:Buffer.alloc(1)}),ackFixtureFrame(0x0200,6).subarray(0,8)]));
+  await ended;
+  assert.equal(f.records.length,4);
+  assert.equal(wire().length,0);
+  assert.equal(f.gateway.aovxReceiverMetrics().unsupportedMessages,1);
+});
+
+test('AOVX a peer lost before journal commit cannot be acknowledged on a different session', {timeout:5000}, async t => {
+  const commit = deferred();
+  t.after(() => commit.resolve());
+  const f = await fixture(t,{...ackConfig,socketTimeoutMs:100},async ({payload}) => {
+    await commit.promise;
+    return digest(payload);
+  });
+  const first = await f.connect();
+  const firstWire = collected(first.socket);
+  first.socket.write(ackFixtureFrame(0x0200,8));
+  await until(() => f.records.length===1);
+  await first.ended;
+  await until(() => f.gateway.aovxReceiverMetrics().disconnects===1);
+  commit.resolve();
+  await until(() => f.gateway.aovxReceiverMetrics().ackFailures===1);
+  assert.equal(firstWire().length,0);
+  const second = await f.connect();
+  const secondWire = collected(second.socket);
+  second.socket.end(ackFixtureFrame(0x0900,10));
+  await second.ended;
+  assert.deepEqual(decodeWorkbookAcks(secondWire()).map(frame=>frame.body.toString('hex')),['000a090000']);
+});
+
+test('AOVX ACK is explicitly enabled only on the AOVX TCP receiver', async t => {
+  const base = {DATABASE_URL:'postgres://unused'};
+  assert.equal(readConfig({...base,TCP_PROTOCOL:'aovx'}).aovxServerAckEnabled,false);
+  assert.throws(()=>readConfig({...base,AOVX_SERVER_ACK_ENABLED:'true'}),/requires an AOVX TCP receiver/);
+  assert.throws(()=>readConfig({...base,TCP_PROTOCOL:'aovx',ENABLE_TCP_RECEIVER:'false',
+    AOVX_SERVER_ACK_ENABLED:'true'}),/requires an AOVX TCP receiver/);
+  const f = await fixture(t,{tcpProtocol:'aovx'});
+  const {socket,ended} = await f.connect();
+  const wire = collected(socket);
+  socket.end(ackFixtureFrame(0x0200,1));
+  await ended;
+  assert.equal(f.records.length,1);
+  assert.equal(wire().length,0);
+});
+
+test('AOVX accepts unmodified Protocol PDF vectors independently of extension parsing', {timeout:5000}, async t => {
+  // Protocol V3.0 §2.3.1, §3.4, and the §3.7 sensor-log example on page 22.
+  const basic = Buffer.from('7e0200001c8050650805440004000000008400002301e5bb4506fabb57003f00000036230731084856417e','hex');
+  const sampleAck = Buffer.from('7e8001000559305449181500010001020000ff7e','hex');
+  const parsedAck = decodeAovxFrame(sampleAck,{checksumPolicy:'require-xor-match'});
+  assert.deepEqual(encodeAovxServerAck({...parsedAck,messageId:0x0200,sequenceNumber:1},1),sampleAck);
+  const sensor = Buffer.from('7e09000049487060054219000e54100000000000000000000000000000000000240112034640001f2401120345210c4100f4011c00f3ffe80008004003fe001f2401120345510c4100f4011c00f3fff0000800a003feb67e','hex');
+  const f = await fixture(t,ackConfig,async ({payload})=>digest(payload));
+  const {socket,ended} = await f.connect();
+  const wire = collected(socket);
+  socket.end(Buffer.concat([basic,sensor,ackFixtureFrame(0x0200,20,{body:Buffer.alloc(27)})]));
+  await ended;
+  assert.deepEqual(f.packets,[basic,sensor,ackFixtureFrame(0x0200,20,{body:Buffer.alloc(27)})]);
+  assert.equal(f.records[0].aovx.parseStatus,'error');
+  assert.equal(f.records[1].aovx.parseStatus,'opaque');
+  assert.deepEqual(decodeWorkbookAcks(wire()).map(frame=>frame.body.toString('hex')),['0004020000','000e090000']);
 });

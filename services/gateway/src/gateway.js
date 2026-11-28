@@ -3,6 +3,7 @@ import http from 'node:http';
 import { diagnosePortConflict } from './port-diagnostics.js';
 import { createLineFramer } from './framing.js';
 import { createAovxStreamFramer } from './aovx/stream-framer.js';
+import { canAcknowledgeAovxFrame, encodeAovxServerAck, supportsAovxServerAck } from './aovx/server-ack.js';
 import { decodeAovxFrame } from './aovx/frame.js';
 import { parseAovxMessage } from './aovx/messages.js';
 import { encodeAovxQueryCommand, encodeAovxGnssEnableCommand, parseAovxGeneralQueryResponse, parseAovxConfigurationResponse } from './aovx/config-query.js';
@@ -16,8 +17,7 @@ function jsonSafe(value) {
   return value;
 }
 
-function inspectAovxFrame(payload, logger) {
-  const decoded = decodeAovxFrame(payload);
+function inspectAovxFrame(decoded, logger) {
   if (!decoded.checksumMatchesXor) {
     logger.warn('AOVX frame captured with protocol checksum mismatch');
   }
@@ -63,7 +63,34 @@ export function createGateway({ journal, config, logger = console, requestHandle
   let shutdownPromise;
   let startPromise;
 
-  const tcp = net.createServer(socket => {
+  const aovx = config.tcpProtocol === 'aovx';
+  const ackEnabled = aovx && config.aovxServerAckEnabled === true;
+  const counters = {
+    receivedFrames: 0, acknowledgedFrames: 0, ackFailures: 0,
+    recentDuplicateFrames: 0, unsupportedMessages: 0, processingRejections: 0, disconnects: 0
+  };
+  const recentDigests = new Set();
+  const reportCounters = () => logger.info?.('AOVX receiver totals:', JSON.stringify(counters));
+  let metricsTimer;
+
+  function sendAck(socket, frame) {
+    if (socket.destroyed || !socket.writable) {
+      counters.ackFailures++;
+      return Promise.resolve();
+    }
+    const sequence = nextAovxSequence;
+    nextAovxSequence = (nextAovxSequence + 1) & 0xffff;
+    const response = encodeAovxServerAck(frame, sequence);
+    return new Promise(resolve => {
+      socket.write(response, error => {
+        if (error) counters.ackFailures++;
+        else counters.acknowledgedFrames++;
+        resolve();
+      });
+    });
+  }
+
+  const tcp = net.createServer({ allowHalfOpen: ackEnabled }, socket => {
     // A disconnected client keeps its slot until accepted writes settle.
     if (stopping || sessions.size >= config.maxConnections) { socket.destroy(); return; }
     const session = { socket, chain: Promise.resolve(), pending: 0, closed: false, failed: false, deviceIdBcd: null };
@@ -78,9 +105,12 @@ export function createGateway({ journal, config, logger = console, requestHandle
       let aovx = null;
       let decodedAovx = null;
       if (config.tcpProtocol === 'aovx') {
+        counters.receivedFrames++;
         try {
-          aovx = inspectAovxFrame(payload, logger);
           decodedAovx = decodeAovxFrame(payload);
+          aovx = inspectAovxFrame(decodedAovx, logger);
+          if (decodedAovx.checksumMatchesXor && aovx.parseStatus === 'opaque' && !supportsAovxServerAck(decodedAovx))
+            counters.unsupportedMessages++;
         } catch (err) {
           logger.warn('invalid AOVX frame:', err.message);
           socket.destroy();
@@ -172,13 +202,30 @@ export function createGateway({ journal, config, logger = console, requestHandle
         socket.destroy();
         return false;
       }
+      const shouldAck = ackEnabled && decodedAovx && canAcknowledgeAovxFrame(decodedAovx);
       pendingFrames++;
       pendingBytes += payload.length;
       session.pending++;
       socket.pause();
       session.chain = session.chain.then(async () => {
-        // Never write later frames from this connection after a journal failure.
-        if (!session.failed) await journal.persistPacket({ payload, remoteAddress: socket.remoteAddress, aovx });
+        // A journal failure closes the session and leaves the device free to retry.
+        if (session.failed) return;
+        const packet = { payload, remoteAddress: peer.remoteAddress, aovx };
+        let stored;
+        try { stored = await journal.persistPacket(packet, { durable: !!shouldAck }); }
+        catch (error) {
+          if (shouldAck) counters.ackFailures++;
+          throw error;
+        }
+        if (decodedAovx && stored?.sha256) {
+          if (recentDigests.delete(stored.sha256)) counters.recentDuplicateFrames++;
+          recentDigests.add(stored.sha256);
+          if (recentDigests.size > 4096) recentDigests.delete(recentDigests.values().next().value);
+        }
+        if (shouldAck) await sendAck(socket, decodedAovx);
+        const processing = await journal.afterPersist?.(packet, stored);
+        if (['rejected','outside-custody-window','unbound'].includes(processing?.reason))
+          counters.processingRejections++;
       }).catch(err => {
         session.failed = true;
         logger.error('journal write failed', err.message);
@@ -199,9 +246,12 @@ export function createGateway({ journal, config, logger = console, requestHandle
         }, onFrame })
       : createLineFramer({ maxFrameBytes: config.maxFrameBytes, onError: () => socket.destroy(), onFrame });
     socket.on('data', chunk => { if (!framer.push(chunk)) socket.destroy(); });
-    socket.on('end', () => logger.info?.('tcp client half-closed:', JSON.stringify({
-      ...peer, deviceIdBcd: session.deviceIdBcd, pendingWrites: session.pending
-    })));
+    socket.on('end', () => {
+      logger.info?.('tcp client half-closed:', JSON.stringify({
+        ...peer, deviceIdBcd: session.deviceIdBcd, pendingWrites: session.pending
+      }));
+      if (ackEnabled) void session.chain.then(() => { if (!socket.destroyed) socket.end(); });
+    });
     socket.on('timeout', () => {
       logger.warn('tcp client timeout:', JSON.stringify({
         ...peer, deviceIdBcd: session.deviceIdBcd, timeoutMs: config.socketTimeoutMs,
@@ -214,6 +264,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
     })));
     socket.on('close', hadError => {
       session.closed = true;
+      if (aovx) counters.disconnects++;
       logger.info?.('tcp client closed:', JSON.stringify({
         ...peer, deviceIdBcd: session.deviceIdBcd, hadError,
         pendingWrites: session.pending, journalFailed: session.failed
@@ -271,7 +322,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
       ok &&= !stopping;
     }
     res.writeHead(ok ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-    res.end(JSON.stringify({ status: ok ? 'ok' : 'not_ready', service: 'trackium-gateway', mode: config.tcpProtocol === 'aovx' ? 'aovx-frame-capture-only' : 'raw-capture-only' }));
+    res.end(JSON.stringify({ status: ok ? 'ok' : 'not_ready', service: 'trackium-gateway', mode: aovx ? (ackEnabled ? 'aovx-frame-ack' : 'aovx-frame-capture-only') : 'raw-capture-only' }));
   });
   api.requestTimeout = 10000;
   api.headersTimeout = 5000;
@@ -327,6 +378,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
   function shutdown() {
     if (shutdownPromise) return shutdownPromise;
     stopping = true;
+    clearInterval(metricsTimer);
     shutdownPromise = (async () => {
       let timer;
       const timeout = new Promise((_, reject) => {
@@ -346,6 +398,7 @@ export function createGateway({ journal, config, logger = console, requestHandle
         });
         await Promise.all([closed, ...writes]);
         await journal.close();
+        if (aovx && config.tcpEnabled !== false) reportCounters();
       })();
       try { await Promise.race([drain, timeout]); } finally { clearTimeout(timer); }
     })();
@@ -482,12 +535,19 @@ export function createGateway({ journal, config, logger = console, requestHandle
 
   return {
     tcp, api, shutdown, queryAovxConfiguration, enableAovxGnss,
+    aovxReceiverMetrics: () => ({ ...counters }),
     async start() {
       if (startPromise || stopping) throw new Error('gateway cannot be started twice or after shutdown');
       startPromise = (async () => {
         await journal.initialize();
         if (stopping) return;
-        if (config.tcpEnabled !== false) await listen(tcp, config.tcpPort, 'tcp');
+        if (config.tcpEnabled !== false) {
+          await listen(tcp, config.tcpPort, 'tcp');
+          if (aovx && !stopping) {
+            metricsTimer = setInterval(reportCounters, 60000);
+            metricsTimer.unref();
+          }
+        }
         if (stopping) return;
         await listen(api, config.httpPort, 'http');
       })();
