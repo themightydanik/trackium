@@ -95,13 +95,12 @@ export function createRuntime(
         if (worker && config.simulatorEnabled) stopWorker = startWorker(simulator, logger);
         await checkpoint('background_workers_started');
       },
-      persistPacket: async (packet) => {
-        const stored = await persistPacket(packet, pool);
+      persistPacket: (packet) => persistPacket(packet, pool),
+      async afterPersist(packet, stored) {
         if (packet.aovx?.messageId === 0x0200) {
-          try { await aovxIngestion.processPacket(stored.id); }
+          try { return await aovxIngestion.processPacket(stored.id); }
           catch (error) { logger.error?.('AOVX telemetry processing deferred:', error.message); }
         }
-        return stored;
       },
       checkReady: () => pool.query('SELECT 1'),
       checkRoutingReady: routing?.checkReady,

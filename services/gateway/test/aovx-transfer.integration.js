@@ -17,7 +17,7 @@ import { administerDemo } from '../src/cargo/demo-admin.js';
 import { administerPilot } from '../src/cargo/pilot-admin.js';
 import { administerAovxTransfer } from '../src/aovx/transfer.js';
 import { provisionTenant } from '../src/telemetry/service.js';
-import { encodeAovxFrame } from '../src/aovx/frame.js';
+import { decodeAovxFrame, encodeAovxFrame } from '../src/aovx/frame.js';
 import { persistPacket } from '../src/journal.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -34,7 +34,7 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
     ['src/aovx/transfer-cli.js', command, '--file=' + file, ...args],
     { env: { ...process.env, DATABASE_URL: scoped.href } });
   const db = new pg.Pool({ connectionString: url, application_name: schema, options: '-c search_path=' + schema });
-  const runtime = createRuntime(db, { ...readConfig({ DATABASE_URL: url, TCP_PROTOCOL: 'aovx' }),
+  const runtime = createRuntime(db, { ...readConfig({ DATABASE_URL: url, TCP_PROTOCOL: 'aovx', AOVX_SERVER_ACK_ENABLED:'true' }),
     host: '127.0.0.1', httpPort: 0, tcpPort: 0 }, { worker: false, logger: { info(){}, error(){} } });
   t.after(async () => {
     await runtime.gateway.shutdown();
@@ -135,6 +135,7 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
     // Advance past AOVX's one-second granularity before emulating a new measurement.
     await delay(1200);
     const socket = connect(runtime.gateway.tcp.address().port, '127.0.0.1');
+    socket.resume();
     tcpClosed = once(socket, 'close');
     socket.end(frame(3, 0));
     queued = processStored(pending);
@@ -190,6 +191,22 @@ test('approved transfer is atomic under concurrent arrivals and rollback preserv
   assert.deepEqual(await snapshot(internal.tenant_id, tracker.id), originalHistory);
   const pilotHistory = await snapshot(pilot,dest);
   assert.equal(pilotHistory.length, 1);
+  const bufferedClient = connect(runtime.gateway.tcp.address().port,'127.0.0.1');
+  const replies = [];
+  bufferedClient.on('data',chunk=>replies.push(chunk));
+  const disconnected = once(bufferedClient,'close');
+  bufferedClient.end(frame(7,0,0x80000002));
+  await disconnected;
+  const ack = decodeAovxFrame(Buffer.concat(replies),{checksumPolicy:'require-xor-match'});
+  assert.equal(ack.messageId,0x8001);
+  assert.equal(ack.body.toString('hex'),'0007020000');
+  const {rows:[bufferedRow]} = await db.query(
+    'SELECT id,aovx_processing_state,aovx_processing_error FROM gateway_packets WHERE aovx_sequence_number=7');
+  assert.equal(bufferedRow.aovx_processing_state,'rejected');
+  assert.equal(bufferedRow.aovx_processing_error,'outside transfer custody window');
+  assert.equal((await db.query('SELECT 1 FROM telemetry_aovx_packet_events WHERE packet_id=$1',[bufferedRow.id])).rowCount,0);
+  assert.deepEqual(await snapshot(pilot,dest),pilotHistory);
+
 
   const reversal = { ...approvals(), identifier, source_tenant: pilot, source_device: dest,
     source_binding: result.destination_binding_id, destination_tenant: internal.tenant_id, reverse_of: plan.id };

@@ -32,7 +32,7 @@ export function readConfig(env = process.env) {
   ) {
     throw new Error('ENABLE_FIXTURE_ADAPTER must be true or false');
   }
-  for (const name of ['ENABLE_WEB_WORKSPACE', 'ENABLE_SERVER_SIMULATOR', 'ENABLE_NATIVE_CLIENTS', 'ENABLE_TCP_RECEIVER', 'ENABLE_LOCAL_NOTIFICATIONS', 'DEVICE_ACTIVATION_ENABLED', 'CORE_DEVICE_ACCESS_ENABLED'])
+  for (const name of ['ENABLE_WEB_WORKSPACE', 'ENABLE_SERVER_SIMULATOR', 'ENABLE_NATIVE_CLIENTS', 'AOVX_SERVER_ACK_ENABLED', 'ENABLE_TCP_RECEIVER', 'ENABLE_LOCAL_NOTIFICATIONS', 'DEVICE_ACTIVATION_ENABLED', 'CORE_DEVICE_ACCESS_ENABLED'])
     if (env[name] !== undefined && !['true', 'false'].includes(env[name]))
       throw new Error(name + ' must be true or false');
   const coreAndroidFingerprint = env.CORE_ANDROID_CERT_SHA256?.toUpperCase();
@@ -102,6 +102,9 @@ export function readConfig(env = process.env) {
   if (railwayAovxPilot &&
       (env.ENABLE_TCP_RECEIVER !== 'true' || tcpProtocol !== 'aovx'))
     throw new Error('Railway AOVX pilot requires an explicitly enabled AOVX TCP receiver');
+  const aovxServerAckEnabled = env.AOVX_SERVER_ACK_ENABLED === 'true';
+  if (aovxServerAckEnabled && (tcpProtocol !== 'aovx' || env.ENABLE_TCP_RECEIVER === 'false'))
+    throw new Error('AOVX_SERVER_ACK_ENABLED requires an AOVX TCP receiver');
   const aovxObservationsToken = env.AOVX_OBSERVATIONS_TOKEN || undefined;
   if (aovxObservationsToken !== undefined && (typeof aovxObservationsToken !== 'string' || aovxObservationsToken.length < 32 || aovxObservationsToken.length > 512 || !/^[A-Za-z0-9._~-]+$/.test(aovxObservationsToken))) throw new Error('AOVX_OBSERVATIONS_TOKEN must be 32..512 URL-safe characters');
   const tcpEnabled = env.ENABLE_TCP_RECEIVER !== 'false';
@@ -128,6 +131,7 @@ export function readConfig(env = process.env) {
     railwayHttps,
     railwayAovxPilot,
     tcpProtocol,
+    aovxServerAckEnabled,
     aovxObservationsToken,
     proofs: proofConfig(env),
     nativeEnabled: env.ENABLE_NATIVE_CLIENTS === 'true',
